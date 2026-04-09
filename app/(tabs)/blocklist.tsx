@@ -26,6 +26,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useUserStore } from '@/stores/useUserStore';
 import { useSubscriptionStore } from '@/stores/useSubscriptionStore';
 import { useAppBlocker, BLOCKABLE_APPS, BlockableApp } from '@/hooks/useAppBlocker';
@@ -75,8 +76,31 @@ export default function BlocklistScreen() {
   const [error, setError] = useState('');
 
   // ── Add a domain ────────────────────────────────────────────────────────────
+  // Free users are redirected to the paywall — we never silently add a site
+  // that won't actually be blocked. That would confuse them into thinking
+  // they're protected when they're not.
 
   const handleAdd = (domain?: string) => {
+    // Gate: free users cannot add blocking rules
+    if (!isPro) {
+      Alert.alert(
+        'Blocking is a paid feature',
+        'NoGoon Arcade is always free to play.\n\nUpgrade to start blocking sites and apps.',
+        [
+          {
+            text: 'See Plans',
+            onPress: () => router.push('/paywall'),
+          },
+          {
+            text: 'Stay in Arcade',
+            style: 'cancel',
+          },
+        ]
+      );
+      setInput('');
+      return;
+    }
+
     const raw = (domain ?? input).trim();
     if (!raw) return;
 
@@ -159,20 +183,37 @@ export default function BlocklistScreen() {
 
   const AppRow = useCallback(({ app }: { app: BlockableApp }) => {
     const isBlocked = blockedApps.includes(app.id);
+
+    // Free users: tapping any app toggle shows the paywall instead
+    const handleToggle = () => {
+      if (!isPro) {
+        Alert.alert(
+          'App blocking is a paid feature',
+          'NoGoon Arcade is always free to play.\n\nUpgrade to block apps like TikTok and Instagram.',
+          [
+            { text: 'See Plans', onPress: () => router.push('/paywall') },
+            { text: 'Stay in Arcade', style: 'cancel' },
+          ]
+        );
+        return;
+      }
+      toggleApp(app.id);
+    };
+
     return (
       <View style={styles.appRow}>
         <Text style={styles.appEmoji}>{app.emoji}</Text>
         <Text style={styles.appName}>{app.name}</Text>
         <Switch
           value={isBlocked}
-          onValueChange={() => toggleApp(app.id)}
+          onValueChange={handleToggle}
           trackColor={{ false: COLORS.border, true: COLORS.green + '55' }}
           thumbColor={isBlocked ? COLORS.green : COLORS.textMuted}
-          disabled={!serviceEnabled}
+          disabled={!serviceEnabled && isPro} // Only disable for enabled-service check on paid users
         />
       </View>
     );
-  }, [blockedApps, toggleApp, serviceEnabled]);
+  }, [blockedApps, toggleApp, serviceEnabled, isPro]);
 
   const CategoryHeader = ({ label }: { label: string }) => (
     <Text style={styles.categoryLabel}>{label}</Text>

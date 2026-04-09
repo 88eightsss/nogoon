@@ -33,18 +33,21 @@ import { Platform, NativeModules } from 'react-native';
 // ─── YOUR REVENUECAT API KEYS ─────────────────────────────────────────────────
 // ⚠️  Paste your keys here. Get them from: app.revenuecat.com → Settings → API Keys
 
-const REVENUECAT_IOS_KEY     = 'appl_PASTE_YOUR_IOS_KEY_HERE';
-const REVENUECAT_ANDROID_KEY = 'goog_PASTE_YOUR_ANDROID_KEY_HERE';
+const REVENUECAT_IOS_KEY     = 'appl_PASTE_YOUR_IOS_KEY_HERE';   // add when iOS is ready
+const REVENUECAT_ANDROID_KEY = 'test_cAEXmoziVycrJWMJaJDHdwPleDy'; // RevenueCat Android key
 
 // ─── Product IDs ──────────────────────────────────────────────────────────────
 // These must exactly match the Product IDs you create in App Store Connect
 // and Google Play Console.
 
 export const PRODUCT_IDS = {
-  PRO_MONTHLY:   'gate_pro_monthly',   // $2.88/month subscription
-  POINTS_500:    'gate_points_500',    // $0.99 → 500 points
-  POINTS_1500:   'gate_points_1500',   // $1.99 → 1,500 points
-  POINTS_5000:   'gate_points_5000',   // $4.99 → 5,000 points
+  PRO_MONTHLY:   'nogoon_pro_monthly',   // $4.22/month NoGoon Pro
+  PRO_YEARLY:    'nogoon_pro_yearly',    // $39.99/year NoGoon Pro
+  BASIC_MONTHLY: 'nogoon_basic_monthly', // $2.88/month NoGoon basic
+  PARTNER:       'nogoon_partner',       // $8/month Pro+Partner
+  POINTS_500:    'nogoon_points_500',    // $0.99 → 500 points
+  POINTS_1500:   'nogoon_points_1500',   // $1.99 → 1,500 points
+  POINTS_5000:   'nogoon_points_5000',   // $4.99 → 5,000 points
 } as const;
 
 // ─── Safe check for native module availability ────────────────────────────────
@@ -94,7 +97,7 @@ export async function checkProStatus(): Promise<boolean> {
   try {
     const info = await Purchases.getCustomerInfo();
     // entitlements.active contains any currently active subscriptions
-    return info.entitlements.active['gate_pro'] !== undefined;
+    return info.entitlements.active['nogoon_pro'] !== undefined;
   } catch {
     return false;
   }
@@ -125,7 +128,7 @@ export async function purchasePackage(pkg: any): Promise<boolean> {
   if (!Purchases) return false;
   try {
     const { customerInfo } = await Purchases.purchasePackage(pkg);
-    return customerInfo.entitlements.active['gate_pro'] !== undefined;
+    return customerInfo.entitlements.active['nogoon_pro'] !== undefined;
   } catch (e: any) {
     // userCancelled = user tapped "Cancel" — not an error, just do nothing
     if (e.userCancelled) return false;
@@ -141,7 +144,7 @@ export async function restorePurchases(): Promise<boolean> {
   if (!Purchases) return false;
   try {
     const info = await Purchases.restorePurchases();
-    return info.entitlements.active['gate_pro'] !== undefined;
+    return info.entitlements.active['nogoon_pro'] !== undefined;
   } catch {
     return false;
   }

@@ -31,6 +31,9 @@ import { PatternMemory } from '@/components/games/PatternMemory';
 import { TypingChallenge } from '@/components/games/TypingChallenge';
 import { AnimalFacts } from '@/components/games/AnimalFacts';
 import { FlappyGame } from '@/components/games/FlappyGame';
+import { BreathingGame } from '@/components/games/BreathingGame';
+import { ReactionGame } from '@/components/games/ReactionGame';
+import { OddOneOut } from '@/components/games/OddOneOut';
 import { PlaceholderGame } from '@/components/games/PlaceholderGame';
 import { Badge } from '@/components/ui/Badge';
 import { PACKAGE_TO_NAME } from '@/hooks/useAppBlocker';
@@ -42,13 +45,16 @@ import { TYPE } from '@/constants/Typography';
 
 // ─── Game catalogue builders ───────────────────────────────────────────────────
 //
-// FREE games are always shown. PRO games only appear after the user subscribes —
-// they're a surprise discovery, not advertised anywhere in the app.
+// STANDARD games — available to all paid subscribers ($2.88+/mo)
+// PRO games — only available to Pro subscribers ($4.22+/mo)
+//
+// Note: ALL games are playable for free in Arcade mode (no points earned).
+// Points are only earned here, in the intercept flow.
 //
 // isLive = true  → fully playable right now
 // isLive = false → "SOON" placeholder (not tappable)
 
-const FREE_GAMES = [
+const STANDARD_GAMES = [
   {
     id: 'stroop',
     name: 'Stroop Challenge',
@@ -68,45 +74,13 @@ const FREE_GAMES = [
     isPro: false,
   },
   {
-    id: 'orb',
-    name: 'Orb Catcher',
-    description: 'Tap the floating orbs before they vanish',
-    emoji: '⬡',
-    color: COLORS.green,
-    isLive: false,
-    isPro: false,
-  },
-  {
-    id: 'breathe',
-    name: 'Breathing Exercise',
-    description: 'Follow the circle — 4-7-8 technique',
-    emoji: '🌬️',
-    color: '#4d8bff',
-    isLive: false,
-    isPro: false,
-  },
-  {
-    id: 'math',
-    name: 'Quick Math',
-    description: 'Solve equations against the clock',
-    emoji: '⚡',
-    color: COLORS.warning,
-    isLive: false,
-    isPro: false,
-  },
-] as const;
-
-// These three games are only added to the list for Pro subscribers.
-// They are never mentioned anywhere else in the UI — it's a reward for upgrading.
-const PRO_GAMES = [
-  {
     id: 'typing',
     name: 'Typing Challenge',
     description: 'Type the phrase perfectly before time runs out',
     emoji: '⌨️',
     color: COLORS.green,
     isLive: true,
-    isPro: true,
+    isPro: false,
   },
   {
     id: 'animals',
@@ -115,8 +89,22 @@ const PRO_GAMES = [
     emoji: '🦦',
     color: COLORS.cyan,
     isLive: true,
-    isPro: true,
+    isPro: false,
   },
+  {
+    id: 'breathing',
+    name: 'Breathing Reset',
+    description: 'Follow the circle — box breathing technique',
+    emoji: '🌬️',
+    color: '#4d8bff',
+    isLive: true,
+    isPro: false,
+  },
+] as const;
+
+// Pro-only games — 3 additional games unlocked with a Pro subscription ($4.22+/mo)
+// They appear as a reward for upgrading, not advertised separately.
+const PRO_GAMES = [
   {
     id: 'flappy',
     name: 'Flappy NoGoon',
@@ -126,18 +114,36 @@ const PRO_GAMES = [
     isLive: true,
     isPro: true,
   },
+  {
+    id: 'reaction',
+    name: 'Reaction Speed',
+    description: 'Tap the target the instant it appears',
+    emoji: '⚡',
+    color: COLORS.green,
+    isLive: true,
+    isPro: true,
+  },
+  {
+    id: 'oddone',
+    name: 'Odd One Out',
+    description: 'Spot the different ad — learn their tricks',
+    emoji: '🕵️',
+    color: COLORS.warning,
+    isLive: true,
+    isPro: true,
+  },
 ] as const;
 
 // A union type across both catalogues so TypeScript knows all possible game IDs
-type FreeGame = (typeof FREE_GAMES)[number];
-type ProGame  = (typeof PRO_GAMES)[number];
-type AnyGame  = FreeGame | ProGame;
+type StandardGame = (typeof STANDARD_GAMES)[number];
+type ProGame      = (typeof PRO_GAMES)[number];
+type AnyGame      = StandardGame | ProGame;
 
-// Build the full list shown in the picker — Pro games appended only when subscribed
+// Build the intercept game list — Pro games appended only for Pro subscribers
 function buildGameOptions(isPro: boolean): AnyGame[] {
   return isPro
-    ? ([...FREE_GAMES, ...PRO_GAMES] as AnyGame[])
-    : ([...FREE_GAMES] as AnyGame[]);
+    ? ([...STANDARD_GAMES, ...PRO_GAMES] as AnyGame[])
+    : ([...STANDARD_GAMES] as AnyGame[]);
 }
 
 // ─── GameCard sub-component ────────────────────────────────────────────────────
@@ -293,11 +299,14 @@ export default function NoGoonScreen() {
   if (phase === 'playing' && selectedGame) {
     // ── Route to the correct game component ──────────────────────────────────
     // gameDuration is set in Profile → Settings (Pro: 30/60/90s, Free: always 30s)
-    if (selectedGame.id === 'stroop')  return <StroopChallenge onComplete={handleGameComplete} />;
-    if (selectedGame.id === 'memory')  return <PatternMemory   onComplete={handleGameComplete} />;
-    if (selectedGame.id === 'typing')  return <TypingChallenge onComplete={handleGameComplete} duration={gameDuration} />;
-    if (selectedGame.id === 'animals') return <AnimalFacts     onComplete={handleGameComplete} />;
-    if (selectedGame.id === 'flappy')  return <FlappyGame      onComplete={handleGameComplete} />;
+    if (selectedGame.id === 'stroop')   return <StroopChallenge onComplete={handleGameComplete} />;
+    if (selectedGame.id === 'memory')   return <PatternMemory   onComplete={handleGameComplete} />;
+    if (selectedGame.id === 'typing')   return <TypingChallenge onComplete={handleGameComplete} duration={gameDuration} />;
+    if (selectedGame.id === 'animals')  return <AnimalFacts     onComplete={handleGameComplete} />;
+    if (selectedGame.id === 'breathing')return <BreathingGame   onComplete={handleGameComplete} />;
+    if (selectedGame.id === 'flappy')   return <FlappyGame      onComplete={handleGameComplete} />;
+    if (selectedGame.id === 'reaction') return <ReactionGame    onComplete={handleGameComplete} />;
+    if (selectedGame.id === 'oddone')   return <OddOneOut       onComplete={handleGameComplete} />;
     // Fallback for any "SOON" games that somehow get triggered
     return (
       <PlaceholderGame
