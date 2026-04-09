@@ -77,7 +77,7 @@ export const PACKAGE_TO_NAME: Record<string, string> = Object.fromEntries(
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useAppBlocker() {
-  const { blockedApps, setBlockedApps } = useUserStore();
+  const { blockedApps, setBlockedApps, blocklist: websiteBlocklist } = useUserStore();
   const [serviceEnabled, setServiceEnabled] = useState(false);
   const [checking, setChecking]             = useState(true);
 
@@ -114,6 +114,16 @@ export function useAppBlocker() {
     if (!hasNativeModule) return;
     AppBlocker.setBlockedApps(blockedApps).catch(console.warn);
   }, [blockedApps]);
+
+  // ── Sync blocked websites to native layer ──────────────────────────────────
+  // Any time the website blocklist changes in JS, push those domains to
+  // SharedPreferences so the Accessibility Service can check browser URLs
+  // against them in real time. Same pattern as app blocking above.
+
+  useEffect(() => {
+    if (!hasNativeModule) return;
+    AppBlocker.setBlockedDomains(websiteBlocklist).catch(console.warn);
+  }, [websiteBlocklist]);
 
   // ── Actions ────────────────────────────────────────────────────────────────
 

@@ -100,13 +100,16 @@ function withAppBlockerFiles(config) {
       const xmlDir = path.join(platformRoot, 'app', 'src', 'main', 'res', 'xml');
       fs.mkdirSync(xmlDir, { recursive: true });
 
+      // typeWindowStateChanged  — fires when user switches apps (needed for app blocking)
+      // typeWindowContentChanged — fires when any text on screen changes (needed for URL detection)
+      // canRetrieveWindowContent="true" — allows us to read the browser address bar text
       const xmlContent = `<?xml version="1.0" encoding="utf-8"?>
 <accessibility-service
     xmlns:android="http://schemas.android.com/apk/res/android"
-    android:accessibilityEventTypes="typeWindowStateChanged"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged"
     android:accessibilityFeedbackType="feedbackGeneric"
     android:accessibilityFlags="flagDefault"
-    android:canRetrieveWindowContent="false"
+    android:canRetrieveWindowContent="true"
     android:notificationTimeout="100"
     android:settingsActivity="${packageName}.MainActivity" />
 `;

@@ -20,11 +20,12 @@ class AppBlockerModule(reactContext: ReactApplicationContext) :
     ReactContextBaseJavaModule(reactContext) {
 
     companion object {
-        const val NAME          = "AppBlocker"
+        const val NAME               = "AppBlocker"
         // Must match NoGoonAccessibilityService.kt exactly
-        const val PREFS_NAME    = "NoGoonBlocker"
-        const val KEY_BLOCKLIST = "blockedPackages"
-        const val KEY_ENABLED   = "serviceActive"
+        const val PREFS_NAME         = "NoGoonBlocker"
+        const val KEY_BLOCKLIST      = "blockedPackages"   // app package names
+        const val KEY_DOMAIN_BLOCKLIST = "blockedDomains" // website domains
+        const val KEY_ENABLED        = "serviceActive"
     }
 
     override fun getName(): String = NAME
@@ -47,6 +48,32 @@ class AppBlockerModule(reactContext: ReactApplicationContext) :
             promise.resolve(true)
         } catch (e: Exception) {
             promise.reject("SET_BLOCKED_APPS_ERROR", e.message ?: "Unknown error", e)
+        }
+    }
+
+    // ── setBlockedDomains ──────────────────────────────────────────────────────
+    // Called from JavaScript whenever the user's website blocklist changes.
+    // Saves the list of domains to SharedPreferences so the Accessibility Service
+    // can read them when it detects a browser URL change.
+    // Example: ["tiktok.com", "instagram.com", "reddit.com"]
+
+    @ReactMethod
+    fun setBlockedDomains(domains: ReadableArray, promise: Promise) {
+        try {
+            val domainSet = mutableSetOf<String>()
+            for (i in 0 until domains.size()) {
+                val domain = domains.getString(i)
+                if (!domain.isNullOrBlank()) domainSet.add(domain.trim().lowercase())
+            }
+
+            val prefs = reactApplicationContext.getSharedPreferences(PREFS_NAME, 0)
+            prefs.edit()
+                .putStringSet(KEY_DOMAIN_BLOCKLIST, domainSet)
+                .apply()
+
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("SET_BLOCKED_DOMAINS_ERROR", e.message ?: "Unknown error", e)
         }
     }
 
