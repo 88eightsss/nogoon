@@ -9,6 +9,9 @@
 package com.nogoon.app
 
 import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.os.PowerManager
 import android.provider.Settings
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
@@ -101,6 +104,57 @@ class AppBlockerModule(reactContext: ReactApplicationContext) :
             promise.resolve(true)
         } catch (e: Exception) {
             promise.reject("OPEN_SETTINGS_ERROR", e.message ?: "Unknown error", e)
+        }
+    }
+
+    // ── isBatteryOptimized ────────────────────────────────────────────────────
+    // Returns true if Android's battery optimization is still active for NoGoon.
+    // When battery optimization is on, Android can kill the Accessibility Service
+    // in the background — which breaks blocking. We tell the user to disable it.
+
+    @ReactMethod
+    fun isBatteryOptimized(promise: Promise) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val pm = reactApplicationContext.getSystemService(android.content.Context.POWER_SERVICE) as PowerManager
+                val packageName = reactApplicationContext.packageName
+                // isIgnoringBatteryOptimizations = true means we are EXEMPTED (good)
+                // We return true if battery optimization is STILL ON (bad for us)
+                promise.resolve(!pm.isIgnoringBatteryOptimizations(packageName))
+            } else {
+                // Below Android 6 — battery optimization doesn't apply
+                promise.resolve(false)
+            }
+        } catch (e: Exception) {
+            promise.resolve(false)
+        }
+    }
+
+    // ── openBatteryOptimizationSettings ──────────────────────────────────────
+    // Opens the system dialog that lets the user exempt NoGoon from battery
+    // optimization. This is required for the Accessibility Service to run
+    // reliably in the background without being killed by Android.
+
+    @ReactMethod
+    fun openBatteryOptimizationSettings(promise: Promise) {
+        try {
+            val packageName = reactApplicationContext.packageName
+            val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                // Direct deep link to this app's battery settings — one tap to fix
+                Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                    data = Uri.parse("package:$packageName")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+            } else {
+                // Fallback: general battery settings on older Android
+                Intent(Settings.ACTION_BATTERY_SAVER_SETTINGS).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+            }
+            reactApplicationContext.startActivity(intent)
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("OPEN_BATTERY_SETTINGS_ERROR", e.message ?: "Unknown error", e)
         }
     }
 }

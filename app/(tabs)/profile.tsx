@@ -69,7 +69,7 @@ const ACHIEVEMENTS = [
 export default function ProfileScreen() {
   const store    = useUserStore();
   const { signOut } = useAuthStore();
-  const { isPro }   = useSubscriptionStore();
+  const { isPro, devModeEnabled, toggleDevMode } = useSubscriptionStore();
 
   const {
     name, points, xp, level, streak, longestStreak,
@@ -483,6 +483,35 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
 
+        {/* ── Developer Mode card ───────────────────────────────────────────────
+            Hidden testing panel. Toggle this ON to simulate a Pro subscription
+            so you can test every feature without paying.
+            Always turn OFF before sharing the app with real users. */}
+        <View style={styles.devCard}>
+          <View style={styles.devHeader}>
+            <Text style={styles.devTitle}>🛠️ Developer Mode</Text>
+            <Switch
+              value={devModeEnabled}
+              onValueChange={toggleDevMode}
+              trackColor={{ false: COLORS.border, true: COLORS.warning + '77' }}
+              thumbColor={devModeEnabled ? COLORS.warning : COLORS.textMuted}
+            />
+          </View>
+          <Text style={styles.devDesc}>
+            {devModeEnabled
+              ? '✅ Pro features UNLOCKED — all gates bypassed for testing.'
+              : 'Turn on to simulate a Pro subscription and test all features.'}
+          </Text>
+          {devModeEnabled && (
+            <View style={styles.devActiveRow}>
+              <Ionicons name="warning-outline" size={14} color={COLORS.warning} />
+              <Text style={styles.devWarning}>
+                Turn OFF before publishing to real users
+              </Text>
+            </View>
+          )}
+        </View>
+
         {/* Ad banner — visible to free users at the bottom of their profile */}
         <AdBanner size="banner" style={{ marginTop: SPACING.md }} />
 
@@ -512,6 +541,44 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.lg,
     gap: SPACING.md,
+  },
+
+  // ── Developer mode card ────────────────────────────────────────────────────
+  devCard: {
+    marginHorizontal: SPACING.lg,
+    marginTop: SPACING.md,
+    backgroundColor: COLORS.warning + '10',
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.warning + '30',
+    padding: SPACING.lg,
+    gap: SPACING.sm,
+  },
+  devHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  devTitle: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 15,
+    color: COLORS.warning,
+  },
+  devDesc: {
+    fontFamily: FONTS.body,
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    lineHeight: 20,
+  },
+  devActiveRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+  },
+  devWarning: {
+    fontFamily: FONTS.mono,
+    fontSize: 11,
+    color: COLORS.warning,
   },
 
   // ── Avatar ──

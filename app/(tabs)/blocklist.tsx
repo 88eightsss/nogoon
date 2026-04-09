@@ -69,8 +69,18 @@ export default function BlocklistScreen() {
     blockedApps,
     toggleApp,
     openSettings,
+    checkBatteryOptimized,
+    openBatterySettings,
     hasNativeModule,
   } = useAppBlocker();
+
+  // Check if Android battery optimization is killing our background service
+  const [batteryOptimized, setBatteryOptimized] = useState(false);
+
+  // Run the battery check once on mount (only meaningful on real device builds)
+  useState(() => {
+    checkBatteryOptimized().then(setBatteryOptimized);
+  });
 
   const [input, setInput] = useState('');
   const [error, setError] = useState('');
@@ -378,6 +388,23 @@ export default function BlocklistScreen() {
             </View>
           )}
 
+          {/* Battery optimization warning — shown when service is enabled but
+              Android might kill it in the background. Tapping opens the one-tap fix. */}
+          {serviceEnabled && batteryOptimized && (
+            <Pressable style={styles.batteryBanner} onPress={openBatterySettings}>
+              <View style={styles.permissionLeft}>
+                <Ionicons name="battery-half-outline" size={20} color={COLORS.warning} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.permissionTitle}>Battery Optimization On</Text>
+                  <Text style={styles.permissionBody}>
+                    Android may stop NoGoon in the background. Tap to disable battery optimization and keep blocking active.
+                  </Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+            </Pressable>
+          )}
+
           {!hasNativeModule && (
             <View style={styles.expoGoBanner}>
               <Text style={styles.expoGoText}>
@@ -621,6 +648,17 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: COLORS.warning + '44',
+    padding: SPACING.md,
+    gap: SPACING.sm,
+    marginBottom: SPACING.sm,
+  },
+  batteryBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.warning + '10',
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.warning + '33',
     padding: SPACING.md,
     gap: SPACING.sm,
     marginBottom: SPACING.sm,

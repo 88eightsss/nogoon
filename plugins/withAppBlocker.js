@@ -23,6 +23,21 @@ function withAppBlockerManifest(config) {
     const application = manifest.application?.[0];
     if (!application) return cfg;
 
+    // ── Add battery optimization permission ────────────────────────────────
+    // This allows us to request that Android stop killing our Accessibility
+    // Service in the background. Without this, blocking stops working when
+    // the phone sits idle for a while.
+    if (!manifest['uses-permission']) manifest['uses-permission'] = [];
+    const batteryPerm = 'android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS';
+    const alreadyHasPerm = manifest['uses-permission'].some(
+      (p) => p.$?.['android:name'] === batteryPerm
+    );
+    if (!alreadyHasPerm) {
+      manifest['uses-permission'].push({
+        $: { 'android:name': batteryPerm },
+      });
+    }
+
     if (!application.service) application.service = [];
 
     const serviceName  = '.NoGoonAccessibilityService';

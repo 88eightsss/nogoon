@@ -23,7 +23,7 @@ import {
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface SubscriptionState {
-  // Is the user subscribed to GATE Pro?
+  // Is the user subscribed to NoGoon Pro?
   isPro: boolean;
 
   // True while we're checking subscription status with RevenueCat
@@ -32,6 +32,13 @@ interface SubscriptionState {
   // The available subscription + point pack products from the App Store
   // (these are real objects from RevenueCat with localized prices)
   offerings: any[];
+
+  // ── Developer / testing override ──────────────────────────────────────────
+  // Forces isPro = true regardless of RevenueCat status.
+  // ONLY for testing during development — lets you test Pro features without
+  // a real subscription. Toggle in Profile → Developer Mode.
+  devModeEnabled: boolean;
+  toggleDevMode: () => void;
 
   // ── Actions ──
   // Initialize: check subscription status on app startup
@@ -50,9 +57,26 @@ interface SubscriptionState {
 // ─── Store ────────────────────────────────────────────────────────────────────
 
 export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
-  isPro:     false,
-  loading:   true,
-  offerings: [],
+  isPro:          false,
+  loading:        true,
+  offerings:      [],
+  devModeEnabled: false,
+
+  // ── toggleDevMode ─────────────────────────────────────────────────────────
+  // Flips the dev override on/off. When on, isPro is forced true everywhere.
+  // This overrides whatever RevenueCat returns — purely for local testing.
+
+  toggleDevMode: () => {
+    const next = !get().devModeEnabled;
+    set({ devModeEnabled: next });
+    // If turning dev mode on, immediately set isPro true.
+    // If turning off, re-fetch real status from RevenueCat.
+    if (next) {
+      set({ isPro: true });
+    } else {
+      get().refresh();
+    }
+  },
 
   // ── initialize ────────────────────────────────────────────────────────────
   // Called from _layout.tsx after the user logs in.
@@ -71,10 +95,13 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
         getOfferings(),
       ]);
 
-      set({ isPro: proStatus, offerings, loading: false });
+      // Dev mode override: ignore RevenueCat result, stay Pro
+      const finalStatus = get().devModeEnabled ? true : proStatus;
+      set({ isPro: finalStatus, offerings, loading: false });
     } catch {
       // If this fails (no internet, RevenueCat key not set), just default to free
-      set({ isPro: false, offerings: [], loading: false });
+      // But still respect dev mode if it's on
+      set({ isPro: get().devModeEnabled, offerings: [], loading: false });
     }
   },
 
@@ -83,6 +110,8 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
   // Call this after a purchase completes or after restoring.
 
   refresh: async () => {
+    // If dev mode is on, don't overwrite isPro with the real RevenueCat value
+    if (get().devModeEnabled) return;
     try {
       const proStatus = await checkProStatus();
       set({ isPro: proStatus });

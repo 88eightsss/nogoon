@@ -146,13 +146,37 @@ export function useAppBlocker() {
     }
   }, []);
 
+  // ── Battery optimization helpers ───────────────────────────────────────────
+  // Android can kill the Accessibility Service in the background if battery
+  // optimization is active. These functions let us detect and fix that.
+
+  const checkBatteryOptimized = useCallback(async (): Promise<boolean> => {
+    if (!hasNativeModule) return false;
+    try {
+      return await AppBlocker.isBatteryOptimized();
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const openBatterySettings = useCallback(async () => {
+    if (!hasNativeModule) return;
+    try {
+      await AppBlocker.openBatteryOptimizationSettings();
+    } catch (e) {
+      console.warn('Could not open battery settings:', e);
+    }
+  }, []);
+
   return {
-    serviceEnabled,   // boolean — true if user has granted permission
-    checking,         // boolean — true while first checking status
-    blockedApps,      // string[] — list of blocked package names
-    toggleApp,        // (packageName: string) => void
-    openSettings,     // () => void — opens Android Settings
+    serviceEnabled,        // boolean — true if user has granted permission
+    checking,              // boolean — true while first checking status
+    blockedApps,           // string[] — list of blocked package names
+    toggleApp,             // (packageName: string) => void
+    openSettings,          // () => void — opens Accessibility Settings
+    checkBatteryOptimized, // () => Promise<boolean> — true if optimization is ON (bad)
+    openBatterySettings,   // () => void — opens battery optimization settings
     checkServiceStatus,
-    hasNativeModule,  // boolean — false in Expo Go, true in built app
+    hasNativeModule,       // boolean — false in Expo Go, true in built app
   };
 }
