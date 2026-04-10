@@ -382,9 +382,22 @@ export default function BlocklistScreen() {
           )}
 
           {!checking && serviceEnabled && (
-            <View style={styles.enabledBadge}>
-              <Ionicons name="checkmark-circle" size={16} color={COLORS.green} />
-              <Text style={styles.enabledText}>App blocking is active</Text>
+            <View style={styles.enabledRow}>
+              <View style={styles.enabledBadge}>
+                <Ionicons name="checkmark-circle" size={16} color={COLORS.green} />
+                <Text style={styles.enabledText}>App blocking is active</Text>
+              </View>
+              {/* Test button — lets the user verify the intercept actually fires */}
+              <Pressable
+                style={styles.testButton}
+                onPress={() => router.push({
+                  pathname: '/gate',
+                  params: { domain: 'instagram.com', confidence: '100', source: 'test' },
+                })}
+              >
+                <Ionicons name="play-circle-outline" size={14} color={COLORS.purple} />
+                <Text style={styles.testButtonText}>Test it</Text>
+              </Pressable>
             </View>
           )}
 
@@ -681,16 +694,37 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     lineHeight: 18,
   },
+  enabledRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: SPACING.sm,
+  },
   enabledBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.xs,
-    marginBottom: SPACING.sm,
   },
   enabledText: {
     fontFamily: FONTS.bodyMedium,
     fontSize: 13,
     color: COLORS.green,
+  },
+  testButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: COLORS.purple + '15',
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: COLORS.purple + '44',
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 4,
+  },
+  testButtonText: {
+    fontFamily: FONTS.bodyMedium,
+    fontSize: 12,
+    color: COLORS.purple,
   },
   expoGoBanner: {
     backgroundColor: COLORS.surface,

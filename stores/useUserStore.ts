@@ -244,7 +244,7 @@ const DEFAULT_STATE = {
   dailyChallengeCompleted: false,
   blocklist: [] as string[],
   blockedApps: [] as string[],
-  gameMode: 'choose' as 'random' | 'choose',
+  gameMode: 'random' as 'random' | 'choose', // Default: skip picker, jump straight into a game
   // BRICKED
   isBricked: false,
   brickedEnabledAt: null as number | null,
