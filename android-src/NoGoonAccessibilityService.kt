@@ -73,7 +73,13 @@ class NoGoonAccessibilityService : AccessibilityService() {
         event ?: return
 
         val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-        if (!prefs.getBoolean(KEY_ENABLED, false)) return
+
+        // Check if either blocklist has any items — if both are empty, nothing to block.
+        // We deliberately check the lists themselves (not the KEY_ENABLED flag) so that
+        // website blocking works correctly even if the app blocklist is empty, and vice versa.
+        val hasBlockedApps    = prefs.getStringSet(KEY_BLOCKLIST, emptySet())?.isNotEmpty() ?: false
+        val hasBlockedDomains = prefs.getStringSet(KEY_DOMAIN_BLOCKLIST, emptySet())?.isNotEmpty() ?: false
+        if (!hasBlockedApps && !hasBlockedDomains) return
 
         when (event.eventType) {
             // App switch — check package name against blocked apps

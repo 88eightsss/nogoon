@@ -19,6 +19,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Platform, NativeModules } from 'react-native';
+import * as IntentLauncher from 'expo-intent-launcher';
 import { useUserStore } from '@/stores/useUserStore';
 
 // The native module registered by AppBlockerPackage.kt
@@ -136,15 +137,29 @@ export function useAppBlocker() {
     setBlockedApps(updated);
   }, [blockedApps, setBlockedApps]);
 
-  // Open Android's Accessibility Settings so user can enable the service
+  // Open Android's Accessibility Settings so user can enable the service.
+  // Uses the native module first (most reliable), falls back to expo-intent-launcher
+  // (which works even if the custom module isn't registered). This way the settings
+  // button always works no matter what.
   const openSettings = useCallback(async () => {
-    if (!hasNativeModule) return;
-    try {
-      await AppBlocker.openAccessibilitySettings();
-    } catch (e) {
-      console.warn('Could not open accessibility settings:', e);
+    if (hasNativeModule) {
+      try {
+        await AppBlocker.openAccessibilitySettings();
+        return;
+      } catch (e) {
+        console.warn('Native openAccessibilitySettings failed, trying fallback:', e);
+      }
     }
-  }, []);
+    // Fallback: expo-intent-launcher can open Android system settings directly
+    // without needing our custom native module.
+    try {
+      await IntentLauncher.startActivityAsync(
+        IntentLauncher.ActivityAction.ACCESSIBILITY_SETTINGS
+      );
+    } catch (e) {
+      console.warn('Could not open accessibility settings via fallback:', e);
+    }
+  }, [hasNativeModule]);
 
   // ── Battery optimization helpers ───────────────────────────────────────────
   // Android can kill the Accessibility Service in the background if battery
@@ -160,13 +175,23 @@ export function useAppBlocker() {
   }, []);
 
   const openBatterySettings = useCallback(async () => {
-    if (!hasNativeModule) return;
-    try {
-      await AppBlocker.openBatteryOptimizationSettings();
-    } catch (e) {
-      console.warn('Could not open battery settings:', e);
+    if (hasNativeModule) {
+      try {
+        await AppBlocker.openBatteryOptimizationSettings();
+        return;
+      } catch (e) {
+        console.warn('Native openBatterySettings failed, trying fallback:', e);
+      }
     }
-  }, []);
+    // Fallback: open general battery settings via expo-intent-launcher
+    try {
+      await IntentLauncher.startActivityAsync(
+        IntentLauncher.ActivityAction.IGNORE_BATTERY_OPTIMIZATION_SETTINGS
+      );
+    } catch (e) {
+      console.warn('Could not open battery settings via fallback:', e);
+    }
+  }, [hasNativeModule]);
 
   return {
     serviceEnabled,        // boolean — true if user has granted permission

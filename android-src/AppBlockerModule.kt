@@ -70,8 +70,16 @@ class AppBlockerModule(reactContext: ReactApplicationContext) :
             }
 
             val prefs = reactApplicationContext.getSharedPreferences(PREFS_NAME, 0)
+
+            // Also re-read the current app blocklist so we can correctly decide
+            // whether the service should be active overall. The service is active
+            // whenever EITHER list (apps OR domains) has items in it.
+            val currentApps = prefs.getStringSet(KEY_BLOCKLIST, emptySet()) ?: emptySet()
+            val serviceActive = domainSet.isNotEmpty() || currentApps.isNotEmpty()
+
             prefs.edit()
                 .putStringSet(KEY_DOMAIN_BLOCKLIST, domainSet)
+                .putBoolean(KEY_ENABLED, serviceActive)
                 .apply()
 
             promise.resolve(true)
