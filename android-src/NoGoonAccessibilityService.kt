@@ -151,10 +151,15 @@ class NoGoonAccessibilityService : AccessibilityService() {
 
     private fun launchNoGoon(target: String, source: String) {
         try {
+            // Deep link to the gate screen — the route is /gate (app/gate.tsx in expo-router).
+            // The scheme is "nogoon" as declared in app.json.
+            // Format: nogoon://gate?domain=tiktok.com&confidence=95&source=app
             val uri = Uri.parse(
-                "nogoon://nogoon?domain=${Uri.encode(target)}&confidence=95&source=$source"
+                "nogoon://gate?domain=${Uri.encode(target)}&confidence=95&source=$source"
             )
             val intent = Intent(Intent.ACTION_VIEW, uri).apply {
+                // FLAG_ACTIVITY_NEW_TASK   — required to start an activity from a service/background
+                // FLAG_ACTIVITY_CLEAR_TOP  — if NoGoon is already open, bring it to front cleanly
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             }
             applicationContext.startActivity(intent)
