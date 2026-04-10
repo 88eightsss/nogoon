@@ -476,20 +476,20 @@ export default function ProfileScreen() {
             </>
           ) : null}
 
-          {/* ── Sign out ── */}
-          <Pressable style={styles.settingsRow} onPress={handleSignOut}>
-            <Ionicons name="log-out-outline" size={20} color={COLORS.danger} />
-            <Text style={[styles.settingsRowText, { color: COLORS.danger }]}>Sign Out</Text>
-          </Pressable>
-        </View>
-
-        {/* ── Developer Mode card ───────────────────────────────────────────────
-            Hidden testing panel. Toggle this ON to simulate a Pro subscription
-            so you can test every feature without paying.
-            Always turn OFF before sharing the app with real users. */}
-        <View style={styles.devCard}>
-          <View style={styles.devHeader}>
-            <Text style={styles.devTitle}>🛠️ Developer Mode</Text>
+          {/* ── Developer Mode toggle — inside settings card so it's always visible ── */}
+          <View style={styles.settingsDivider} />
+          <View style={styles.settingsRow}>
+            <Ionicons name="construct-outline" size={20} color={COLORS.warning} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.settingsRowText, { color: COLORS.warning }]}>
+                🛠️ Dev Mode {devModeEnabled ? '— ON (Pro unlocked)' : '— OFF'}
+              </Text>
+              <Text style={styles.settingsRowSub}>
+                {devModeEnabled
+                  ? 'All Pro features active for testing'
+                  : 'Simulate Pro subscription for testing'}
+              </Text>
+            </View>
             <Switch
               value={devModeEnabled}
               onValueChange={toggleDevMode}
@@ -497,19 +497,13 @@ export default function ProfileScreen() {
               thumbColor={devModeEnabled ? COLORS.warning : COLORS.textMuted}
             />
           </View>
-          <Text style={styles.devDesc}>
-            {devModeEnabled
-              ? '✅ Pro features UNLOCKED — all gates bypassed for testing.'
-              : 'Turn on to simulate a Pro subscription and test all features.'}
-          </Text>
-          {devModeEnabled && (
-            <View style={styles.devActiveRow}>
-              <Ionicons name="warning-outline" size={14} color={COLORS.warning} />
-              <Text style={styles.devWarning}>
-                Turn OFF before publishing to real users
-              </Text>
-            </View>
-          )}
+          <View style={styles.settingsDivider} />
+
+          {/* ── Sign out ── */}
+          <Pressable style={styles.settingsRow} onPress={handleSignOut}>
+            <Ionicons name="log-out-outline" size={20} color={COLORS.danger} />
+            <Text style={[styles.settingsRowText, { color: COLORS.danger }]}>Sign Out</Text>
+          </Pressable>
         </View>
 
         {/* Ad banner — visible to free users at the bottom of their profile */}
