@@ -9,7 +9,7 @@
 // After completing, completeOnboarding() is called on the store,
 // which sets hasOnboarded = true so this screen never shows again.
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Animated,
+  AppState,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -61,7 +62,18 @@ const SLIDES = [
 export default function OnboardingScreen() {
   const { setName, completeOnboarding, addSite } = useUserStore();
   const { user } = useAuthStore();
-  const { openSettings } = useAppBlocker();
+  const { openSettings, serviceEnabled, checkServiceStatus } = useAppBlocker();
+
+  // ── Poll for accessibility service status ──────────────────────────────────
+  // When the user taps "Enable" they're sent to Android Settings. When they
+  // come back to the app we want the checkmark to appear automatically.
+  // We poll every 1.5s AND listen to AppState so we check immediately on return.
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') checkServiceStatus();
+    });
+    return () => subscription.remove();
+  }, [checkServiceStatus]);
 
   const [step, setStep]           = useState(0);    // 0–2 = slides, 3 = name input
   const [name, setNameLocal]      = useState('');
@@ -201,10 +213,34 @@ export default function OnboardingScreen() {
                   </View>
                 </View>
 
-                <Pressable style={styles.setupEnableButton} onPress={openSettings}>
-                  <Text style={styles.setupEnableButtonText}>Enable</Text>
-                </Pressable>
+                {/* Turns into a checkmark automatically when permission is granted */}
+                {serviceEnabled ? (
+                  <Ionicons name="checkmark-circle" size={28} color={COLORS.green} />
+                ) : (
+                  <Pressable style={styles.setupEnableButton} onPress={openSettings}>
+                    <Text style={styles.setupEnableButtonText}>Enable</Text>
+                  </Pressable>
+                )}
               </View>
+
+              {/* Step-by-step instructions — only shown before permission is granted */}
+              {!serviceEnabled && (
+                <View style={styles.accessibilitySteps}>
+                  <Text style={styles.accessibilityStepsTitle}>How to enable:</Text>
+                  {[
+                    'Tap "Enable" above',
+                    'Tap "Installed apps" or scroll to find NoGoon',
+                    'Tap NoGoon → toggle it ON',
+                    'Tap "Allow" on the confirmation dialog',
+                    'Come back here — the checkmark will appear automatically',
+                  ].map((step, i) => (
+                    <View key={i} style={styles.accessibilityStep}>
+                      <Text style={styles.accessibilityStepNum}>{i + 1}</Text>
+                      <Text style={styles.accessibilityStepText}>{step}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
 
             </View>
 
@@ -609,5 +645,43 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.body,
     fontSize: 14,
     color: COLORS.textMuted,
+  },
+
+  // ── Accessibility step-by-step instructions ──
+  // Shown inside the setup card below the Enable row, only before permission granted
+  accessibilitySteps: {
+    marginHorizontal: SPACING.lg,
+    marginBottom: SPACING.lg,
+    backgroundColor: COLORS.background,
+    borderRadius: RADIUS.sm,
+    padding: SPACING.md,
+    gap: SPACING.xs,
+  },
+  accessibilityStepsTitle: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 12,
+    color: COLORS.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: SPACING.xs,
+  },
+  accessibilityStep: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: SPACING.sm,
+  },
+  accessibilityStepNum: {
+    fontFamily: FONTS.mono,
+    fontSize: 12,
+    color: COLORS.purple,
+    width: 16,
+    marginTop: 1,
+  },
+  accessibilityStepText: {
+    fontFamily: FONTS.body,
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    flex: 1,
+    lineHeight: 20,
   },
 });

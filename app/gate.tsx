@@ -286,11 +286,13 @@ export default function NoGoonScreen() {
       params: {
         pointsEarned: String(score),
         gameName: selectedGame?.name ?? 'Mini-Game',
+        // Pass the blocked target so post-game can show "Access instagram.com for 10 min"
+        domain: displayDomain,
         // Pass whether BRICKED is on so post-game can hide the unlock button
         isBricked: isBricked ? '1' : '0',
       },
     });
-  }, [selectedGame, isBricked]);
+  }, [selectedGame, isBricked, displayDomain]);
 
   // ══════════════════════════════════════════════════════════════════════════
   //  RENDER: Playing

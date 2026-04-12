@@ -23,6 +23,7 @@ import {
   Switch,
   KeyboardAvoidingView,
   Platform,
+  NativeModules,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -58,6 +59,32 @@ const SUGGESTION_POOL = [
   'twitch.tv',
 ] as const;
 
+// ─── OEM Battery Fix Instructions ─────────────────────────────────────────────
+// Some phone makers (Samsung, Xiaomi, OnePlus) have extra battery management on
+// top of Android's standard optimization. Even after disabling standard battery
+// optimization, these manufacturer layers can still kill the accessibility service.
+// We detect the manufacturer and show the specific steps needed for that device.
+
+function getOEMBatteryInstructions(): string | null {
+  const brand = (Platform.constants as any)?.Brand?.toLowerCase() ?? '';
+  const manufacturer = (Platform.constants as any)?.Manufacturer?.toLowerCase() ?? '';
+  const combined = brand + manufacturer;
+
+  if (combined.includes('samsung')) {
+    return 'Samsung extra step: Settings → Device Care → Battery → Background usage limits → Never sleeping apps → add NoGoon';
+  }
+  if (combined.includes('xiaomi') || combined.includes('miui') || combined.includes('redmi')) {
+    return 'Xiaomi extra step: Settings → Apps → Manage apps → NoGoon → Battery saver → No restrictions';
+  }
+  if (combined.includes('oneplus') || combined.includes('oppo')) {
+    return 'OnePlus extra step: Settings → Battery → Battery optimization → All apps → NoGoon → Don\'t optimize';
+  }
+  if (combined.includes('huawei') || combined.includes('honor')) {
+    return 'Huawei extra step: Phone Manager → App launch → NoGoon → Manage manually → enable all three toggles';
+  }
+  return null;
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function BlocklistScreen() {
@@ -84,6 +111,9 @@ export default function BlocklistScreen() {
 
   const [input, setInput] = useState('');
   const [error, setError] = useState('');
+
+  // Detect OEM-specific battery instructions once on mount
+  const oemBatteryNote = getOEMBatteryInstructions();
 
   // ── Add a domain ────────────────────────────────────────────────────────────
   // Free users are redirected to the paywall — we never silently add a site
@@ -418,6 +448,15 @@ export default function BlocklistScreen() {
             </Pressable>
           )}
 
+          {/* OEM-specific battery fix — shown only on Samsung/Xiaomi/OnePlus/Huawei
+              where standard battery optimization exemption alone isn't enough */}
+          {serviceEnabled && oemBatteryNote && (
+            <View style={styles.oemBanner}>
+              <Ionicons name="information-circle-outline" size={16} color={COLORS.cyan} />
+              <Text style={styles.oemBannerText}>{oemBatteryNote}</Text>
+            </View>
+          )}
+
           {!hasNativeModule && (
             <View style={styles.expoGoBanner}>
               <Text style={styles.expoGoText}>
@@ -725,6 +764,24 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.bodyMedium,
     fontSize: 12,
     color: COLORS.purple,
+  },
+  oemBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: SPACING.sm,
+    backgroundColor: COLORS.cyan + '10',
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.cyan + '33',
+    padding: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
+  oemBannerText: {
+    fontFamily: FONTS.body,
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    flex: 1,
+    lineHeight: 18,
   },
   expoGoBanner: {
     backgroundColor: COLORS.surface,

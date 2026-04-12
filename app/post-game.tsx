@@ -106,8 +106,12 @@ export default function PostGameScreen() {
   const {
     pointsEarned: rawPoints = '0',
     gameName = 'Mini-Game',
+    domain = '',
     isBricked: brickedParam = '0',
-  } = useLocalSearchParams<{ pointsEarned: string; gameName: string; isBricked: string }>();
+  } = useLocalSearchParams<{ pointsEarned: string; gameName: string; domain: string; isBricked: string }>();
+
+  // Format domain for display — "instagram.com" or "Instagram" depending on what was blocked
+  const domainDisplay = domain || 'this site';
 
   const pointsEarned = parseInt(rawPoints, 10);
   const xpEarned     = pointsToXP(pointsEarned);
@@ -340,14 +344,16 @@ export default function PostGameScreen() {
                       !canUnlock && styles.unlockTitleDisabled,
                     ]}
                   >
-                    {isPro ? 'Unlock (Pro — Free)' : `Unlock for ${UNLOCK_COST} points`}
+                    {isPro
+                      ? `Access ${domainDisplay} for 10 min (free)`
+                      : `Access ${domainDisplay} for 10 min`}
                   </Text>
                   <Text style={styles.unlockBalance}>
                     {isPro
                       ? 'No streak reset · Pro perk'
                       : canUnlock
-                        ? `Your balance: ${points.toLocaleString()} pts`
-                        : `Need ${UNLOCK_COST - points} more points`}
+                        ? `${UNLOCK_COST} points · Your balance: ${points.toLocaleString()} pts`
+                        : `Need ${UNLOCK_COST - points} more points to unlock`}
                   </Text>
                 </View>
                 <Ionicons
