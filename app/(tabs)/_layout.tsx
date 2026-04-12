@@ -1,66 +1,68 @@
-// Tab bar layout — controls the bottom navigation strip with 4 tabs.
-// Each tab has a filled icon when active and an outline icon when inactive.
-// Ionicons come bundled with Expo — no extra install needed.
+// ─── Tab Bar Layout ────────────────────────────────────────────────────────────
+//
+// Controls the bottom navigation strip with 4 tabs.
+// Uses Feather icons (included in @expo/vector-icons) — thinner and more modern
+// than the default Ionicons set.
+//
+// TAB COLOR SYSTEM:
+//   Home     → indigo bright (#5b52f0) — primary brand
+//   Blocklist→ indigo bright (#5b52f0) — primary brand
+//   Arcade   → purple (#9d7cff)        — games/fun
+//   Profile  → cyan (#00d4ff)          — personal/identity
 
 import { Tabs } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '@/constants/Colors';
 
-// Helper type so TypeScript knows what icon names are valid
-type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+// Feather icon name type
+type FeatherName = React.ComponentProps<typeof Feather>['name'];
 
-// Tab configuration in one place so it's easy to add more tabs later
+// Tab configuration — one object per tab makes adding/reordering easy
 const TABS: {
   name: string;
   title: string;
-  icon: IoniconName;       // Filled icon — used when the tab is active
-  iconOutline: IoniconName; // Outline icon — used when the tab is inactive
-  color: string;
+  icon: FeatherName;       // Feather uses the same icon for active/inactive
+  color: string;           // Active tint color for this tab
 }[] = [
   {
-    name: 'index',
+    name:  'index',
     title: 'Home',
-    icon: 'home',
-    iconOutline: 'home-outline',
-    color: COLORS.green,
+    icon:  'home',
+    color: COLORS.indigoBright,
   },
   {
-    name: 'blocklist',
-    title: 'Blocklist',
-    icon: 'shield',
-    iconOutline: 'shield-outline',
-    color: COLORS.green,
+    name:  'blocklist',
+    title: 'Block',
+    icon:  'shield',
+    color: COLORS.indigoBright,
   },
   {
-    name: 'arcade',
+    name:  'arcade',
     title: 'Arcade',
-    icon: 'game-controller',
-    iconOutline: 'game-controller-outline',
+    icon:  'zap',           // Lightning bolt — energy/games
     color: COLORS.purple,
   },
   {
-    name: 'profile',
+    name:  'profile',
     title: 'Profile',
-    icon: 'person',
-    iconOutline: 'person-outline',
+    icon:  'user',
     color: COLORS.cyan,
   },
 ];
 
 export default function TabsLayout() {
-  // insets.bottom is the height of Android's gesture navigation bar (or iOS home indicator).
-  // Adding it to the tab bar height pushes the tabs up above the system UI.
+  // insets.bottom = height of Android gesture nav bar / iOS home indicator.
+  // Adding it to the tab bar height pushes tabs above the system UI.
   const insets = useSafeAreaInsets();
 
   return (
     <Tabs
       screenOptions={{
-        // We build our own headers, so hide the default one
+        // We build our own headers on each screen
         headerShown: false,
 
-        // Tab bar background and border match GATE's dark theme.
-        // height = 60px for the tabs + however tall the system nav bar is.
+        // Tab bar dark theme — matches app background with subtle top border
         tabBarStyle: {
           backgroundColor: COLORS.background,
           borderTopColor: COLORS.border,
@@ -69,7 +71,7 @@ export default function TabsLayout() {
           paddingBottom: insets.bottom + 4,
         },
 
-        // Unselected tabs are dimmed
+        // Inactive tabs are dimmed
         tabBarInactiveTintColor: COLORS.textMuted,
       }}
     >
@@ -79,15 +81,13 @@ export default function TabsLayout() {
           name={tab.name}
           options={{
             title: tab.title,
-
-            // Active tab uses the accent color for this section
             tabBarActiveTintColor: tab.color,
 
-            // Switch between filled (active) and outline (inactive) icons
-            tabBarIcon: ({ focused, color, size }) => (
-              <Ionicons
-                name={focused ? tab.icon : tab.iconOutline}
-                size={size}
+            // Feather renders same icon always — we control opacity via color
+            tabBarIcon: ({ color, size }) => (
+              <Feather
+                name={tab.icon}
+                size={size - 1}  // Feather strokes look slightly large at default size
                 color={color}
               />
             ),

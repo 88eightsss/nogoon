@@ -330,6 +330,9 @@ export function OddOneOut({ onComplete }: Props) {
       setCorrectCount((c) => c + 1);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } else {
+      // Wrong answer still earns 10 pts — engaging with the pattern interrupt counts.
+      // The educational value is in seeing the explanation, win or lose.
+      setScore((s) => s + 10);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
   };

@@ -12,7 +12,7 @@
 
 import { View, Text, Pressable, ScrollView, StyleSheet, Alert, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useUserStore, getLevelProgress } from '@/stores/useUserStore';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -237,7 +237,7 @@ export default function ProfileScreen() {
                 <Text style={styles.achievementDesc}>{a.desc}</Text>
                 {earned && (
                   <View style={styles.earnedBadge}>
-                    <Ionicons name="checkmark-circle" size={14} color={COLORS.green} />
+                    <Feather name="check-circle" size={14} color={COLORS.green} />
                   </View>
                 )}
               </View>
@@ -251,7 +251,7 @@ export default function ProfileScreen() {
         {/* Subscription status + upgrade button */}
         {isPro ? (
           <View style={styles.proActiveBanner}>
-            <Ionicons name="shield-checkmark" size={18} color={COLORS.purple} />
+            <Feather name="check-circle" size={18} color={COLORS.purple} />
             <Text style={styles.proActiveText}>NoGoon Pro · Active</Text>
           </View>
         ) : (
@@ -260,7 +260,7 @@ export default function ProfileScreen() {
             onPress={() => router.push('/paywall')}
           >
             <View style={styles.upgradeLeft}>
-              <Ionicons name="flash" size={18} color={COLORS.purple} />
+              <Feather name="zap" size={18} color={COLORS.purple} />
               <View>
                 <Text style={styles.upgradeTitle}>Upgrade to NoGoon Pro</Text>
                 <Text style={styles.upgradeSubtitle}>
@@ -268,7 +268,7 @@ export default function ProfileScreen() {
                 </Text>
               </View>
             </View>
-            <Ionicons name="chevron-forward" size={18} color={COLORS.purple + 'aa'} />
+            <Feather name="chevron-right" size={18} color={COLORS.purple + 'aa'} />
           </Pressable>
         )}
 
@@ -278,7 +278,7 @@ export default function ProfileScreen() {
           {/* 'random' = a game launches immediately on intercept (no picker shown)
               'choose' = user picks which game they want (default) */}
           <View style={styles.settingsRow}>
-            <Ionicons name="game-controller-outline" size={20} color={COLORS.cyan} />
+            <Feather name="zap" size={20} color={COLORS.cyan} />
             <View style={styles.settingsRowMiddle}>
               <Text style={styles.settingsRowText}>Random Game Mode</Text>
               <Text style={styles.settingsRowSub}>
@@ -331,7 +331,7 @@ export default function ProfileScreen() {
           {isPro ? (
             <>
               <View style={styles.settingsRow}>
-                <Ionicons name="timer-outline" size={20} color={COLORS.purple} />
+                <Feather name="clock" size={20} color={COLORS.purple} />
                 <View style={styles.settingsRowMiddle}>
                   <Text style={styles.settingsRowText}>Game Duration</Text>
                   <Text style={styles.settingsRowSub}>
@@ -371,14 +371,14 @@ export default function ProfileScreen() {
                 style={styles.settingsRow}
                 onPress={() => router.push('/paywall')}
               >
-                <Ionicons name="timer-outline" size={20} color={COLORS.textMuted} />
+                <Feather name="clock" size={20} color={COLORS.textMuted} />
                 <View style={styles.settingsRowMiddle}>
                   <Text style={[styles.settingsRowText, { color: COLORS.textMuted }]}>
                     Game Duration
                   </Text>
                   <Text style={styles.settingsRowSub}>Pro — 30/60/90 second games</Text>
                 </View>
-                <Ionicons name="lock-closed" size={14} color={COLORS.textMuted} />
+                <Feather name="lock" size={14} color={COLORS.textMuted} />
               </Pressable>
               <View style={styles.settingsDivider} />
             </>
@@ -388,7 +388,7 @@ export default function ProfileScreen() {
           {isPro && (
             <>
               <View style={styles.settingsRow}>
-                <Ionicons name="shield-checkmark-outline" size={20} color={COLORS.purple} />
+                <Feather name="shield" size={20} color={COLORS.purple} />
                 <View style={styles.settingsRowMiddle}>
                   <Text style={styles.settingsRowText}>Streak Protection</Text>
                   <Text style={styles.settingsRowSub}>
@@ -409,14 +409,14 @@ export default function ProfileScreen() {
                 style={styles.settingsRow}
                 onPress={() => router.push('/partner')}
               >
-                <Ionicons name="people-outline" size={20} color={COLORS.cyan} />
+                <Feather name="users" size={20} color={COLORS.cyan} />
                 <View style={styles.settingsRowMiddle}>
                   <Text style={styles.settingsRowText}>Accountability Partner</Text>
                   <Text style={styles.settingsRowSub}>
                     Set up a partner to keep you honest
                   </Text>
                 </View>
-                <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+                <Feather name="chevron-right" size={16} color={COLORS.textMuted} />
               </Pressable>
               <View style={styles.settingsDivider} />
             </>
@@ -426,14 +426,14 @@ export default function ProfileScreen() {
                 style={styles.settingsRow}
                 onPress={() => router.push('/paywall')}
               >
-                <Ionicons name="people-outline" size={20} color={COLORS.textMuted} />
+                <Feather name="users" size={20} color={COLORS.textMuted} />
                 <View style={styles.settingsRowMiddle}>
                   <Text style={[styles.settingsRowText, { color: COLORS.textMuted }]}>
                     Accountability Partner
                   </Text>
                   <Text style={styles.settingsRowSub}>Pro — notify someone when you slip</Text>
                 </View>
-                <Ionicons name="lock-closed" size={14} color={COLORS.textMuted} />
+                <Feather name="lock" size={14} color={COLORS.textMuted} />
               </Pressable>
               <View style={styles.settingsDivider} />
             </>
@@ -444,14 +444,14 @@ export default function ProfileScreen() {
             style={styles.settingsRow}
             onPress={() => router.push('/journal')}
           >
-            <Ionicons name="journal-outline" size={20} color={COLORS.green} />
+            <Feather name="book-open" size={20} color={COLORS.green} />
             <View style={styles.settingsRowMiddle}>
               <Text style={styles.settingsRowText}>Impulse Journal</Text>
               <Text style={styles.settingsRowSub}>
                 Review your past intercept entries
               </Text>
             </View>
-            <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+            <Feather name="chevron-right" size={16} color={COLORS.textMuted} />
           </Pressable>
 
           <View style={styles.settingsDivider} />
@@ -463,14 +463,14 @@ export default function ProfileScreen() {
                 style={styles.settingsRow}
                 onPress={() => router.push('/insights')}
               >
-                <Ionicons name="bar-chart-outline" size={20} color={COLORS.purple} />
+                <Feather name="bar-chart-2" size={20} color={COLORS.purple} />
                 <View style={styles.settingsRowMiddle}>
                   <Text style={styles.settingsRowText}>Weekly Insights</Text>
                   <Text style={styles.settingsRowSub}>
                     Deep stats on your blocking patterns
                   </Text>
                 </View>
-                <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+                <Feather name="chevron-right" size={16} color={COLORS.textMuted} />
               </Pressable>
               <View style={styles.settingsDivider} />
             </>
@@ -479,7 +479,7 @@ export default function ProfileScreen() {
           {/* ── Developer Mode toggle — inside settings card so it's always visible ── */}
           <View style={styles.settingsDivider} />
           <View style={styles.settingsRow}>
-            <Ionicons name="construct-outline" size={20} color={COLORS.warning} />
+            <Feather name="tool" size={20} color={COLORS.warning} />
             <View style={{ flex: 1 }}>
               <Text style={[styles.settingsRowText, { color: COLORS.warning }]}>
                 🛠️ Dev Mode {devModeEnabled ? '— ON (Pro unlocked)' : '— OFF'}
@@ -501,7 +501,7 @@ export default function ProfileScreen() {
 
           {/* ── Sign out ── */}
           <Pressable style={styles.settingsRow} onPress={handleSignOut}>
-            <Ionicons name="log-out-outline" size={20} color={COLORS.danger} />
+            <Feather name="log-out" size={20} color={COLORS.danger} />
             <Text style={[styles.settingsRowText, { color: COLORS.danger }]}>Sign Out</Text>
           </Pressable>
         </View>
@@ -588,7 +588,7 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     backgroundColor: COLORS.greenDim,
     borderWidth: 2,
-    borderColor: COLORS.green,
+    borderColor: COLORS.indigoBright,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: SPACING.xs,
@@ -596,7 +596,7 @@ const styles = StyleSheet.create({
   avatarInitials: {
     fontFamily: FONTS.display,
     fontSize: 30,
-    color: COLORS.green,
+    color: COLORS.indigoBright,
   },
   userName: {
     fontFamily: FONTS.display,

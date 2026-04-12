@@ -64,14 +64,19 @@ function calculateScore(results: RoundResult[]): number {
 
   const avgMs = hits.reduce((sum, r) => sum + r.reactionMs!, 0) / hits.length;
 
-  // Miss penalty: lose 5 pts per miss
-  const missPenalty = (results.length - hits.length) * 5;
+  // Miss penalty: lose 2 pts per miss (reduced from 5 — less punishing)
+  const missPenalty = (results.length - hits.length) * 2;
 
+  // Thresholds adjusted to be achievable for average people:
+  //   <300ms = very fast (achievable with practice)
+  //   <450ms = good
+  //   <600ms = average
+  //   <800ms = slow but still rewarded
   let base = 0;
-  if (avgMs < 200)      base = 120;
-  else if (avgMs < 300) base = 100;
-  else if (avgMs < 400) base = 80;
-  else if (avgMs < 600) base = 60;
+  if (avgMs < 300)      base = 120;
+  else if (avgMs < 450) base = 100;
+  else if (avgMs < 600) base = 80;
+  else if (avgMs < 800) base = 60;
   else                  base = 40;
 
   return Math.max(20, base - missPenalty);
@@ -373,7 +378,10 @@ export function ReactionGame({ onComplete }: Props) {
 
         {phase === 'result' && lastResult === 'hit' && (
           <View style={styles.hitFeedback}>
-            <Text style={styles.hitFeedbackText}>✅ {lastMs}ms</Text>
+            <Text style={styles.hitFeedbackText}>
+              ✅ {lastMs}ms
+              {lastMs !== null && lastMs < 300 ? ' — lightning fast!' : lastMs !== null && lastMs < 450 ? ' — nice!' : ''}
+            </Text>
           </View>
         )}
 

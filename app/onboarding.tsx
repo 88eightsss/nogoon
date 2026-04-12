@@ -25,7 +25,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { useUserStore } from '@/stores/useUserStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useAppBlocker } from '@/hooks/useAppBlocker';
@@ -192,7 +192,7 @@ export default function OnboardingScreen() {
 
                 {/* Show green checkmark once sites are added, otherwise show Add button */}
                 {sitesAdded ? (
-                  <Ionicons name="checkmark-circle" size={28} color={COLORS.green} />
+                  <Feather name="check-circle" size={28} color={COLORS.green} />
                 ) : (
                   <Pressable style={styles.setupAddButton} onPress={handleAddDefaults}>
                     <Text style={styles.setupAddButtonText}>Add</Text>
@@ -215,7 +215,7 @@ export default function OnboardingScreen() {
 
                 {/* Turns into a checkmark automatically when permission is granted */}
                 {serviceEnabled ? (
-                  <Ionicons name="checkmark-circle" size={28} color={COLORS.green} />
+                  <Feather name="check-circle" size={28} color={COLORS.green} />
                 ) : (
                   <Pressable style={styles.setupEnableButton} onPress={openSettings}>
                     <Text style={styles.setupEnableButtonText}>Enable</Text>
@@ -431,7 +431,7 @@ const styles = StyleSheet.create({
   },
   dotActive: {
     width: 20,
-    backgroundColor: COLORS.green,
+    backgroundColor: COLORS.indigoBright,
   },
 
   // ── Nav buttons ──
@@ -455,7 +455,7 @@ const styles = StyleSheet.create({
   },
   nextButton: {
     flex: 1,
-    backgroundColor: COLORS.green,
+    backgroundColor: COLORS.indigo,
     borderRadius: RADIUS.md,
     paddingVertical: SPACING.lg,
     alignItems: 'center',
@@ -517,7 +517,7 @@ const styles = StyleSheet.create({
   },
   finishButton: {
     width: '100%',
-    backgroundColor: COLORS.green,
+    backgroundColor: COLORS.indigo,
     borderRadius: RADIUS.md,
     paddingVertical: SPACING.lg,
     alignItems: 'center',
@@ -605,7 +605,7 @@ const styles = StyleSheet.create({
   },
   // Green "Add" button — becomes a checkmark icon once tapped
   setupAddButton: {
-    backgroundColor: COLORS.green,
+    backgroundColor: COLORS.indigo,
     borderRadius: RADIUS.sm,
     paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.md,
@@ -630,7 +630,7 @@ const styles = StyleSheet.create({
   // Large green continue button at the bottom of the setup screen
   setupContinueButton: {
     width: '100%',
-    backgroundColor: COLORS.green,
+    backgroundColor: COLORS.indigo,
     borderRadius: RADIUS.md,
     paddingVertical: SPACING.lg,
     alignItems: 'center',

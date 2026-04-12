@@ -4,7 +4,7 @@
 // Using JetBrains Mono for the number makes it feel like a currency counter.
 
 import { View, Text, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { Card } from '@/components/ui/Card';
 import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING } from '@/constants/Spacing';
@@ -27,7 +27,7 @@ export function PointsBadge({ points, level, xpPercent }: PointsBadgeProps) {
 
       {/* Star icon + number */}
       <View style={styles.mainRow}>
-        <Ionicons name="star" size={22} color={COLORS.purple} />
+        <Feather name="star" size={22} color={COLORS.purple} />
         <Text style={[TYPE.monoL, styles.number]}>{formattedPoints}</Text>
       </View>
 

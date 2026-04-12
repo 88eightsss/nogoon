@@ -24,7 +24,7 @@ import {
   SafeAreaView,
   Animated,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { StroopChallenge } from '@/components/games/StroopChallenge';
 import { PatternMemory } from '@/components/games/PatternMemory';
 import { TypingChallenge } from '@/components/games/TypingChallenge';
@@ -141,7 +141,7 @@ function ArcadePostGame({ gameName, onBack, onPlayAgain }: PostGameProps) {
 
         {/* Arcade mode zero-points callout */}
         <View style={styles.arcadeNote}>
-          <Ionicons name="information-circle-outline" size={16} color={COLORS.textMuted} />
+          <Feather name="info" size={16} color={COLORS.textMuted} />
           <Text style={styles.arcadeNoteText}>
             Arcade mode — 0 pts earned{'\n'}
             Blocking intercepts earn real points
@@ -208,7 +208,7 @@ function ArcadeGameCard({ game, onPlay }: GameCardProps) {
         </View>
 
         {/* Play arrow */}
-        <Ionicons name="play-circle" size={28} color={game.color} />
+        <Feather name="play-circle" size={28} color={game.color} />
       </Animated.View>
     </Pressable>
   );
@@ -293,7 +293,7 @@ export default function ArcadeScreen() {
 
         {/* ── Free arcade callout ── */}
         <View style={styles.freeCallout}>
-          <Ionicons name="game-controller" size={18} color={COLORS.purple} />
+          <Feather name="game-controller" size={18} color={COLORS.purple} />
           <Text style={styles.freeCalloutText}>
             All games are <Text style={styles.freeHighlight}>always free</Text> to play here.{'\n'}
             Upgrade to earn points when you're intercepted.

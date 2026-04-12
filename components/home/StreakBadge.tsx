@@ -3,7 +3,7 @@
 // Keeping the streak visible motivates daily use (a core habit-loop mechanic).
 
 import { View, Text, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { Card } from '@/components/ui/Card';
 import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING } from '@/constants/Spacing';
@@ -30,7 +30,7 @@ export function StreakBadge({ streak, longestStreak }: StreakBadgeProps) {
 
       {/* Flame icon + number on the same row */}
       <View style={styles.mainRow}>
-        <Ionicons name="flame" size={28} color={flameColor} />
+        <Feather name="flame" size={28} color={flameColor} />
         <Text style={[TYPE.monoL, styles.number]}>{streak}</Text>
       </View>
 
@@ -56,7 +56,7 @@ const styles = StyleSheet.create({
   },
   number: {
     // Override the default mono color to green for streak emphasis
-    color: COLORS.green,
+    color: COLORS.indigoBright,
   },
   dayLabel: {
     fontFamily: FONTS.body,

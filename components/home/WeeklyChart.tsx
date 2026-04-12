@@ -155,6 +155,6 @@ const styles = StyleSheet.create({
     marginTop: SPACING.xs,
   },
   dayLabelToday: {
-    color: COLORS.green, // Today's label is green to match the bar
+    color: COLORS.indigoBright, // Today's label is green to match the bar
   },
 });

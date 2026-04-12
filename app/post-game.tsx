@@ -27,7 +27,7 @@ import {
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { useUserStore } from '@/stores/useUserStore';
 import { useSubscriptionStore } from '@/stores/useSubscriptionStore';
 import { AdBanner } from '@/components/ads/AdBanner';
@@ -280,7 +280,7 @@ export default function PostGameScreen() {
           <Text style={styles.scoreUnit}>points earned</Text>
 
           <View style={styles.xpChip}>
-            <Ionicons name="flash" size={13} color={COLORS.purple} />
+            <Feather name="zap" size={13} color={COLORS.purple} />
             <Text style={styles.xpChipText}>
               +{xpEarned} XP  ·  {level}
             </Text>
@@ -310,7 +310,7 @@ export default function PostGameScreen() {
                 Keep Your {streak}-Day Streak 🔥
               </Text>
             </View>
-            <Ionicons name="arrow-forward-circle" size={28} color={COLORS.background} />
+            <Feather name="arrow-right-circle" size={28} color={COLORS.background} />
           </Pressable>
 
           {/* ── BRICKED MODE: replace unlock section with a locked-out message ── */}
@@ -357,7 +357,7 @@ export default function PostGameScreen() {
                   </Text>
                 </View>
                 <Ionicons
-                  name="lock-open-outline"
+                  name="unlock"
                   size={20}
                   color={canUnlock ? COLORS.textMuted : COLORS.textMuted + '55'}
                 />
@@ -376,7 +376,7 @@ export default function PostGameScreen() {
                   style={styles.streakRestoreButton}
                   onPress={handleUnlockWithRestore}
                 >
-                  <Ionicons name="shield-checkmark" size={15} color={COLORS.purple} />
+                  <Feather name="check-circle" size={15} color={COLORS.purple} />
                   <Text style={styles.streakRestoreText}>
                     Use Streak Restore — keep your {streak}-day streak
                   </Text>
@@ -392,7 +392,7 @@ export default function PostGameScreen() {
                   style={styles.upgradeHint}
                   onPress={() => router.push('/paywall')}
                 >
-                  <Ionicons name="flash" size={13} color={COLORS.purple} />
+                  <Feather name="zap" size={13} color={COLORS.purple} />
                   <Text style={styles.upgradeHintText}>
                     Get Pro — unlock free, anytime →
                   </Text>
@@ -544,7 +544,7 @@ const styles = StyleSheet.create({
   walkAwayButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.green,
+    backgroundColor: COLORS.indigo,
     borderRadius: RADIUS.md,
     paddingVertical: SPACING.lg,
     paddingHorizontal: SPACING.xl,

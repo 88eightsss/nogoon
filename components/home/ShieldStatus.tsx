@@ -5,7 +5,7 @@
 
 import { useEffect, useRef } from 'react';
 import { View, Text, Animated, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { COLORS } from '@/constants/Colors';
 import { FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
@@ -87,7 +87,7 @@ export function ShieldStatus({
       {/* Shield icon with scale pulse */}
       <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
         <View style={[styles.iconContainer, { borderColor: accentColor + '44' }]}>
-          <Ionicons
+          <Feather
             name={active ? 'shield-checkmark' : 'shield-outline'}
             size={72}
             color={accentColor}

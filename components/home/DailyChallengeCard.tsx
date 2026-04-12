@@ -6,7 +6,7 @@
 // For now it's hardcoded so the UI looks right.
 
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { Card } from '@/components/ui/Card';
 import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
@@ -51,7 +51,7 @@ export function DailyChallengeCard({
       {/* Header row with calendar icon and label */}
       <View style={styles.headerRow}>
         <View style={styles.headerLeft}>
-          <Ionicons name="calendar" size={16} color={COLORS.cyan} />
+          <Feather name="calendar" size={16} color={COLORS.cyan} />
           <Text style={[TYPE.label, styles.headerLabel]}>Daily Challenge</Text>
         </View>
 
@@ -90,7 +90,7 @@ export function DailyChallengeCard({
       {/* CTA button or completed state */}
       {isDone ? (
         <View style={styles.completedBadge}>
-          <Ionicons name="checkmark-circle" size={16} color={COLORS.green} />
+          <Feather name="check-circle" size={16} color={COLORS.green} />
           <Text style={styles.completedText}>Challenge completed</Text>
         </View>
       ) : (
@@ -100,7 +100,7 @@ export function DailyChallengeCard({
           activeOpacity={0.75}
         >
           <Text style={styles.buttonText}>Play Now</Text>
-          <Ionicons name="arrow-forward" size={16} color={COLORS.background} />
+          <Feather name="arrow-forward" size={16} color={COLORS.background} />
         </TouchableOpacity>
       )}
     </Card>
@@ -196,6 +196,6 @@ const styles = StyleSheet.create({
   completedText: {
     fontFamily: FONTS.bodyMedium,
     fontSize: 14,
-    color: COLORS.green,
+    color: COLORS.indigoBright,
   },
 });

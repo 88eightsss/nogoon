@@ -25,7 +25,7 @@ import {
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { StroopChallenge } from '@/components/games/StroopChallenge';
 import { PatternMemory } from '@/components/games/PatternMemory';
 import { TypingChallenge } from '@/components/games/TypingChallenge';
@@ -175,7 +175,10 @@ function GameCard({
           !game.isLive && styles.gameCardComingSoon,
         ]}
       >
-        <Text style={styles.gameEmoji}>{game.emoji}</Text>
+        {/* Badge-style icon: rounded square with color-tinted background */}
+        <View style={[styles.gameIconBadge, { backgroundColor: game.color + '18', borderColor: game.color + '40' }]}>
+          <Text style={styles.gameEmoji}>{game.emoji}</Text>
+        </View>
         <View style={styles.gameTextGroup}>
           <View style={styles.gameNameRow}>
             <Text style={[styles.gameName, { color: game.color }]}>{game.name}</Text>
@@ -185,7 +188,7 @@ function GameCard({
           </View>
           <Text style={styles.gameDesc}>{game.description}</Text>
         </View>
-        <Ionicons name="chevron-forward" size={20} color={game.color + 'aa'} />
+        <Feather name="chevron-right" size={20} color={game.color + 'aa'} />
       </Animated.View>
 
     </Pressable>
@@ -353,7 +356,7 @@ export default function NoGoonScreen() {
             style={{ transform: [{ translateX: alertShakeX }, { scale: alertScale }] }}
           >
             <View style={[styles.iconRing, isBricked && { borderColor: COLORS.warning + '55', backgroundColor: COLORS.warning + '18' }]}>
-              <Ionicons name={isBricked ? 'lock-closed' : 'warning'} size={52} color={isBricked ? COLORS.warning : COLORS.danger} />
+              <Feather name={isBricked ? 'lock-closed' : 'warning'} size={52} color={isBricked ? COLORS.warning : COLORS.danger} />
             </View>
           </Animated.View>
 
@@ -527,7 +530,15 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
   },
   gameCardComingSoon: { opacity: 0.45 },
-  gameEmoji: { fontSize: 30, width: 40, textAlign: 'center' },
+  gameIconBadge: {
+    width: 48,
+    height: 48,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gameEmoji: { fontSize: 24 },
   gameTextGroup: { flex: 1 },
   gameNameRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
   gameName: { fontFamily: FONTS.bodyBold, fontSize: 16, marginBottom: 2 },

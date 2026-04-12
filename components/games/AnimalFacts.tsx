@@ -184,7 +184,9 @@ export function AnimalFacts({ onComplete }: Props) {
     setPhase('answered');
 
     const isCorrect = index === animal.correctIndex;
-    const score = isCorrect ? 120 : 60;
+    // Wrong answer still earns 80 pts — breaking the scroll pattern counts
+    // even if you didn't know the trivia. Learning is the real reward.
+    const score = isCorrect ? 120 : 80;
 
     // Flash the chosen button — green for correct, red for wrong
     Animated.timing(flashAnims[index], {
@@ -350,7 +352,7 @@ export function AnimalFacts({ onComplete }: Props) {
           <Text style={styles.resultText}>
             {selectedIndex === animal.correctIndex
               ? '✅  Correct! +120 pts'
-              : `❌  The answer was "${animal.answers[animal.correctIndex]}" — +60 pts`}
+              : `❌  The answer was "${animal.answers[animal.correctIndex]}" — +80 pts`}
           </Text>
         )}
       </ScrollView>

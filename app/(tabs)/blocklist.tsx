@@ -26,7 +26,7 @@ import {
   NativeModules,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useUserStore } from '@/stores/useUserStore';
 import { useSubscriptionStore } from '@/stores/useSubscriptionStore';
@@ -247,7 +247,7 @@ export default function BlocklistScreen() {
         <Switch
           value={isBlocked}
           onValueChange={handleToggle}
-          trackColor={{ false: COLORS.border, true: COLORS.green + '55' }}
+          trackColor={{ false: COLORS.border, true: COLORS.indigoBright + '55' }}
           thumbColor={isBlocked ? COLORS.green : COLORS.textMuted}
           disabled={!serviceEnabled && isPro} // Only disable for enabled-service check on paid users
         />
@@ -286,14 +286,14 @@ export default function BlocklistScreen() {
           {/* ── Quick-start banner (no defaults yet) ── */}
           {!hasDefaults && (
             <Pressable style={styles.defaultsBanner} onPress={addAllDefaults}>
-              <Ionicons name="flash" size={18} color={COLORS.green} />
+              <Feather name="zap" size={18} color={COLORS.indigoBright} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.defaultsBannerTitle}>Add 7 default sites instantly</Text>
                 <Text style={styles.defaultsBannerSub}>
                   TikTok · Instagram · Pornhub · Xhamster · Erome · Redgifs · Chaturbate
                 </Text>
               </View>
-              <Ionicons name="add-circle" size={22} color={COLORS.green} />
+              <Feather name="plus-circle" size={22} color={COLORS.indigoBright} />
             </Pressable>
           )}
 
@@ -302,7 +302,7 @@ export default function BlocklistScreen() {
           ════════════════════════════════════════════════════════ */}
 
           <View style={styles.sectionHeader}>
-            <Ionicons name="globe-outline" size={16} color={COLORS.green} />
+            <Feather name="globe" size={16} color={COLORS.indigoBright} />
             <Text style={styles.sectionTitle}>Website Blocking</Text>
             <Text style={styles.sectionTag}>Browser</Text>
           </View>
@@ -310,7 +310,7 @@ export default function BlocklistScreen() {
           {/* Remove cost info banner */}
           {!isPro && blocklist.length > 0 && (
             <View style={styles.costInfoBanner}>
-              <Ionicons name="information-circle-outline" size={14} color={COLORS.textMuted} />
+              <Feather name="info" size={14} color={COLORS.textMuted} />
               <Text style={styles.costInfoText}>
                 Removing a site costs <Text style={{ color: COLORS.warning }}>{REMOVE_COST} points</Text>
                 {' '}· Upgrade to Pro for free removal
@@ -358,11 +358,11 @@ export default function BlocklistScreen() {
               {blocklist.map((domain, index) => (
                 <View key={domain}>
                   <View style={styles.domainRow}>
-                    <Ionicons name="shield-checkmark" size={16} color={COLORS.green} />
+                    <Feather name="check-circle" size={16} color={COLORS.green} />
                     <Text style={styles.domainText}>{domain}</Text>
                     <Pressable onPress={() => handleRemove(domain)} hitSlop={12}>
                       <View style={styles.removeChip}>
-                        <Ionicons name="trash-outline" size={13} color={COLORS.danger} />
+                        <Feather name="trash-2" size={13} color={COLORS.danger} />
                         {!isPro && (
                           <Text style={styles.removeCostLabel}>{REMOVE_COST}pt</Text>
                         )}
@@ -390,7 +390,7 @@ export default function BlocklistScreen() {
           ════════════════════════════════════════════════════════ */}
 
           <View style={[styles.sectionHeader, { marginTop: SPACING.xl }]}>
-            <Ionicons name="shield-outline" size={16} color={COLORS.purple} />
+            <Feather name="shield" size={16} color={COLORS.purple} />
             <Text style={[styles.sectionTitle, { color: COLORS.purple }]}>App Blocking</Text>
             <Text style={styles.sectionTag}>Android</Text>
           </View>
@@ -399,7 +399,7 @@ export default function BlocklistScreen() {
           {!checking && !serviceEnabled && (
             <Pressable style={styles.permissionBanner} onPress={openSettings}>
               <View style={styles.permissionLeft}>
-                <Ionicons name="warning-outline" size={20} color={COLORS.warning} />
+                <Feather name="alert-triangle" size={20} color={COLORS.warning} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.permissionTitle}>Permission Required</Text>
                   <Text style={styles.permissionBody}>
@@ -407,14 +407,14 @@ export default function BlocklistScreen() {
                   </Text>
                 </View>
               </View>
-              <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+              <Feather name="chevron-right" size={18} color={COLORS.textMuted} />
             </Pressable>
           )}
 
           {!checking && serviceEnabled && (
             <View style={styles.enabledRow}>
               <View style={styles.enabledBadge}>
-                <Ionicons name="checkmark-circle" size={16} color={COLORS.green} />
+                <Feather name="check-circle" size={16} color={COLORS.green} />
                 <Text style={styles.enabledText}>App blocking is active</Text>
               </View>
               {/* Test button — lets the user verify the intercept actually fires */}
@@ -425,7 +425,7 @@ export default function BlocklistScreen() {
                   params: { domain: 'instagram.com', confidence: '100', source: 'test' },
                 })}
               >
-                <Ionicons name="play-circle-outline" size={14} color={COLORS.purple} />
+                <Feather name="play-circle" size={14} color={COLORS.purple} />
                 <Text style={styles.testButtonText}>Test it</Text>
               </Pressable>
             </View>
@@ -436,7 +436,7 @@ export default function BlocklistScreen() {
           {serviceEnabled && batteryOptimized && (
             <Pressable style={styles.batteryBanner} onPress={openBatterySettings}>
               <View style={styles.permissionLeft}>
-                <Ionicons name="battery-half-outline" size={20} color={COLORS.warning} />
+                <Feather name="battery" size={20} color={COLORS.warning} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.permissionTitle}>Battery Optimization On</Text>
                   <Text style={styles.permissionBody}>
@@ -444,7 +444,7 @@ export default function BlocklistScreen() {
                   </Text>
                 </View>
               </View>
-              <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+              <Feather name="chevron-right" size={18} color={COLORS.textMuted} />
             </Pressable>
           )}
 
@@ -452,7 +452,7 @@ export default function BlocklistScreen() {
               where standard battery optimization exemption alone isn't enough */}
           {serviceEnabled && oemBatteryNote && (
             <View style={styles.oemBanner}>
-              <Ionicons name="information-circle-outline" size={16} color={COLORS.cyan} />
+              <Feather name="info" size={16} color={COLORS.cyan} />
               <Text style={styles.oemBannerText}>{oemBatteryNote}</Text>
             </View>
           )}
@@ -499,7 +499,7 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: FONTS.display,
     fontSize: 32,
-    color: COLORS.green,
+    color: COLORS.indigoBright,
     letterSpacing: -0.3,
   },
   subtitle: {
@@ -514,17 +514,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.sm,
-    backgroundColor: COLORS.greenDim,
+    backgroundColor: COLORS.indigoDim,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.green + '44',
+    borderColor: COLORS.indigoBright + '44',
     padding: SPACING.md,
     marginBottom: SPACING.sm,
   },
   defaultsBannerTitle: {
     fontFamily: FONTS.bodyBold,
     fontSize: 14,
-    color: COLORS.green,
+    color: COLORS.indigoBright,
   },
   defaultsBannerSub: {
     fontFamily: FONTS.body,
@@ -544,7 +544,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontFamily: FONTS.bodyBold,
     fontSize: 15,
-    color: COLORS.green,
+    color: COLORS.indigoBright,
     flex: 1,
   },
   sectionTag: {
@@ -593,7 +593,7 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
   },
   addButton: {
-    backgroundColor: COLORS.green,
+    backgroundColor: COLORS.indigo,
     borderRadius: RADIUS.sm,
     paddingHorizontal: SPACING.md,
     paddingVertical: 6,
@@ -747,7 +747,7 @@ const styles = StyleSheet.create({
   enabledText: {
     fontFamily: FONTS.bodyMedium,
     fontSize: 13,
-    color: COLORS.green,
+    color: COLORS.indigoBright,
   },
   testButton: {
     flexDirection: 'row',

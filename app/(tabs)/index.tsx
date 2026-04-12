@@ -27,7 +27,7 @@ import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { TYPE } from '@/constants/Typography';
 import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 
 // ─── Getting Started Card ──────────────────────────────────────────────────────
 //
@@ -48,7 +48,7 @@ function GettingStartedCard() {
           Add your first blocked site and enable app blocking to start building your streak.
         </Text>
       </View>
-      <Ionicons name="chevron-forward" size={20} color={COLORS.green} />
+      <Feather name="chevron-right" size={20} color={COLORS.indigoBright} />
     </Pressable>
   );
 }
@@ -213,7 +213,7 @@ const gettingStartedStyles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.green + '33',  // green at 20% opacity — subtle highlight
+    borderColor: COLORS.indigoBright + '33',  // indigo at 20% opacity — subtle highlight
     padding: SPACING.lg,
     gap: SPACING.md,
   },
