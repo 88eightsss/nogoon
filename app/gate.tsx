@@ -29,8 +29,8 @@ import { Feather } from '@expo/vector-icons';
 import { StroopChallenge } from '@/components/games/StroopChallenge';
 import { PatternMemory } from '@/components/games/PatternMemory';
 import { TypingChallenge } from '@/components/games/TypingChallenge';
-import { AnimalFacts } from '@/components/games/AnimalFacts';
-import { FlappyGame } from '@/components/games/FlappyGame';
+import { GroundingExercise } from '@/components/games/GroundingExercise';
+import { IntentionCheck } from '@/components/games/IntentionCheck';
 import { BreathingGame } from '@/components/games/BreathingGame';
 import { ReactionGame } from '@/components/games/ReactionGame';
 import { OddOneOut } from '@/components/games/OddOneOut';
@@ -83,10 +83,10 @@ const STANDARD_GAMES = [
     isPro: false,
   },
   {
-    id: 'animals',
-    name: 'Animal Facts',
-    description: 'Read a cool animal fact, answer a trivia question',
-    emoji: '🦦',
+    id: 'grounding',
+    name: 'Ground Yourself',
+    description: '5-4-3-2-1 — anchor to the present moment',
+    emoji: '🌿',
     color: COLORS.cyan,
     isLive: true,
     isPro: false,
@@ -106,10 +106,10 @@ const STANDARD_GAMES = [
 // They appear as a reward for upgrading, not advertised separately.
 const PRO_GAMES = [
   {
-    id: 'flappy',
-    name: 'Flappy NoGoon',
-    description: 'Dodge the pipes — how far can you go?',
-    emoji: '🐦',
+    id: 'intention',
+    name: 'Why Am I Here?',
+    description: 'A 60-second check-in with yourself',
+    emoji: '🪞',
     color: COLORS.purple,
     isLive: true,
     isPro: true,
@@ -304,14 +304,14 @@ export default function NoGoonScreen() {
   if (phase === 'playing' && selectedGame) {
     // ── Route to the correct game component ──────────────────────────────────
     // gameDuration is set in Profile → Settings (Pro: 30/60/90s, Free: always 30s)
-    if (selectedGame.id === 'stroop')   return <StroopChallenge onComplete={handleGameComplete} />;
-    if (selectedGame.id === 'memory')   return <PatternMemory   onComplete={handleGameComplete} />;
-    if (selectedGame.id === 'typing')   return <TypingChallenge onComplete={handleGameComplete} duration={gameDuration} />;
-    if (selectedGame.id === 'animals')  return <AnimalFacts     onComplete={handleGameComplete} />;
-    if (selectedGame.id === 'breathing')return <BreathingGame   onComplete={handleGameComplete} />;
-    if (selectedGame.id === 'flappy')   return <FlappyGame      onComplete={handleGameComplete} />;
-    if (selectedGame.id === 'reaction') return <ReactionGame    onComplete={handleGameComplete} />;
-    if (selectedGame.id === 'oddone')   return <OddOneOut       onComplete={handleGameComplete} />;
+    if (selectedGame.id === 'stroop')    return <StroopChallenge   onComplete={handleGameComplete} />;
+    if (selectedGame.id === 'memory')    return <PatternMemory     onComplete={handleGameComplete} />;
+    if (selectedGame.id === 'typing')    return <TypingChallenge   onComplete={handleGameComplete} duration={gameDuration} />;
+    if (selectedGame.id === 'grounding') return <GroundingExercise onComplete={handleGameComplete} />;
+    if (selectedGame.id === 'breathing') return <BreathingGame     onComplete={handleGameComplete} />;
+    if (selectedGame.id === 'intention') return <IntentionCheck    onComplete={handleGameComplete} />;
+    if (selectedGame.id === 'reaction')  return <ReactionGame      onComplete={handleGameComplete} />;
+    if (selectedGame.id === 'oddone')    return <OddOneOut         onComplete={handleGameComplete} />;
     // Fallback for any "SOON" games that somehow get triggered
     return (
       <PlaceholderGame
@@ -355,8 +355,9 @@ export default function NoGoonScreen() {
           <Animated.View
             style={{ transform: [{ translateX: alertShakeX }, { scale: alertScale }] }}
           >
+            {/* lock = Feather valid name | alert-triangle = Feather valid name */}
             <View style={[styles.iconRing, isBricked && { borderColor: COLORS.warning + '55', backgroundColor: COLORS.warning + '18' }]}>
-              <Feather name={isBricked ? 'lock-closed' : 'warning'} size={52} color={isBricked ? COLORS.warning : COLORS.danger} />
+              <Feather name={isBricked ? 'lock' : 'alert-triangle'} size={52} color={isBricked ? COLORS.warning : COLORS.danger} />
             </View>
           </Animated.View>
 
@@ -373,8 +374,9 @@ export default function NoGoonScreen() {
           />
 
           <View style={styles.domainChip}>
-            <Ionicons
-              name={isAppBlock ? 'phone-portrait-outline' : 'globe-outline'}
+            {/* Feather icons: 'smartphone' for apps, 'globe' for websites */}
+            <Feather
+              name={isAppBlock ? 'smartphone' : 'globe'}
               size={13}
               color={COLORS.textMuted}
             />
@@ -382,12 +384,19 @@ export default function NoGoonScreen() {
           </View>
         </View>
 
-        {/* ── Game mode label ── */}
+        {/* ── Gate copy — shock-therapy framing ── */}
+        {/* The message is: pause, do something intentional, then decide.
+            It's not "earn points to get in." It's a psychological speed bump. */}
         <View style={styles.divider} />
         <Text style={styles.choosePrompt}>
           {gameMode === 'random'
-            ? 'Loading your game…'
-            : 'Choose a game to interrupt the pattern'}
+            ? 'Take a breath. Your game is loading…'
+            : 'Take a breath. Pick a round. Then decide.'}
+        </Text>
+
+        {/* One-liner grounded in science — most cravings pass in 90 seconds */}
+        <Text style={styles.cravingNote}>
+          Most cravings pass in 90 seconds.
         </Text>
 
         {/* ── Game list (only shown in 'choose' mode) ── */}
@@ -517,6 +526,16 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1,
     marginBottom: SPACING.lg,
+  },
+
+  cravingNote: {
+    fontFamily: FONTS.body,
+    fontSize: 13,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginTop: -SPACING.sm,
+    marginBottom: SPACING.sm,
   },
 
   gameList: { gap: SPACING.sm, marginBottom: SPACING.lg },

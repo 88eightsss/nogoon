@@ -30,6 +30,7 @@ import * as Haptics from 'expo-haptics';
 import { Feather } from '@expo/vector-icons';
 import { useUserStore } from '@/stores/useUserStore';
 import { useSubscriptionStore } from '@/stores/useSubscriptionStore';
+import { useAppBlocker } from '@/hooks/useAppBlocker';
 import { AdBanner } from '@/components/ads/AdBanner';
 import { Card } from '@/components/ui/Card';
 import { COLORS, FONTS } from '@/constants/Colors';
@@ -132,8 +133,12 @@ export default function PostGameScreen() {
     recordGamePlayed,
     streakRestoresLeft,
     useStreakRestore,
+    incrementWalkAway,
+    intentionGoal,
   } = useUserStore();
   const { isPro } = useSubscriptionStore();
+  // Hook to tell the Android native module about the 10-min unlock
+  const { unlockTemporarily } = useAppBlocker();
 
   // ── Award points on mount (once only) ─────────────────────────────────────
   // The ref prevents this from running twice on strict-mode double renders.
@@ -197,9 +202,10 @@ export default function PostGameScreen() {
   }, [scoreScale, scoreOpacity]);
 
   // ── Can the user afford to unlock? ────────────────────────────────────────
-  // Pro users unlock free. Free users need 200 pts.
+  // Pro users unlock free. Free users need 50 pause tokens.
+  // Cost was slashed from 200 → 50: the friction is the game itself, not a paywall.
   // If BRICKED mode is on, the unlock section is hidden entirely — no escape.
-  const UNLOCK_COST = isPro ? 0 : 200;
+  const UNLOCK_COST = isPro ? 0 : 50;
   const canUnlock   = isPro || points >= UNLOCK_COST;
 
   // Pro perk: 1 streak restore per month. User can use it here instead of
@@ -210,12 +216,23 @@ export default function PostGameScreen() {
 
   const handleWalkAway = () => {
     incrementStreak();
+    // Track walk-aways separately — this is the real success metric.
+    // Every time someone plays a game and still walks away, that's the app working.
+    incrementWalkAway();
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     router.dismissAll();
   };
 
   const handleUnlock = () => {
     if (!canUnlock) return;
+
+    // Tell the Android Accessibility Service to allow this domain through for 10 minutes.
+    // This is what actually enforces the unlock — without this call the service would
+    // intercept the next visit immediately. The domain comes from the route params.
+    if (domain) {
+      unlockTemporarily(domain, 10);
+    }
+
     if (isPro) {
       // Pro users unlock free — no streak reset, no point deduction
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
@@ -277,7 +294,9 @@ export default function PostGameScreen() {
         >
           <Text style={styles.scorePrefix}>+</Text>
           <Text style={styles.scoreNumber}>{displayScore}</Text>
-          <Text style={styles.scoreUnit}>points earned</Text>
+          {/* "pause tokens" — renamed from "points" to reinforce the philosophy:
+              this isn't a game economy, it's a friction buffer */}
+          <Text style={styles.scoreUnit}>pause tokens</Text>
 
           <View style={styles.xpChip}>
             <Feather name="zap" size={13} color={COLORS.purple} />
@@ -299,6 +318,17 @@ export default function PostGameScreen() {
           <Text style={styles.microSource}>— {card.source}</Text>
         </View>
 
+        {/* ── Intention reminder — shown if user set a goal during onboarding ── */}
+        {/* A gentle, non-preachy reminder of what they're protecting time for */}
+        {intentionGoal ? (
+          <View style={styles.intentionReminder}>
+            <Text style={styles.intentionText}>
+              You wanted more time for{' '}
+              <Text style={styles.intentionGoal}>{intentionGoal}</Text>
+            </Text>
+          </View>
+        ) : null}
+
         {/* ── Decision buttons ── */}
         <View style={styles.decisions}>
 
@@ -307,7 +337,9 @@ export default function PostGameScreen() {
             <View style={styles.walkAwayInner}>
               <Text style={styles.walkAwayTitle}>Walk Away</Text>
               <Text style={styles.walkAwayStreak}>
-                Keep Your {streak}-Day Streak 🔥
+                {streak > 0
+                  ? `${streak}-day streak — keep it going 🔥`
+                  : 'Good call. Start a streak today 🔥'}
               </Text>
             </View>
             <Feather name="arrow-right-circle" size={28} color={COLORS.background} />
@@ -345,28 +377,29 @@ export default function PostGameScreen() {
                     ]}
                   >
                     {isPro
-                      ? `Access ${domainDisplay} for 10 min (free)`
-                      : `Access ${domainDisplay} for 10 min`}
+                      ? `Still want to? Access ${domainDisplay} for 10 min`
+                      : `Still want to? Access ${domainDisplay} for 10 min`}
                   </Text>
                   <Text style={styles.unlockBalance}>
                     {isPro
-                      ? 'No streak reset · Pro perk'
+                      ? 'Pro — no cost, no streak reset'
                       : canUnlock
-                        ? `${UNLOCK_COST} points · Your balance: ${points.toLocaleString()} pts`
-                        : `Need ${UNLOCK_COST - points} more points to unlock`}
+                        ? `${UNLOCK_COST} pause tokens · balance: ${points.toLocaleString()}`
+                        : `Play one more game to unlock (need ${UNLOCK_COST - points} more tokens)`}
                   </Text>
                 </View>
-                <Ionicons
+                {/* Feather "unlock" — replacing the broken Ionicons reference */}
+                <Feather
                   name="unlock"
                   size={20}
                   color={canUnlock ? COLORS.textMuted : COLORS.textMuted + '55'}
                 />
               </Pressable>
 
-              {/* Show streak warning only for free users who can unlock */}
+              {/* Brief note for free users who can unlock — no guilt, just facts */}
               {!isPro && canUnlock && (
                 <Text style={styles.unlockWarning}>
-                  Resets your streak · Access for 10 minutes
+                  Resets your streak · 10 minutes access · your choice
                 </Text>
               )}
 
@@ -536,6 +569,27 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: COLORS.textMuted,
     marginTop: SPACING.xs,
+  },
+
+  // ── Intention reminder ──
+  // Subtle card that shows what the user said they want more time for
+  intentionReminder: {
+    backgroundColor: COLORS.indigoDim,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.indigoBright + '33',
+    padding: SPACING.md,
+    alignItems: 'center',
+  },
+  intentionText: {
+    fontFamily: FONTS.body,
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+  },
+  intentionGoal: {
+    fontFamily: FONTS.bodyBold,
+    color: COLORS.indigoBright,
   },
 
   decisions: {

@@ -28,9 +28,9 @@ import { Feather } from '@expo/vector-icons';
 import { StroopChallenge } from '@/components/games/StroopChallenge';
 import { PatternMemory } from '@/components/games/PatternMemory';
 import { TypingChallenge } from '@/components/games/TypingChallenge';
-import { AnimalFacts } from '@/components/games/AnimalFacts';
+import { GroundingExercise } from '@/components/games/GroundingExercise';
+import { IntentionCheck } from '@/components/games/IntentionCheck';
 import { BreathingGame } from '@/components/games/BreathingGame';
-import { FlappyGame } from '@/components/games/FlappyGame';
 import { ReactionGame } from '@/components/games/ReactionGame';
 import { OddOneOut } from '@/components/games/OddOneOut';
 import { COLORS, FONTS } from '@/constants/Colors';
@@ -70,13 +70,13 @@ const ALL_GAMES = [
     tagline: 'Trains precision + focus',
   },
   {
-    id: 'animals',
-    name: 'Animal Facts',
-    description: 'Read a cool fact, answer a trivia question',
-    emoji: '🦦',
+    id: 'grounding',
+    name: 'Ground Yourself',
+    description: '5-4-3-2-1 — anchor to the present moment',
+    emoji: '🌿',
     color: COLORS.cyan,
     tier: 'standard' as const,
-    tagline: 'Calming + curious',
+    tagline: 'Clinically reduces cravings',
   },
   {
     id: 'breathing',
@@ -90,13 +90,13 @@ const ALL_GAMES = [
 
   // ── Pro tier games — still free to play in Arcade ──
   {
-    id: 'flappy',
-    name: 'Flappy NoGoon',
-    description: 'Dodge the pipes — how far can you go?',
-    emoji: '🐦',
+    id: 'intention',
+    name: 'Why Am I Here?',
+    description: 'A 60-second check-in with yourself',
+    emoji: '🪞',
     color: COLORS.purple,
     tier: 'pro' as const,
-    tagline: 'Fast-paced coordination',
+    tagline: 'Surfaces the real motivation',
   },
   {
     id: 'reaction',
@@ -257,9 +257,9 @@ export default function ArcadeScreen() {
   if (activeGame === 'stroop')    return <StroopChallenge onComplete={handleGameComplete} />;
   if (activeGame === 'memory')    return <PatternMemory   onComplete={handleGameComplete} />;
   if (activeGame === 'typing')    return <TypingChallenge onComplete={handleGameComplete} duration={30} />;
-  if (activeGame === 'animals')   return <AnimalFacts     onComplete={handleGameComplete} />;
+  if (activeGame === 'grounding') return <GroundingExercise onComplete={handleGameComplete} />;
   if (activeGame === 'breathing') return <BreathingGame   onComplete={handleGameComplete} />;
-  if (activeGame === 'flappy')    return <FlappyGame      onComplete={handleGameComplete} />;
+  if (activeGame === 'intention') return <IntentionCheck   onComplete={handleGameComplete} />;
   if (activeGame === 'reaction')  return <ReactionGame    onComplete={handleGameComplete} />;
   if (activeGame === 'oddone')    return <OddOneOut       onComplete={handleGameComplete} />;
 

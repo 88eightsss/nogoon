@@ -16,6 +16,7 @@ import { ScrollView, View, Text, StyleSheet, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useUserStore, getLevelProgress } from '@/stores/useUserStore';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { useAppBlocker } from '@/hooks/useAppBlocker';
 import { AdBanner } from '@/components/ads/AdBanner';
 import { ShieldStatus } from '@/components/home/ShieldStatus';
 import { StreakBadge } from '@/components/home/StreakBadge';
@@ -73,8 +74,13 @@ export default function HomeScreen() {
     level,
     weeklyActivity,
     dailyChallengeCompleted,
+    walkAwayCount,
     loadFromSupabase,
   } = useUserStore();
+
+  // Pull the real blocking state from the hook that talks to Android
+  // blockingStatus: 'active' | 'empty' | 'off'
+  const { blockingStatus, openSettings } = useAppBlocker();
 
   // Re-fetch data from Supabase every time this tab comes into view.
   // This keeps the home screen fresh if the user just completed a game
@@ -113,12 +119,17 @@ export default function HomeScreen() {
         </View>
 
         {/* ─── Section 2: Shield Status ──────────────────────── */}
-        <ShieldStatus active={true} sensitivity="Standard" />
+        {/* status is read from the real Android Accessibility Service state —
+            'active' = actually blocking, 'empty' = on but empty list, 'off' = not enabled */}
+        <ShieldStatus
+          status={blockingStatus}
+          onFix={openSettings}
+        />
 
         {/* ─── Section 3: Stats Row ──────────────────────────── */}
         {/* Streak and Points side by side, each taking half the width */}
         <View style={styles.statsRow}>
-          <StreakBadge streak={streak} longestStreak={longestStreak} />
+          <StreakBadge streak={streak} longestStreak={longestStreak} walkAwayCount={walkAwayCount} />
           <PointsBadge
             points={points}
             level={level}

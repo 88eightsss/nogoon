@@ -134,11 +134,38 @@ class NoGoonAccessibilityService : AccessibilityService() {
         triggerIfNotOnCooldown(domain, source = "web")
     }
 
+    // ── Temporary unlock check ────────────────────────────────────────────────
+    // After a user plays a game and taps "unlock for 10 min", we store an expiry
+    // timestamp in SharedPreferences as "unlock_{domain}".
+    // This function returns true if the target is currently unlocked (expiry
+    // is in the future), meaning we should let them through without intercepting.
+
+    private fun isTemporarilyUnlocked(target: String, prefs: android.content.SharedPreferences): Boolean {
+        val key = "unlock_${target.trim().lowercase()}"
+        val expiryMs = prefs.getLong(key, 0L)
+        if (expiryMs == 0L) return false // no unlock stored
+
+        val now = System.currentTimeMillis()
+        if (now < expiryMs) {
+            return true // still within the 10-minute window
+        }
+
+        // Unlock has expired — clean it up so we don't accumulate stale entries
+        prefs.edit().remove(key).apply()
+        return false
+    }
+
     // ── Cooldown check + trigger ──────────────────────────────────────────────
     // Prevents the intercept from firing more than once every 3 seconds
     // for the same target (app or domain).
+    // Also checks the temporary unlock expiry — if unlocked, silently lets through.
 
     private fun triggerIfNotOnCooldown(target: String, source: String) {
+        val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+
+        // If the user earned a 10-minute unlock by playing a game, respect it
+        if (isTemporarilyUnlocked(target, prefs)) return
+
         val now = System.currentTimeMillis()
         val lastTrigger = recentlyTriggered[target] ?: 0L
         if (now - lastTrigger < COOLDOWN_MS) return

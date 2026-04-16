@@ -140,6 +140,17 @@ interface UserState {
   blockScheduleStart: string;  // e.g. '22:00'
   blockScheduleEnd: string;    // e.g. '08:00'
 
+  // ── Walk-away count ────────────────────────────────────────────────────────
+  // How many times the user played a gate game and then chose NOT to unlock.
+  // This is the real success metric — the app working as intended.
+  // Shown on the home screen as encouragement, never as pressure.
+  walkAwayCount: number;
+
+  // ── Onboarding goal ────────────────────────────────────────────────────────
+  // What the user said they want more time for (set during onboarding).
+  // Shown subtly on the gate screen as a reminder of their own intention.
+  intentionGoal: string;
+
   // ── Impulse journal ────────────────────────────────────────────────────────
   // User writes what triggered them before each game — builds self-awareness
   journalEntries: Array<{
@@ -189,6 +200,12 @@ interface UserState {
   // Schedule
   setBlockSchedule: (enabled: boolean, start: string, end: string) => void;
 
+  // Walk-away tracking
+  incrementWalkAway: () => void;
+
+  // Intention goal (set in onboarding)
+  setIntentionGoal: (goal: string) => void;
+
   // Journal
   addJournalEntry: (text: string, domain: string) => void;
   clearOldJournalEntries: () => void; // keeps last 90 entries
@@ -227,9 +244,11 @@ const secureStorage = createJSONStorage(() => ({
 // ─── Default state ────────────────────────────────────────────────────────────
 // Extracted so resetStore() can return to exactly this state.
 
-// How many points it costs a free user to permanently remove a site.
+// How many pause tokens it costs a free user to permanently remove a site.
+// Lowered from 75 → 25: the friction is the game, not the cost. Removing
+// a site intentionally is fine — we just want one small pause before they do.
 // Pro users always pay 0 — this is checked in the UI, not here.
-const REMOVE_COST = 75;
+const REMOVE_COST = 25;
 
 const DEFAULT_STATE = {
   name: '',
@@ -265,6 +284,10 @@ const DEFAULT_STATE = {
   blockScheduleEnd: '08:00',
   // Journal
   journalEntries: [] as Array<{ id: string; text: string; domain: string; timestamp: number }>,
+  // Walk-away count — how many times the user played and chose NOT to unlock
+  walkAwayCount: 0,
+  // Onboarding goal — what they said they want more time for
+  intentionGoal: '',
 };
 
 // ─── The store ────────────────────────────────────────────────────────────────
@@ -458,6 +481,18 @@ export const useUserStore = create<UserState>()(
         blockScheduleEnd: end,
       }),
 
+      // ── Walk-away tracking ───────────────────────────────────────────────────
+      // Called when user taps "Walk Away" on the post-game screen.
+      // This increments the real success metric — no unlock, chose to leave.
+
+      incrementWalkAway: () => set((state) => ({
+        walkAwayCount: state.walkAwayCount + 1,
+      })),
+
+      // ── Intention goal ───────────────────────────────────────────────────────
+
+      setIntentionGoal: (goal) => set({ intentionGoal: goal }),
+
       // ── Impulse journal ──────────────────────────────────────────────────────
 
       addJournalEntry: (text, domain) => {
@@ -612,6 +647,8 @@ export const useUserStore = create<UserState>()(
         blockScheduleStart:      state.blockScheduleStart,
         blockScheduleEnd:        state.blockScheduleEnd,
         journalEntries:          state.journalEntries,
+        walkAwayCount:           state.walkAwayCount,
+        intentionGoal:           state.intentionGoal,
       }),
     }
   )

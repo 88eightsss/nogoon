@@ -82,6 +82,12 @@ export function useAppBlocker() {
   const [serviceEnabled, setServiceEnabled] = useState(false);
   const [checking, setChecking]             = useState(true);
 
+  // ── Temporary unlock state ─────────────────────────────────────────────────
+  // Tracks domains the user has unlocked temporarily after playing a game.
+  // Key = domain string, Value = expiry timestamp (ms).
+  // When the current time passes the expiry, the domain is blocked again.
+  const [tempUnlocks, setTempUnlocks] = useState<Record<string, number>>({});
+
   // ── Check if Accessibility Service is enabled ──────────────────────────────
   // Polls every 2 seconds so the UI updates immediately after the user grants
   // permission in Android Settings without needing to restart the app.
@@ -193,6 +199,45 @@ export function useAppBlocker() {
     }
   }, [hasNativeModule]);
 
+  // ── Temporary unlock ──────────────────────────────────────────────────────
+  // Called from post-game.tsx when the user taps "Unlock for 10 min".
+  // Stores the expiry in state (and tells the Android native module too).
+  // After the duration, the domain is automatically blocked again.
+  const unlockTemporarily = useCallback((domain: string, minutes: number = 10) => {
+    const expiryMs = Date.now() + minutes * 60 * 1000;
+    setTempUnlocks((prev) => ({ ...prev, [domain]: expiryMs }));
+
+    // Also tell the native module so the Accessibility Service can enforce it
+    if (hasNativeModule) {
+      try {
+        AppBlocker.setTemporaryUnlock(domain, expiryMs.toString());
+      } catch (e) {
+        console.warn('setTemporaryUnlock native call failed:', e);
+      }
+    }
+
+    // Auto-clear after the unlock expires
+    setTimeout(() => {
+      setTempUnlocks((prev) => {
+        const updated = { ...prev };
+        delete updated[domain];
+        return updated;
+      });
+    }, minutes * 60 * 1000);
+  }, [hasNativeModule]);
+
+  // ── Derived blocking status ───────────────────────────────────────────────
+  // Three possible states that ShieldStatus and the home screen can display:
+  //   'active'  — accessibility service is ON and at least one site/app is blocked
+  //   'empty'   — service is ON but the blocklist is empty (user hasn't added anything)
+  //   'off'     — accessibility service is disabled (needs user to go to Settings)
+  const hasAnyBlocks = blockedApps.length > 0 || websiteBlocklist.length > 0;
+  const blockingStatus: 'active' | 'empty' | 'off' = !serviceEnabled
+    ? 'off'
+    : hasAnyBlocks
+      ? 'active'
+      : 'empty';
+
   return {
     serviceEnabled,        // boolean — true if user has granted permission
     checking,              // boolean — true while first checking status
@@ -203,5 +248,8 @@ export function useAppBlocker() {
     openBatterySettings,   // () => void — opens battery optimization settings
     checkServiceStatus,
     hasNativeModule,       // boolean — false in Expo Go, true in built app
+    blockingStatus,        // 'active' | 'empty' | 'off' — for ShieldStatus component
+    unlockTemporarily,     // (domain, minutes) => void — after game, let domain through
+    tempUnlocks,           // Record<domain, expiryMs> — currently unlocked domains
   };
 }

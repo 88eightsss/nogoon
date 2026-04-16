@@ -88,6 +88,53 @@ class AppBlockerModule(reactContext: ReactApplicationContext) :
         }
     }
 
+    // ── setTemporaryUnlock ─────────────────────────────────────────────────────
+    // Called from JavaScript (post-game.tsx) when the user chooses to unlock
+    // a domain for 10 minutes after playing a game.
+    //
+    // We store the unlock expiry as a timestamp in SharedPreferences using the
+    // key "unlock_{domain}". The Accessibility Service reads this before every
+    // intercept — if the expiry is in the future, it lets the domain through.
+    //
+    // Arguments:
+    //   domain       — e.g. "instagram.com"
+    //   expiryMsStr  — Unix timestamp string (ms) when the unlock expires
+    //                  Passed as a string because JS bridge can handle large numbers
+
+    @ReactMethod
+    fun setTemporaryUnlock(domain: String, expiryMsStr: String, promise: Promise) {
+        try {
+            val expiryMs = expiryMsStr.toLong()
+            val key = "unlock_${domain.trim().lowercase()}"
+
+            val prefs = reactApplicationContext.getSharedPreferences(PREFS_NAME, 0)
+            prefs.edit()
+                .putLong(key, expiryMs)
+                .apply()
+
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("SET_TEMP_UNLOCK_ERROR", e.message ?: "Unknown error", e)
+        }
+    }
+
+    // ── clearTemporaryUnlock ───────────────────────────────────────────────────
+    // Explicitly removes an active temporary unlock. Called when the 10-minute
+    // timer expires on the JS side, as a safety fallback (the service also
+    // checks expiry independently).
+
+    @ReactMethod
+    fun clearTemporaryUnlock(domain: String, promise: Promise) {
+        try {
+            val key = "unlock_${domain.trim().lowercase()}"
+            val prefs = reactApplicationContext.getSharedPreferences(PREFS_NAME, 0)
+            prefs.edit().remove(key).apply()
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("CLEAR_TEMP_UNLOCK_ERROR", e.message ?: "Unknown error", e)
+        }
+    }
+
     @ReactMethod
     fun isServiceEnabled(promise: Promise) {
         try {
