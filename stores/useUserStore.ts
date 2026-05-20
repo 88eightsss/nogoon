@@ -1,5 +1,4 @@
-// ─── User Store ───────────────────────────────────────────────────────────────
-//
+// ─── User Store ─────────────────────────────────────────────────────────────── //
 // Global user state powered by Zustand with persist middleware.
 //
 // "Persist" means the data is automatically saved to the device's secure storage
@@ -10,23 +9,49 @@
 // across devices when the user logs in from a new phone.
 //
 // Usage in any component:
-//   const { points, addPoints } = useUserStore()
+//     const { points, addPoints } = useUserStore()
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import * as SecureStore from 'expo-secure-store';
 import { supabase } from '@/lib/supabase';
 
-// ─── XP Level system ──────────────────────────────────────────────────────────
+// ─── Background Write Helper ────────────────────────────────────────────────── //
+// Wraps all fire-and-forget Supabase writes so failures are logged instead of
+// silently swallowed. Pass a label for clearer console output.
+
+async function backgroundWrite(
+  label: string,
+  writeFn: () => Promise<{ error: any }>
+): Promise<void> {
+  try {
+    const { error } = await writeFn();
+    if (error) {
+      console.error(`[NoGoon] ${label} failed:`, error.message);
+    }
+  } catch (err) {
+    console.error(`[NoGoon] ${label} threw:`, err);
+  }
+}
+
+// ─── Email validation helper ────────────────────────────────────────────────── //
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function isValidEmail(email: string): boolean {
+  return EMAIL_REGEX.test(email.trim());
+}
+
+// ─── XP Level system ────────────────────────────────────────────────────────── //
 // As users earn XP by completing games, they move up through these levels.
+
 export type XPLevel = 'Rookie' | 'Explorer' | 'Guardian' | 'Sentinel' | 'Legend';
 
 const LEVEL_THRESHOLDS: Record<XPLevel, number> = {
-  Rookie:   0,
+  Rookie: 0,
   Explorer: 500,
   Guardian: 1500,
   Sentinel: 3500,
-  Legend:   7000,
+  Legend: 7000,
 };
 
 const LEVEL_ORDER: XPLevel[] = ['Rookie', 'Explorer', 'Guardian', 'Sentinel', 'Legend'];
@@ -48,13 +73,12 @@ export function getLevelProgress(xp: number): {
   }
 
   const label = LEVEL_ORDER[currentIndex];
-  const nextLabel = currentIndex < LEVEL_ORDER.length - 1
-    ? LEVEL_ORDER[currentIndex + 1]
-    : null;
-
+  const nextLabel =
+    currentIndex < LEVEL_ORDER.length - 1
+      ? LEVEL_ORDER[currentIndex + 1]
+      : null;
   const currentThreshold = LEVEL_THRESHOLDS[label];
   const nextThreshold = nextLabel ? LEVEL_THRESHOLDS[nextLabel] : null;
-
   const percent = nextThreshold
     ? (xp - currentThreshold) / (nextThreshold - currentThreshold)
     : 1;
@@ -62,11 +86,10 @@ export function getLevelProgress(xp: number): {
   return { label, nextLabel, currentThreshold, nextThreshold, percent };
 }
 
-// ─── Helper: Build 7-day date range ──────────────────────────────────────────
+// ─── Helper: Build 7-day date range ────────────────────────────────────────── //
 // Returns an array of 7 date strings (YYYY-MM-DD), oldest first.
 // Index 0 = 6 days ago, Index 6 = today.
 // This matches the WeeklyChart component's data format.
-
 function getLast7Days(): string[] {
   const today = new Date();
   return Array.from({ length: 7 }, (_, i) => {
@@ -77,7 +100,6 @@ function getLast7Days(): string[] {
 }
 
 // ─── Store shape ──────────────────────────────────────────────────────────────
-
 interface UserState {
   // Identity
   name: string;
@@ -99,7 +121,6 @@ interface UserState {
 
   // Weekly activity chart (last 7 days, index 0 = 6 days ago, index 6 = today)
   weeklyActivity: [number, number, number, number, number, number, number];
-
   dailyChallengeCompleted: boolean;
 
   // Website blocklist — array of domains the user has blocked
@@ -116,8 +137,8 @@ interface UserState {
   // When active, the unlock button is completely removed from the post-game
   // screen. The only way out is to walk away. Disabling requires a 24hr wait.
   isBricked: boolean;
-  brickedEnabledAt: number | null;           // timestamp (ms) when BRICKED was turned on
-  brickedDisableRequestedAt: number | null;  // timestamp when user requested to turn it OFF
+  brickedEnabledAt: number | null;          // timestamp (ms) when BRICKED was turned on
+  brickedDisableRequestedAt: number | null; // timestamp when user requested to turn it OFF
 
   // ── Game duration (Pro only) ───────────────────────────────────────────────
   // Longer games = stronger pattern interruption = more likely to walk away
@@ -131,8 +152,8 @@ interface UserState {
   // ── Accountability partner (Pro+ only) ─────────────────────────────────────
   partnerEmail: string;
   partnerName: string;
-  partnerNotifyOnUnlock: boolean;   // send email when user unlocks a site
-  partnerNotifyOnBypass: boolean;   // send email when user dismisses without playing
+  partnerNotifyOnUnlock: boolean;  // send email when user unlocks a site
+  partnerNotifyOnBypass: boolean;  // send email when user dismisses without playing
 
   // ── Block schedule (Pro only) ──────────────────────────────────────────────
   // Define time windows when blocking is active
@@ -190,8 +211,8 @@ interface UserState {
   setGameDuration: (duration: 30 | 60 | 90) => void;
 
   // Streak protection
-  useStreakRestore: () => boolean; // returns false if no restores left
-  refreshStreakRestores: () => void; // call on app open to reset monthly
+  useStreakRestore: () => boolean;    // returns false if no restores left
+  refreshStreakRestores: () => void;  // call on app open to reset monthly
 
   // Partner
   setPartner: (email: string, name: string) => void;
@@ -227,7 +248,6 @@ interface UserState {
 // ─── SecureStore adapter for Zustand persist ──────────────────────────────────
 // Zustand's persist middleware needs a storage backend.
 // We use expo-secure-store so the saved data is encrypted on the device.
-
 const secureStorage = createJSONStorage(() => ({
   getItem: async (key: string) => {
     const value = await SecureStore.getItemAsync(key);
@@ -263,35 +283,43 @@ const DEFAULT_STATE = {
   dailyChallengeCompleted: false,
   blocklist: [] as string[],
   blockedApps: [] as string[],
-  gameMode: 'random' as 'random' | 'choose', // Default: skip picker, jump straight into a game
+  gameMode: 'random' as 'random' | 'choose',
+  // Default: skip picker, jump straight into a game
+
   // BRICKED
   isBricked: false,
   brickedEnabledAt: null as number | null,
   brickedDisableRequestedAt: null as number | null,
+
   // Game duration
   gameDuration: 30 as 30 | 60 | 90,
+
   // Streak protection
   streakRestoresLeft: 0,
   streakRestoreMonth: '',
+
   // Partner
   partnerEmail: '',
   partnerName: '',
   partnerNotifyOnUnlock: true,
   partnerNotifyOnBypass: false,
+
   // Schedule
   blockScheduleEnabled: false,
   blockScheduleStart: '22:00',
   blockScheduleEnd: '08:00',
+
   // Journal
   journalEntries: [] as Array<{ id: string; text: string; domain: string; timestamp: number }>,
+
   // Walk-away count — how many times the user played and chose NOT to unlock
   walkAwayCount: 0,
+
   // Onboarding goal — what they said they want more time for
   intentionGoal: '',
 };
 
 // ─── The store ────────────────────────────────────────────────────────────────
-
 export const useUserStore = create<UserState>()(
   persist(
     (set, get) => ({
@@ -306,7 +334,8 @@ export const useUserStore = create<UserState>()(
 
       completeOnboarding: () => set({ hasOnboarded: true }),
 
-      addPoints: (amount) => set((state) => ({ points: state.points + amount })),
+      addPoints: (amount) =>
+        set((state) => ({ points: state.points + amount })),
 
       addXP: (amount) => {
         const newXP = get().xp + amount;
@@ -321,10 +350,11 @@ export const useUserStore = create<UserState>()(
         return true;
       },
 
-      incrementStreak: () => set((state) => ({
-        streak: state.streak + 1,
-        longestStreak: Math.max(state.longestStreak, state.streak + 1),
-      })),
+      incrementStreak: () =>
+        set((state) => ({
+          streak: state.streak + 1,
+          longestStreak: Math.max(state.longestStreak, state.streak + 1),
+        })),
 
       resetStreak: () => set({ streak: 0 }),
 
@@ -333,7 +363,6 @@ export const useUserStore = create<UserState>()(
       // 1. Increments today's bar in the weekly chart
       // 2. Increments the lifetime games counter
       // 3. Writes a row to the game_sessions table in Supabase
-
       recordGamePlayed: (score = 0, gameId = 'unknown') => {
         set((state) => {
           const updated = [...state.weeklyActivity] as typeof state.weeklyActivity;
@@ -348,12 +377,14 @@ export const useUserStore = create<UserState>()(
         // This is what powers the weekly chart on the next app load
         supabase.auth.getUser().then(({ data }) => {
           if (data.user) {
-            supabase.from('game_sessions').insert({
-              user_id: data.user.id,
-              score,
-              game_id: gameId,
-              // played_at defaults to CURRENT_DATE in the database
-            });
+            backgroundWrite('game_sessions insert', () =>
+              supabase.from('game_sessions').insert({
+                user_id: data.user!.id,
+                score,
+                game_id: gameId,
+                // played_at defaults to CURRENT_DATE in the database
+              })
+            );
           }
         });
       },
@@ -361,7 +392,6 @@ export const useUserStore = create<UserState>()(
       completeDailyChallenge: () => set({ dailyChallengeCompleted: true }),
 
       // ── Website Blocklist ─────────────────────────────────────────────────
-
       addSite: (domain) => {
         const cleaned = domain
           .replace(/^https?:\/\//i, '')
@@ -369,21 +399,21 @@ export const useUserStore = create<UserState>()(
           .replace(/\/.*$/, '')
           .toLowerCase()
           .trim();
-
         if (!cleaned) return;
 
         const { blocklist } = get();
         if (blocklist.includes(cleaned)) return;
-
         set({ blocklist: [...blocklist, cleaned] });
 
         // Sync to Supabase in the background
         supabase.auth.getUser().then(({ data }) => {
           if (data.user) {
-            supabase.from('blocklist').insert({
-              user_id: data.user.id,
-              domain: cleaned,
-            });
+            backgroundWrite('blocklist insert', () =>
+              supabase.from('blocklist').insert({
+                user_id: data.user!.id,
+                domain: cleaned,
+              })
+            );
           }
         });
       },
@@ -393,7 +423,6 @@ export const useUserStore = create<UserState>()(
       // Returns true if removal succeeded, false if not enough points.
       // The UI checks `isPro` from useSubscriptionStore before calling this —
       // Pro users bypass the cost entirely by calling removeSite directly.
-
       removeSite: (domain) => {
         set((state) => ({
           blocklist: state.blocklist.filter((d) => d !== domain),
@@ -401,52 +430,50 @@ export const useUserStore = create<UserState>()(
 
         supabase.auth.getUser().then(({ data }) => {
           if (data.user) {
-            supabase
-              .from('blocklist')
-              .delete()
-              .eq('user_id', data.user.id)
-              .eq('domain', domain);
+            backgroundWrite('blocklist delete', () =>
+              supabase
+                .from('blocklist')
+                .delete()
+                .eq('user_id', data.user!.id)
+                .eq('domain', domain)
+            );
           }
         });
       },
 
       // ── App Blocklist ──────────────────────────────────────────────────────
-
       setBlockedApps: (packages) => {
         set({ blockedApps: packages });
       },
 
       // ── Game mode ──────────────────────────────────────────────────────────
-
       setGameMode: (mode) => set({ gameMode: mode }),
 
       // ── BRICKED mode ────────────────────────────────────────────────────────
-
-      enableBricked: () => set({
-        isBricked: true,
-        brickedEnabledAt: Date.now(),
-        brickedDisableRequestedAt: null,
-      }),
+      enableBricked: () =>
+        set({
+          isBricked: true,
+          brickedEnabledAt: Date.now(),
+          brickedDisableRequestedAt: null,
+        }),
 
       // User taps "Disable BRICKED" — starts the 24hr safety countdown.
       // They can't immediately turn it off — that would defeat the purpose.
-      requestDisableBricked: () => set({
-        brickedDisableRequestedAt: Date.now(),
-      }),
+      requestDisableBricked: () =>
+        set({ brickedDisableRequestedAt: Date.now() }),
 
       // Called after the 24hr cooldown has expired.
-      confirmDisableBricked: () => set({
-        isBricked: false,
-        brickedEnabledAt: null,
-        brickedDisableRequestedAt: null,
-      }),
+      confirmDisableBricked: () =>
+        set({
+          isBricked: false,
+          brickedEnabledAt: null,
+          brickedDisableRequestedAt: null,
+        }),
 
       // ── Game duration ────────────────────────────────────────────────────────
-
       setGameDuration: (duration) => set({ gameDuration: duration }),
 
       // ── Streak protection ────────────────────────────────────────────────────
-
       // Returns true if successfully used a restore, false if none left.
       useStreakRestore: () => {
         const { streakRestoresLeft } = get();
@@ -465,36 +492,55 @@ export const useUserStore = create<UserState>()(
       },
 
       // ── Partner ──────────────────────────────────────────────────────────────
+      // FIXED: Validates email format before storing (audit item 7)
+      setPartner: (email, name) => {
+        if (!isValidEmail(email)) {
+          console.warn('[NoGoon] Invalid partner email format:', email);
+          return;
+        }
 
-      setPartner: (email, name) => set({ partnerEmail: email, partnerName: name }),
+        const sanitizedEmail = email.trim().toLowerCase();
+        set({ partnerEmail: sanitizedEmail, partnerName: name });
 
-      setPartnerNotifications: (onUnlock, onBypass) => set({
-        partnerNotifyOnUnlock: onUnlock,
-        partnerNotifyOnBypass: onBypass,
-      }),
+        // Sync partner info to Supabase
+        supabase.auth.getUser().then(({ data }) => {
+          if (data.user) {
+            backgroundWrite('partner update', () =>
+              supabase.from('profiles').update({
+                partner_email: sanitizedEmail,
+                partner_name: name,
+              }).eq('id', data.user!.id)
+            );
+          }
+        });
+      },
+
+      setPartnerNotifications: (onUnlock, onBypass) =>
+        set({
+          partnerNotifyOnUnlock: onUnlock,
+          partnerNotifyOnBypass: onBypass,
+        }),
 
       // ── Block schedule ───────────────────────────────────────────────────────
-
-      setBlockSchedule: (enabled, start, end) => set({
-        blockScheduleEnabled: enabled,
-        blockScheduleStart: start,
-        blockScheduleEnd: end,
-      }),
+      setBlockSchedule: (enabled, start, end) =>
+        set({
+          blockScheduleEnabled: enabled,
+          blockScheduleStart: start,
+          blockScheduleEnd: end,
+        }),
 
       // ── Walk-away tracking ───────────────────────────────────────────────────
       // Called when user taps "Walk Away" on the post-game screen.
       // This increments the real success metric — no unlock, chose to leave.
-
-      incrementWalkAway: () => set((state) => ({
-        walkAwayCount: state.walkAwayCount + 1,
-      })),
+      incrementWalkAway: () =>
+        set((state) => ({
+          walkAwayCount: state.walkAwayCount + 1,
+        })),
 
       // ── Intention goal ───────────────────────────────────────────────────────
-
       setIntentionGoal: (goal) => set({ intentionGoal: goal }),
 
       // ── Impulse journal ──────────────────────────────────────────────────────
-
       addJournalEntry: (text, domain) => {
         const entry = {
           id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -505,68 +551,76 @@ export const useUserStore = create<UserState>()(
         set((state) => ({
           journalEntries: [entry, ...state.journalEntries].slice(0, 90),
         }));
+
         // Sync to Supabase in background
         supabase.auth.getUser().then(({ data }) => {
           if (data.user && text.trim()) {
-            supabase.from('journal_entries').insert({
-              user_id: data.user.id,
-              text,
-              domain,
-            });
+            backgroundWrite('journal_entries insert', () =>
+              supabase.from('journal_entries').insert({
+                user_id: data.user!.id,
+                text,
+                domain,
+              })
+            );
           }
         });
       },
 
-      clearOldJournalEntries: () => set((state) => ({
-        journalEntries: state.journalEntries.slice(0, 90),
-      })),
+      clearOldJournalEntries: () =>
+        set((state) => ({
+          journalEntries: state.journalEntries.slice(0, 90),
+        })),
 
       // Expose the constant so UI can read it without a separate import
       REMOVE_COST,
 
       // ── Supabase sync ─────────────────────────────────────────────────────
-
       // Called after login — fetches the user's data from Supabase and
       // updates the local store so the UI shows real numbers, not zeros.
       loadFromSupabase: async (userId) => {
         // Build the date range for the last 7 days
         const days = getLast7Days(); // ['2025-01-09', ..., '2025-01-15']
 
-        const [profileResult, blocklistResult, sessionsResult] = await Promise.all([
-          // Fetch the user's main profile stats
-          supabase.from('profiles').select('*').eq('id', userId).single(),
+        const [profileResult, blocklistResult, sessionsResult] =
+          await Promise.all([
+            // Fetch the user's main profile stats
+            supabase.from('profiles').select('*').eq('id', userId).single(),
 
-          // Fetch all blocked websites
-          supabase.from('blocklist').select('domain').eq('user_id', userId),
+            // Fetch all blocked websites
+            supabase.from('blocklist').select('domain').eq('user_id', userId),
 
-          // Fetch game sessions from the last 7 days for the weekly chart
-          supabase
-            .from('game_sessions')
-            .select('played_at')
-            .eq('user_id', userId)
-            .gte('played_at', days[0]) // Greater than or equal to 6 days ago
-            .lte('played_at', days[6]), // Less than or equal to today
-        ]);
+            // Fetch game sessions from the last 7 days for the weekly chart
+            supabase
+              .from('game_sessions')
+              .select('played_at')
+              .eq('user_id', userId)
+              .gte('played_at', days[0])   // Greater than or equal to 6 days ago
+              .lte('played_at', days[6]),   // Less than or equal to today
+          ]);
 
         // ── Profile data ──
         if (profileResult.data) {
           const p = profileResult.data;
           const { label } = getLevelProgress(p.xp ?? 0);
           set({
-            name:          p.name          ?? '',
-            points:        p.points        ?? 0,
-            xp:            p.xp            ?? 0,
-            level:         label,
-            streak:        p.streak        ?? 0,
+            name: p.name ?? '',
+            points: p.points ?? 0,
+            xp: p.xp ?? 0,
+            level: label,
+            streak: p.streak ?? 0,
             longestStreak: p.longest_streak ?? 0,
-            gamesPlayed:   p.games_played  ?? 0,
-            hasOnboarded:  true,
+            gamesPlayed: p.games_played ?? 0,
+            hasOnboarded: true,
           });
         }
 
         // ── Blocklist ──
         if (blocklistResult.data) {
-          set({ blocklist: blocklistResult.data.map((r: any) => r.domain) });
+          set({
+            blocklist: blocklistResult.data.map(
+              (r: { domain: string }) => r.domain
+            ),
+          });
         }
 
         // ── Weekly chart ──
@@ -580,9 +634,15 @@ export const useUserStore = create<UserState>()(
           }
 
           // Map each day in our 7-day window to its count (0 if no sessions)
-          const weeklyActivity = days.map((d) => activityMap[d] ?? 0) as
-            [number, number, number, number, number, number, number];
-
+          const weeklyActivity = days.map((d) => activityMap[d] ?? 0) as [
+            number,
+            number,
+            number,
+            number,
+            number,
+            number,
+            number,
+          ];
           set({ weeklyActivity });
         }
       },
@@ -607,48 +667,45 @@ export const useUserStore = create<UserState>()(
       // Called on sign out so the next person who logs in starts fresh.
       // The persist middleware automatically clears SecureStore as part
       // of the state reset.
-
       resetStore: () => {
         set(DEFAULT_STATE);
       },
     }),
-
-    // ── Persist config ────────────────────────────────────────────────────
+    // ── Persist config ──────────────────────────────────────────────────────
     {
-      name: 'nogoon-user-store',    // Key used in SecureStore
+      name: 'nogoon-user-store', // Key used in SecureStore
       storage: secureStorage,
-
       // Only persist the data fields, not the async action functions
       partialize: (state) => ({
-        name:                   state.name,
-        hasOnboarded:           state.hasOnboarded,
-        streak:                 state.streak,
-        longestStreak:          state.longestStreak,
-        points:                 state.points,
-        xp:                     state.xp,
-        level:                  state.level,
-        gamesPlayed:            state.gamesPlayed,
-        weeklyActivity:         state.weeklyActivity,
+        name: state.name,
+        hasOnboarded: state.hasOnboarded,
+        streak: state.streak,
+        longestStreak: state.longestStreak,
+        points: state.points,
+        xp: state.xp,
+        level: state.level,
+        gamesPlayed: state.gamesPlayed,
+        weeklyActivity: state.weeklyActivity,
         dailyChallengeCompleted: state.dailyChallengeCompleted,
-        blocklist:               state.blocklist,
-        blockedApps:             state.blockedApps,
-        gameMode:                state.gameMode,
-        isBricked:               state.isBricked,
-        brickedEnabledAt:        state.brickedEnabledAt,
+        blocklist: state.blocklist,
+        blockedApps: state.blockedApps,
+        gameMode: state.gameMode,
+        isBricked: state.isBricked,
+        brickedEnabledAt: state.brickedEnabledAt,
         brickedDisableRequestedAt: state.brickedDisableRequestedAt,
-        gameDuration:            state.gameDuration,
-        streakRestoresLeft:      state.streakRestoresLeft,
-        streakRestoreMonth:      state.streakRestoreMonth,
-        partnerEmail:            state.partnerEmail,
-        partnerName:             state.partnerName,
-        partnerNotifyOnUnlock:   state.partnerNotifyOnUnlock,
-        partnerNotifyOnBypass:   state.partnerNotifyOnBypass,
-        blockScheduleEnabled:    state.blockScheduleEnabled,
-        blockScheduleStart:      state.blockScheduleStart,
-        blockScheduleEnd:        state.blockScheduleEnd,
-        journalEntries:          state.journalEntries,
-        walkAwayCount:           state.walkAwayCount,
-        intentionGoal:           state.intentionGoal,
+        gameDuration: state.gameDuration,
+        streakRestoresLeft: state.streakRestoresLeft,
+        streakRestoreMonth: state.streakRestoreMonth,
+        partnerEmail: state.partnerEmail,
+        partnerName: state.partnerName,
+        partnerNotifyOnUnlock: state.partnerNotifyOnUnlock,
+        partnerNotifyOnBypass: state.partnerNotifyOnBypass,
+        blockScheduleEnabled: state.blockScheduleEnabled,
+        blockScheduleStart: state.blockScheduleStart,
+        blockScheduleEnd: state.blockScheduleEnd,
+        journalEntries: state.journalEntries,
+        walkAwayCount: state.walkAwayCount,
+        intentionGoal: state.intentionGoal,
       }),
     }
   )

@@ -1,19 +1,19 @@
 // ═══════════════════════════════════════════════════════════════════════════
-//  NoGoon INTERCEPT SCREEN
-//  ───────────────────────
-//  Fires when a blocked site or app is detected.
-//  Two game modes (set by user in Profile → Settings):
+// NoGoon INTERCEPT SCREEN
+// ───────────────────────
+// Fires when a blocked site or app is detected.
+// Two game modes (set by user in Profile → Settings):
 //
-//    'choose' — shows all game options, user picks one (default)
-//    'random' — skips the picker entirely, jumps straight into a random game
+//   'choose' — shows all game options, user picks one (default)
+//   'random' — skips the picker entirely, jumps straight into a random game
 //
-//  Route params:
-//    domain      — blocked site or app package name, e.g. "instagram.com"
-//    confidence  — detection confidence %, e.g. "97"
-//    source      — 'web' (browser extension) or 'app' (Accessibility Service)
+// Route params:
+//   domain     — blocked site or app package name, e.g. "instagram.com"
+//   confidence — detection confidence %, e.g. "97"
+//   source     — 'web' (browser extension) or 'app' (Accessibility Service)
 // ═══════════════════════════════════════════════════════════════════════════
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -46,7 +46,7 @@ import { TYPE } from '@/constants/Typography';
 // ─── Game catalogue builders ───────────────────────────────────────────────────
 //
 // STANDARD games — available to all paid subscribers ($2.88+/mo)
-// PRO games — only available to Pro subscribers ($4.22+/mo)
+// PRO games     — only available to Pro subscribers ($4.22+/mo)
 //
 // Note: ALL games are playable for free in Arcade mode (no points earned).
 // Points are only earned here, in the intercept flow.
@@ -136,8 +136,8 @@ const PRO_GAMES = [
 
 // A union type across both catalogues so TypeScript knows all possible game IDs
 type StandardGame = (typeof STANDARD_GAMES)[number];
-type ProGame      = (typeof PRO_GAMES)[number];
-type AnyGame      = StandardGame | ProGame;
+type ProGame = (typeof PRO_GAMES)[number];
+type AnyGame = StandardGame | ProGame;
 
 // Build the intercept game list — Pro games appended only for Pro subscribers
 function buildGameOptions(isPro: boolean): AnyGame[] {
@@ -146,9 +146,11 @@ function buildGameOptions(isPro: boolean): AnyGame[] {
     : ([...STANDARD_GAMES] as AnyGame[]);
 }
 
-// ─── GameCard sub-component ────────────────────────────────────────────────────
+// ─── GameCard sub-component (memoized) ───────────────────────────────────────
+// Wrapped in React.memo so it doesn't re-render when the parent re-renders
+// unless its own props actually change. (audit item 10)
 
-function GameCard({
+const GameCard = React.memo(function GameCard({
   game,
   onPress,
 }: {
@@ -160,10 +162,18 @@ function GameCard({
   return (
     <Pressable
       onPressIn={() =>
-        Animated.timing(scale, { toValue: 0.97, duration: 70, useNativeDriver: true }).start()
+        Animated.timing(scale, {
+          toValue: 0.97,
+          duration: 70,
+          useNativeDriver: true,
+        }).start()
       }
       onPressOut={() =>
-        Animated.spring(scale, { toValue: 1, damping: 12, useNativeDriver: true }).start()
+        Animated.spring(scale, {
+          toValue: 1,
+          damping: 12,
+          useNativeDriver: true,
+        }).start()
       }
       onPress={onPress}
     >
@@ -176,12 +186,22 @@ function GameCard({
         ]}
       >
         {/* Badge-style icon: rounded square with color-tinted background */}
-        <View style={[styles.gameIconBadge, { backgroundColor: game.color + '18', borderColor: game.color + '40' }]}>
+        <View
+          style={[
+            styles.gameIconBadge,
+            {
+              backgroundColor: game.color + '18',
+              borderColor: game.color + '40',
+            },
+          ]}
+        >
           <Text style={styles.gameEmoji}>{game.emoji}</Text>
         </View>
         <View style={styles.gameTextGroup}>
           <View style={styles.gameNameRow}>
-            <Text style={[styles.gameName, { color: game.color }]}>{game.name}</Text>
+            <Text style={[styles.gameName, { color: game.color }]}>
+              {game.name}
+            </Text>
             {!game.isLive && (
               <Text style={styles.comingSoonLabel}>SOON</Text>
             )}
@@ -190,21 +210,23 @@ function GameCard({
         </View>
         <Feather name="chevron-right" size={20} color={game.color + 'aa'} />
       </Animated.View>
-
     </Pressable>
   );
-}
+});
 
-// ─── Main component ────────────────────────────────────────────────────────────
-
+// ─── Main component ──────────────────────────────────────────────────────────
 type Phase = 'selecting' | 'playing';
 
 export default function NoGoonScreen() {
   const {
-    domain     = 'instagram.com',
+    domain = 'instagram.com',
     confidence = '97',
-    source     = 'web',
-  } = useLocalSearchParams<{ domain: string; confidence: string; source: string }>();
+    source = 'web',
+  } = useLocalSearchParams<{
+    domain: string;
+    confidence: string;
+    source: string;
+  }>();
 
   // Read user preferences and BRICKED status from the store
   const { gameMode, isBricked, gameDuration } = useUserStore();
@@ -212,53 +234,60 @@ export default function NoGoonScreen() {
   // Check Pro subscription status — unlocks hidden games
   const { isPro } = useSubscriptionStore();
 
-  // Build the game list dynamically based on subscription status
-  const GAME_OPTIONS = buildGameOptions(isPro);
+  // Build the game list dynamically based on subscription status (memoized — audit item 11)
+  const GAME_OPTIONS = useMemo(() => buildGameOptions(isPro), [isPro]);
 
   // Only live games are eligible for random selection
-  const LIVE_GAMES = GAME_OPTIONS.filter((g) => g.isLive);
+  const LIVE_GAMES = useMemo(
+    () => GAME_OPTIONS.filter((g) => g.isLive),
+    [GAME_OPTIONS]
+  );
 
-  const isAppBlock    = source === 'app';
+  const isAppBlock = source === 'app';
   const displayDomain = isAppBlock
     ? (PACKAGE_TO_NAME[domain] ?? domain)
     : domain;
 
-  const [phase, setPhase]               = useState<Phase>('selecting');
+  const [phase, setPhase] = useState<Phase>('selecting');
   const [selectedGame, setSelectedGame] = useState<AnyGame | null>(null);
 
   // ── Alert animations ──────────────────────────────────────────────────────
-
   const alertShakeX = useRef(new Animated.Value(0)).current;
-  const alertScale  = useRef(new Animated.Value(0.85)).current;
+  const alertScale = useRef(new Animated.Value(0.85)).current;
 
   const doShake = useCallback(() => {
     Animated.sequence([
       Animated.timing(alertShakeX, { toValue: -11, duration: 55, useNativeDriver: true }),
-      Animated.timing(alertShakeX, { toValue:  11, duration: 55, useNativeDriver: true }),
-      Animated.timing(alertShakeX, { toValue:  -8, duration: 55, useNativeDriver: true }),
-      Animated.timing(alertShakeX, { toValue:   8, duration: 55, useNativeDriver: true }),
-      Animated.timing(alertShakeX, { toValue:  -4, duration: 55, useNativeDriver: true }),
-      Animated.timing(alertShakeX, { toValue:   0, duration: 55, useNativeDriver: true }),
+      Animated.timing(alertShakeX, { toValue: 11, duration: 55, useNativeDriver: true }),
+      Animated.timing(alertShakeX, { toValue: -8, duration: 55, useNativeDriver: true }),
+      Animated.timing(alertShakeX, { toValue: 8, duration: 55, useNativeDriver: true }),
+      Animated.timing(alertShakeX, { toValue: -4, duration: 55, useNativeDriver: true }),
+      Animated.timing(alertShakeX, { toValue: 0, duration: 55, useNativeDriver: true }),
     ]).start();
   }, [alertShakeX]);
 
   useEffect(() => {
     Animated.spring(alertScale, {
-      toValue: 1, damping: 10, stiffness: 180, useNativeDriver: true,
+      toValue: 1,
+      damping: 10,
+      stiffness: 180,
+      useNativeDriver: true,
     }).start();
 
     doShake();
     const interval = setInterval(doShake, 2500);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
 
-    // ── RANDOM MODE: skip the picker, auto-launch a random live game ──────
+    // ── RANDOM MODE: skip the picker, auto-launch a random live game ────
     // A short delay gives the alert animation time to show before jumping in
     if (gameMode === 'random') {
-      const randomGame = LIVE_GAMES[Math.floor(Math.random() * LIVE_GAMES.length)];
+      const randomGame =
+        LIVE_GAMES[Math.floor(Math.random() * LIVE_GAMES.length)];
       const timer = setTimeout(() => {
         setSelectedGame(randomGame);
         setPhase('playing');
       }, 1200); // 1.2s — user sees the alert flash before the game loads
+
       return () => {
         clearInterval(interval);
         clearTimeout(timer);
@@ -266,52 +295,69 @@ export default function NoGoonScreen() {
     }
 
     return () => clearInterval(interval);
-  }, [doShake, alertScale, gameMode]);
+  }, [doShake, alertScale, gameMode, LIVE_GAMES]);
 
   // ── Game selection (manual choose mode) ───────────────────────────────────
-
-  const handleSelectGame = (game: (typeof GAME_OPTIONS)[number]) => {
-    if (!game.isLive) {
-      // Don't navigate — just give a gentle haptic to signal it's not available yet
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      return;
-    }
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setSelectedGame(game);
-    setPhase('playing');
-  };
+  const handleSelectGame = useCallback(
+    (game: AnyGame) => {
+      if (!game.isLive) {
+        // Don't navigate — just give a gentle haptic to signal it's not available yet
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        return;
+      }
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      setSelectedGame(game);
+      setPhase('playing');
+    },
+    []
+  );
 
   // ── Game completion ────────────────────────────────────────────────────────
-
-  const handleGameComplete = useCallback((score: number) => {
-    router.replace({
-      pathname: '/post-game',
-      params: {
-        pointsEarned: String(score),
-        gameName: selectedGame?.name ?? 'Mini-Game',
-        // Pass the blocked target so post-game can show "Access instagram.com for 10 min"
-        domain: displayDomain,
-        // Pass whether BRICKED is on so post-game can hide the unlock button
-        isBricked: isBricked ? '1' : '0',
-      },
-    });
-  }, [selectedGame, isBricked, displayDomain]);
+  const handleGameComplete = useCallback(
+    (score: number) => {
+      router.replace({
+        pathname: '/post-game',
+        params: {
+          pointsEarned: String(score),
+          gameName: selectedGame?.name ?? 'Mini-Game',
+          // Pass the blocked target so post-game can show "Access instagram.com for 10 min"
+          domain: displayDomain,
+          // Pass whether BRICKED is on so post-game can hide the unlock button
+          isBricked: isBricked ? '1' : '0',
+        },
+      });
+    },
+    [selectedGame, isBricked, displayDomain]
+  );
 
   // ══════════════════════════════════════════════════════════════════════════
-  //  RENDER: Playing
+  // RENDER: Playing
   // ══════════════════════════════════════════════════════════════════════════
-
   if (phase === 'playing' && selectedGame) {
-    // ── Route to the correct game component ──────────────────────────────────
+    // ── Route to the correct game component ────────────────────────────────
     // gameDuration is set in Profile → Settings (Pro: 30/60/90s, Free: always 30s)
-    if (selectedGame.id === 'stroop')    return <StroopChallenge   onComplete={handleGameComplete} />;
-    if (selectedGame.id === 'memory')    return <PatternMemory     onComplete={handleGameComplete} />;
-    if (selectedGame.id === 'typing')    return <TypingChallenge   onComplete={handleGameComplete} duration={gameDuration} />;
-    if (selectedGame.id === 'grounding') return <GroundingExercise onComplete={handleGameComplete} />;
-    if (selectedGame.id === 'breathing') return <BreathingGame     onComplete={handleGameComplete} />;
-    if (selectedGame.id === 'intention') return <IntentionCheck    onComplete={handleGameComplete} />;
-    if (selectedGame.id === 'reaction')  return <ReactionGame      onComplete={handleGameComplete} />;
-    if (selectedGame.id === 'oddone')    return <OddOneOut         onComplete={handleGameComplete} />;
+    if (selectedGame.id === 'stroop')
+      return <StroopChallenge onComplete={handleGameComplete} />;
+    if (selectedGame.id === 'memory')
+      return <PatternMemory onComplete={handleGameComplete} />;
+    if (selectedGame.id === 'typing')
+      return (
+        <TypingChallenge
+          onComplete={handleGameComplete}
+          duration={gameDuration}
+        />
+      );
+    if (selectedGame.id === 'grounding')
+      return <GroundingExercise onComplete={handleGameComplete} />;
+    if (selectedGame.id === 'breathing')
+      return <BreathingGame onComplete={handleGameComplete} />;
+    if (selectedGame.id === 'intention')
+      return <IntentionCheck onComplete={handleGameComplete} />;
+    if (selectedGame.id === 'reaction')
+      return <ReactionGame onComplete={handleGameComplete} />;
+    if (selectedGame.id === 'oddone')
+      return <OddOneOut onComplete={handleGameComplete} />;
+
     // Fallback for any "SOON" games that somehow get triggered
     return (
       <PlaceholderGame
@@ -324,9 +370,8 @@ export default function NoGoonScreen() {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  //  RENDER: Selecting (or brief flash before random mode kicks in)
+  // RENDER: Selecting (or brief flash before random mode kicks in)
   // ══════════════════════════════════════════════════════════════════════════
-
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView
@@ -334,7 +379,6 @@ export default function NoGoonScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-
         <View style={styles.dangerGlow} pointerEvents="none" />
 
         {/* ── BRICKED banner — shown when the user has Hard Mode active ── */}
@@ -345,7 +389,9 @@ export default function NoGoonScreen() {
             <Text style={styles.brickedEmoji}>🧱</Text>
             <View style={styles.brickedTextGroup}>
               <Text style={styles.brickedTitle}>BRICKED MODE ON</Text>
-              <Text style={styles.brickedSub}>Unlock button is disabled — play the game.</Text>
+              <Text style={styles.brickedSub}>
+                Unlock button is disabled — play the game.
+              </Text>
             </View>
           </View>
         )}
@@ -353,26 +399,46 @@ export default function NoGoonScreen() {
         {/* ── Alert section ── */}
         <View style={styles.alertSection}>
           <Animated.View
-            style={{ transform: [{ translateX: alertShakeX }, { scale: alertScale }] }}
+            style={{
+              transform: [
+                { translateX: alertShakeX },
+                { scale: alertScale },
+              ],
+            }}
           >
             {/* lock = Feather valid name | alert-triangle = Feather valid name */}
-            <View style={[styles.iconRing, isBricked && { borderColor: COLORS.warning + '55', backgroundColor: COLORS.warning + '18' }]}>
-              <Feather name={isBricked ? 'lock' : 'alert-triangle'} size={52} color={isBricked ? COLORS.warning : COLORS.danger} />
+            <View
+              style={[
+                styles.iconRing,
+                isBricked && {
+                  borderColor: COLORS.warning + '55',
+                  backgroundColor: COLORS.warning + '18',
+                },
+              ]}
+            >
+              <Feather
+                name={isBricked ? 'lock' : 'alert-triangle'}
+                size={52}
+                color={isBricked ? COLORS.warning : COLORS.danger}
+              />
             </View>
           </Animated.View>
 
-          <Text style={[styles.aiDetectedLabel, isBricked && { color: COLORS.warning }]}>
+          <Text
+            style={[
+              styles.aiDetectedLabel,
+              isBricked && { color: COLORS.warning },
+            ]}
+          >
             NOGOON INTERCEPTED
           </Text>
           <Text style={styles.flaggedHeadline}>BLOCKED{'\n'}CONTENT</Text>
-
           <Badge
             label={`${confidence}% confidence`}
             color={COLORS.danger}
             size="md"
             style={styles.confidenceBadge}
           />
-
           <View style={styles.domainChip}>
             {/* Feather icons: 'smartphone' for apps, 'globe' for websites */}
             <Feather
@@ -403,7 +469,11 @@ export default function NoGoonScreen() {
         {gameMode === 'choose' && (
           <View style={styles.gameList}>
             {GAME_OPTIONS.map((game) => (
-              <GameCard key={game.id} game={game} onPress={() => handleSelectGame(game)} />
+              <GameCard
+                key={game.id}
+                game={game}
+                onPress={() => handleSelectGame(game)}
+              />
             ))}
           </View>
         )}
@@ -417,7 +487,10 @@ export default function NoGoonScreen() {
         )}
 
         {/* ── Escape hatch — always visible ── */}
-        <Pressable style={styles.dismissRow} onPress={() => router.dismissAll()}>
+        <Pressable
+          style={styles.dismissRow}
+          onPress={() => router.dismissAll()}
+        >
           <Text style={styles.dismissText}>I'll handle this myself</Text>
         </Pressable>
 
@@ -427,8 +500,7 @@ export default function NoGoonScreen() {
   );
 }
 
-// ─── Styles ────────────────────────────────────────────────────────────────────
-
+// ─── Styles ──────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.background },
   scroll: { flex: 1 },
@@ -464,7 +536,10 @@ const styles = StyleSheet.create({
 
   dangerGlow: {
     position: 'absolute',
-    top: -60, left: -80, right: -80, height: 320,
+    top: -60,
+    left: -80,
+    right: -80,
+    height: 320,
     backgroundColor: COLORS.danger,
     opacity: 0.07,
     borderBottomLeftRadius: 999,
@@ -478,7 +553,8 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.xl,
   },
   iconRing: {
-    width: 96, height: 96,
+    width: 96,
+    height: 96,
     borderRadius: RADIUS.full,
     backgroundColor: COLORS.danger + '18',
     borderWidth: 1.5,
@@ -503,7 +579,9 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
     marginBottom: SPACING.lg,
   },
+
   confidenceBadge: { marginBottom: SPACING.md },
+
   domainChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -515,9 +593,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.xs,
   },
-  domainText: { fontFamily: FONTS.mono, fontSize: 13, color: COLORS.textMuted },
+  domainText: {
+    fontFamily: FONTS.mono,
+    fontSize: 13,
+    color: COLORS.textMuted,
+  },
 
-  divider: { height: 1, backgroundColor: COLORS.border, marginBottom: SPACING.lg },
+  divider: {
+    height: 1,
+    backgroundColor: COLORS.border,
+    marginBottom: SPACING.lg,
+  },
   choosePrompt: {
     fontFamily: FONTS.bodyMedium,
     fontSize: 14,
@@ -527,7 +613,6 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     marginBottom: SPACING.lg,
   },
-
   cravingNote: {
     fontFamily: FONTS.body,
     fontSize: 13,
@@ -559,8 +644,16 @@ const styles = StyleSheet.create({
   },
   gameEmoji: { fontSize: 24 },
   gameTextGroup: { flex: 1 },
-  gameNameRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
-  gameName: { fontFamily: FONTS.bodyBold, fontSize: 16, marginBottom: 2 },
+  gameNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  gameName: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 16,
+    marginBottom: 2,
+  },
   comingSoonLabel: {
     fontFamily: FONTS.mono,
     fontSize: 9,
@@ -571,7 +664,11 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     letterSpacing: 0.5,
   },
-  gameDesc: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.textSecondary },
+  gameDesc: {
+    fontFamily: FONTS.body,
+    fontSize: 13,
+    color: COLORS.textSecondary,
+  },
 
   randomLoadingBox: {
     alignItems: 'center',

@@ -1,6 +1,6 @@
-// ─── Subscription Store ───────────────────────────────────────────────────────
+// ─── Subscription Store ─────────────────────────────────────────────────────── //
 //
-// Tracks whether the user has an active GATE Pro subscription.
+// Tracks whether the user has an active NoGoon Pro subscription.
 // Used throughout the app to:
 //   - Show/hide Pro features
 //   - Decide whether to charge points for unlocks
@@ -19,9 +19,24 @@ import {
   initializePurchases,
   isPurchasesAvailable,
 } from '@/lib/purchases';
+import type { RCPackage } from '@/types/purchases';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Launch Promo ───────────────────────────────────────────────────────────── //
+// All users get free Pro access until this date. Lets the app build a user base
+// before requiring payment. To extend: change the date. To end early: set to past.
+const LAUNCH_PROMO_END = new Date('2026-09-01T00:00:00Z');
 
+export function isLaunchPromoActive(): boolean {
+  return new Date() < LAUNCH_PROMO_END;
+}
+
+export function launchPromoDaysLeft(): number {
+  const now = new Date();
+  const diff = LAUNCH_PROMO_END.getTime() - now.getTime();
+  return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+}
+
+// ─── Types ──────────────────────────────────────────────────────────────────── //
 interface SubscriptionState {
   // Is the user subscribed to NoGoon Pro?
   isPro: boolean;
@@ -31,7 +46,7 @@ interface SubscriptionState {
 
   // The available subscription + point pack products from the App Store
   // (these are real objects from RevenueCat with localized prices)
-  offerings: any[];
+  offerings: RCPackage[];
 
   // ── Developer / testing override ──────────────────────────────────────────
   // Forces isPro = true regardless of RevenueCat status.
@@ -48,24 +63,22 @@ interface SubscriptionState {
   refresh: () => Promise<void>;
 
   // Trigger a purchase of a specific package
-  purchase: (pkg: any) => Promise<boolean>;
+  purchase: (pkg: RCPackage) => Promise<boolean>;
 
   // Restore purchases from the App Store / Play Store
   restore: () => Promise<boolean>;
 }
 
-// ─── Store ────────────────────────────────────────────────────────────────────
-
+// ─── Store ──────────────────────────────────────────────────────────────────── //
 export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
-  isPro:          false,
-  loading:        true,
-  offerings:      [],
+  isPro: false,
+  loading: true,
+  offerings: [],
   devModeEnabled: false,
 
   // ── toggleDevMode ─────────────────────────────────────────────────────────
   // Flips the dev override on/off. When on, isPro is forced true everywhere.
   // This overrides whatever RevenueCat returns — purely for local testing.
-
   toggleDevMode: () => {
     const next = !get().devModeEnabled;
     set({ devModeEnabled: next });
@@ -81,12 +94,30 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
   // ── initialize ────────────────────────────────────────────────────────────
   // Called from _layout.tsx after the user logs in.
   // Sets up RevenueCat with the user's ID and fetches their subscription status.
-
+  // Priority chain: dev mode → launch promo → RevenueCat
   initialize: async (userId: string) => {
     set({ loading: true });
 
     // Start RevenueCat and link to this user's account
     await initializePurchases(userId);
+
+    // Dev mode always wins
+    if (get().devModeEnabled) {
+      set({ isPro: true, loading: false });
+      return;
+    }
+
+    // Launch promo grants free Pro — no need to check RevenueCat
+    if (isLaunchPromoActive()) {
+      // Still fetch offerings so the paywall can show prices for after promo
+      try {
+        const offerings = await getOfferings();
+        set({ isPro: true, offerings, loading: false });
+      } catch {
+        set({ isPro: true, offerings: [], loading: false });
+      }
+      return;
+    }
 
     try {
       // Fetch subscription status and available products in parallel
@@ -95,23 +126,26 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
         getOfferings(),
       ]);
 
-      // Dev mode override: ignore RevenueCat result, stay Pro
-      const finalStatus = get().devModeEnabled ? true : proStatus;
-      set({ isPro: finalStatus, offerings, loading: false });
+      set({ isPro: proStatus, offerings, loading: false });
     } catch {
       // If this fails (no internet, RevenueCat key not set), just default to free
-      // But still respect dev mode if it's on
-      set({ isPro: get().devModeEnabled, offerings: [], loading: false });
+      set({ isPro: false, offerings: [], loading: false });
     }
   },
 
   // ── refresh ────────────────────────────────────────────────────────────────
   // Re-checks subscription status without re-initializing.
   // Call this after a purchase completes or after restoring.
-
   refresh: async () => {
     // If dev mode is on, don't overwrite isPro with the real RevenueCat value
     if (get().devModeEnabled) return;
+
+    // During launch promo, keep Pro active
+    if (isLaunchPromoActive()) {
+      set({ isPro: true });
+      return;
+    }
+
     try {
       const proStatus = await checkProStatus();
       set({ isPro: proStatus });
@@ -123,15 +157,14 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
   // ── purchase ──────────────────────────────────────────────────────────────
   // Triggers the native purchase sheet for a specific package.
   // The package objects come from offerings[] — pass them directly.
-
-  purchase: async (pkg: any): Promise<boolean> => {
+  purchase: async (pkg: RCPackage): Promise<boolean> => {
     try {
       const success = await purchasePackage(pkg);
       if (success) {
         await get().refresh();
       }
       return success;
-    } catch (e: any) {
+    } catch (e: unknown) {
       // Re-throw so the UI can show a specific error message if needed
       throw e;
     }
@@ -140,7 +173,6 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
   // ── restore ────────────────────────────────────────────────────────────────
   // Required by Apple. Lets users get back their subscription if they
   // reinstalled the app or switched phones.
-
   restore: async (): Promise<boolean> => {
     try {
       const hasActive = await restorePurchases();

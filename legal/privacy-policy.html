@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NoGoon — Privacy Policy</title>
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --text: #e0e0e8;
+      --muted: #a0a0b0;
+      --pink: #ff2d9b;
+      --lime: #b4ff39;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      line-height: 1.7;
+      padding: 40px 20px;
+      max-width: 720px;
+      margin: 0 auto;
+    }
+    h1 {
+      color: var(--pink);
+      font-size: 2rem;
+      margin-bottom: 8px;
+    }
+    .effective {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-bottom: 32px;
+    }
+    h2 {
+      color: var(--lime);
+      font-size: 1.25rem;
+      margin-top: 32px;
+      margin-bottom: 12px;
+    }
+    p { margin-bottom: 16px; }
+    a { color: var(--pink); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    ul { margin: 0 0 16px 24px; }
+    li { margin-bottom: 6px; }
+    .footer {
+      margin-top: 48px;
+      padding-top: 24px;
+      border-top: 1px solid #222;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Privacy Policy</h1>
+<p class="effective">Effective Date: May 18, 2026</p>
+
+<p>NoGoon ("we," "our," or "the app") is a habit-building Android application that helps users reduce unwanted screen time. This policy explains what data we collect, why we collect it, and how we protect it.</p>
+
+<h2>1. Information We Collect</h2>
+
+<p><strong>Account information.</strong> When you create an account, we collect your email address and a display name through Supabase Authentication. You may also sign in with Google, in which case we receive your name and email from Google's OAuth service.</p>
+
+<p><strong>Usage data.</strong> We store records of your in-app activity, including mini-game sessions (game type, score, points earned, timestamp), your blocklist of apps and websites, journal entries you choose to write, and your walk-away streak count. This data is stored in our Supabase database and linked to your account.</p>
+
+<p><strong>Accessibility Service data.</strong> NoGoon uses Android's Accessibility Service to detect when you open a blocked app or visit a blocked website. This detection happens entirely on your device. We do not transmit the names of apps you open or websites you visit to our servers. The only data sent is whether you successfully walked away (a boolean event), which updates your streak.</p>
+
+<p><strong>Partner accountability email.</strong> If you choose to set an accountability partner, we store their email address so we can send them a notification when you achieve milestones. We do not use this email for marketing.</p>
+
+<p><strong>Purchase information.</strong> Subscriptions and point purchases are handled by RevenueCat and the Google Play Store. We do not store your payment card details. RevenueCat provides us with your subscription status (active or inactive) linked to your anonymous user ID.</p>
+
+<h2>2. How We Use Your Data</h2>
+
+<ul>
+  <li>To provide the core app experience: tracking streaks, running mini-games, and maintaining your blocklist.</li>
+  <li>To send accountability notifications to your designated partner (if you set one).</li>
+  <li>To manage your subscription status and point balance.</li>
+  <li>To improve the app based on aggregate, anonymized usage patterns.</li>
+</ul>
+
+<h2>3. Data Storage and Security</h2>
+
+<p>Your data is stored in Supabase (hosted on AWS) with row-level security policies that ensure you can only access your own data. Authentication tokens are stored securely on your device using encrypted storage. All communication between the app and our servers uses HTTPS/TLS encryption.</p>
+
+<h2>4. Data Sharing</h2>
+
+<p>We do not sell your personal data. We share data only with the following service providers, solely to operate the app:</p>
+
+<ul>
+  <li><strong>Supabase</strong> — database and authentication</li>
+  <li><strong>RevenueCat</strong> — subscription and purchase management</li>
+  <li><strong>Resend</strong> — transactional email delivery (partner notifications only)</li>
+  <li><strong>Google Play</strong> — app distribution and billing</li>
+</ul>
+
+<h2>5. Accessibility Service Disclosure</h2>
+
+<p>NoGoon uses Android's Accessibility Service exclusively to detect when you open apps or websites on your personal blocklist. This is the core functionality that lets the app intervene with a mini-game before you continue scrolling. The Accessibility Service does not collect passwords, read message content, or monitor any activity outside of the specific apps and domains you have blocked. You can revoke this permission at any time in your device's Settings.</p>
+
+<h2>6. Children's Privacy</h2>
+
+<p>NoGoon is not directed at children under 13. We do not knowingly collect personal information from children. If you believe a child has provided us with personal data, please contact us so we can delete it.</p>
+
+<h2>7. Data Retention and Deletion</h2>
+
+<p>We retain your data for as long as your account is active. You may request deletion of your account and all associated data by emailing us at the address below. Upon receiving a deletion request, we will remove your data within 30 days.</p>
+
+<h2>8. Your Rights</h2>
+
+<p>Depending on your location, you may have the right to access, correct, or delete your personal data, or to object to its processing. To exercise any of these rights, contact us at the email below.</p>
+
+<h2>9. Changes to This Policy</h2>
+
+<p>We may update this policy from time to time. If we make material changes, we will notify you through the app or by email. The "Effective Date" at the top reflects the most recent revision.</p>
+
+<h2>10. Contact</h2>
+
+<p>If you have questions about this privacy policy or your data, contact us at:<br />
+<a href="mailto:jtshibao@gmail.com">jtshibao@gmail.com</a></p>
+
+<div class="footer">
+  &copy; 2026 NoGoon. All rights reserved.
+</div>
+
+</body>
+</html>

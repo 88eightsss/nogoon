@@ -1,4 +1,4 @@
-// ─── RevenueCat Purchases Client ──────────────────────────────────────────────
+// ─── RevenueCat Purchases Client ────────────────────────────────────────────── //
 //
 // RevenueCat is the service that handles all subscription billing and in-app
 // purchases. It works across both iOS (App Store) and Android (Google Play)
@@ -19,42 +19,54 @@
 //   - Then link those products to RevenueCat in their dashboard
 //
 // PRODUCT IDs (must match exactly in App Store Connect / Google Play):
-//   gate_pro_monthly    — $2.88/month GATE Pro subscription
-//   gate_points_500     — $0.99 one-time purchase for 500 points
-//   gate_points_1500    — $1.99 one-time purchase for 1,500 points
-//   gate_points_5000    — $4.99 one-time purchase for 5,000 points
+//   gate_pro_monthly  — $2.88/month GATE Pro subscription
+//   gate_points_500   — $0.99 one-time purchase for 500 points
+//   gate_points_1500  — $1.99 one-time purchase for 1,500 points
+//   gate_points_5000  — $4.99 one-time purchase for 5,000 points
 //
 // ⚠️ IMPORTANT: react-native-purchases requires a native build (EAS Build).
 //    It will NOT work in Expo Go. The app will show the paywall UI but
 //    actual purchases won't process until you build with EAS.
 
 import { Platform, NativeModules } from 'react-native';
+import type {
+  RCCustomerInfo,
+  RCOfferings,
+  RCPackage,
+  RCPurchaseResult,
+} from '@/types/purchases';
 
-// ─── YOUR REVENUECAT API KEYS ─────────────────────────────────────────────────
-// ⚠️  Paste your keys here. Get them from: app.revenuecat.com → Settings → API Keys
-
-const REVENUECAT_IOS_KEY     = 'appl_PASTE_YOUR_IOS_KEY_HERE';   // add when iOS is ready
+// ─── YOUR REVENUECAT API KEYS ───────────────────────────────────────────────── //
+// ⚠️ Paste your keys here. Get them from: app.revenuecat.com → Settings → API Keys
+const REVENUECAT_IOS_KEY = 'appl_PASTE_YOUR_IOS_KEY_HERE';       // add when iOS is ready
 const REVENUECAT_ANDROID_KEY = 'test_cAEXmoziVycrJWMJaJDHdwPleDy'; // RevenueCat Android key
 
-// ─── Product IDs ──────────────────────────────────────────────────────────────
+// ─── Product IDs ────────────────────────────────────────────────────────────── //
 // These must exactly match the Product IDs you create in App Store Connect
 // and Google Play Console.
-
 export const PRODUCT_IDS = {
-  PRO_MONTHLY:   'nogoon_pro_monthly',   // $4.22/month NoGoon Pro
-  PRO_YEARLY:    'nogoon_pro_yearly',    // $39.99/year NoGoon Pro
+  PRO_MONTHLY: 'nogoon_pro_monthly',     // $4.22/month NoGoon Pro
+  PRO_YEARLY: 'nogoon_pro_yearly',       // $39.99/year NoGoon Pro
   BASIC_MONTHLY: 'nogoon_basic_monthly', // $2.88/month NoGoon basic
-  PARTNER:       'nogoon_partner',       // $8/month Pro+Partner
-  POINTS_500:    'nogoon_points_500',    // $0.99 → 500 points
-  POINTS_1500:   'nogoon_points_1500',   // $1.99 → 1,500 points
-  POINTS_5000:   'nogoon_points_5000',   // $4.99 → 5,000 points
+  PARTNER: 'nogoon_partner',            // $8/month Pro+Partner
+  POINTS_500: 'nogoon_points_500',      // $0.99 → 500 points
+  POINTS_1500: 'nogoon_points_1500',    // $1.99 → 1,500 points
+  POINTS_5000: 'nogoon_points_5000',    // $4.99 → 5,000 points
 } as const;
 
-// ─── Safe check for native module availability ────────────────────────────────
+// ─── Safe check for native module availability ──────────────────────────────── //
 // In Expo Go, react-native-purchases isn't available. We check before calling
 // any methods so the app doesn't crash during development.
 
-let Purchases: any = null;
+// The Purchases SDK module — typed loosely since it may not be available
+let Purchases: {
+  configure: (config: { apiKey: string }) => void;
+  logIn: (userId: string) => Promise<{ customerInfo: RCCustomerInfo }>;
+  getCustomerInfo: () => Promise<RCCustomerInfo>;
+  getOfferings: () => Promise<RCOfferings>;
+  purchasePackage: (pkg: RCPackage) => Promise<RCPurchaseResult>;
+  restorePurchases: () => Promise<RCCustomerInfo>;
+} | null = null;
 
 try {
   // This import will succeed in a proper EAS build but fail in Expo Go
@@ -66,17 +78,15 @@ try {
 
 export const isPurchasesAvailable = !!Purchases;
 
-// ─── Initialize RevenueCat ────────────────────────────────────────────────────
+// ─── Initialize RevenueCat ──────────────────────────────────────────────────── //
 // Called once on app startup (from _layout.tsx, after auth is ready).
 // Must be called before any purchase methods are used.
-
 export async function initializePurchases(userId: string): Promise<void> {
   if (!Purchases) return;
 
   try {
-    const apiKey = Platform.OS === 'ios'
-      ? REVENUECAT_IOS_KEY
-      : REVENUECAT_ANDROID_KEY;
+    const apiKey =
+      Platform.OS === 'ios' ? REVENUECAT_IOS_KEY : REVENUECAT_ANDROID_KEY;
 
     // Configure with the API key
     Purchases.configure({ apiKey });
@@ -84,18 +94,18 @@ export async function initializePurchases(userId: string): Promise<void> {
     // Link this RevenueCat user to the Supabase user ID so purchases
     // are associated with the right account across devices
     await Purchases.logIn(userId);
-  } catch (e) {
+  } catch (e: unknown) {
     console.warn('[Purchases] Failed to initialize RevenueCat:', e);
   }
 }
 
-// ─── Check subscription status ────────────────────────────────────────────────
+// ─── Check subscription status ──────────────────────────────────────────────── //
 // Returns true if the user has an active GATE Pro subscription.
-
 export async function checkProStatus(): Promise<boolean> {
   if (!Purchases) return false;
+
   try {
-    const info = await Purchases.getCustomerInfo();
+    const info: RCCustomerInfo = await Purchases.getCustomerInfo();
     // entitlements.active contains any currently active subscriptions
     return info.entitlements.active['nogoon_pro'] !== undefined;
   } catch {
@@ -103,14 +113,14 @@ export async function checkProStatus(): Promise<boolean> {
   }
 }
 
-// ─── Get available packages ───────────────────────────────────────────────────
+// ─── Get available packages ─────────────────────────────────────────────────── //
 // Returns the subscription and point pack products from App Store / Play Store.
 // These have real prices localized to the user's country.
-
-export async function getOfferings(): Promise<any[]> {
+export async function getOfferings(): Promise<RCPackage[]> {
   if (!Purchases) return [];
+
   try {
-    const offerings = await Purchases.getOfferings();
+    const offerings: RCOfferings = await Purchases.getOfferings();
     if (offerings.current?.availablePackages) {
       return offerings.current.availablePackages;
     }
@@ -120,30 +130,32 @@ export async function getOfferings(): Promise<any[]> {
   }
 }
 
-// ─── Purchase a package ───────────────────────────────────────────────────────
+// ─── Purchase a package ─────────────────────────────────────────────────────── //
 // Triggers the App Store / Google Play purchase sheet.
 // Returns true on success, false if cancelled or failed.
-
-export async function purchasePackage(pkg: any): Promise<boolean> {
+export async function purchasePackage(pkg: RCPackage): Promise<boolean> {
   if (!Purchases) return false;
+
   try {
-    const { customerInfo } = await Purchases.purchasePackage(pkg);
-    return customerInfo.entitlements.active['nogoon_pro'] !== undefined;
-  } catch (e: any) {
+    const result: RCPurchaseResult = await Purchases.purchasePackage(pkg);
+    return result.customerInfo.entitlements.active['nogoon_pro'] !== undefined;
+  } catch (e: unknown) {
     // userCancelled = user tapped "Cancel" — not an error, just do nothing
-    if (e.userCancelled) return false;
+    if (e && typeof e === 'object' && 'userCancelled' in e && (e as { userCancelled: boolean }).userCancelled) {
+      return false;
+    }
     throw e;
   }
 }
 
-// ─── Restore previous purchases ──────────────────────────────────────────────
+// ─── Restore previous purchases ────────────────────────────────────────────── //
 // Apple and Google require apps to offer a "Restore Purchases" button.
 // This re-validates any past purchases the user already paid for.
-
 export async function restorePurchases(): Promise<boolean> {
   if (!Purchases) return false;
+
   try {
-    const info = await Purchases.restorePurchases();
+    const info: RCCustomerInfo = await Purchases.restorePurchases();
     return info.entitlements.active['nogoon_pro'] !== undefined;
   } catch {
     return false;
