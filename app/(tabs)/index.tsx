@@ -1,9 +1,9 @@
-// ─── Home Screen ──────────────────────────────────────────────────────────────
+// ─── Home Screen ────────────────────────────────────────────────────────────── //
 //
-// The main dashboard the user sees every time they open GATE.
+// The main dashboard the user sees every time they open NoGoon.
 // Scrollable page with 5 sections:
 //   1. Header (greeting + level badge)
-//   2. Shield status (is GATE active?)
+//   2. Shield status (is NoGoon active?)
 //   3. Stats row (streak + points side by side)
 //   4. Weekly activity chart (real data from Supabase game_sessions)
 //   5. Daily challenge card
@@ -30,12 +30,10 @@ import { TYPE } from '@/constants/Typography';
 import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 
-// ─── Getting Started Card ──────────────────────────────────────────────────────
-//
+// ─── Getting Started Card ────────────────────────────────────────────────────── //
 // Shown on the home screen only when the user has zero activity yet
 // (weeklyActivity is all 0s). Tapping it takes them to the blocklist tab
 // so they can set up their first blocked site and get protected.
-
 function GettingStartedCard() {
   return (
     <Pressable
@@ -46,10 +44,32 @@ function GettingStartedCard() {
       <View style={gettingStartedStyles.text}>
         <Text style={gettingStartedStyles.title}>Get protected in 30 seconds</Text>
         <Text style={gettingStartedStyles.body}>
-          Add your first blocked site and enable app blocking to start building your streak.
+          Add your first blocked site and enable app blocking to start building
+          your streak.
         </Text>
       </View>
       <Feather name="chevron-right" size={20} color={COLORS.indigoBright} />
+    </Pressable>
+  );
+}
+
+// ─── Setup Help Card ─────────────────────────────────────────────────────────── //
+// Shown when the Accessibility Service is disabled (blockingStatus === 'off').
+// Tapping opens the setup guide screen so the user can re-enable blocking.
+function SetupHelpCard() {
+  return (
+    <Pressable
+      style={setupHelpStyles.card}
+      onPress={() => router.push('/setup-guide')}
+    >
+      <Feather name="alert-circle" size={24} color={COLORS.hotPink} />
+      <View style={setupHelpStyles.text}>
+        <Text style={setupHelpStyles.title}>Blocking is disabled</Text>
+        <Text style={setupHelpStyles.body}>
+          Tap here to reopen the setup guide and enable the Accessibility Service.
+        </Text>
+      </View>
+      <Feather name="chevron-right" size={20} color={COLORS.hotPink} />
     </Pressable>
   );
 }
@@ -83,8 +103,6 @@ export default function HomeScreen() {
   const { blockingStatus, openSettings } = useAppBlocker();
 
   // Re-fetch data from Supabase every time this tab comes into view.
-  // This keeps the home screen fresh if the user just completed a game
-  // or if another device made changes (cloud sync).
   useEffect(() => {
     if (session?.user?.id) {
       loadFromSupabase(session.user.id);
@@ -101,35 +119,42 @@ export default function HomeScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-
         {/* ─── Section 1: Header ─────────────────────────────── */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            {/* Time-of-day greeting */}
             <Text style={styles.greeting}>{getGreeting()}</Text>
-
-            {/* User's name — comes from Supabase profile, not a hardcoded default */}
             <Text style={[TYPE.headingM, styles.name]}>
               {name ? `${name} 👋` : '👋'}
             </Text>
           </View>
 
-          {/* Level badge — top right corner */}
-          <Badge label={level} color={COLORS.purple} size="sm" />
+          <View style={styles.headerRight}>
+            {/* Help button — opens setup guide */}
+            <Pressable
+              style={styles.helpButton}
+              onPress={() => router.push('/setup-guide')}
+              hitSlop={8}
+            >
+              <Feather name="help-circle" size={20} color={COLORS.textMuted} />
+            </Pressable>
+            {/* Level badge */}
+            <Badge label={level} color={COLORS.purple} size="sm" />
+          </View>
         </View>
 
         {/* ─── Section 2: Shield Status ──────────────────────── */}
-        {/* status is read from the real Android Accessibility Service state —
-            'active' = actually blocking, 'empty' = on but empty list, 'off' = not enabled */}
-        <ShieldStatus
-          status={blockingStatus}
-          onFix={openSettings}
-        />
+        <ShieldStatus status={blockingStatus} onFix={openSettings} />
+
+        {/* ─── Setup Help Card (shown when blocking is off) ──── */}
+        {blockingStatus === 'off' && <SetupHelpCard />}
 
         {/* ─── Section 3: Stats Row ──────────────────────────── */}
-        {/* Streak and Points side by side, each taking half the width */}
         <View style={styles.statsRow}>
-          <StreakBadge streak={streak} longestStreak={longestStreak} walkAwayCount={walkAwayCount} />
+          <StreakBadge
+            streak={streak}
+            longestStreak={longestStreak}
+            walkAwayCount={walkAwayCount}
+          />
           <PointsBadge
             points={points}
             level={level}
@@ -138,11 +163,8 @@ export default function HomeScreen() {
         </View>
 
         {/* ─── Section 4: Weekly Chart ───────────────────────── */}
-        {/* Data comes from game_sessions table in Supabase.
-            Each bar = number of games played that day. Today = rightmost bar. */}
         <WeeklyChart data={weeklyActivity} />
 
-        {/* Show a getting-started card when the user has never played a game */}
         {weeklyActivity.every(v => v === 0) && (
           <GettingStartedCard />
         )}
@@ -151,24 +173,17 @@ export default function HomeScreen() {
         <DailyChallengeCard
           alreadyCompleted={dailyChallengeCompleted}
           onPress={() => {
-            // Navigate to the Arcade tab so the user can pick a game
             router.push('/(tabs)/arcade');
           }}
         />
 
-        {/* Bottom padding so the last card doesn't sit right on the tab bar */}
         <View style={styles.bottomPad} />
       </ScrollView>
 
-      {/* ─── Bottom banner ad ───────────────────────────────────── */}
-      {/* Pinned to the bottom of the screen, above the tab bar.
-          Pro users see nothing here. Free users see a standard 52px banner.
-          This single placement can generate $200–$500/month at scale. */}
       <AdBanner size="banner" />
-
     </SafeAreaView>
   );
-}
+      }
 
 const styles = StyleSheet.create({
   safe: {
@@ -183,7 +198,6 @@ const styles = StyleSheet.create({
     paddingTop: SPACING.lg,
     gap: SPACING.md,
   },
-
   header: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -193,6 +207,21 @@ const styles = StyleSheet.create({
   headerLeft: {
     gap: 2,
   },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  helpButton: {
+    width: 36,
+    height: 36,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   greeting: {
     fontFamily: FONTS.body,
     fontSize: 14,
@@ -201,22 +230,16 @@ const styles = StyleSheet.create({
   name: {
     marginTop: 0,
   },
-
   statsRow: {
     flexDirection: 'row',
     gap: SPACING.md,
   },
-
   bottomPad: {
     height: SPACING.xl,
   },
 });
 
-// ─── Getting Started Card styles ───────────────────────────────────────────────
-//
-// Kept separate from the main StyleSheet so the component is self-contained
-// and easy to delete once the user has activity data.
-
+// ─── Getting Started Card styles ─────────────────────────────────────────────── //
 const gettingStartedStyles = StyleSheet.create({
   card: {
     flexDirection: 'row',
@@ -224,7 +247,7 @@ const gettingStartedStyles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.indigoBright + '33',  // indigo at 20% opacity — subtle highlight
+    borderColor: COLORS.indigoBright + '33',
     padding: SPACING.lg,
     gap: SPACING.md,
   },
@@ -242,3 +265,31 @@ const gettingStartedStyles = StyleSheet.create({
     lineHeight: 18,
   },
 });
+
+// ─── Setup Help Card styles ──────────────────────────────────────────────────── //
+// Shown when blocking is disabled. Uses hotPink to convey urgency per design system.
+const setupHelpStyles = StyleSheet.create({
+  card: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.hotPink + '33',
+    padding: SPACING.lg,
+    gap: SPACING.md,
+  },
+  text: { flex: 1, gap: 4 },
+  title: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 15,
+    color: COLORS.hotPink,
+  },
+  body: {
+    fontFamily: FONTS.body,
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    lineHeight: 18,
+  },
+});
+
