@@ -105,7 +105,7 @@ interface UserState {
   name: string;
   hasOnboarded: boolean;
 
-  // Streak — consecutive days the user has used GATE
+  // Streak — consecutive days the user has used NoGoon
   streak: number;
   longestStreak: number;
 
@@ -129,9 +129,9 @@ interface UserState {
   // App blocklist — array of Android package names (e.g. 'com.instagram.android')
   blockedApps: string[];
 
-  // Game mode — 'random' launches a game immediately on intercept,
-  // 'choose' shows the picker so the user selects which game to play
-  gameMode: 'random' | 'choose';
+  // Game mode — always random. A random game launches immediately on intercept.
+  // (choose mode was removed — games are always randomized)
+  gameMode: 'random';
 
   // ── BRICKED mode ("Hard Mode") ─────────────────────────────────────────────
   // When active, the unlock button is completely removed from the post-game
@@ -283,7 +283,7 @@ const DEFAULT_STATE = {
   dailyChallengeCompleted: false,
   blocklist: [] as string[],
   blockedApps: [] as string[],
-  gameMode: 'random' as 'random' | 'choose',
+  gameMode: 'random' as const,
   // Default: skip picker, jump straight into a game
 
   // BRICKED
@@ -446,8 +446,7 @@ export const useUserStore = create<UserState>()(
         set({ blockedApps: packages });
       },
 
-      // ── Game mode ──────────────────────────────────────────────────────────
-      setGameMode: (mode) => set({ gameMode: mode }),
+      // ── Game mode (always random — no setter needed) ─────────────────────
 
       // ── BRICKED mode ────────────────────────────────────────────────────────
       enableBricked: () =>

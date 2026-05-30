@@ -1,14 +1,17 @@
 // ─── Subscription Store ─────────────────────────────────────────────────────── //
 //
-// Tracks whether the user has an active NoGoon Pro subscription.
+// Tracks whether the user has an active NoGoon subscription (New Leaf or Partner).
 // Used throughout the app to:
-//   - Show/hide Pro features
+//   - Show/hide premium features
 //   - Decide whether to charge points for unlocks
-//   - Route to the paywall when non-Pro users try Pro features
+//   - Route to the paywall when free users try premium features
 //
 // The actual billing is handled by RevenueCat (lib/purchases.ts).
 // This store just holds the current subscription state so any
 // component can read it without making a network call.
+//
+// Both "New Leaf" ($2.88/mo) and "Partner" ($8/mo) grant the
+// "nogoon_pro" entitlement — isPro covers either tier.
 
 import { create } from 'zustand';
 import {
@@ -44,7 +47,7 @@ interface SubscriptionState {
   // True while we're checking subscription status with RevenueCat
   loading: boolean;
 
-  // The available subscription + point pack products from the App Store
+  // The available subscription + point pack products from Google Play
   // (these are real objects from RevenueCat with localized prices)
   offerings: RCPackage[];
 
@@ -65,7 +68,7 @@ interface SubscriptionState {
   // Trigger a purchase of a specific package
   purchase: (pkg: RCPackage) => Promise<boolean>;
 
-  // Restore purchases from the App Store / Play Store
+  // Restore purchases from Google Play Store
   restore: () => Promise<boolean>;
 }
 
@@ -171,7 +174,7 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
   },
 
   // ── restore ────────────────────────────────────────────────────────────────
-  // Required by Apple. Lets users get back their subscription if they
+  // Required by Google. Lets users get back their subscription if they
   // reinstalled the app or switched phones.
   restore: async (): Promise<boolean> => {
     try {

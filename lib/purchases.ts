@@ -1,34 +1,34 @@
 // ─── RevenueCat Purchases Client ────────────────────────────────────────────── //
 //
 // RevenueCat is the service that handles all subscription billing and in-app
-// purchases. It works across both iOS (App Store) and Android (Google Play)
-// using a single API, so you don't have to build separate billing systems.
+// purchases. Currently Android-only (Google Play) via a single API.
 //
 // HOW TO SET THIS UP:
 //   1. Go to app.revenuecat.com → Create account → New Project
-//   2. Add your iOS app and/or Android app
+//   2. Add your Android app
 //   3. In RevenueCat Dashboard → Project Settings → API Keys
-//   4. Copy the "Public SDK key" for each platform
-//   5. Paste the keys below as REVENUECAT_IOS_KEY and REVENUECAT_ANDROID_KEY
+//   4. Copy the "Public SDK key" (production key starts with goog_)
+//   5. Paste the key below as REVENUECAT_ANDROID_KEY
 //
-// HOW IT CONNECTS TO THE APP STORES:
-//   - For iOS: In App Store Connect → create a subscription product with
-//     Product ID: "gate_pro_monthly" and price $2.88/month
-//   - For Android: In Google Play Console → create a subscription with
-//     the same Product IDs
+// HOW IT CONNECTS TO GOOGLE PLAY:
+//   - In Google Play Console → create subscriptions with the Product IDs below
 //   - Then link those products to RevenueCat in their dashboard
+//   - Create an entitlement called "nogoon_pro" in RevenueCat and attach
+//     both subscription products to it
 //
-// PRODUCT IDs (must match exactly in App Store Connect / Google Play):
-//   gate_pro_monthly  — $2.88/month GATE Pro subscription
-//   gate_points_500   — $0.99 one-time purchase for 500 points
-//   gate_points_1500  — $1.99 one-time purchase for 1,500 points
-//   gate_points_5000  — $4.99 one-time purchase for 5,000 points
+// SUBSCRIPTION TIERS:
+//   nogoon_basic_monthly — $2.88/month  "New Leaf" (core features)
+//   nogoon_partner       — $8.00/month  "Partner"  (Pro + partner tools)
+//
+// POINT PACKS (one-time consumable purchases):
+//   nogoon_points_500    — $0.99 → 500 points
+//   nogoon_points_1500   — $1.99 → 1,500 points
+//   nogoon_points_5000   — $4.99 → 5,000 points
 //
 // ⚠️ IMPORTANT: react-native-purchases requires a native build (EAS Build).
 //    It will NOT work in Expo Go. The app will show the paywall UI but
 //    actual purchases won't process until you build with EAS.
 
-import { Platform, NativeModules } from 'react-native';
 import type {
   RCCustomerInfo,
   RCOfferings,
@@ -37,21 +37,22 @@ import type {
 } from '@/types/purchases';
 
 // ─── YOUR REVENUECAT API KEYS ───────────────────────────────────────────────── //
-// ⚠️ Paste your keys here. Get them from: app.revenuecat.com → Settings → API Keys
-const REVENUECAT_IOS_KEY = 'appl_PASTE_YOUR_IOS_KEY_HERE';       // add when iOS is ready
-const REVENUECAT_ANDROID_KEY = 'test_cAEXmoziVycrJWMJaJDHdwPleDy'; // RevenueCat Android key
+// ⚠️ TODO: Before release, replace the test key below with your PRODUCTION key.
+//    Go to: app.revenuecat.com → Project Settings → API Keys → copy the goog_ key.
+const REVENUECAT_ANDROID_KEY = 'test_cAEXmoziVycrJWMJaJDHdwPleDy'; // ← SWAP TO goog_ BEFORE LAUNCH
 
 // ─── Product IDs ────────────────────────────────────────────────────────────── //
-// These must exactly match the Product IDs you create in App Store Connect
-// and Google Play Console.
+// These must exactly match the Product IDs you create in Google Play Console
+// and link in the RevenueCat dashboard.
 export const PRODUCT_IDS = {
-  PRO_MONTHLY: 'nogoon_pro_monthly',     // $4.22/month NoGoon Pro
-  PRO_YEARLY: 'nogoon_pro_yearly',       // $39.99/year NoGoon Pro
-  BASIC_MONTHLY: 'nogoon_basic_monthly', // $2.88/month NoGoon basic
-  PARTNER: 'nogoon_partner',            // $8/month Pro+Partner
-  POINTS_500: 'nogoon_points_500',      // $0.99 → 500 points
-  POINTS_1500: 'nogoon_points_1500',    // $1.99 → 1,500 points
-  POINTS_5000: 'nogoon_points_5000',    // $4.99 → 5,000 points
+  // Subscriptions
+  NEW_LEAF: 'nogoon_basic_monthly',  // $2.88/month — "New Leaf" tier
+  PARTNER: 'nogoon_partner',         // $8.00/month — "Partner" tier (Pro + partner tools)
+
+  // Point packs (one-time consumable)
+  POINTS_500: 'nogoon_points_500',   // $0.99 → 500 points
+  POINTS_1500: 'nogoon_points_1500', // $1.99 → 1,500 points
+  POINTS_5000: 'nogoon_points_5000', // $4.99 → 5,000 points
 } as const;
 
 // ─── Safe check for native module availability ──────────────────────────────── //
@@ -85,11 +86,8 @@ export async function initializePurchases(userId: string): Promise<void> {
   if (!Purchases) return;
 
   try {
-    const apiKey =
-      Platform.OS === 'ios' ? REVENUECAT_IOS_KEY : REVENUECAT_ANDROID_KEY;
-
-    // Configure with the API key
-    Purchases.configure({ apiKey });
+    // Android-only for now
+    Purchases.configure({ apiKey: REVENUECAT_ANDROID_KEY });
 
     // Link this RevenueCat user to the Supabase user ID so purchases
     // are associated with the right account across devices
@@ -100,7 +98,7 @@ export async function initializePurchases(userId: string): Promise<void> {
 }
 
 // ─── Check subscription status ──────────────────────────────────────────────── //
-// Returns true if the user has an active GATE Pro subscription.
+// Returns true if the user has an active NoGoon subscription (New Leaf or Partner).
 export async function checkProStatus(): Promise<boolean> {
   if (!Purchases) return false;
 
@@ -114,7 +112,7 @@ export async function checkProStatus(): Promise<boolean> {
 }
 
 // ─── Get available packages ─────────────────────────────────────────────────── //
-// Returns the subscription and point pack products from App Store / Play Store.
+// Returns the subscription and point pack products from Google Play Store.
 // These have real prices localized to the user's country.
 export async function getOfferings(): Promise<RCPackage[]> {
   if (!Purchases) return [];
@@ -131,7 +129,7 @@ export async function getOfferings(): Promise<RCPackage[]> {
 }
 
 // ─── Purchase a package ─────────────────────────────────────────────────────── //
-// Triggers the App Store / Google Play purchase sheet.
+// Triggers the Google Play purchase sheet.
 // Returns true on success, false if cancelled or failed.
 export async function purchasePackage(pkg: RCPackage): Promise<boolean> {
   if (!Purchases) return false;
@@ -149,7 +147,7 @@ export async function purchasePackage(pkg: RCPackage): Promise<boolean> {
 }
 
 // ─── Restore previous purchases ────────────────────────────────────────────── //
-// Apple and Google require apps to offer a "Restore Purchases" button.
+// Google requires apps to offer a "Restore Purchases" button.
 // This re-validates any past purchases the user already paid for.
 export async function restorePurchases(): Promise<boolean> {
   if (!Purchases) return false;
