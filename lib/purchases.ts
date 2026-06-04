@@ -37,9 +37,9 @@ import type {
 } from '@/types/purchases';
 
 // ─── YOUR REVENUECAT API KEYS ───────────────────────────────────────────────── //
-// ⚠️ TODO: Before release, replace the test key below with your PRODUCTION key.
-//    Go to: app.revenuecat.com → Project Settings → API Keys → copy the goog_ key.
-const REVENUECAT_ANDROID_KEY = 'test_cAEXmoziVycrJWMJaJDHdwPleDy'; // ← SWAP TO goog_ BEFORE LAUNCH
+// Production key from app.revenuecat.com → Project Settings → API Keys.
+//    To rotate: replace the key below and redeploy.
+const REVENUECAT_ANDROID_KEY = 'goog_YpQIJZAQfjBXQvkpjIROlwBiGPw'; // NoGoon (Play Store) production key
 
 // ─── Product IDs ────────────────────────────────────────────────────────────── //
 // These must exactly match the Product IDs you create in Google Play Console
