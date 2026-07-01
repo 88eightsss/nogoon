@@ -31,7 +31,7 @@ import { router } from 'expo-router';
 import { useUserStore } from '@/stores/useUserStore';
 import { useSubscriptionStore } from '@/stores/useSubscriptionStore';
 import { useAppBlocker, BLOCKABLE_APPS, BlockableApp } from '@/hooks/useAppBlocker';
-import { COLORS, FONTS } from '@/constants/Colors';
+import { getColors, COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 
 // ─── Default blocked sites ─────────────────────────────────────────────────────
@@ -88,8 +88,9 @@ function getOEMBatteryInstructions(): string | null {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function BlocklistScreen() {
-  const { blocklist, addSite, removeSite, spendPoints, REMOVE_COST } = useUserStore();
+  const { blocklist, addSite, removeSite, spendPoints, REMOVE_COST, colorScheme } = useUserStore();
   const { isPro } = useSubscriptionStore();
+  const C = getColors(colorScheme ?? 'dark');
   const {
     serviceEnabled,
     checking,
@@ -242,33 +243,41 @@ export default function BlocklistScreen() {
 
     return (
       <View style={styles.appRow}>
-        <Text style={styles.appEmoji}>{app.emoji}</Text>
-        <Text style={styles.appName}>{app.name}</Text>
+        <View style={[
+          styles.appEmojiWrap,
+          { backgroundColor: C.border },
+          isBlocked && { backgroundColor: C.indigoDim, borderWidth: 1, borderColor: C.indigoBright + '33' },
+        ]}>
+          <Text style={styles.appEmoji}>{app.emoji}</Text>
+        </View>
+        <Text style={[styles.appName, { color: C.textSecondary }, isBlocked && { color: C.textPrimary }]}>
+          {app.name}
+        </Text>
         <Switch
           value={isBlocked}
           onValueChange={handleToggle}
-          trackColor={{ false: COLORS.border, true: COLORS.indigoBright + '55' }}
-          thumbColor={isBlocked ? COLORS.green : COLORS.textMuted}
-          disabled={!serviceEnabled && isPro} // Only disable for enabled-service check on paid users
+          trackColor={{ false: C.border, true: C.indigoBright + '55' }}
+          thumbColor={isBlocked ? C.indigoBright : C.textMuted}
+          disabled={!serviceEnabled && isPro}
         />
       </View>
     );
-  }, [blockedApps, toggleApp, serviceEnabled, isPro]);
+  }, [blockedApps, toggleApp, serviceEnabled, isPro, C]);
 
   const CategoryHeader = ({ label }: { label: string }) => (
-    <Text style={styles.categoryLabel}>{label}</Text>
+    <Text style={[styles.categoryLabel, { color: C.textMuted }]}>{label}</Text>
   );
 
   // ─── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView
-          style={styles.scroll}
+          style={[styles.scroll, { backgroundColor: C.background }]}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
@@ -276,8 +285,8 @@ export default function BlocklistScreen() {
 
           {/* ── Header ── */}
           <View style={styles.header}>
-            <Text style={styles.title}>Blocklist</Text>
-            <Text style={styles.subtitle}>
+            <Text style={[styles.title, { color: C.indigoBright }]}>Blocklist</Text>
+            <Text style={[styles.subtitle, { color: C.textMuted }]}>
               {blocklist.length} site{blocklist.length !== 1 ? 's' : ''} ·{' '}
               {blockedApps.length} app{blockedApps.length !== 1 ? 's' : ''} blocked
             </Text>
@@ -307,23 +316,12 @@ export default function BlocklistScreen() {
             <Text style={styles.sectionTag}>Browser</Text>
           </View>
 
-          {/* Remove cost info banner */}
-          {!isPro && blocklist.length > 0 && (
-            <View style={styles.costInfoBanner}>
-              <Feather name="info" size={14} color={COLORS.textMuted} />
-              <Text style={styles.costInfoText}>
-                Removing a site costs <Text style={{ color: COLORS.warning }}>{REMOVE_COST} points</Text>
-                {' '}· Upgrade to Pro for free removal
-              </Text>
-            </View>
-          )}
-
           {/* Add domain input */}
-          <View style={styles.inputRow}>
+          <View style={[styles.inputRow, { backgroundColor: C.surface, borderColor: C.cardBorder }]}>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { color: C.textPrimary }]}
               placeholder="e.g. reddit.com"
-              placeholderTextColor={COLORS.textMuted}
+              placeholderTextColor={C.textMuted}
               value={input}
               onChangeText={(t) => { setInput(t); setError(''); }}
               autoCapitalize="none"
@@ -345,31 +343,31 @@ export default function BlocklistScreen() {
 
           {/* Quick-add chips */}
           <View style={styles.chips}>
-            {SUGGESTION_POOL.filter((s) => !blocklist.includes(s)).slice(0, 4).map((s) => (
+            {SUGGESTION_POOL.filter((s) => !blocklist.includes(s)).slice(0, 5).map((s) => (
               <Pressable key={s} style={styles.chip} onPress={() => handleAdd(s)}>
-                <Text style={styles.chipText}>+ {s}</Text>
+                <Feather name="plus" size={11} color={COLORS.indigoBright} />
+                <Text style={styles.chipText}>{s}</Text>
               </Pressable>
             ))}
           </View>
 
           {/* Blocked site list */}
           {blocklist.length > 0 && (
-            <View style={styles.listCard}>
+            <View style={[styles.listCard, { backgroundColor: C.surface, borderColor: C.cardBorder }]}>
               {blocklist.map((domain, index) => (
                 <View key={domain}>
                   <View style={styles.domainRow}>
-                    <Feather name="check-circle" size={16} color={COLORS.green} />
-                    <Text style={styles.domainText}>{domain}</Text>
-                    <Pressable onPress={() => handleRemove(domain)} hitSlop={12}>
-                      <View style={styles.removeChip}>
-                        <Feather name="trash-2" size={13} color={COLORS.danger} />
-                        {!isPro && (
-                          <Text style={styles.removeCostLabel}>{REMOVE_COST}pt</Text>
-                        )}
-                      </View>
+                    <View style={[styles.domainAvatar, { backgroundColor: C.indigoDim, borderColor: C.indigoBright + '33' }]}>
+                      <Text style={[styles.domainAvatarText, { color: C.indigoBright }]}>
+                        {domain[0].toUpperCase()}
+                      </Text>
+                    </View>
+                    <Text style={[styles.domainText, { color: C.textPrimary }]}>{domain}</Text>
+                    <Pressable onPress={() => handleRemove(domain)} hitSlop={16} style={[styles.removeBtn, { backgroundColor: C.surface, borderColor: C.cardBorder }]}>
+                      <Feather name="x" size={15} color={C.textMuted} />
                     </Pressable>
                   </View>
-                  {index < blocklist.length - 1 && <View style={styles.separator} />}
+                  {index < blocklist.length - 1 && <View style={[styles.separator, { backgroundColor: C.border }]} />}
                 </View>
               ))}
             </View>
@@ -466,16 +464,16 @@ export default function BlocklistScreen() {
           )}
 
           {/* App toggle grid */}
-          <View style={styles.appsCard}>
+          <View style={[styles.appsCard, { backgroundColor: C.surface, borderColor: C.cardBorder }]}>
             <CategoryHeader label="Social" />
             {socialApps.map((app) => <AppRow key={app.id} app={app} />)}
-            <View style={styles.categorySeparator} />
+            <View style={[styles.categorySeparator, { backgroundColor: C.border }]} />
             <CategoryHeader label="Video" />
             {videoApps.map((app) => <AppRow key={app.id} app={app} />)}
-            <View style={styles.categorySeparator} />
+            <View style={[styles.categorySeparator, { backgroundColor: C.border }]} />
             <CategoryHeader label="Shopping" />
             {shoppingApps.map((app) => <AppRow key={app.id} app={app} />)}
-            <View style={styles.categorySeparator} />
+            <View style={[styles.categorySeparator, { backgroundColor: C.border }]} />
             <CategoryHeader label="Gaming" />
             {gamingApps.map((app) => <AppRow key={app.id} app={app} />)}
           </View>
@@ -559,20 +557,6 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
 
-  // ── Cost info ──
-  costInfoBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.xs,
-    marginBottom: SPACING.sm,
-  },
-  costInfoText: {
-    fontFamily: FONTS.body,
-    fontSize: 12,
-    color: COLORS.textMuted,
-    flex: 1,
-  },
-
   // ── Input ──
   inputRow: {
     flexDirection: 'row',
@@ -616,20 +600,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: SPACING.xs,
-    marginTop: SPACING.xs,
+    marginTop: SPACING.sm,
   },
   chip: {
-    backgroundColor: COLORS.surface,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: COLORS.indigoDim,
     borderRadius: RADIUS.full,
     borderWidth: 1,
-    borderColor: COLORS.cardBorder,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 5,
+    borderColor: COLORS.indigoBright + '33',
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 6,
   },
   chipText: {
     fontFamily: FONTS.mono,
     fontSize: 12,
-    color: COLORS.textSecondary,
+    color: COLORS.indigoBright,
   },
 
   // ── Site list ──
@@ -640,36 +627,46 @@ const styles = StyleSheet.create({
     borderColor: COLORS.cardBorder,
     marginTop: SPACING.sm,
     paddingHorizontal: SPACING.md,
+    overflow: 'hidden',
   },
   domainRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.sm,
-    paddingVertical: SPACING.md,
+    paddingVertical: 12,
+  },
+  domainAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.indigoDim,
+    borderWidth: 1,
+    borderColor: COLORS.indigoBright + '33',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  domainAvatarText: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 13,
+    color: COLORS.indigoBright,
   },
   domainText: {
     flex: 1,
     fontFamily: FONTS.body,
-    fontSize: 15,
+    fontSize: 14,
     color: COLORS.textPrimary,
   },
-  removeChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: COLORS.danger + '15',
+  removeBtn: {
+    width: 28,
+    height: 28,
     borderRadius: RADIUS.full,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 4,
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: COLORS.danger + '30',
+    borderColor: COLORS.cardBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  removeCostLabel: {
-    fontFamily: FONTS.mono,
-    fontSize: 10,
-    color: COLORS.danger,
-  },
-  separator: { height: 1, backgroundColor: COLORS.border },
+  separator: { height: 1, backgroundColor: COLORS.border, marginLeft: 44 },
 
   // ── Empty state ──
   emptyState: {
@@ -822,13 +819,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.sm,
-    paddingVertical: 6,
+    paddingVertical: 8,
   },
-  appEmoji: { fontSize: 20, width: 28, textAlign: 'center' },
+  appEmojiWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  appEmojiWrapActive: {
+    backgroundColor: COLORS.indigoDim,
+    borderWidth: 1,
+    borderColor: COLORS.indigoBright + '33',
+  },
+  appEmoji: { fontSize: 18 },
   appName: {
     flex: 1,
     fontFamily: FONTS.body,
-    fontSize: 15,
-    color: COLORS.textPrimary,
+    fontSize: 14,
+    color: COLORS.textSecondary,
   },
 });

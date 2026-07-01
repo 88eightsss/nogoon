@@ -1,17 +1,17 @@
 // ─── Tab Bar Layout ────────────────────────────────────────────────────────────
 //
-// Controls the bottom navigation strip with 4 tabs.
+// Controls the bottom navigation strip with 3 tabs (Arcade moved to Home card).
 // Uses Feather icons (included in @expo/vector-icons) — thinner and more modern
 // than the default Ionicons set.
 //
 // TAB COLOR SYSTEM:
-//   Home     → indigo bright (#5b52f0) — primary brand
-//   Blocklist→ indigo bright (#5b52f0) — primary brand
-//   Arcade   → purple (#9d7cff)        — games/fun
+//   Block    → indigo bright (#5b52f0) — primary brand
+//   Home     → indigo bright (#5b52f0) — primary brand (center)
 //   Profile  → cyan (#00d4ff)          — personal/identity
 
-import { Tabs } from 'expo-router';
+import { Tabs, router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
+import { Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '@/constants/Colors';
 
@@ -26,28 +26,29 @@ const TABS: {
   color: string;           // Active tint color for this tab
 }[] = [
   {
-    name:  'index',
-    title: 'Home',
-    icon:  'home',
-    color: COLORS.indigoBright,
-  },
-  {
     name:  'blocklist',
     title: 'Block',
     icon:  'shield',
     color: COLORS.indigoBright,
   },
   {
-    name:  'arcade',
-    title: 'Arcade',
-    icon:  'zap',           // Lightning bolt — energy/games
-    color: COLORS.purple,
+    name:  'index',
+    title: 'Home',
+    icon:  'home',
+    color: COLORS.indigoBright,
   },
   {
     name:  'profile',
     title: 'Profile',
     icon:  'user',
     color: COLORS.cyan,
+  },
+  // Arcade is no longer a tab — it lives as a card on the Home screen
+  {
+    name:  'arcade',
+    title: 'Arcade',
+    icon:  'zap',
+    color: COLORS.purple,
   },
 ];
 
@@ -59,8 +60,19 @@ export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
-        // We build our own headers on each screen
-        headerShown: false,
+        headerShown: true,
+        headerStyle: { backgroundColor: COLORS.background },
+        headerTintColor: COLORS.textPrimary,
+        headerShadowVisible: false,
+        headerRight: () => (
+          <Pressable
+            onPress={() => router.push('/help')}
+            style={{ paddingHorizontal: 16, paddingVertical: 8 }}
+            hitSlop={8}
+          >
+            <Feather name="help-circle" size={22} color={COLORS.textMuted} />
+          </Pressable>
+        ),
 
         // Tab bar dark theme — matches app background with subtle top border
         tabBarStyle: {
@@ -82,6 +94,8 @@ export default function TabsLayout() {
           options={{
             title: tab.title,
             tabBarActiveTintColor: tab.color,
+            // Hide arcade from the tab bar — it's a Home screen card now
+            tabBarItemStyle: tab.name === 'arcade' ? { display: 'none' } : undefined,
 
             // Feather renders same icon always — we control opacity via color
             tabBarIcon: ({ color, size }) => (

@@ -50,10 +50,10 @@ const TIERS = [
     color:       COLORS.green,
     highlight:   false,
     features: [
-      { icon: 'infinite-outline',        label: 'Unlimited site unlocks'      },
-      { icon: 'game-controller-outline', label: 'All mini-games unlocked'     },
-      { icon: 'cloud-outline',           label: 'Cloud sync across devices'   },
-      { icon: 'close-circle-outline',    label: 'No ads, ever'                },
+      { icon: 'infinite-outline',        label: 'Unlimited site unlocks'       },
+      { icon: 'game-controller-outline', label: '10 standard mini-games'       },
+      { icon: 'cloud-outline',           label: 'Cloud sync across devices'    },
+      { icon: 'close-circle-outline',    label: 'No ads, ever'                 },
     ],
   },
   {
@@ -64,15 +64,16 @@ const TIERS = [
     annualId:    'nogoon_pro_annual',
     annualPrice: '$39.99 / year',
     annualSave:  'Save $10',
-    tagline:     'Maximum control over your mind',
+    tagline:     '3 exclusive games + maximum control',
     color:       COLORS.purple,
     highlight:   true, // shown as the recommended option
     features: [
-      { icon: 'infinite-outline',        label: 'Everything in NoGoon'              },
-      { icon: 'shield-checkmark-outline',label: 'Streak protection (1 restore/month)' },
-      { icon: 'bar-chart-outline',       label: 'Weekly insights & deep stats'      },
-      { icon: 'timer-outline',           label: 'Custom game duration (30/60/90s)'  },
-      { icon: 'cube-outline',            label: 'BRICKED hard mode'                 },
+      { icon: 'planet-outline',          label: '✦ Warp — drift through the cosmos'       },
+      { icon: 'search-outline',          label: '✦ Why Am I Here? — the real check-in'    },
+      { icon: 'keypad-outline',          label: '✦ Typing Challenge — beat the clock'     },
+      { icon: 'shield-checkmark-outline',label: 'Streak protection (1 restore/month)'     },
+      { icon: 'timer-outline',           label: 'Custom game duration (30/60/90s)'        },
+      { icon: 'cube-outline',            label: 'BRICKED hard mode + weekly insights'     },
     ],
   },
   {

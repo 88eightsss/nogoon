@@ -26,6 +26,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
+import * as IntentLauncher from 'expo-intent-launcher';
 import { useUserStore } from '@/stores/useUserStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useAppBlocker } from '@/hooks/useAppBlocker';
@@ -75,11 +76,12 @@ export default function OnboardingScreen() {
     return () => subscription.remove();
   }, [checkServiceStatus]);
 
-  const [step, setStep]           = useState(0);    // 0–2 = slides, 3 = name input
-  const [name, setNameLocal]      = useState('');
-  const [nameError, setNameError] = useState('');
-  const [setupDone, setSetupDone] = useState(false); // tracks whether user passed the setup step
-  const [sitesAdded, setSitesAdded] = useState(false); // tracks if default sites were added
+  const [step, setStep]                   = useState(0);
+  const [name, setNameLocal]              = useState('');
+  const [nameError, setNameError]         = useState('');
+  const [setupDone, setSetupDone]         = useState(false);
+  const [sitesAdded, setSitesAdded]       = useState(false);
+  const [batteryExempt, setBatteryExempt] = useState(false); // tracks battery optimization grant
 
   // Slide animation — translates the slide container left/right
   const slideX = useRef(new Animated.Value(0)).current;
@@ -241,6 +243,43 @@ export default function OnboardingScreen() {
                   ))}
                 </View>
               )}
+
+              {/* Divider */}
+              <View style={styles.setupDivider} />
+
+              {/* Row 3 — Battery optimization exemption */}
+              <View style={styles.setupRow}>
+                <View style={styles.setupRowLeft}>
+                  <Text style={styles.setupRowEmoji}>⚡</Text>
+                  <View style={styles.setupRowText}>
+                    <Text style={styles.setupRowTitle}>Keep NoGoon always on</Text>
+                    <Text style={styles.setupRowSub}>Stops Android from turning it off</Text>
+                  </View>
+                </View>
+
+                {batteryExempt ? (
+                  <Feather name="check-circle" size={28} color={COLORS.green} />
+                ) : (
+                  <Pressable
+                    style={styles.setupEnableButton}
+                    onPress={async () => {
+                      try {
+                        await IntentLauncher.startActivityAsync(
+                          'android.settings.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS',
+                          { data: 'package:com.nogoon.app' }
+                        );
+                        // Mark as done — user saw and responded to the dialog
+                        setBatteryExempt(true);
+                      } catch {
+                        // Device doesn't support the intent — silently skip
+                        setBatteryExempt(true);
+                      }
+                    }}
+                  >
+                    <Text style={styles.setupEnableButtonText}>Enable</Text>
+                  </Pressable>
+                )}
+              </View>
 
             </View>
 

@@ -2,10 +2,21 @@
 // NoGoon INTERCEPT SCREEN
 // ───────────────────────
 // Fires when a blocked site or app is detected.
-// Two game modes (set by user in Profile → Settings):
 //
-//   'choose' — shows all game options, user picks one (default)
-//   'random' — skips the picker entirely, jumps straight into a random game
+// FLOW:
+//   1. 'calm'   — 5-second breathing pause. Soft, no alarm energy.
+//                 Shows streak or intention goal as a gentle reminder.
+//   2. 'intent' — "Why are you here?" — 3 options. Treats users as adults.
+//                 Habit/boredom → random game
+//                 Feeling stressed → breathing game
+//                 Actually need this → exit immediately (no punishment)
+//   3. 'playing' — game runs, same post-game flow as before
+//
+// WHY THIS FLOW:
+//   The old screen (shaking alert, "BLOCKED CONTENT") activates fight-or-
+//   flight and adds cognitive load on top of an already impulsive moment.
+//   Research (One Sec, 2023) shows a single forced pause reduces blocked-app
+//   opens by up to 57%. We start with calm, then give a choice, then a game.
 //
 // Route params:
 //   domain     — blocked site or app package name, e.g. "instagram.com"
@@ -18,204 +29,71 @@ import {
   View,
   Text,
   Pressable,
-  ScrollView,
   StyleSheet,
   SafeAreaView,
   Animated,
+  Easing,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Feather } from '@expo/vector-icons';
-import { StroopChallenge } from '@/components/games/StroopChallenge';
-import { PatternMemory } from '@/components/games/PatternMemory';
-import { TypingChallenge } from '@/components/games/TypingChallenge';
+import { BreathRhythm }     from '@/components/games/BreathRhythm';
 import { GroundingExercise } from '@/components/games/GroundingExercise';
-import { IntentionCheck } from '@/components/games/IntentionCheck';
-import { BreathingGame } from '@/components/games/BreathingGame';
-import { ReactionGame } from '@/components/games/ReactionGame';
-import { OddOneOut } from '@/components/games/OddOneOut';
-import { PlaceholderGame } from '@/components/games/PlaceholderGame';
-import { Badge } from '@/components/ui/Badge';
+import { OddOneOut }         from '@/components/games/OddOneOut';
+import { ColorSort }         from '@/components/games/ColorSort';
+import { BallSort }          from '@/components/games/BallSort';
+import { NumberFlow }        from '@/components/games/NumberFlow';
+import { GemMatch }          from '@/components/games/GemMatch';
+import { WordWeave }         from '@/components/games/WordWeave';
+import { StackGame }         from '@/components/games/StackGame';
+import { PatternMemory }     from '@/components/games/PatternMemory';
+import { WarpGame }          from '@/components/games/WarpGame';
+import { IntentionCheck }    from '@/components/games/IntentionCheck';
+import { TypingChallenge }   from '@/components/games/TypingChallenge';
 import { PACKAGE_TO_NAME } from '@/hooks/useAppBlocker';
 import { useUserStore } from '@/stores/useUserStore';
 import { useSubscriptionStore } from '@/stores/useSubscriptionStore';
-import { COLORS, FONTS } from '@/constants/Colors';
+import { getColors, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
-import { TYPE } from '@/constants/Typography';
+import { STANDARD_GAMES, PRO_GAMES, pickRandomGame, getGameById, type GameId } from '@/constants/games';
 
-// ─── Game catalogue builders ───────────────────────────────────────────────────
-//
-// STANDARD games — available to all paid subscribers ($2.88+/mo)
-// PRO games     — only available to Pro subscribers ($4.22+/mo)
-//
-// Note: ALL games are playable for free in Arcade mode (no points earned).
-// Points are only earned here, in the intercept flow.
-//
-// isLive = true  → fully playable right now
-// isLive = false → "SOON" placeholder (not tappable)
+// ─── Intent options ────────────────────────────────────────────────────────────
 
-const STANDARD_GAMES = [
+type IntentOption = {
+  id: 'habit' | 'stress' | 'need';
+  label: string;
+  sublabel: string;
+  emoji: string;
+  action: 'random-game' | 'breathing' | 'exit';
+};
+
+const INTENT_OPTIONS: IntentOption[] = [
   {
-    id: 'stroop',
-    name: 'Stroop Challenge',
-    description: 'Name the ink color, not the word',
-    emoji: '🎨',
-    color: COLORS.purple,
-    isLive: true,
-    isPro: false,
+    id: 'habit',
+    label: 'Habit or boredom',
+    sublabel: "You don't really need it right now",
+    emoji: '👀',
+    action: 'random-game',
   },
   {
-    id: 'memory',
-    name: 'Pattern Memory',
-    description: 'Watch the sequence, repeat it back',
-    emoji: '🧩',
-    color: COLORS.cyan,
-    isLive: true,
-    isPro: false,
+    id: 'stress',
+    label: 'Feeling stressed',
+    sublabel: "Something's got you on edge",
+    emoji: '😮‍💨',
+    action: 'breathing',
   },
   {
-    id: 'typing',
-    name: 'Typing Challenge',
-    description: 'Type the phrase perfectly before time runs out',
-    emoji: '⌨️',
-    color: COLORS.green,
-    isLive: true,
-    isPro: false,
+    id: 'need',
+    label: 'I actually need this',
+    sublabel: 'Legitimate reason — go ahead',
+    emoji: '✓',
+    action: 'exit',
   },
-  {
-    id: 'grounding',
-    name: 'Ground Yourself',
-    description: '5-4-3-2-1 — anchor to the present moment',
-    emoji: '🌿',
-    color: COLORS.cyan,
-    isLive: true,
-    isPro: false,
-  },
-  {
-    id: 'breathing',
-    name: 'Breathing Reset',
-    description: 'Follow the circle — box breathing technique',
-    emoji: '🌬️',
-    color: '#4d8bff',
-    isLive: true,
-    isPro: false,
-  },
-] as const;
+];
 
-// Pro-only games — 3 additional games unlocked with a Pro subscription ($4.22+/mo)
-// They appear as a reward for upgrading, not advertised separately.
-const PRO_GAMES = [
-  {
-    id: 'intention',
-    name: 'Why Am I Here?',
-    description: 'A 60-second check-in with yourself',
-    emoji: '🪞',
-    color: COLORS.purple,
-    isLive: true,
-    isPro: true,
-  },
-  {
-    id: 'reaction',
-    name: 'Reaction Speed',
-    description: 'Tap the target the instant it appears',
-    emoji: '⚡',
-    color: COLORS.green,
-    isLive: true,
-    isPro: true,
-  },
-  {
-    id: 'oddone',
-    name: 'Odd One Out',
-    description: 'Spot the different ad — learn their tricks',
-    emoji: '🕵️',
-    color: COLORS.warning,
-    isLive: true,
-    isPro: true,
-  },
-] as const;
+// ─── Main component ────────────────────────────────────────────────────────────
 
-// A union type across both catalogues so TypeScript knows all possible game IDs
-type StandardGame = (typeof STANDARD_GAMES)[number];
-type ProGame = (typeof PRO_GAMES)[number];
-type AnyGame = StandardGame | ProGame;
-
-// Build the intercept game list — Pro games appended only for Pro subscribers
-function buildGameOptions(isPro: boolean): AnyGame[] {
-  return isPro
-    ? ([...STANDARD_GAMES, ...PRO_GAMES] as AnyGame[])
-    : ([...STANDARD_GAMES] as AnyGame[]);
-}
-
-// ─── GameCard sub-component (memoized) ───────────────────────────────────────
-// Wrapped in React.memo so it doesn't re-render when the parent re-renders
-// unless its own props actually change. (audit item 10)
-
-const GameCard = React.memo(function GameCard({
-  game,
-  onPress,
-}: {
-  game: AnyGame;
-  onPress: () => void;
-}) {
-  const scale = useRef(new Animated.Value(1)).current;
-
-  return (
-    <Pressable
-      onPressIn={() =>
-        Animated.timing(scale, {
-          toValue: 0.97,
-          duration: 70,
-          useNativeDriver: true,
-        }).start()
-      }
-      onPressOut={() =>
-        Animated.spring(scale, {
-          toValue: 1,
-          damping: 12,
-          useNativeDriver: true,
-        }).start()
-      }
-      onPress={onPress}
-    >
-      <Animated.View
-        style={[
-          styles.gameCard,
-          { borderColor: game.color + '44' },
-          { transform: [{ scale }] },
-          !game.isLive && styles.gameCardComingSoon,
-        ]}
-      >
-        {/* Badge-style icon: rounded square with color-tinted background */}
-        <View
-          style={[
-            styles.gameIconBadge,
-            {
-              backgroundColor: game.color + '18',
-              borderColor: game.color + '40',
-            },
-          ]}
-        >
-          <Text style={styles.gameEmoji}>{game.emoji}</Text>
-        </View>
-        <View style={styles.gameTextGroup}>
-          <View style={styles.gameNameRow}>
-            <Text style={[styles.gameName, { color: game.color }]}>
-              {game.name}
-            </Text>
-            {!game.isLive && (
-              <Text style={styles.comingSoonLabel}>SOON</Text>
-            )}
-          </View>
-          <Text style={styles.gameDesc}>{game.description}</Text>
-        </View>
-        <Feather name="chevron-right" size={20} color={game.color + 'aa'} />
-      </Animated.View>
-    </Pressable>
-  );
-});
-
-// ─── Main component ──────────────────────────────────────────────────────────
-type Phase = 'selecting' | 'playing';
+type Phase = 'calm' | 'intent' | 'pick' | 'playing';
 
 export default function NoGoonScreen() {
   const {
@@ -228,88 +106,101 @@ export default function NoGoonScreen() {
     source: string;
   }>();
 
-  // Read user preferences and BRICKED status from the store
-  const { gameMode, isBricked, gameDuration } = useUserStore();
-
-  // Check Pro subscription status — unlocks hidden games
+  const { isBricked, gameDuration, streak, walkAwayCount, intentionGoal, colorScheme, gameMode } =
+    useUserStore();
   const { isPro } = useSubscriptionStore();
 
-  // Build the game list dynamically based on subscription status (memoized — audit item 11)
-  const GAME_OPTIONS = useMemo(() => buildGameOptions(isPro), [isPro]);
-
-  // Only live games are eligible for random selection
-  const LIVE_GAMES = useMemo(
-    () => GAME_OPTIONS.filter((g) => g.isLive),
-    [GAME_OPTIONS]
-  );
+  const C = getColors(colorScheme ?? 'dark');
 
   const isAppBlock = source === 'app';
   const displayDomain = isAppBlock
     ? (PACKAGE_TO_NAME[domain] ?? domain)
     : domain;
 
-  const [phase, setPhase] = useState<Phase>('selecting');
-  const [selectedGame, setSelectedGame] = useState<AnyGame | null>(null);
+  const [phase, setPhase] = useState<Phase>('calm');
+  const [selectedGame, setSelectedGame] = useState<GameId | null>(null);
 
-  // ── Alert animations ──────────────────────────────────────────────────────
-  const alertShakeX = useRef(new Animated.Value(0)).current;
-  const alertScale = useRef(new Animated.Value(0.85)).current;
-
-  const doShake = useCallback(() => {
-    Animated.sequence([
-      Animated.timing(alertShakeX, { toValue: -11, duration: 55, useNativeDriver: true }),
-      Animated.timing(alertShakeX, { toValue: 11, duration: 55, useNativeDriver: true }),
-      Animated.timing(alertShakeX, { toValue: -8, duration: 55, useNativeDriver: true }),
-      Animated.timing(alertShakeX, { toValue: 8, duration: 55, useNativeDriver: true }),
-      Animated.timing(alertShakeX, { toValue: -4, duration: 55, useNativeDriver: true }),
-      Animated.timing(alertShakeX, { toValue: 0, duration: 55, useNativeDriver: true }),
-    ]).start();
-  }, [alertShakeX]);
+  // ── Calm phase — pulsing circle animation ────────────────────────────────
+  const pulseScale = useRef(new Animated.Value(1)).current;
+  const pulseOpacity = useRef(new Animated.Value(0.4)).current;
+  const contentOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.spring(alertScale, {
+    // Fade in content
+    Animated.timing(contentOpacity, {
       toValue: 1,
-      damping: 10,
-      stiffness: 180,
+      duration: 600,
       useNativeDriver: true,
     }).start();
 
-    doShake();
-    const interval = setInterval(doShake, 2500);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    // Gentle pulse loop
+    const doPulse = () => {
+      Animated.parallel([
+        Animated.sequence([
+          Animated.timing(pulseScale, {
+            toValue: 1.12,
+            duration: 2200,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseScale, {
+            toValue: 1,
+            duration: 2200,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.sequence([
+          Animated.timing(pulseOpacity, {
+            toValue: 0.8,
+            duration: 2200,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseOpacity, {
+            toValue: 0.4,
+            duration: 2200,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ]),
+      ]).start(() => doPulse());
+    };
+    doPulse();
 
-    // ── RANDOM MODE: skip the picker, auto-launch a random live game ────
-    // A short delay gives the alert animation time to show before jumping in
-    if (gameMode === 'random') {
-      const randomGame =
-        LIVE_GAMES[Math.floor(Math.random() * LIVE_GAMES.length)];
-      const timer = setTimeout(() => {
-        setSelectedGame(randomGame);
-        setPhase('playing');
-      }, 1200); // 1.2s — user sees the alert flash before the game loads
+    // Soft haptic — not the jarring Warning type
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-      return () => {
-        clearInterval(interval);
-        clearTimeout(timer);
-      };
-    }
+    // Auto-advance to intent after 5 seconds
+    const timer = setTimeout(() => setPhase('intent'), 5000);
+    return () => clearTimeout(timer);
+  }, []);
 
-    return () => clearInterval(interval);
-  }, [doShake, alertScale, gameMode, LIVE_GAMES]);
+  // ── Intent selection ──────────────────────────────────────────────────────
+  const handleIntent = useCallback(
+    (option: IntentOption) => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-  // ── Game selection (manual choose mode) ───────────────────────────────────
-  const handleSelectGame = useCallback(
-    (game: AnyGame) => {
-      if (!game.isLive) {
-        // Don't navigate — just give a gentle haptic to signal it's not available yet
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      if (option.action === 'exit') {
+        router.dismissAll();
         return;
       }
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      setSelectedGame(game);
-      setPhase('playing');
+
+      if (option.action === 'breathing') {
+        setSelectedGame('breathing');
+        setPhase('playing');
+        return;
+      }
+
+      // random-game — respect the gameMode setting
+      if (gameMode === 'choose') {
+        setPhase('pick');
+      } else {
+        setSelectedGame(pickRandomGame(isPro));
+        setPhase('playing');
+      }
     },
-    []
+    [isPro]
   );
 
   // ── Game completion ────────────────────────────────────────────────────────
@@ -319,10 +210,8 @@ export default function NoGoonScreen() {
         pathname: '/post-game',
         params: {
           pointsEarned: String(score),
-          gameName: selectedGame?.name ?? 'Mini-Game',
-          // Pass the blocked target so post-game can show "Access instagram.com for 10 min"
+          gameName: selectedGame ?? 'Mini-Game',
           domain: displayDomain,
-          // Pass whether BRICKED is on so post-game can hide the unlock button
           isBricked: isBricked ? '1' : '0',
         },
       });
@@ -330,364 +219,397 @@ export default function NoGoonScreen() {
     [selectedGame, isBricked, displayDomain]
   );
 
+  // ── Context line shown on calm screen ────────────────────────────────────
+  // Shows the user's intention goal if set, otherwise streak, otherwise nothing.
+  const contextLine = intentionGoal
+    ? `You wanted more time for: ${intentionGoal}`
+    : streak > 1
+    ? `${streak}-day streak 🔥 — don't break it now`
+    : walkAwayCount > 0
+    ? `You've walked away ${walkAwayCount} time${walkAwayCount === 1 ? '' : 's'} — you've got this`
+    : null;
+
   // ══════════════════════════════════════════════════════════════════════════
   // RENDER: Playing
   // ══════════════════════════════════════════════════════════════════════════
   if (phase === 'playing' && selectedGame) {
-    // ── Route to the correct game component ────────────────────────────────
-    // gameDuration is set in Profile → Settings (Pro: 30/60/90s, Free: always 30s)
-    if (selectedGame.id === 'stroop')
-      return <StroopChallenge onComplete={handleGameComplete} />;
-    if (selectedGame.id === 'memory')
-      return <PatternMemory onComplete={handleGameComplete} />;
-    if (selectedGame.id === 'typing')
-      return (
-        <TypingChallenge
-          onComplete={handleGameComplete}
-          duration={gameDuration}
-        />
-      );
-    if (selectedGame.id === 'grounding')
-      return <GroundingExercise onComplete={handleGameComplete} />;
-    if (selectedGame.id === 'breathing')
-      return <BreathingGame onComplete={handleGameComplete} />;
-    if (selectedGame.id === 'intention')
-      return <IntentionCheck onComplete={handleGameComplete} />;
-    if (selectedGame.id === 'reaction')
-      return <ReactionGame onComplete={handleGameComplete} />;
-    if (selectedGame.id === 'oddone')
-      return <OddOneOut onComplete={handleGameComplete} />;
+    if (selectedGame === 'breathing')  return <BreathRhythm    onComplete={handleGameComplete} />;
+    if (selectedGame === 'grounding')  return <GroundingExercise onComplete={handleGameComplete} />;
+    if (selectedGame === 'oddone')     return <OddOneOut        onComplete={handleGameComplete} />;
+    if (selectedGame === 'colorsort')  return <ColorSort        onComplete={handleGameComplete} />;
+    if (selectedGame === 'ballsort')   return <BallSort         onComplete={handleGameComplete} />;
+    if (selectedGame === 'numberflow') return <NumberFlow       onComplete={handleGameComplete} />;
+    if (selectedGame === 'gemmatch')   return <GemMatch         onComplete={handleGameComplete} />;
+    if (selectedGame === 'wordweave')  return <WordWeave        onComplete={handleGameComplete} />;
+    if (selectedGame === 'stack')      return <StackGame        onComplete={handleGameComplete} />;
+    if (selectedGame === 'memory')     return <PatternMemory    onComplete={handleGameComplete} />;
+    if (selectedGame === 'warp')       return <WarpGame         onComplete={handleGameComplete} />;
+    if (selectedGame === 'intention')  return <IntentionCheck   onComplete={handleGameComplete} />;
+    if (selectedGame === 'typing')     return <TypingChallenge  onComplete={handleGameComplete} duration={gameDuration} />;
+  }
 
-    // Fallback for any "SOON" games that somehow get triggered
+  // ══════════════════════════════════════════════════════════════════════════
+  // RENDER: Pick — game chooser (when gameMode === 'choose')
+  // ══════════════════════════════════════════════════════════════════════════
+  if (phase === 'pick') {
+    const pool = isPro
+      ? [...STANDARD_GAMES, ...PRO_GAMES]
+      : [...STANDARD_GAMES];
+
     return (
-      <PlaceholderGame
-        gameName={selectedGame.name}
-        accentColor={selectedGame.color}
-        emoji={selectedGame.emoji}
-        onComplete={handleGameComplete}
-      />
+      <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]}>
+        <View style={[styles.intentContainer, { paddingTop: 48 }]}>
+          <Text style={[styles.intentTitle, { color: C.textPrimary }]}>
+            Pick a game
+          </Text>
+          <View style={styles.intentOptions}>
+            {pool.map((g) => {
+              const meta = getGameById(g.id);
+              if (!meta) return null;
+              return (
+                <Pressable
+                  key={g.id}
+                  style={({ pressed }) => [
+                    styles.intentCard,
+                    {
+                      backgroundColor: pressed ? C.surfaceHigh : C.surface,
+                      borderColor: meta.color + '44',
+                    },
+                  ]}
+                  onPress={() => {
+                    setSelectedGame(g.id as GameId);
+                    setPhase('playing');
+                  }}
+                >
+                  <Text style={styles.intentEmoji}>{meta.emoji}</Text>
+                  <Text style={[styles.intentCardLabel, { color: C.textPrimary }]}>
+                    {meta.name}
+                  </Text>
+                  {'isPro' in g && (g as { isPro?: boolean }).isPro && (
+                    <Text style={[styles.proTag, { color: '#7dd3fc' }]}>✦</Text>
+                  )}
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      </SafeAreaView>
     );
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // RENDER: Selecting (or brief flash before random mode kicks in)
+  // RENDER: Intent — "Why are you here?"
   // ══════════════════════════════════════════════════════════════════════════
-  return (
-    <SafeAreaView style={styles.safe}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.dangerGlow} pointerEvents="none" />
+  if (phase === 'intent') {
+    return (
+      <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]}>
+        <Animated.View style={[styles.intentContainer, { opacity: contentOpacity }]}>
 
-        {/* ── BRICKED banner — shown when the user has Hard Mode active ── */}
-        {/* When BRICKED, the unlock option is hidden on the post-game screen.
-            This banner makes it clear up front that there's no escape route. */}
-        {isBricked && (
-          <View style={styles.brickedBanner}>
-            <Text style={styles.brickedEmoji}>🧱</Text>
-            <View style={styles.brickedTextGroup}>
-              <Text style={styles.brickedTitle}>BRICKED MODE ON</Text>
-              <Text style={styles.brickedSub}>
-                Unlock button is disabled — play the game.
-              </Text>
-            </View>
-          </View>
-        )}
-
-        {/* ── Alert section ── */}
-        <View style={styles.alertSection}>
-          <Animated.View
-            style={{
-              transform: [
-                { translateX: alertShakeX },
-                { scale: alertScale },
-              ],
-            }}
-          >
-            {/* lock = Feather valid name | alert-triangle = Feather valid name */}
-            <View
-              style={[
-                styles.iconRing,
-                isBricked && {
-                  borderColor: COLORS.warning + '55',
-                  backgroundColor: COLORS.warning + '18',
-                },
-              ]}
-            >
-              <Feather
-                name={isBricked ? 'lock' : 'alert-triangle'}
-                size={52}
-                color={isBricked ? COLORS.warning : COLORS.danger}
-              />
-            </View>
-          </Animated.View>
-
-          <Text
-            style={[
-              styles.aiDetectedLabel,
-              isBricked && { color: COLORS.warning },
-            ]}
-          >
-            NOGOON INTERCEPTED
-          </Text>
-          <Text style={styles.flaggedHeadline}>BLOCKED{'\n'}CONTENT</Text>
-          <Badge
-            label={`${confidence}% confidence`}
-            color={COLORS.danger}
-            size="md"
-            style={styles.confidenceBadge}
-          />
-          <View style={styles.domainChip}>
-            {/* Feather icons: 'smartphone' for apps, 'globe' for websites */}
+          {/* App context */}
+          <View style={[styles.domainPill, { backgroundColor: C.surface, borderColor: C.cardBorder }]}>
             <Feather
               name={isAppBlock ? 'smartphone' : 'globe'}
               size={13}
-              color={COLORS.textMuted}
+              color={C.textMuted}
             />
-            <Text style={styles.domainText}>{displayDomain}</Text>
+            <Text style={[styles.domainText, { color: C.textMuted }]}>
+              {displayDomain}
+            </Text>
+          </View>
+
+          <Text style={[styles.intentTitle, { color: C.textPrimary }]}>
+            Quick check —{'\n'}why are you here?
+          </Text>
+
+          <View style={styles.intentOptions}>
+            {INTENT_OPTIONS.map((option) => (
+              <Pressable
+                key={option.id}
+                style={({ pressed }) => [
+                  styles.intentCard,
+                  {
+                    backgroundColor: pressed ? C.surfaceHigh : C.surface,
+                    borderColor: C.cardBorder,
+                  },
+                ]}
+                onPress={() => handleIntent(option)}
+              >
+                <Text style={styles.intentEmoji}>{option.emoji}</Text>
+                <View style={styles.intentCardText}>
+                  <Text style={[styles.intentCardLabel, { color: C.textPrimary }]}>
+                    {option.label}
+                  </Text>
+                  <Text style={[styles.intentCardSub, { color: C.textSecondary }]}>
+                    {option.sublabel}
+                  </Text>
+                </View>
+                <Feather name="chevron-right" size={18} color={C.textMuted} />
+              </Pressable>
+            ))}
+          </View>
+
+        </Animated.View>
+      </SafeAreaView>
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // RENDER: Calm — initial 5-second pause
+  // ══════════════════════════════════════════════════════════════════════════
+  return (
+    <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]}>
+      <Animated.View style={[styles.calmContainer, { opacity: contentOpacity }]}>
+
+        {/* Pulsing circle */}
+        <View style={styles.circleWrapper}>
+          <Animated.View
+            style={[
+              styles.pulseOuter,
+              {
+                backgroundColor: C.indigoBright + '18',
+                borderColor: C.indigoBright + '30',
+                transform: [{ scale: pulseScale }],
+                opacity: pulseOpacity,
+              },
+            ]}
+          />
+          <View style={[styles.pulseInner, { backgroundColor: C.indigoBright + '25', borderColor: C.indigoBright + '50' }]}>
+            <Feather name="wind" size={32} color={C.indigoBright} />
           </View>
         </View>
 
-        {/* ── Gate copy — shock-therapy framing ── */}
-        {/* The message is: pause, do something intentional, then decide.
-            It's not "earn points to get in." It's a psychological speed bump. */}
-        <View style={styles.divider} />
-        <Text style={styles.choosePrompt}>
-          {gameMode === 'random'
-            ? 'Take a breath. Your game is loading…'
-            : 'Take a breath. Pick a round. Then decide.'}
+        {/* Main message */}
+        <Text style={[styles.calmTitle, { color: C.textPrimary }]}>
+          Slow down{'\n'}for a sec.
         </Text>
 
-        {/* One-liner grounded in science — most cravings pass in 90 seconds */}
-        <Text style={styles.cravingNote}>
-          Most cravings pass in 90 seconds.
-        </Text>
+        {/* Context line — personal, not punishing */}
+        {contextLine ? (
+          <Text style={[styles.contextLine, { color: C.textSecondary }]}>
+            {contextLine}
+          </Text>
+        ) : (
+          <Text style={[styles.contextLine, { color: C.textMuted }]}>
+            Most cravings pass in 90 seconds.
+          </Text>
+        )}
 
-        {/* ── Game list (only shown in 'choose' mode) ── */}
-        {gameMode === 'choose' && (
-          <View style={styles.gameList}>
-            {GAME_OPTIONS.map((game) => (
-              <GameCard
-                key={game.id}
-                game={game}
-                onPress={() => handleSelectGame(game)}
-              />
-            ))}
+        {/* Hard lock banner */}
+        {isBricked && (
+          <View style={[styles.hardLockBanner, { backgroundColor: C.warning + '18', borderColor: C.warning + '55' }]}>
+            <Feather name="lock" size={14} color={C.warning} />
+            <Text style={[styles.hardLockText, { color: C.warning }]}>
+              Hard lock is on — no skip option
+            </Text>
           </View>
         )}
 
-        {/* ── Random mode: show a spinner/pulse while the 1.2s delay runs ── */}
-        {gameMode === 'random' && (
-          <View style={styles.randomLoadingBox}>
-            <Text style={styles.randomEmoji}>🎲</Text>
-            <Text style={styles.randomLabel}>Picking a random game…</Text>
-          </View>
+        {/* Skip for "I actually need this" */}
+        {!isBricked && (
+          <Pressable style={styles.skipRow} onPress={() => router.dismissAll()}>
+            <Text style={[styles.skipText, { color: C.textMuted }]}>
+              I actually need this right now
+            </Text>
+          </Pressable>
         )}
 
-        {/* ── Escape hatch — always visible ── */}
-        <Pressable
-          style={styles.dismissRow}
-          onPress={() => router.dismissAll()}
-        >
-          <Text style={styles.dismissText}>I'll handle this myself</Text>
-        </Pressable>
+        {/* Subtle progress — 5 dots fill over 5 seconds */}
+        <ProgressDots color={C.indigoBright} />
 
-        <View style={{ height: SPACING.xxl }} />
-      </ScrollView>
+      </Animated.View>
     </SafeAreaView>
   );
 }
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
+// ─── Progress dots — 5 fill one per second ────────────────────────────────────
+
+function ProgressDots({ color }: { color: string }) {
+  const [filled, setFilled] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setFilled((prev) => Math.min(prev + 1, 5));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <View style={styles.dotsRow}>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <View
+          key={i}
+          style={[
+            styles.progressDot,
+            { backgroundColor: i < filled ? color : color + '30' },
+          ]}
+        />
+      ))}
+    </View>
+  );
+}
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.background },
-  scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: SPACING.lg },
+  safe: {
+    flex: 1,
+  },
 
-  // ── BRICKED banner ──
-  // Sits at the very top of the scroll content, above the alert icon,
-  // so the user sees it immediately before anything else.
-  brickedBanner: {
-    flexDirection: 'row',
+  // ── Calm screen ──────────────────────────────────────────────────────────
+  calmContainer: {
+    flex: 1,
     alignItems: 'center',
-    gap: SPACING.md,
-    backgroundColor: COLORS.warning + '18',
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.warning + '55',
-    padding: SPACING.md,
-    marginTop: SPACING.lg,
-  },
-  brickedEmoji: { fontSize: 24 },
-  brickedTextGroup: { flex: 1, gap: 2 },
-  brickedTitle: {
-    fontFamily: FONTS.mono,
-    fontSize: 11,
-    color: COLORS.warning,
-    letterSpacing: 2,
-  },
-  brickedSub: {
-    fontFamily: FONTS.body,
-    fontSize: 12,
-    color: COLORS.textSecondary,
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.xl,
+    gap: SPACING.xl,
   },
 
-  dangerGlow: {
+  circleWrapper: {
+    width: 160,
+    height: 160,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  pulseOuter: {
     position: 'absolute',
-    top: -60,
-    left: -80,
-    right: -80,
-    height: 320,
-    backgroundColor: COLORS.danger,
-    opacity: 0.07,
-    borderBottomLeftRadius: 999,
-    borderBottomRightRadius: 999,
-    transform: [{ scaleX: 1.2 }],
-  },
-
-  alertSection: {
-    alignItems: 'center',
-    paddingTop: SPACING.xxxl,
-    paddingBottom: SPACING.xl,
-  },
-  iconRing: {
-    width: 96,
-    height: 96,
-    borderRadius: RADIUS.full,
-    backgroundColor: COLORS.danger + '18',
+    width: 160,
+    height: 160,
+    borderRadius: 80,
     borderWidth: 1.5,
-    borderColor: COLORS.danger + '55',
+  },
+
+  pulseInner: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: SPACING.xl,
   },
-  aiDetectedLabel: {
-    fontFamily: FONTS.mono,
-    fontSize: 11,
-    color: COLORS.danger,
-    letterSpacing: 3,
-    marginBottom: SPACING.sm,
-  },
-  flaggedHeadline: {
+
+  calmTitle: {
     fontFamily: FONTS.display,
-    fontSize: 44,
-    color: COLORS.textPrimary,
+    fontSize: 40,
     textAlign: 'center',
-    lineHeight: 50,
+    lineHeight: 48,
     letterSpacing: -0.5,
-    marginBottom: SPACING.lg,
   },
 
-  confidenceBadge: { marginBottom: SPACING.md },
-
-  domainChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.xs,
-    backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.full,
-    borderWidth: 1,
-    borderColor: COLORS.cardBorder,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
-  },
-  domainText: {
-    fontFamily: FONTS.mono,
-    fontSize: 13,
-    color: COLORS.textMuted,
-  },
-
-  divider: {
-    height: 1,
-    backgroundColor: COLORS.border,
-    marginBottom: SPACING.lg,
-  },
-  choosePrompt: {
-    fontFamily: FONTS.bodyMedium,
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: SPACING.lg,
-  },
-  cravingNote: {
+  contextLine: {
     fontFamily: FONTS.body,
-    fontSize: 13,
-    color: COLORS.textMuted,
+    fontSize: 15,
     textAlign: 'center',
-    fontStyle: 'italic',
-    marginTop: -SPACING.sm,
-    marginBottom: SPACING.sm,
+    lineHeight: 22,
+    paddingHorizontal: SPACING.lg,
   },
 
-  gameList: { gap: SPACING.sm, marginBottom: SPACING.lg },
-  gameCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    padding: SPACING.lg,
-    gap: SPACING.md,
-  },
-  gameCardComingSoon: { opacity: 0.45 },
-  gameIconBadge: {
-    width: 48,
-    height: 48,
-    borderRadius: RADIUS.sm,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  gameEmoji: { fontSize: 24 },
-  gameTextGroup: { flex: 1 },
-  gameNameRow: {
+  hardLockBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.sm,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
   },
-  gameName: {
+
+  hardLockText: {
+    fontFamily: FONTS.bodyMedium,
+    fontSize: 13,
+  },
+
+  skipRow: {
+    paddingVertical: SPACING.sm,
+  },
+
+  skipText: {
+    fontFamily: FONTS.body,
+    fontSize: 13,
+    textDecorationLine: 'underline',
+  },
+
+  dotsRow: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    marginTop: SPACING.lg,
+  },
+
+  progressDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+
+  // ── Intent screen ─────────────────────────────────────────────────────────
+  intentContainer: {
+    flex: 1,
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.xxxl,
+    gap: SPACING.xl,
+  },
+
+  domainPill: {
+    flexDirection: 'row',
+    alignSelf: 'flex-start',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+  },
+
+  domainText: {
+    fontFamily: FONTS.mono,
+    fontSize: 12,
+  },
+
+  intentTitle: {
+    fontFamily: FONTS.display,
+    fontSize: 34,
+    lineHeight: 42,
+    letterSpacing: -0.3,
+  },
+
+  intentOptions: {
+    gap: SPACING.sm,
+  },
+
+  intentCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    padding: SPACING.lg,
+  },
+
+  intentEmoji: {
+    fontSize: 28,
+    width: 36,
+    textAlign: 'center',
+  },
+
+  intentCardText: {
+    flex: 1,
+    gap: 2,
+  },
+
+  intentCardLabel: {
     fontFamily: FONTS.bodyBold,
     fontSize: 16,
-    marginBottom: 2,
-  },
-  comingSoonLabel: {
-    fontFamily: FONTS.mono,
-    fontSize: 9,
-    color: COLORS.textMuted,
-    backgroundColor: COLORS.border,
-    borderRadius: RADIUS.full,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    letterSpacing: 0.5,
-  },
-  gameDesc: {
-    fontFamily: FONTS.body,
-    fontSize: 13,
-    color: COLORS.textSecondary,
+    flex: 1,
   },
 
-  randomLoadingBox: {
-    alignItems: 'center',
-    paddingVertical: SPACING.xxl,
-    gap: SPACING.md,
-  },
-  randomEmoji: { fontSize: 48 },
-  randomLabel: {
+  proTag: {
     fontFamily: FONTS.mono,
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    letterSpacing: 0.5,
+    fontSize: 13,
   },
 
-  dismissRow: { alignItems: 'center', paddingVertical: SPACING.md },
-  dismissText: {
+  intentCardSub: {
     fontFamily: FONTS.body,
     fontSize: 13,
-    color: COLORS.textMuted,
-    textDecorationLine: 'underline',
+    lineHeight: 18,
   },
 });

@@ -161,6 +161,10 @@ interface UserState {
   blockScheduleStart: string;  // e.g. '22:00'
   blockScheduleEnd: string;    // e.g. '08:00'
 
+  // ── Color scheme ──────────────────────────────────────────────────────────
+  // User's preferred theme. 'dark' = original dark luxury. 'light' = warm cream.
+  colorScheme: 'dark' | 'light';
+
   // ── Walk-away count ────────────────────────────────────────────────────────
   // How many times the user played a gate game and then chose NOT to unlock.
   // This is the real success metric — the app working as intended.
@@ -223,6 +227,9 @@ interface UserState {
 
   // Walk-away tracking
   incrementWalkAway: () => void;
+
+  // Color scheme
+  setColorScheme: (scheme: 'dark' | 'light') => void;
 
   // Intention goal (set in onboarding)
   setIntentionGoal: (goal: string) => void;
@@ -311,6 +318,9 @@ const DEFAULT_STATE = {
 
   // Journal
   journalEntries: [] as Array<{ id: string; text: string; domain: string; timestamp: number }>,
+
+  // Color scheme
+  colorScheme: 'dark' as 'dark' | 'light',
 
   // Walk-away count — how many times the user played and chose NOT to unlock
   walkAwayCount: 0,
@@ -536,6 +546,9 @@ export const useUserStore = create<UserState>()(
           walkAwayCount: state.walkAwayCount + 1,
         })),
 
+      // ── Color scheme ─────────────────────────────────────────────────────────
+      setColorScheme: (scheme) => set({ colorScheme: scheme }),
+
       // ── Intention goal ───────────────────────────────────────────────────────
       setIntentionGoal: (goal) => set({ intentionGoal: goal }),
 
@@ -705,6 +718,7 @@ export const useUserStore = create<UserState>()(
         journalEntries: state.journalEntries,
         walkAwayCount: state.walkAwayCount,
         intentionGoal: state.intentionGoal,
+        colorScheme: state.colorScheme,
       }),
     }
   )

@@ -24,7 +24,7 @@ import { PointsBadge } from '@/components/home/PointsBadge';
 import { WeeklyChart } from '@/components/home/WeeklyChart';
 import { DailyChallengeCard } from '@/components/home/DailyChallengeCard';
 import { Badge } from '@/components/ui/Badge';
-import { COLORS, FONTS } from '@/constants/Colors';
+import { getColors, COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { TYPE } from '@/constants/Typography';
 import { router } from 'expo-router';
@@ -96,7 +96,10 @@ export default function HomeScreen() {
     dailyChallengeCompleted,
     walkAwayCount,
     loadFromSupabase,
+    colorScheme,
   } = useUserStore();
+
+  const C = getColors(colorScheme ?? 'dark');
 
   // Pull the real blocking state from the hook that talks to Android
   // blockingStatus: 'active' | 'empty' | 'off'
@@ -113,16 +116,16 @@ export default function HomeScreen() {
   const levelProgress = getLevelProgress(xp);
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]}>
       <ScrollView
-        style={styles.scroll}
+        style={[styles.scroll, { backgroundColor: C.background }]}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
         {/* ─── Section 1: Header ─────────────────────────────── */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <Text style={styles.greeting}>{getGreeting()}</Text>
+            <Text style={[styles.greeting, { color: C.textSecondary }]}>{getGreeting()}</Text>
             <Text style={[TYPE.headingM, styles.name]}>
               {name ? `${name} 👋` : '👋'}
             </Text>
@@ -131,14 +134,14 @@ export default function HomeScreen() {
           <View style={styles.headerRight}>
             {/* Help button — opens setup guide */}
             <Pressable
-              style={styles.helpButton}
-              onPress={() => router.push('/setup-guide')}
+              style={[styles.helpButton, { backgroundColor: C.surface, borderColor: C.cardBorder }]}
+              onPress={() => router.push('/help')}
               hitSlop={8}
             >
-              <Feather name="help-circle" size={20} color={COLORS.textMuted} />
+              <Feather name="help-circle" size={20} color={C.textMuted} />
             </Pressable>
             {/* Level badge */}
-            <Badge label={level} color={COLORS.purple} size="sm" />
+            <Badge label={level} color={C.purple} size="sm" />
           </View>
         </View>
 
@@ -162,6 +165,23 @@ export default function HomeScreen() {
           />
         </View>
 
+        {/* ─── Arcade Card ───────────────────────────────────── */}
+        <Pressable
+          style={[styles.arcadeCard, { backgroundColor: C.purpleDim, borderColor: C.purple + '44' }]}
+          onPress={() => router.push('/(tabs)/arcade')}
+        >
+          <View style={styles.arcadeLeft}>
+            <View style={[styles.arcadeIconWrap, { backgroundColor: C.purple + '22', borderColor: C.purple + '44' }]}>
+              <Feather name="zap" size={22} color={C.purple} />
+            </View>
+            <View style={styles.arcadeText}>
+              <Text style={[styles.arcadeTitle, { color: C.purple }]}>Play Arcade</Text>
+              <Text style={[styles.arcadeSub, { color: C.purple + 'aa' }]}>Earn points · Beat cravings</Text>
+            </View>
+          </View>
+          <Feather name="chevron-right" size={20} color={C.purple + 'aa'} />
+        </Pressable>
+
         {/* ─── Section 4: Weekly Chart ───────────────────────── */}
         <WeeklyChart data={weeklyActivity} />
 
@@ -172,8 +192,8 @@ export default function HomeScreen() {
         {/* ─── Section 5: Daily Challenge ────────────────────── */}
         <DailyChallengeCard
           alreadyCompleted={dailyChallengeCompleted}
-          onPress={() => {
-            router.push('/(tabs)/arcade');
+          onPress={(gameId) => {
+            router.push({ pathname: '/(tabs)/arcade', params: { game: gameId } });
           }}
         />
 
@@ -236,6 +256,44 @@ const styles = StyleSheet.create({
   },
   bottomPad: {
     height: SPACING.xl,
+  },
+
+  // ── Arcade card ──
+  arcadeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: COLORS.purpleDim,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.purple + '44',
+    padding: SPACING.lg,
+  },
+  arcadeLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+  },
+  arcadeIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.purple + '22',
+    borderWidth: 1,
+    borderColor: COLORS.purple + '44',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  arcadeText: { gap: 2 },
+  arcadeTitle: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 16,
+    color: COLORS.purple,
+  },
+  arcadeSub: {
+    fontFamily: FONTS.body,
+    fontSize: 12,
+    color: COLORS.purple + 'aa',
   },
 });
 

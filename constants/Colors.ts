@@ -1,7 +1,7 @@
 // ─── NoGoon Design System ─────────────────────────────────────────────────────
 //
 // Single source of truth for all colors and fonts.
-// Import COLORS and FONTS anywhere — never hardcode hex values in components.
+// Import COLORS (dark, default) or LIGHT_COLORS, or use getColors(scheme).
 //
 // BRAND IDENTITY:
 //   Primary  — Indigo (#2e2787) — the main brand color. Deep, trustworthy, bold.
@@ -13,8 +13,8 @@
 //              Green is never used as a brand color — only to mean "good/correct/done"
 //
 // BACKGROUND SYSTEM:
-//   All backgrounds have a faint purple tint to feel cohesive with the brand.
-//   background → surface → surfaceHigh is the elevation stack (darkest → lightest).
+//   Dark:  background → surface → surfaceHigh (darkest → lightest, purple-tinted)
+//   Light: background → surface → surfaceHigh (warm cream stack)
 
 export const COLORS = {
   // ── Backgrounds ──────────────────────────────────────────────────────────────
@@ -57,6 +57,57 @@ export const COLORS = {
   cardBorder: '#221f40',            // Card outlines — slightly lighter than border
   overlay:    'rgba(8,8,17,0.88)',  // Modal/sheet backdrops
 } as const;
+
+// ─── Light mode palette ────────────────────────────────────────────────────────
+// Warm cream — human, approachable. Not clinical white.
+// Use getColors(colorScheme) to get the right palette at runtime.
+
+export const LIGHT_COLORS = {
+  // ── Backgrounds ──────────────────────────────────────────────────────────────
+  background:  '#FAF7F2',           // Warm cream — never pure white
+  surface:     '#F0EBE3',           // Slightly toasted — cards, panels
+  surfaceHigh: '#E8E1D6',           // Deepest elevation — modals, selected
+
+  // ── Brand accents (adjusted for light backgrounds) ────────────────────────────
+  indigo:      '#2e2787',           // Same deep indigo — still readable on cream
+  indigoBright:'#4a41e0',           // Slightly deeper to contrast on light bg
+  indigoDim:   'rgba(46,39,135,0.12)',
+  indigoGlow:  'rgba(74,65,224,0.10)',
+
+  purple:      '#7c5cda',
+  purpleDim:   'rgba(124,92,218,0.10)',
+
+  cyan:        '#0077aa',           // Deeper cyan — readable on light
+  cyanDim:     'rgba(0,119,170,0.10)',
+
+  green:       '#2d9e5a',           // Deeper green for light contrast
+  greenDim:    'rgba(45,158,90,0.10)',
+
+  // ── Semantic ──────────────────────────────────────────────────────────────────
+  danger:      '#c0392b',
+  dangerDim:   'rgba(192,57,43,0.10)',
+  warning:     '#c07800',
+
+  // ── Text ─────────────────────────────────────────────────────────────────────
+  textPrimary:   '#1A1512',         // Warm near-black — not pure #000
+  textSecondary: '#5C4F48',         // Warm mid-brown
+  textMuted:     '#9A8E87',         // Soft warm gray
+
+  // ── UI chrome ─────────────────────────────────────────────────────────────────
+  border:     '#DDD5CB',
+  cardBorder: '#D0C5BA',
+  overlay:    'rgba(250,247,242,0.92)',
+} as const;
+
+// ─── Theme helper ──────────────────────────────────────────────────────────────
+// Returns the correct palette based on the user's color scheme preference.
+// Usage: const C = getColors(colorScheme) — then use C.background, C.indigo, etc.
+
+export type ColorScheme = 'dark' | 'light';
+
+export function getColors(scheme: ColorScheme) {
+  return scheme === 'light' ? LIGHT_COLORS : COLORS;
+}
 
 // ─── Font families ─────────────────────────────────────────────────────────────
 // These names must exactly match what's registered in useFonts() in app/_layout.tsx.

@@ -93,8 +93,6 @@ const MICRO_CARDS = [
   },
 ] as const;
 
-// The percentage of users who walk away vs unlock
-const SOCIAL_PROOF_PERCENT = 93;
 
 // XP earned = half of points earned, rounded up
 const pointsToXP = (pts: number) => Math.round(pts * 0.5);
@@ -271,15 +269,20 @@ export default function PostGameScreen() {
         showsVerticalScrollIndicator={false}
       >
 
-        {/* ── Large rectangle ad — post-game is the highest-attention moment.
-             Users just completed something → high engagement = high ad value.
-             This single placement typically earns 2–3× more than a home banner. ── */}
-        <AdBanner size="largeBanner" />
-
         {/* ── Completion header ── */}
         <View style={styles.header}>
+          <Text style={styles.completeEmoji}>
+            {pointsEarned >= 80 ? '🏆' : pointsEarned >= 50 ? '⭐' : '✅'}
+          </Text>
           <Text style={styles.completeLabel}>CHALLENGE COMPLETE</Text>
           <Text style={styles.gameNameText}>{gameName}</Text>
+          <Text style={styles.praiseText}>
+            {pointsEarned >= 80
+              ? 'Crushing it. That craving never stood a chance.'
+              : pointsEarned >= 50
+              ? 'Solid. You showed up for yourself.'
+              : 'Every rep rewires the brain. Keep going.'}
+          </Text>
         </View>
 
         {/* ── Score display — pops in and counts up ── */}
@@ -305,6 +308,27 @@ export default function PostGameScreen() {
             </Text>
           </View>
         </Animated.View>
+
+        {/* ── Streak callout ── */}
+        {streak > 0 && (
+          <View style={styles.streakCallout}>
+            <Text style={styles.streakCalloutEmoji}>🔥</Text>
+            <View style={styles.streakCalloutText}>
+              <Text style={styles.streakCalloutTitle}>
+                {streak}-day streak
+              </Text>
+              <Text style={styles.streakCalloutSub}>
+                {streak >= 30
+                  ? 'Legendary. You\'re in the top 1%.'
+                  : streak >= 14
+                  ? 'Two weeks strong. This is a real habit now.'
+                  : streak >= 7
+                  ? 'One week in. The hardest part is behind you.'
+                  : 'Building momentum — walk away to keep it.'}
+              </Text>
+            </View>
+          </View>
+        )}
 
         {/* ── Micro-learning card ── */}
         <View style={[styles.microCard, { borderLeftColor: card.accent }]}>
@@ -435,23 +459,33 @@ export default function PostGameScreen() {
           )}
         </View>
 
-        {/* ── Social proof ── */}
-        <View style={styles.socialProof}>
-          <View style={styles.proofBarRow}>
-            <View style={styles.proofBarTrack}>
-              <View
-                style={[
-                  styles.proofBarFill,
-                  { width: `${SOCIAL_PROOF_PERCENT}%` },
-                ]}
-              />
+        {/* ── Ad banner — after the celebration, not before it ── */}
+        <AdBanner size="largeBanner" />
+
+        {/* ── Personal proof — real data, not a fake aggregate ── */}
+        {walkAwayCount > 0 && (
+          <View style={styles.socialProof}>
+            <View style={styles.proofBarRow}>
+              <View style={styles.proofBarTrack}>
+                <View
+                  style={[
+                    styles.proofBarFill,
+                    { width: `${Math.min((walkAwayCount / Math.max(walkAwayCount + 1, 10)) * 100, 100)}%` },
+                  ]}
+                />
+              </View>
+              <Text style={styles.proofPercent}>{walkAwayCount}×</Text>
             </View>
-            <Text style={styles.proofPercent}>{SOCIAL_PROOF_PERCENT}%</Text>
+            <Text style={styles.proofStatement}>
+              You've walked away {walkAwayCount} time{walkAwayCount === 1 ? '' : 's'} total.{'\n'}
+              {walkAwayCount >= 10
+                ? 'That\'s real discipline.'
+                : walkAwayCount >= 5
+                ? 'You\'re building a real pattern.'
+                : 'Every walk-away rewires the habit.'}
+            </Text>
           </View>
-          <Text style={styles.proofStatement}>
-            of NoGoon users who play one game{'\n'}choose to walk away
-          </Text>
-        </View>
+        )}
 
         <View style={{ height: SPACING.xl }} />
       </ScrollView>
@@ -479,6 +513,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: SPACING.xs,
   },
+  completeEmoji: {
+    fontSize: 48,
+    marginBottom: SPACING.xs,
+  },
   completeLabel: {
     fontFamily: FONTS.mono,
     fontSize: 11,
@@ -489,6 +527,39 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.body,
     fontSize: 15,
     color: COLORS.textSecondary,
+  },
+  praiseText: {
+    fontFamily: FONTS.bodyMedium,
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    marginTop: SPACING.xs,
+    lineHeight: 20,
+  },
+
+  // ── Streak callout ──
+  streakCallout: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+    backgroundColor: COLORS.warning + '12',
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.warning + '33',
+    padding: SPACING.md,
+  },
+  streakCalloutEmoji: { fontSize: 28 },
+  streakCalloutText: { flex: 1, gap: 2 },
+  streakCalloutTitle: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 15,
+    color: COLORS.warning,
+  },
+  streakCalloutSub: {
+    fontFamily: FONTS.body,
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    lineHeight: 18,
   },
 
   scoreCard: {

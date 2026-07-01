@@ -1,9 +1,6 @@
 // DailyChallengeCard — highlights today's daily challenge.
-// Completing the daily challenge earns bonus points and XP.
-// This card is elevated (lighter background) to make it stand out from other cards.
-//
-// In a future milestone, the challenge will be fetched from Supabase.
-// For now it's hardcoded so the UI looks right.
+// Rotates through the standard game pool daily using a date-based seed.
+// "Play Now" launches that specific game in the Arcade.
 
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
@@ -11,92 +8,53 @@ import { Card } from '@/components/ui/Card';
 import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { TYPE } from '@/constants/Typography';
-
-// The shape of a daily challenge
-interface Challenge {
-  title: string;
-  description: string;
-  target: number;      // Total steps needed (e.g., 3 games)
-  completed: number;   // Steps done so far
-  rewardPoints: number;
-  rewardXP: number;
-}
-
-// Hardcoded challenge for now — will be dynamic in Milestone 2+
-const TODAY_CHALLENGE: Challenge = {
-  title: 'Mindful Moments',
-  description: 'Complete 3 games without unlocking a blocked site',
-  target: 3,
-  completed: 1,
-  rewardPoints: 150,
-  rewardXP: 50,
-};
+import { getTodaysGame } from '@/constants/games';
 
 interface DailyChallengeCardProps {
   alreadyCompleted?: boolean;
-  onPress?: () => void; // Called when the user taps "Play Now"
+  onPress?: (gameId: string) => void; // Called with today's game ID
 }
 
 export function DailyChallengeCard({
   alreadyCompleted = false,
   onPress,
 }: DailyChallengeCardProps) {
-  const challenge = TODAY_CHALLENGE;
-  const progressPercent = challenge.completed / challenge.target; // 0–1
-  const isDone = alreadyCompleted || challenge.completed >= challenge.target;
+  const game = getTodaysGame();
+  const isDone = alreadyCompleted;
 
   return (
-    // 'elevated' makes this card slightly brighter to draw the eye
     <Card elevated style={styles.card}>
-      {/* Header row with calendar icon and label */}
+      {/* Header row */}
       <View style={styles.headerRow}>
         <View style={styles.headerLeft}>
           <Feather name="calendar" size={16} color={COLORS.cyan} />
           <Text style={[TYPE.label, styles.headerLabel]}>Daily Challenge</Text>
         </View>
-
-        {/* Reward badges */}
         <View style={styles.rewardRow}>
-          <Text style={styles.rewardText}>+{challenge.rewardPoints} pts</Text>
+          <Text style={styles.rewardText}>+150 pts</Text>
           <Text style={styles.rewardDivider}>·</Text>
-          <Text style={styles.rewardText}>+{challenge.rewardXP} XP</Text>
+          <Text style={styles.rewardText}>+50 XP</Text>
         </View>
       </View>
 
-      {/* Challenge title */}
-      <Text style={[TYPE.headingS, styles.title]}>{challenge.title}</Text>
-
-      {/* Challenge description */}
-      <Text style={[TYPE.bodyS, styles.description]}>{challenge.description}</Text>
-
-      {/* Progress bar + step count */}
-      <View style={styles.progressSection}>
-        <View style={styles.progressTrack}>
-          <View
-            style={[
-              styles.progressFill,
-              {
-                width: `${Math.min(progressPercent * 100, 100)}%`,
-                backgroundColor: isDone ? COLORS.green : COLORS.cyan,
-              },
-            ]}
-          />
-        </View>
-        <Text style={styles.progressLabel}>
-          {isDone ? 'Complete!' : `${challenge.completed} / ${challenge.target}`}
-        </Text>
+      {/* Today's game */}
+      <View style={styles.gameRow}>
+        <Text style={styles.gameEmoji}>{game.emoji}</Text>
+        <Text style={[TYPE.headingS, styles.title]}>{game.name}</Text>
       </View>
 
-      {/* CTA button or completed state */}
+      <Text style={[TYPE.bodyS, styles.description]}>{game.description}</Text>
+
+      {/* CTA or completed */}
       {isDone ? (
         <View style={styles.completedBadge}>
           <Feather name="check-circle" size={16} color={COLORS.green} />
-          <Text style={styles.completedText}>Challenge completed</Text>
+          <Text style={styles.completedText}>Done for today — come back tomorrow</Text>
         </View>
       ) : (
         <TouchableOpacity
           style={styles.button}
-          onPress={onPress}
+          onPress={() => onPress?.(game.id)}
           activeOpacity={0.75}
         >
           <Text style={styles.buttonText}>Play Now</Text>
@@ -141,35 +99,20 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     fontSize: 11,
   },
-  title: {
-    marginBottom: SPACING.xs,
-  },
-  description: {
-    marginBottom: SPACING.md,
-  },
-  progressSection: {
+  gameRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.sm,
+    marginBottom: SPACING.xs,
+  },
+  gameEmoji: {
+    fontSize: 24,
+  },
+  title: {
+    marginBottom: 0,
+  },
+  description: {
     marginBottom: SPACING.md,
-  },
-  progressTrack: {
-    flex: 1,
-    height: 4,
-    backgroundColor: COLORS.border,
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 2,
-  },
-  progressLabel: {
-    fontFamily: FONTS.mono,
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    minWidth: 50,
-    textAlign: 'right',
   },
   button: {
     flexDirection: 'row',

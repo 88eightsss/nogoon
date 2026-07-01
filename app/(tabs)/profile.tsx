@@ -18,9 +18,8 @@ import { useUserStore, getLevelProgress } from '@/stores/useUserStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useSubscriptionStore } from '@/stores/useSubscriptionStore';
 import { AdBanner } from '@/components/ads/AdBanner';
-import { COLORS, FONTS } from '@/constants/Colors';
+import { getColors, COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
-import { useState } from 'react';
 
 // ─── Achievement definitions ──────────────────────────────────────────────────
 
@@ -28,10 +27,47 @@ const ACHIEVEMENTS = [
   {
     id: 'first_game',
     emoji: '🎮',
-    label: 'First Game',
+    label: 'First Rep',
     desc: 'Play your first mini-game',
     check: (s: ReturnType<typeof useUserStore.getState>) =>
       s.weeklyActivity.some((n) => n > 0),
+  },
+  {
+    id: 'first_walkaway',
+    emoji: '🚶',
+    label: 'First Walk-Away',
+    desc: 'Walk away from a blocked site after playing',
+    check: (s: ReturnType<typeof useUserStore.getState>) => s.walkAwayCount >= 1,
+  },
+  {
+    id: 'walkaway_10',
+    emoji: '💪',
+    label: 'Resilient',
+    desc: 'Walk away 10 times',
+    check: (s: ReturnType<typeof useUserStore.getState>) => s.walkAwayCount >= 10,
+  },
+  {
+    id: 'walkaway_25',
+    emoji: '🧠',
+    label: 'Rewired',
+    desc: 'Walk away 25 times',
+    check: (s: ReturnType<typeof useUserStore.getState>) => s.walkAwayCount >= 25,
+  },
+  {
+    id: 'games_10',
+    emoji: '⚡',
+    label: '10 Games',
+    desc: 'Play 10 mini-games total',
+    check: (s: ReturnType<typeof useUserStore.getState>) =>
+      s.weeklyActivity.reduce((a, b) => a + b, 0) >= 10,
+  },
+  {
+    id: 'games_50',
+    emoji: '🏆',
+    label: '50 Games',
+    desc: 'Play 50 mini-games total',
+    check: (s: ReturnType<typeof useUserStore.getState>) =>
+      s.weeklyActivity.reduce((a, b) => a + b, 0) >= 50,
   },
   {
     id: 'streak_7',
@@ -39,6 +75,13 @@ const ACHIEVEMENTS = [
     label: '7-Day Streak',
     desc: 'Keep a 7-day streak',
     check: (s: ReturnType<typeof useUserStore.getState>) => s.longestStreak >= 7,
+  },
+  {
+    id: 'streak_30',
+    emoji: '🌙',
+    label: '30-Day Streak',
+    desc: 'Keep a 30-day streak',
+    check: (s: ReturnType<typeof useUserStore.getState>) => s.longestStreak >= 30,
   },
   {
     id: 'guardian',
@@ -55,13 +98,6 @@ const ACHIEVEMENTS = [
     desc: 'Add 5 sites to your blocklist',
     check: (s: ReturnType<typeof useUserStore.getState>) => s.blocklist.length >= 5,
   },
-  {
-    id: 'points_1000',
-    emoji: '💰',
-    label: 'Point Hoarder',
-    desc: 'Accumulate 1,000 points',
-    check: (s: ReturnType<typeof useUserStore.getState>) => s.points >= 1000,
-  },
 ] as const;
 
 // ─── Main component ────────────────────────────────────────────────────────────
@@ -74,6 +110,8 @@ export default function ProfileScreen() {
   const {
     name, points, xp, level, streak, longestStreak,
     weeklyActivity, blocklist,
+    // Theme
+    colorScheme, setColorScheme,
     // Game mode
     gameMode, setGameMode,
     // BRICKED mode
@@ -84,6 +122,9 @@ export default function ProfileScreen() {
     // Streak restores (Pro)
     streakRestoresLeft,
   } = store;
+
+  const C = getColors(colorScheme ?? 'dark');
+  const isLight = colorScheme === 'light';
 
   const levelProgress = getLevelProgress(xp);
   const totalGames    = weeklyActivity.reduce((a, b) => a + b, 0);
@@ -170,33 +211,33 @@ export default function ProfileScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]}>
       <ScrollView
-        style={styles.scroll}
+        style={[styles.scroll, { backgroundColor: C.background }]}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
 
         {/* ── Section 1: Avatar + name + level ── */}
         <View style={styles.avatarSection}>
-          <View style={styles.avatarCircle}>
-            <Text style={styles.avatarInitials}>{initials || '?'}</Text>
+          <View style={[styles.avatarCircle, { backgroundColor: C.greenDim, borderColor: C.indigoBright }]}>
+            <Text style={[styles.avatarInitials, { color: C.indigoBright }]}>{initials || '?'}</Text>
           </View>
-          <Text style={styles.userName}>{name || 'Player'}</Text>
-          <View style={styles.levelBadge}>
-            <Text style={styles.levelBadgeText}>{level}</Text>
+          <Text style={[styles.userName, { color: C.textPrimary }]}>{name || 'Player'}</Text>
+          <View style={[styles.levelBadge, { backgroundColor: C.purpleDim, borderColor: C.purple + '55' }]}>
+            <Text style={[styles.levelBadgeText, { color: C.purple }]}>{level}</Text>
           </View>
         </View>
 
         {/* ── Section 2: XP progress bar ── */}
-        <View style={styles.xpCard}>
+        <View style={[styles.xpCard, { backgroundColor: C.surface, borderColor: C.cardBorder }]}>
           <View style={styles.xpHeader}>
-            <Text style={styles.xpLabel}>XP Progress</Text>
-            <Text style={styles.xpNumbers}>
+            <Text style={[styles.xpLabel, { color: C.textSecondary }]}>XP Progress</Text>
+            <Text style={[styles.xpNumbers, { color: C.textMuted }]}>
               {xp.toLocaleString()} / {levelProgress.nextThreshold?.toLocaleString() ?? '∞'}
             </Text>
           </View>
-          <View style={styles.xpTrack}>
+          <View style={[styles.xpTrack, { backgroundColor: C.border }]}>
             <View
               style={[
                 styles.xpFill,
@@ -205,39 +246,39 @@ export default function ProfileScreen() {
             />
           </View>
           <View style={styles.xpFooter}>
-            <Text style={styles.xpCurrentLevel}>{level}</Text>
+            <Text style={[styles.xpCurrentLevel, { color: C.purple }]}>{level}</Text>
             {levelProgress.nextLabel && (
-              <Text style={styles.xpNextLevel}>{levelProgress.nextLabel} →</Text>
+              <Text style={[styles.xpNextLevel, { color: C.textMuted }]}>{levelProgress.nextLabel} →</Text>
             )}
           </View>
         </View>
 
         {/* ── Section 3: Stats grid ── */}
         <View style={styles.statsGrid}>
-          <StatCell label="Total Games" value={String(totalGames)} color={COLORS.green} />
-          <StatCell label="Best Streak" value={`${longestStreak}d`} color={COLORS.warning} />
-          <StatCell label="Points" value={points.toLocaleString()} color={COLORS.purple} />
-          <StatCell label="Sites Blocked" value={String(blocklist.length)} color={COLORS.cyan} />
+          <StatCell label="Total Games" value={String(totalGames)} color={C.green} C={C} />
+          <StatCell label="Best Streak" value={`${longestStreak}d`} color={C.warning} C={C} />
+          <StatCell label="Points" value={points.toLocaleString()} color={C.purple} C={C} />
+          <StatCell label="Sites Blocked" value={String(blocklist.length)} color={C.cyan} C={C} />
         </View>
 
         {/* ── Section 4: Achievements ── */}
-        <Text style={styles.sectionHeader}>Achievements</Text>
+        <Text style={[styles.sectionHeader, { color: C.textSecondary }]}>Achievements</Text>
         <View style={styles.achievementsGrid}>
           {ACHIEVEMENTS.map((a) => {
             const earned = a.check(store);
             return (
               <View
                 key={a.id}
-                style={[styles.achievementCard, !earned && styles.achievementLocked]}
+                style={[styles.achievementCard, { backgroundColor: C.surface, borderColor: C.cardBorder }, !earned && styles.achievementLocked]}
               >
                 <Text style={styles.achievementEmoji}>{a.emoji}</Text>
-                <Text style={[styles.achievementLabel, !earned && styles.achievementLockedText]}>
+                <Text style={[styles.achievementLabel, { color: C.textPrimary }, !earned && { color: C.textMuted }]}>
                   {a.label}
                 </Text>
                 <Text style={styles.achievementDesc}>{a.desc}</Text>
                 {earned && (
                   <View style={styles.earnedBadge}>
-                    <Feather name="check-circle" size={14} color={COLORS.green} />
+                    <Feather name="check-circle" size={14} color={C.green} />
                   </View>
                 )}
               </View>
@@ -246,42 +287,61 @@ export default function ProfileScreen() {
         </View>
 
         {/* ── Section 5: Settings ── */}
-        <Text style={styles.sectionHeader}>Settings</Text>
+        <Text style={[styles.sectionHeader, { color: C.textSecondary }]}>Settings</Text>
 
         {/* Subscription status + upgrade button */}
         {isPro ? (
-          <View style={styles.proActiveBanner}>
-            <Feather name="check-circle" size={18} color={COLORS.purple} />
-            <Text style={styles.proActiveText}>NoGoon Pro · Active</Text>
+          <View style={[styles.proActiveBanner, { backgroundColor: C.purpleDim, borderColor: C.purple + '44' }]}>
+            <Feather name="check-circle" size={18} color={C.purple} />
+            <Text style={[styles.proActiveText, { color: C.purple }]}>NoGoon Pro · Active</Text>
           </View>
         ) : (
           <Pressable
-            style={styles.upgradeButton}
+            style={[styles.upgradeButton, { backgroundColor: C.purpleDim, borderColor: C.purple + '55' }]}
             onPress={() => router.push('/paywall')}
           >
             <View style={styles.upgradeLeft}>
-              <Feather name="zap" size={18} color={COLORS.purple} />
+              <Feather name="zap" size={18} color={C.purple} />
               <View>
-                <Text style={styles.upgradeTitle}>Upgrade to NoGoon Pro</Text>
-                <Text style={styles.upgradeSubtitle}>
-                  $2.88/month · Unlimited unlocks
+                <Text style={[styles.upgradeTitle, { color: C.purple }]}>Upgrade to NoGoon Pro</Text>
+                <Text style={[styles.upgradeSubtitle, { color: C.textMuted }]}>
+                  $4.22/month · Warp, Why Am I Here? + more
                 </Text>
               </View>
             </View>
-            <Feather name="chevron-right" size={18} color={COLORS.purple + 'aa'} />
+            <Feather name="chevron-right" size={18} color={C.purple + 'aa'} />
           </Pressable>
         )}
 
-        <View style={styles.settingsCard}>
+        <View style={[styles.settingsCard, { backgroundColor: C.surface, borderColor: C.cardBorder }]}>
+
+          {/* ── Light mode toggle ── */}
+          <View style={styles.settingsRow}>
+            <Feather name={isLight ? 'sun' : 'moon'} size={20} color={C.indigoBright} />
+            <View style={styles.settingsRowMiddle}>
+              <Text style={[styles.settingsRowText, { color: C.textPrimary }]}>Light Mode</Text>
+              <Text style={[styles.settingsRowSub, { color: C.textMuted }]}>
+                {isLight ? 'Warm cream theme' : 'Dark theme'}
+              </Text>
+            </View>
+            <Switch
+              value={isLight}
+              onValueChange={(val) => setColorScheme(val ? 'light' : 'dark')}
+              trackColor={{ false: C.border, true: C.indigoBright + '55' }}
+              thumbColor={isLight ? C.indigoBright : C.textMuted}
+            />
+          </View>
+
+          <View style={[styles.settingsDivider, { backgroundColor: C.border }]} />
 
           {/* ── Game mode toggle ── */}
           {/* 'random' = a game launches immediately on intercept (no picker shown)
               'choose' = user picks which game they want (default) */}
           <View style={styles.settingsRow}>
-            <Feather name="zap" size={20} color={COLORS.cyan} />
+            <Feather name="zap" size={20} color={C.cyan} />
             <View style={styles.settingsRowMiddle}>
-              <Text style={styles.settingsRowText}>Random Game Mode</Text>
-              <Text style={styles.settingsRowSub}>
+              <Text style={[styles.settingsRowText, { color: C.textPrimary }]}>Random Game Mode</Text>
+              <Text style={[styles.settingsRowSub, { color: C.textMuted }]}>
                 {gameMode === 'random'
                   ? 'A game launches instantly on intercept'
                   : 'You choose which game to play'}
@@ -290,12 +350,12 @@ export default function ProfileScreen() {
             <Switch
               value={gameMode === 'random'}
               onValueChange={(val) => setGameMode(val ? 'random' : 'choose')}
-              trackColor={{ false: COLORS.border, true: COLORS.cyan + '55' }}
-              thumbColor={gameMode === 'random' ? COLORS.cyan : COLORS.textMuted}
+              trackColor={{ false: C.border, true: C.cyan + '55' }}
+              thumbColor={gameMode === 'random' ? C.cyan : C.textMuted}
             />
           </View>
 
-          <View style={styles.settingsDivider} />
+          <View style={[styles.settingsDivider, { backgroundColor: C.border }]} />
 
           {/* ── BRICKED mode toggle ── */}
           {/* BRICKED = Hard Mode. Hides the unlock button on every intercept screen.
@@ -303,10 +363,10 @@ export default function ProfileScreen() {
           <View style={styles.settingsRow}>
             <Text style={{ fontSize: 20 }}>🧱</Text>
             <View style={styles.settingsRowMiddle}>
-              <Text style={[styles.settingsRowText, isBricked && { color: COLORS.warning }]}>
+              <Text style={[styles.settingsRowText, { color: C.textPrimary }, isBricked && { color: C.warning }]}>
                 BRICKED Mode
               </Text>
-              <Text style={styles.settingsRowSub}>
+              <Text style={[styles.settingsRowSub, { color: C.textMuted }]}>
                 {!isBricked
                   ? 'Hides the unlock button on every intercept'
                   : brickedDisableRequestedAt
@@ -319,22 +379,22 @@ export default function ProfileScreen() {
             <Switch
               value={isBricked}
               onValueChange={handleToggleBricked}
-              trackColor={{ false: COLORS.border, true: COLORS.warning + '55' }}
-              thumbColor={isBricked ? COLORS.warning : COLORS.textMuted}
+              trackColor={{ false: C.border, true: C.warning + '55' }}
+              thumbColor={isBricked ? C.warning : C.textMuted}
             />
           </View>
 
-          <View style={styles.settingsDivider} />
+          <View style={[styles.settingsDivider, { backgroundColor: C.border }]} />
 
           {/* ── Game duration (Pro only) ── */}
           {/* Controls how long each mini-game lasts. Default 30s, Pro can extend. */}
           {isPro ? (
             <>
               <View style={styles.settingsRow}>
-                <Feather name="clock" size={20} color={COLORS.purple} />
+                <Feather name="clock" size={20} color={C.purple} />
                 <View style={styles.settingsRowMiddle}>
-                  <Text style={styles.settingsRowText}>Game Duration</Text>
-                  <Text style={styles.settingsRowSub}>
+                  <Text style={[styles.settingsRowText, { color: C.textPrimary }]}>Game Duration</Text>
+                  <Text style={[styles.settingsRowSub, { color: C.textMuted }]}>
                     How long each challenge lasts
                   </Text>
                 </View>
@@ -346,14 +406,16 @@ export default function ProfileScreen() {
                     key={d}
                     style={[
                       styles.durationPill,
-                      gameDuration === d && styles.durationPillActive,
+                      { backgroundColor: C.background, borderColor: C.border },
+                      gameDuration === d && [styles.durationPillActive, { backgroundColor: C.purpleDim, borderColor: C.purple + '66' }],
                     ]}
                     onPress={() => setGameDuration(d)}
                   >
                     <Text
                       style={[
                         styles.durationPillText,
-                        gameDuration === d && styles.durationPillTextActive,
+                        { color: C.textMuted },
+                        gameDuration === d && [styles.durationPillTextActive, { color: C.purple }],
                       ]}
                     >
                       {d}s
@@ -362,7 +424,7 @@ export default function ProfileScreen() {
                 ))}
               </View>
 
-              <View style={styles.settingsDivider} />
+              <View style={[styles.settingsDivider, { backgroundColor: C.border }]} />
             </>
           ) : (
             // Free users see a locked row that routes to paywall
@@ -371,16 +433,16 @@ export default function ProfileScreen() {
                 style={styles.settingsRow}
                 onPress={() => router.push('/paywall')}
               >
-                <Feather name="clock" size={20} color={COLORS.textMuted} />
+                <Feather name="clock" size={20} color={C.textMuted} />
                 <View style={styles.settingsRowMiddle}>
-                  <Text style={[styles.settingsRowText, { color: COLORS.textMuted }]}>
+                  <Text style={[styles.settingsRowText, { color: C.textMuted }]}>
                     Game Duration
                   </Text>
-                  <Text style={styles.settingsRowSub}>Pro — 30/60/90 second games</Text>
+                  <Text style={[styles.settingsRowSub, { color: C.textMuted }]}>Pro — 30/60/90 second games</Text>
                 </View>
-                <Feather name="lock" size={14} color={COLORS.textMuted} />
+                <Feather name="lock" size={14} color={C.textMuted} />
               </Pressable>
-              <View style={styles.settingsDivider} />
+              <View style={[styles.settingsDivider, { backgroundColor: C.border }]} />
             </>
           )}
 
@@ -388,17 +450,17 @@ export default function ProfileScreen() {
           {isPro && (
             <>
               <View style={styles.settingsRow}>
-                <Feather name="shield" size={20} color={COLORS.purple} />
+                <Feather name="shield" size={20} color={C.purple} />
                 <View style={styles.settingsRowMiddle}>
-                  <Text style={styles.settingsRowText}>Streak Protection</Text>
-                  <Text style={styles.settingsRowSub}>
+                  <Text style={[styles.settingsRowText, { color: C.textPrimary }]}>Streak Protection</Text>
+                  <Text style={[styles.settingsRowSub, { color: C.textMuted }]}>
                     {streakRestoresLeft > 0
                       ? `${streakRestoresLeft} restore available this month`
                       : 'Used this month — resets next month'}
                   </Text>
                 </View>
               </View>
-              <View style={styles.settingsDivider} />
+              <View style={[styles.settingsDivider, { backgroundColor: C.border }]} />
             </>
           )}
 
@@ -409,16 +471,16 @@ export default function ProfileScreen() {
                 style={styles.settingsRow}
                 onPress={() => router.push('/partner')}
               >
-                <Feather name="users" size={20} color={COLORS.cyan} />
+                <Feather name="users" size={20} color={C.cyan} />
                 <View style={styles.settingsRowMiddle}>
-                  <Text style={styles.settingsRowText}>Accountability Partner</Text>
-                  <Text style={styles.settingsRowSub}>
+                  <Text style={[styles.settingsRowText, { color: C.textPrimary }]}>Accountability Partner</Text>
+                  <Text style={[styles.settingsRowSub, { color: C.textMuted }]}>
                     Set up a partner to keep you honest
                   </Text>
                 </View>
-                <Feather name="chevron-right" size={16} color={COLORS.textMuted} />
+                <Feather name="chevron-right" size={16} color={C.textMuted} />
               </Pressable>
-              <View style={styles.settingsDivider} />
+              <View style={[styles.settingsDivider, { backgroundColor: C.border }]} />
             </>
           ) : (
             <>
@@ -426,16 +488,16 @@ export default function ProfileScreen() {
                 style={styles.settingsRow}
                 onPress={() => router.push('/paywall')}
               >
-                <Feather name="users" size={20} color={COLORS.textMuted} />
+                <Feather name="users" size={20} color={C.textMuted} />
                 <View style={styles.settingsRowMiddle}>
-                  <Text style={[styles.settingsRowText, { color: COLORS.textMuted }]}>
+                  <Text style={[styles.settingsRowText, { color: C.textMuted }]}>
                     Accountability Partner
                   </Text>
-                  <Text style={styles.settingsRowSub}>Pro — notify someone when you slip</Text>
+                  <Text style={[styles.settingsRowSub, { color: C.textMuted }]}>Pro — notify someone when you slip</Text>
                 </View>
-                <Feather name="lock" size={14} color={COLORS.textMuted} />
+                <Feather name="lock" size={14} color={C.textMuted} />
               </Pressable>
-              <View style={styles.settingsDivider} />
+              <View style={[styles.settingsDivider, { backgroundColor: C.border }]} />
             </>
           )}
 
@@ -444,17 +506,17 @@ export default function ProfileScreen() {
             style={styles.settingsRow}
             onPress={() => router.push('/journal')}
           >
-            <Feather name="book-open" size={20} color={COLORS.green} />
+            <Feather name="book-open" size={20} color={C.green} />
             <View style={styles.settingsRowMiddle}>
-              <Text style={styles.settingsRowText}>Impulse Journal</Text>
-              <Text style={styles.settingsRowSub}>
+              <Text style={[styles.settingsRowText, { color: C.textPrimary }]}>Impulse Journal</Text>
+              <Text style={[styles.settingsRowSub, { color: C.textMuted }]}>
                 Review your past intercept entries
               </Text>
             </View>
-            <Feather name="chevron-right" size={16} color={COLORS.textMuted} />
+            <Feather name="chevron-right" size={16} color={C.textMuted} />
           </Pressable>
 
-          <View style={styles.settingsDivider} />
+          <View style={[styles.settingsDivider, { backgroundColor: C.border }]} />
 
           {/* ── Weekly insights (Pro) ── */}
           {isPro ? (
@@ -463,28 +525,28 @@ export default function ProfileScreen() {
                 style={styles.settingsRow}
                 onPress={() => router.push('/insights')}
               >
-                <Feather name="bar-chart-2" size={20} color={COLORS.purple} />
+                <Feather name="bar-chart-2" size={20} color={C.purple} />
                 <View style={styles.settingsRowMiddle}>
-                  <Text style={styles.settingsRowText}>Weekly Insights</Text>
-                  <Text style={styles.settingsRowSub}>
+                  <Text style={[styles.settingsRowText, { color: C.textPrimary }]}>Weekly Insights</Text>
+                  <Text style={[styles.settingsRowSub, { color: C.textMuted }]}>
                     Deep stats on your blocking patterns
                   </Text>
                 </View>
-                <Feather name="chevron-right" size={16} color={COLORS.textMuted} />
+                <Feather name="chevron-right" size={16} color={C.textMuted} />
               </Pressable>
-              <View style={styles.settingsDivider} />
+              <View style={[styles.settingsDivider, { backgroundColor: C.border }]} />
             </>
           ) : null}
 
           {/* ── Developer Mode toggle — inside settings card so it's always visible ── */}
-          <View style={styles.settingsDivider} />
+          <View style={[styles.settingsDivider, { backgroundColor: C.border }]} />
           <View style={styles.settingsRow}>
-            <Feather name="tool" size={20} color={COLORS.warning} />
+            <Feather name="tool" size={20} color={C.warning} />
             <View style={{ flex: 1 }}>
-              <Text style={[styles.settingsRowText, { color: COLORS.warning }]}>
+              <Text style={[styles.settingsRowText, { color: C.warning }]}>
                 🛠️ Dev Mode {devModeEnabled ? '— ON (Pro unlocked)' : '— OFF'}
               </Text>
-              <Text style={styles.settingsRowSub}>
+              <Text style={[styles.settingsRowSub, { color: C.textMuted }]}>
                 {devModeEnabled
                   ? 'All Pro features active for testing'
                   : 'Simulate Pro subscription for testing'}
@@ -493,16 +555,16 @@ export default function ProfileScreen() {
             <Switch
               value={devModeEnabled}
               onValueChange={toggleDevMode}
-              trackColor={{ false: COLORS.border, true: COLORS.warning + '77' }}
-              thumbColor={devModeEnabled ? COLORS.warning : COLORS.textMuted}
+              trackColor={{ false: C.border, true: C.warning + '77' }}
+              thumbColor={devModeEnabled ? C.warning : C.textMuted}
             />
           </View>
-          <View style={styles.settingsDivider} />
+          <View style={[styles.settingsDivider, { backgroundColor: C.border }]} />
 
           {/* ── Sign out ── */}
           <Pressable style={styles.settingsRow} onPress={handleSignOut}>
-            <Feather name="log-out" size={20} color={COLORS.danger} />
-            <Text style={[styles.settingsRowText, { color: COLORS.danger }]}>Sign Out</Text>
+            <Feather name="log-out" size={20} color={C.danger} />
+            <Text style={[styles.settingsRowText, { color: C.danger }]}>Sign Out</Text>
           </Pressable>
         </View>
 
@@ -517,11 +579,11 @@ export default function ProfileScreen() {
 
 // ─── StatCell sub-component ────────────────────────────────────────────────────
 
-function StatCell({ label, value, color }: { label: string; value: string; color: string }) {
+function StatCell({ label, value, color, C }: { label: string; value: string; color: string; C: ReturnType<typeof getColors> }) {
   return (
-    <View style={styles.statCell}>
+    <View style={[styles.statCell, { backgroundColor: C.surface, borderColor: C.cardBorder }]}>
       <Text style={[styles.statValue, { color }]}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={[styles.statLabel, { color: C.textMuted }]}>{label}</Text>
     </View>
   );
 }
