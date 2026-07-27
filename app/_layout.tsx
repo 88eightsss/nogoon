@@ -34,6 +34,7 @@ import {
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUserStore } from '@/stores/useUserStore';
 import { useSubscriptionStore } from '@/stores/useSubscriptionStore';
+import { requestNotificationPermission, scheduleWeeklyRecap } from '@/utils/notifications';
 
 // ─── Error Boundary ─────────────────────────────────────────────────────────── //
 //
@@ -98,7 +99,7 @@ class ErrorBoundary extends React.Component<
 const errorStyles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0A0A0A',
+    backgroundColor: '#F5F9F5',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 32,
@@ -108,20 +109,20 @@ const errorStyles = StyleSheet.create({
     marginBottom: 16,
   },
   title: {
-    color: '#FFFFFF',
+    color: '#1A2E1A',
     fontSize: 22,
     fontWeight: '700',
     marginBottom: 8,
   },
   message: {
-    color: '#888888',
+    color: '#4A6741',
     fontSize: 15,
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: 16,
   },
   detail: {
-    color: '#FF69B4',
+    color: '#C62828',
     fontSize: 12,
     fontFamily: 'JetBrainsMono_400Regular',
     textAlign: 'center',
@@ -129,14 +130,14 @@ const errorStyles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   button: {
-    backgroundColor: '#FF69B4',
+    backgroundColor: '#388E3C',
     paddingHorizontal: 32,
     paddingVertical: 14,
     borderRadius: 12,
     marginTop: 8,
   },
   buttonText: {
-    color: '#0A0A0A',
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
   },
@@ -146,7 +147,7 @@ const errorStyles = StyleSheet.create({
 
 export default function RootLayout() {
   const { session, loading, initialize } = useAuthStore();
-  const { hasOnboarded, loadFromSupabase } = useUserStore();
+  const { hasOnboarded, loadFromSupabase, walkAwayCount, streak } = useUserStore();
   const { initialize: initSubscription } = useSubscriptionStore();
 
   // Load all custom fonts before any screen renders
@@ -181,6 +182,10 @@ export default function RootLayout() {
       // Sync Supabase data and initialize subscription status in parallel
       loadFromSupabase(session.user.id);
       initSubscription(session.user.id);
+      // Request notification permission then schedule weekly recap
+      requestNotificationPermission().then((granted) => {
+        if (granted) scheduleWeeklyRecap(walkAwayCount, streak);
+      });
       router.replace('/(tabs)');
     }
   }, [fontsLoaded, loading, session, hasOnboarded]);
@@ -194,7 +199,7 @@ export default function RootLayout() {
     <ErrorBoundary>
       {/* SafeAreaProvider makes insets available to all child screens */}
       <SafeAreaProvider>
-        <StatusBar style="light" />
+        <StatusBar style="dark" />
         <Stack screenOptions={{ headerShown: false }}>
           {/* Auth + onboarding — no tab bar */}
           <Stack.Screen name="auth" />

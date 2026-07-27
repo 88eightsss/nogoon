@@ -18,7 +18,7 @@
       "bundleIdentifier": "com.nogoon.app"
     },
     "android": {
-      "versionCode": 8,
+      "versionCode": 15,
       "package": "com.nogoon.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -35,6 +35,14 @@
       "expo-router",
       "expo-font",
       "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/adaptive-icon.png",
+          "color": "#080811",
+          "defaultChannel": "nogoon-milestones"
+        }
+      ],
       "./plugins/withAppBlocker"
     ],
     "experiments": {
@@ -46,5 +54,9 @@
         "projectId": "80b5ee13-4dfd-462d-8bc3-51d022cd3e51"
       }
     }
+  },
+  "react-native-google-mobile-ads": {
+    "android_app_id": "ca-app-pub-3940256099942544~3347511713",
+    "ios_app_id": "ca-app-pub-3940256099942544~1458002511"
   }
 }

@@ -11,7 +11,7 @@
 // which helps users stay accountable to themselves.
 // Pro users remove for free, instantly, no cost.
 
-import { useState, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -23,7 +23,6 @@ import {
   Switch,
   KeyboardAvoidingView,
   Platform,
-  NativeModules,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -31,7 +30,7 @@ import { router } from 'expo-router';
 import { useUserStore } from '@/stores/useUserStore';
 import { useSubscriptionStore } from '@/stores/useSubscriptionStore';
 import { useAppBlocker, BLOCKABLE_APPS, BlockableApp } from '@/hooks/useAppBlocker';
-import { getColors, COLORS, FONTS } from '@/constants/Colors';
+import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 
 // ─── Default blocked sites ─────────────────────────────────────────────────────
@@ -88,9 +87,9 @@ function getOEMBatteryInstructions(): string | null {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function BlocklistScreen() {
-  const { blocklist, addSite, removeSite, spendPoints, REMOVE_COST, colorScheme } = useUserStore();
+  const { blocklist, addSite, removeSite, spendPoints, REMOVE_COST } = useUserStore();
   const { isPro } = useSubscriptionStore();
-  const C = getColors(colorScheme ?? 'dark');
+  const C = COLORS;
   const {
     serviceEnabled,
     checking,
@@ -106,9 +105,9 @@ export default function BlocklistScreen() {
   const [batteryOptimized, setBatteryOptimized] = useState(false);
 
   // Run the battery check once on mount (only meaningful on real device builds)
-  useState(() => {
+  useEffect(() => {
     checkBatteryOptimized().then(setBatteryOptimized);
-  });
+  }, [checkBatteryOptimized]);
 
   const [input, setInput] = useState('');
   const [error, setError] = useState('');

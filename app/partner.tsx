@@ -18,12 +18,12 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  SafeAreaView,
   TextInput,
   Switch,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { useUserStore } from '@/stores/useUserStore';
@@ -75,7 +75,7 @@ export default function PartnerScreen() {
       {/* Back arrow on the left + centered title */}
       <View style={styles.header}>
         <Pressable style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color={COLORS.textPrimary} />
+          <Feather name="arrow-left" size={22} color={COLORS.textPrimary} />
         </Pressable>
         <Text style={styles.headerTitle}>Accountability Partner</Text>
         {/* Empty view balances the flex row so the title centers properly */}
@@ -155,7 +155,7 @@ export default function PartnerScreen() {
           {/* Toggle: Notify when user spends points to unlock a site */}
           <View style={styles.switchRow}>
             <View style={styles.switchRowLeft}>
-              <Ionicons name="notifications-outline" size={20} color={COLORS.cyan} />
+              <Feather name="bell" size={20} color={COLORS.cyan} />
               <View style={styles.switchRowText}>
                 <Text style={styles.switchLabel}>Notify on Unlock</Text>
                 <Text style={styles.switchSub}>
@@ -176,7 +176,7 @@ export default function PartnerScreen() {
           {/* Toggle: Notify when user dismisses the game and visits site anyway */}
           <View style={styles.switchRow}>
             <View style={styles.switchRowLeft}>
-              <Ionicons name="warning-outline" size={20} color={COLORS.warning} />
+              <Feather name="alert-triangle" size={20} color={COLORS.warning} />
               <View style={styles.switchRowText}>
                 <Text style={styles.switchLabel}>Notify on Bypass</Text>
                 <Text style={styles.switchSub}>

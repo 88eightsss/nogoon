@@ -15,7 +15,6 @@ import {
   Text,
   Pressable,
   StyleSheet,
-  ScrollView,
   Dimensions,
   TextInput,
   KeyboardAvoidingView,
@@ -58,6 +57,17 @@ const SLIDES = [
   },
 ] as const;
 
+// Default sites blocked with one tap during onboarding
+const DEFAULT_BLOCKED_SITES = [
+  'tiktok.com',
+  'instagram.com',
+  'pornhub.com',
+  'xhamster.com',
+  'erome.com',
+  'redgifs.com',
+  'chaturbate.com',
+];
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function OnboardingScreen() {
@@ -79,7 +89,7 @@ export default function OnboardingScreen() {
   const [step, setStep]                   = useState(0);
   const [name, setNameLocal]              = useState('');
   const [nameError, setNameError]         = useState('');
-  const [setupDone, setSetupDone]         = useState(false);
+  const [nameSaved, setNameSaved]         = useState(false);
   const [sitesAdded, setSitesAdded]       = useState(false);
   const [batteryExempt, setBatteryExempt] = useState(false); // tracks battery optimization grant
 
@@ -115,27 +125,28 @@ export default function OnboardingScreen() {
     }
   };
 
-  const handleFinish = async () => {
+  const handleFinish = () => {
     const trimmed = name.trim();
     if (!trimmed) {
       setNameError('Please enter your name.');
       return;
     }
     setNameError('');
+    setNameSaved(true);
 
     // Save name to local store and mark onboarding complete
     setName(trimmed);
     completeOnboarding();
 
-    // Also update Supabase profile name in the background
+    // Fire-and-forget Supabase profile name sync
     if (user) {
-      const { supabase } = await import('@/lib/supabase');
-      await supabase.from('profiles').update({ name: trimmed }).eq('id', user.id);
+      import('@/lib/supabase').then(({ supabase }) => {
+        supabase.from('profiles').update({ name: trimmed }).eq('id', user.id);
+      });
     }
 
-    // Instead of going straight to the app, show the setup step first.
-    // setupDone starts false, so the setup screen will render next.
-    // (Navigation to /(tabs) happens from the setup screen's Continue button.)
+    // The setup screen renders next (name is now saved, nameSaved=true).
+    // Navigation to /(tabs) happens from the setup screen's Continue button.
   };
 
   // Adds all the default blocked domains in one tap.
@@ -157,18 +168,7 @@ export default function OnboardingScreen() {
 
   // ── Name input step ────────────────────────────────────────────────────────
 
-  if (step === SLIDES.length && setupDone) {
-    // setupDone means the user already passed the setup screen — shouldn't
-    // get here, but guard just in case.
-    router.replace('/(tabs)');
-    return null;
-  }
-
-  if (step === SLIDES.length && !setupDone) {
-    // Check if the name has been saved (handleFinish was called successfully).
-    // name state is still filled in, so we use it to determine which sub-step to show.
-    const nameSaved = name.trim().length > 0 && !nameError;
-
+  if (step === SLIDES.length) {
     // ── Setup step (shown after name is saved) ──────────────────────────────
     if (nameSaved && step === SLIDES.length) {
       return (
@@ -235,10 +235,10 @@ export default function OnboardingScreen() {
                     'Tap NoGoon → toggle it ON',
                     'Tap "Allow" on the confirmation dialog',
                     'Come back here — the checkmark will appear automatically',
-                  ].map((step, i) => (
+                  ].map((instruction, i) => (
                     <View key={i} style={styles.accessibilityStep}>
                       <Text style={styles.accessibilityStepNum}>{i + 1}</Text>
-                      <Text style={styles.accessibilityStepText}>{step}</Text>
+                      <Text style={styles.accessibilityStepText}>{instruction}</Text>
                     </View>
                   ))}
                 </View>
@@ -286,10 +286,7 @@ export default function OnboardingScreen() {
             {/* Continue button — moves into the main app */}
             <Pressable
               style={styles.setupContinueButton}
-              onPress={() => {
-                setSetupDone(true);
-                router.replace('/(tabs)');
-              }}
+              onPress={() => router.replace('/(tabs)')}
             >
               <Text style={styles.setupContinueText}>Continue to NoGoon →</Text>
             </Pressable>

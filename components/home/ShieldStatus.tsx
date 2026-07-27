@@ -23,7 +23,7 @@ import { Badge } from '@/components/ui/Badge';
 
 interface ShieldStatusProps {
   // The real blocking state — read from useAppBlocker().blockingStatus
-  status?: 'active' | 'empty' | 'off';
+  status?: 'paused' | 'active' | 'empty' | 'off';
   // Called when user taps "Fix This" on the 'off' state
   onFix?: () => void;
 }
@@ -66,6 +66,13 @@ export function ShieldStatus({
 
   // ── Color and icon based on current status ────────────────────────────────
   const config = {
+    paused: {
+      color:       '#f59e0b',             // amber — caution, not danger
+      icon:        'shield' as const,
+      badge:       'PAUSED',
+      subtext:     'Blocking is paused',
+      showFix:     false,
+    },
     active: {
       color:       COLORS.green,
       icon:        'shield' as const,     // Feather: solid shield

@@ -58,7 +58,7 @@ export function DailyChallengeCard({
           activeOpacity={0.75}
         >
           <Text style={styles.buttonText}>Play Now</Text>
-          <Feather name="arrow-forward" size={16} color={COLORS.background} />
+          <Feather name="arrow-right" size={16} color={COLORS.background} />
         </TouchableOpacity>
       )}
     </Card>

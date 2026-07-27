@@ -38,33 +38,38 @@ export function StreakBadge({ streak, longestStreak, walkAwayCount = 0 }: Streak
     streak === 30 ? 'A month. You\'ve got this.' :
     null;
 
+  // Zero state — don't show a big "0", show a start-fresh message instead
+  if (streak === 0) {
+    return (
+      <Card style={styles.card}>
+        <Text style={TYPE.label}>Intentional Days</Text>
+        <View style={styles.mainRow}>
+          <Feather name="zap" size={28} color={COLORS.textMuted} />
+        </View>
+        <Text style={styles.dayLabel}>
+          {walkAwayCount > 0 ? 'Start a new streak today' : 'Play and walk away to start'}
+        </Text>
+        {walkAwayCount > 0 && (
+          <Text style={styles.best}>{walkAwayCount}× walked away ✓</Text>
+        )}
+      </Card>
+    );
+  }
+
   return (
     <Card style={styles.card}>
-      {/* Section label — renamed from "Streak" to frame it as encouragement */}
       <Text style={TYPE.label}>Intentional Days</Text>
-
-      {/* Flame icon + number on the same row */}
       <View style={styles.mainRow}>
-        <Feather name="flame" size={28} color={flameColor} />
+        <Feather name="zap" size={28} color={flameColor} />
         <Text style={[TYPE.monoL, styles.number]}>{streak}</Text>
       </View>
-
-      {/* Sub-label — no mention of "losing" anything */}
       <Text style={styles.dayLabel}>days stayed intentional</Text>
-
-      {/* Milestone message — shown only at key milestones */}
       {milestone ? (
         <Text style={styles.milestone}>{milestone}</Text>
+      ) : walkAwayCount > 0 ? (
+        <Text style={styles.best}>{walkAwayCount}× walked away ✓</Text>
       ) : (
-        /* Walk-away count — shown when there's no milestone to display.
-           This is the real success metric: how many times you paused and chose differently. */
-        walkAwayCount > 0 ? (
-          <Text style={styles.best}>
-            {walkAwayCount}× walked away ✓
-          </Text>
-        ) : (
-          <Text style={styles.best}>Best: {longestStreak}d</Text>
-        )
+        <Text style={styles.best}>Best: {longestStreak}d</Text>
       )}
     </Card>
   );
@@ -94,7 +99,6 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.bodyMedium,
     fontSize: 11,
     color: COLORS.indigoBright,
-    marginTop: SPACING.sm,
     lineHeight: 15,
   },
   best: {
@@ -104,3 +108,4 @@ const styles = StyleSheet.create({
     marginTop: SPACING.sm,
   },
 });
+

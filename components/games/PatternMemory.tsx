@@ -32,6 +32,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
+import { ProceedButton } from '@/components/ui/ProceedButton';
 
 // ─── Game constants ────────────────────────────────────────────────────────────
 
@@ -288,9 +289,7 @@ export function PatternMemory({ onComplete }: PatternMemoryProps) {
             <Text style={styles.statLabel}>Sequence length</Text>
           </View>
         </View>
-        <Pressable style={styles.continueButton} onPress={() => onComplete(score)}>
-          <Text style={styles.continueButtonText}>Continue →</Text>
-        </Pressable>
+        <ProceedButton label="Continue →" onPress={() => onComplete(score)} />
       </View>
     );
   }

@@ -4,16 +4,17 @@
 //  13 games. Standard is open to all paid plans. Pro is Pro-only.
 // ═══════════════════════════════════════════════════════════════════════════
 
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   Pressable,
-  SafeAreaView,
   Animated,
+  Modal,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 
@@ -23,7 +24,7 @@ import { BreathRhythm }     from '@/components/games/BreathRhythm';
 import { OddOneOut }        from '@/components/games/OddOneOut';
 import { ColorSort }        from '@/components/games/ColorSort';
 import { BallSort }         from '@/components/games/BallSort';
-import { NumberFlow }       from '@/components/games/NumberFlow';
+import { TwentyFortyEight } from '@/components/games/TwentyFortyEight';
 import { GemMatch }         from '@/components/games/GemMatch';
 import { WordWeave }        from '@/components/games/WordWeave';
 import { StackGame }        from '@/components/games/StackGame';
@@ -69,15 +70,55 @@ function ArcadePostGame({ gameName, onBack, onPlayAgain }: {
   );
 }
 
+// ─── Game info modal ──────────────────────────────────────────────────────────
+
+function GameInfoModal({ game, onClose, onPlay }: {
+  game: GameEntry;
+  onClose: () => void;
+  onPlay: (id: GameId) => void;
+}) {
+  return (
+    <Modal transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.modalBackdrop} onPress={onClose}>
+        <Pressable style={[styles.modalSheet, { borderColor: game.color + '40' }]} onPress={() => {}}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalEmoji}>{game.emoji}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.modalName}>{game.name}</Text>
+              <Text style={[styles.modalTagline, { color: game.color }]}>{game.tagline}</Text>
+            </View>
+            <Pressable onPress={onClose} hitSlop={12}>
+              <Feather name="x" size={20} color={COLORS.textMuted} />
+            </Pressable>
+          </View>
+          <Text style={styles.modalSectionLabel}>HOW TO PLAY</Text>
+          <Text style={styles.modalHowTo}>{game.howToPlay}</Text>
+          <Pressable
+            style={[styles.modalPlayBtn, { backgroundColor: game.color }]}
+            onPress={() => { onClose(); onPlay(game.id as GameId); }}
+          >
+            <Feather name="play" size={18} color={COLORS.background} />
+            <Text style={styles.modalPlayText}>Play Now</Text>
+          </Pressable>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
 // ─── Game card ────────────────────────────────────────────────────────────────
 
-function ArcadeGameCard({ game, onPlay }: { game: GameEntry; onPlay: (id: GameId) => void }) {
+function ArcadeGameCard({ game, onPlay, onInfo }: {
+  game: GameEntry;
+  onPlay: (id: GameId) => void;
+  onInfo: (game: GameEntry) => void;
+}) {
   const scale = useRef(new Animated.Value(1)).current;
   return (
     <Pressable
       onPressIn={() => Animated.timing(scale, { toValue: 0.96, duration: 70, useNativeDriver: true }).start()}
       onPressOut={() => Animated.spring(scale, { toValue: 1, damping: 12, useNativeDriver: true }).start()}
-      onPress={() => onPlay(game.id)}
+      onPress={() => onPlay(game.id as GameId)}
       style={styles.cardPressable}
     >
       <Animated.View
@@ -98,7 +139,13 @@ function ArcadeGameCard({ game, onPlay }: { game: GameEntry; onPlay: (id: GameId
           <Text style={styles.gameDescription}>{game.description}</Text>
           <Text style={[styles.gameTagline, { color: game.color }]}>{game.tagline}</Text>
         </View>
-        <Feather name="play-circle" size={28} color={game.color} />
+        <Pressable
+          onPress={(e) => { e.stopPropagation(); onInfo(game); }}
+          hitSlop={10}
+          style={styles.infoBtn}
+        >
+          <Feather name="info" size={20} color={game.color + 'aa'} />
+        </Pressable>
       </Animated.View>
     </Pressable>
   );
@@ -110,6 +157,7 @@ export default function ArcadeScreen() {
   const { game: gameParam } = useLocalSearchParams<{ game?: string }>();
   const [activeGame, setActiveGame]     = useState<GameId | null>(null);
   const [finishedGame, setFinishedGame] = useState<GameEntry | null>(null);
+  const [infoGame, setInfoGame]         = useState<GameEntry | null>(null);
 
   // Auto-launch if navigated here with a specific game (e.g. from Daily Challenge)
   useEffect(() => {
@@ -130,22 +178,37 @@ export default function ArcadeScreen() {
   };
 
   const handleBack      = () => { setFinishedGame(null); setActiveGame(null); };
-  const handlePlayAgain = () => { if (finishedGame) handlePlay(finishedGame.id); };
+  const handlePlayAgain = () => { if (finishedGame) handlePlay(finishedGame.id as GameId); };
 
   // ── Active game renders ───────────────────────────────────────────────────
-  if (activeGame === 'breathing')  return <BreathRhythm    onComplete={handleGameComplete} />;
-  if (activeGame === 'grounding')  return <GroundingExercise onComplete={handleGameComplete} />;
-  if (activeGame === 'oddone')     return <OddOneOut        onComplete={handleGameComplete} />;
-  if (activeGame === 'colorsort')  return <ColorSort        onComplete={handleGameComplete} />;
-  if (activeGame === 'ballsort')   return <BallSort         onComplete={handleGameComplete} />;
-  if (activeGame === 'numberflow') return <NumberFlow       onComplete={handleGameComplete} />;
-  if (activeGame === 'gemmatch')   return <GemMatch         onComplete={handleGameComplete} />;
-  if (activeGame === 'wordweave')  return <WordWeave        onComplete={handleGameComplete} />;
-  if (activeGame === 'warp')       return <WarpGame         onComplete={handleGameComplete} />;
-  if (activeGame === 'stack')      return <StackGame        onComplete={handleGameComplete} />;
-  if (activeGame === 'intention')  return <IntentionCheck   onComplete={handleGameComplete} />;
-  if (activeGame === 'typing')     return <TypingChallenge  onComplete={handleGameComplete} duration={30} />;
-  if (activeGame === 'memory')     return <PatternMemory    onComplete={handleGameComplete} />;
+  if (activeGame) {
+    let gameNode: React.ReactNode = null;
+    if (activeGame === 'breathing')  gameNode = <BreathRhythm    onComplete={handleGameComplete} />;
+    if (activeGame === 'grounding')  gameNode = <GroundingExercise onComplete={handleGameComplete} />;
+    if (activeGame === 'oddone')     gameNode = <OddOneOut        onComplete={handleGameComplete} />;
+    if (activeGame === 'colorsort')  gameNode = <ColorSort        onComplete={handleGameComplete} />;
+    if (activeGame === 'ballsort')   gameNode = <BallSort         onComplete={handleGameComplete} />;
+    if (activeGame === 'twentyfortyeight') gameNode = <TwentyFortyEight onComplete={handleGameComplete} />;
+    if (activeGame === 'gemmatch')   gameNode = <GemMatch         onComplete={handleGameComplete} />;
+    if (activeGame === 'wordweave')  gameNode = <WordWeave        onComplete={handleGameComplete} />;
+    if (activeGame === 'warp')       gameNode = <WarpGame         onComplete={handleGameComplete} />;
+    if (activeGame === 'stack')      gameNode = <StackGame        onComplete={handleGameComplete} />;
+    if (activeGame === 'intention')  gameNode = <IntentionCheck   onComplete={handleGameComplete} />;
+    if (activeGame === 'typing')     gameNode = <TypingChallenge  onComplete={handleGameComplete} duration={30} />;
+    if (activeGame === 'memory')     gameNode = <PatternMemory    onComplete={handleGameComplete} />;
+
+    if (gameNode) {
+      return (
+        <View style={{ flex: 1 }}>
+          {gameNode}
+          {/* Back button — arcade only, never shown during gate/blocking flow */}
+          <Pressable style={styles.arcadeBackBtn} onPress={handleBack} hitSlop={12}>
+            <Feather name="arrow-left" size={20} color="rgba(255,255,255,0.85)" />
+          </Pressable>
+        </View>
+      );
+    }
+  }
 
   if (finishedGame) {
     return (
@@ -185,7 +248,7 @@ export default function ArcadeScreen() {
         {/* Standard */}
         <Text style={styles.sectionLabel}>Standard  ·  {standardGames.length} games</Text>
         {standardGames.map((game) => (
-          <ArcadeGameCard key={game.id} game={game} onPlay={handlePlay} />
+          <ArcadeGameCard key={game.id} game={game} onPlay={handlePlay} onInfo={setInfoGame} />
         ))}
 
         {/* Pro */}
@@ -194,8 +257,17 @@ export default function ArcadeScreen() {
           <Text style={styles.proNote}>✦ Free to play in Arcade</Text>
         </Text>
         {proGames.map((game) => (
-          <ArcadeGameCard key={game.id} game={game} onPlay={handlePlay} />
+          <ArcadeGameCard key={game.id} game={game} onPlay={handlePlay} onInfo={setInfoGame} />
         ))}
+
+        {/* Game info modal */}
+        {infoGame && (
+          <GameInfoModal
+            game={infoGame}
+            onClose={() => setInfoGame(null)}
+            onPlay={handlePlay}
+          />
+        )}
 
         <View style={{ height: SPACING.xxl }} />
       </ScrollView>
@@ -283,6 +355,66 @@ const styles = StyleSheet.create({
   gameName:        { fontFamily: FONTS.bodyBold, fontSize: 16, color: COLORS.textPrimary },
   gameDescription: { fontFamily: FONTS.body,     fontSize: 13, color: COLORS.textSecondary, lineHeight: 18 },
   gameTagline:     { fontFamily: FONTS.mono,     fontSize: 10, letterSpacing: 0.5, marginTop: 2 },
+  infoBtn:         { padding: 4 },
+
+  // ── Game info modal ───────────────────────────────────────────────────────
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: COLORS.surface,
+    borderTopLeftRadius: RADIUS.xl,
+    borderTopRightRadius: RADIUS.xl,
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    padding: SPACING.xl,
+    gap: SPACING.lg,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+  },
+  modalEmoji: { fontSize: 40, width: 48, textAlign: 'center' },
+  modalName: {
+    fontFamily: FONTS.display,
+    fontSize: 22,
+    color: COLORS.textPrimary,
+  },
+  modalTagline: {
+    fontFamily: FONTS.mono,
+    fontSize: 10,
+    letterSpacing: 0.5,
+    marginTop: 2,
+  },
+  modalSectionLabel: {
+    fontFamily: FONTS.mono,
+    fontSize: 10,
+    color: COLORS.textMuted,
+    letterSpacing: 1.2,
+  },
+  modalHowTo: {
+    fontFamily: FONTS.body,
+    fontSize: 15,
+    color: COLORS.textSecondary,
+    lineHeight: 24,
+  },
+  modalPlayBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.sm,
+    borderRadius: RADIUS.md,
+    paddingVertical: SPACING.lg,
+    marginTop: SPACING.sm,
+  },
+  modalPlayText: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 17,
+    color: COLORS.background,
+  },
 
   // ── Post-game ─────────────────────────────────────────────────────────────
   postGameContainer: {
@@ -324,4 +456,18 @@ const styles = StyleSheet.create({
 
   backButton:     { paddingVertical: SPACING.md, alignItems: 'center' },
   backButtonText: { fontFamily: FONTS.body, fontSize: 15, color: COLORS.textMuted },
+
+  // ── In-game back button (arcade only) ─────────────────────────────────────
+  arcadeBackBtn: {
+    position:        'absolute',
+    top:             52,
+    left:            SPACING.lg,
+    width:           40,
+    height:          40,
+    borderRadius:    RADIUS.full,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems:      'center',
+    justifyContent:  'center',
+    zIndex:             999,
+  },
 });

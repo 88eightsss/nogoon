@@ -37,6 +37,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
+import { ProceedButton } from '@/components/ui/ProceedButton';
 
 interface IntentionCheckProps {
   onComplete: (score: number) => void;
@@ -223,9 +224,10 @@ export function IntentionCheck({ onComplete }: IntentionCheckProps) {
             That moment of honesty is{'\n'}what breaks the loop.
           </Text>
 
-          <Pressable style={styles.finishButton} onPress={handleFinish}>
-            <Text style={styles.finishButtonText}>Continue (+{SCORE} tokens)</Text>
-          </Pressable>
+          <ProceedButton
+            label={`Continue (+${SCORE} tokens)`}
+            onPress={handleFinish}
+          />
         </View>
       </Animated.View>
     </SafeAreaView>

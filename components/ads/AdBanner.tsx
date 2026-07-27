@@ -10,7 +10,8 @@
 // HOW TO ACTIVATE:
 //   1. Go to apps.admob.com → create account → Add App (Android + iOS)
 //   2. Copy your App ID — paste it in app.json under:
-//        "plugins": [["react-native-google-mobile-ads", { "androidAppId": "ca-app-pub-XXXX~YYYY" }]]
+//        The AdMob App ID is injected via plugins/withAppBlocker.js.
+//        Update the androidAppId value there when switching to production.
 //   3. Create a Banner Ad Unit → copy the Ad Unit ID
 //   4. Paste it into ADMOB_BANNER_ID below (use the test ID during development)
 //   5. Run `eas build` — ads will appear in the real build
@@ -45,7 +46,7 @@ const REAL_BANNER_ID_ANDROID = 'ca-app-pub-REPLACE_ME/REPLACE_ME';
 const REAL_BANNER_ID_IOS     = 'ca-app-pub-REPLACE_ME/REPLACE_ME';
 
 // Switch between test and real IDs — set IS_PRODUCTION = true before releasing
-const IS_PRODUCTION = false;
+export const IS_PRODUCTION = false;
 
 export const BANNER_ID = Platform.select({
   android: IS_PRODUCTION ? REAL_BANNER_ID_ANDROID : TEST_BANNER_ID_ANDROID,
@@ -55,7 +56,7 @@ export const BANNER_ID = Platform.select({
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type AdSize = 'banner' | 'largeBanner';
+type AdSize = 'banner' | 'largeBanner' | 'mediumRectangle';
 
 interface AdBannerProps {
   size?: AdSize;
@@ -64,8 +65,9 @@ interface AdBannerProps {
 
 // Height in pixels for each ad size
 const AD_HEIGHTS: Record<AdSize, number> = {
-  banner:      52,
-  largeBanner: 100,
+  banner:           52,
+  largeBanner:      100,
+  mediumRectangle:  250,
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -97,7 +99,11 @@ export function AdBanner({ size = 'banner', style }: AdBannerProps) {
       <View style={[styles.adContainer, { height }, style]}>
         <BannerAd
           unitId={BANNER_ID}
-          size={size === 'largeBanner' ? BannerAdSize.LARGE_BANNER : BannerAdSize.BANNER}
+          size={
+          size === 'largeBanner' ? BannerAdSize.LARGE_BANNER
+          : size === 'mediumRectangle' ? BannerAdSize.MEDIUM_RECTANGLE
+          : BannerAdSize.BANNER
+        }
           requestOptions={{ requestNonPersonalizedAdsOnly: false }}
         />
       </View>

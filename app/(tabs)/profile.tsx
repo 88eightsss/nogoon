@@ -10,15 +10,16 @@
 //   4. Achievements (locked/unlocked)
 //   5. Settings (sign out)
 
-import { View, Text, Pressable, ScrollView, StyleSheet, Alert, Switch } from 'react-native';
+import { View, Text, Pressable, ScrollView, StyleSheet, Alert, Switch, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useUserStore, getLevelProgress } from '@/stores/useUserStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useSubscriptionStore } from '@/stores/useSubscriptionStore';
+import { useAppBlocker } from '@/hooks/useAppBlocker';
 import { AdBanner } from '@/components/ads/AdBanner';
-import { getColors, COLORS, FONTS } from '@/constants/Colors';
+import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 
 // ─── Achievement definitions ──────────────────────────────────────────────────
@@ -59,7 +60,7 @@ const ACHIEVEMENTS = [
     label: '10 Games',
     desc: 'Play 10 mini-games total',
     check: (s: ReturnType<typeof useUserStore.getState>) =>
-      s.weeklyActivity.reduce((a, b) => a + b, 0) >= 10,
+      s.gamesPlayed >= 10,
   },
   {
     id: 'games_50',
@@ -67,7 +68,7 @@ const ACHIEVEMENTS = [
     label: '50 Games',
     desc: 'Play 50 mini-games total',
     check: (s: ReturnType<typeof useUserStore.getState>) =>
-      s.weeklyActivity.reduce((a, b) => a + b, 0) >= 50,
+      s.gamesPlayed >= 50,
   },
   {
     id: 'streak_7',
@@ -106,14 +107,23 @@ export default function ProfileScreen() {
   const store    = useUserStore();
   const { signOut } = useAuthStore();
   const { isPro, devModeEnabled, toggleDevMode } = useSubscriptionStore();
+  const { grayscaleEnabled, setGrayscaleEnabled } = useAppBlocker();
 
   const {
     name, points, xp, level, streak, longestStreak,
-    weeklyActivity, blocklist,
-    // Theme
-    colorScheme, setColorScheme,
+    weeklyActivity, blocklist, walkAwayCount,
     // Game mode
     gameMode, setGameMode,
+    // No-Games mode
+    noGames, setNoGames,
+    // Daily intention
+    dailyIntention, intentionDate, setDailyIntention,
+    // Wind-down mode
+    windDownEnabled, setWindDownEnabled, windDownHour, setWindDownHour,
+    // Block schedule
+    blockScheduleEnabled, blockScheduleStart, blockScheduleEnd, blockScheduleDays, setBlockSchedule,
+    // Focus session
+    focusSessionEnd, startFocusSession, endFocusSession,
     // BRICKED mode
     isBricked, brickedDisableRequestedAt,
     enableBricked, requestDisableBricked, confirmDisableBricked,
@@ -123,8 +133,7 @@ export default function ProfileScreen() {
     streakRestoresLeft,
   } = store;
 
-  const C = getColors(colorScheme ?? 'dark');
-  const isLight = colorScheme === 'light';
+  const C = COLORS;
 
   const levelProgress = getLevelProgress(xp);
   const totalGames    = weeklyActivity.reduce((a, b) => a + b, 0);
@@ -253,6 +262,18 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* ── Walk-Away Hero — the metric that never resets ── */}
+        <View style={[styles.walkAwayHero, { backgroundColor: C.surface, borderColor: C.cardBorder }]}>
+          <View style={styles.walkAwayLeft}>
+            <Text style={[styles.walkAwayNumber, { color: C.cyan }]}>
+              {walkAwayCount.toLocaleString()}
+            </Text>
+            <Text style={[styles.walkAwayLabel, { color: C.textSecondary }]}>times you walked away</Text>
+            <Text style={[styles.walkAwayCaption, { color: C.textMuted }]}>every win counts — never resets</Text>
+          </View>
+          <Feather name="trending-up" size={36} color={C.cyan + '33'} />
+        </View>
+
         {/* ── Section 3: Stats grid ── */}
         <View style={styles.statsGrid}>
           <StatCell label="Total Games" value={String(totalGames)} color={C.green} C={C} />
@@ -315,23 +336,6 @@ export default function ProfileScreen() {
 
         <View style={[styles.settingsCard, { backgroundColor: C.surface, borderColor: C.cardBorder }]}>
 
-          {/* ── Light mode toggle ── */}
-          <View style={styles.settingsRow}>
-            <Feather name={isLight ? 'sun' : 'moon'} size={20} color={C.indigoBright} />
-            <View style={styles.settingsRowMiddle}>
-              <Text style={[styles.settingsRowText, { color: C.textPrimary }]}>Light Mode</Text>
-              <Text style={[styles.settingsRowSub, { color: C.textMuted }]}>
-                {isLight ? 'Warm cream theme' : 'Dark theme'}
-              </Text>
-            </View>
-            <Switch
-              value={isLight}
-              onValueChange={(val) => setColorScheme(val ? 'light' : 'dark')}
-              trackColor={{ false: C.border, true: C.indigoBright + '55' }}
-              thumbColor={isLight ? C.indigoBright : C.textMuted}
-            />
-          </View>
-
           <View style={[styles.settingsDivider, { backgroundColor: C.border }]} />
 
           {/* ── Game mode toggle ── */}
@@ -352,6 +356,178 @@ export default function ProfileScreen() {
               onValueChange={(val) => setGameMode(val ? 'random' : 'choose')}
               trackColor={{ false: C.border, true: C.cyan + '55' }}
               thumbColor={gameMode === 'random' ? C.cyan : C.textMuted}
+            />
+          </View>
+
+          <View style={[styles.settingsDivider, { backgroundColor: C.border }]} />
+
+          {/* ── No-Games mode toggle ── */}
+          {/* When on, the gate skips the game entirely — just pause + exit.
+              Useful for users who find the game requirement frustrating but still
+              want the 3-second calm pause before opening a blocked site. */}
+          <View style={styles.settingsRow}>
+            <Text style={{ fontSize: 20 }}>🚪</Text>
+            <View style={styles.settingsRowMiddle}>
+              <Text style={[styles.settingsRowText, { color: C.textPrimary }]}>No-Game Mode</Text>
+              <Text style={[styles.settingsRowSub, { color: C.textMuted }]}>
+                {noGames
+                  ? 'Gate pauses, then lets you close the app yourself'
+                  : 'Gate requires a game before you can proceed'}
+              </Text>
+            </View>
+            <Switch
+              value={noGames}
+              onValueChange={setNoGames}
+              trackColor={{ false: C.border, true: C.green + '55' }}
+              thumbColor={noGames ? C.green : C.textMuted}
+            />
+          </View>
+
+          <View style={[styles.settingsDivider, { backgroundColor: C.border }]} />
+
+          {/* ── Daily intention ── */}
+          {/* One sentence set each morning. Gate echoes it back as a reminder. */}
+          <View style={styles.settingsRow}>
+            <Text style={{ fontSize: 20 }}>🌅</Text>
+            <View style={[styles.settingsRowMiddle, { gap: 6 }]}>
+              <Text style={[styles.settingsRowText, { color: C.textPrimary }]}>Daily Intention</Text>
+              <TextInput
+                style={[styles.intentionInput, { backgroundColor: C.surface, borderColor: C.border, color: C.textPrimary }]}
+                value={dailyIntention}
+                onChangeText={setDailyIntention}
+                placeholder="Today I want to..."
+                placeholderTextColor={C.textMuted}
+                maxLength={80}
+                returnKeyType="done"
+                autoCorrect={false}
+              />
+              {intentionDate ? (
+                <Text style={[styles.settingsRowSub, { color: C.textMuted }]}>
+                  Set {intentionDate === new Date().toISOString().split('T')[0] ? 'today' : `on ${intentionDate}`}
+                </Text>
+              ) : null}
+            </View>
+          </View>
+
+          <View style={[styles.settingsDivider, { backgroundColor: C.border }]} />
+
+          {/* ── Wind-down mode ── */}
+          {/* After the set hour, gate defaults to breathing game + softer tone */}
+          <View style={styles.settingsRow}>
+            <Text style={{ fontSize: 20 }}>🌙</Text>
+            <View style={styles.settingsRowMiddle}>
+              <Text style={[styles.settingsRowText, { color: C.textPrimary }]}>Wind-Down Mode</Text>
+              <Text style={[styles.settingsRowSub, { color: C.textMuted }]}>
+                {windDownEnabled
+                  ? `After ${windDownHour}:00, gate defaults to breathing`
+                  : 'Softer gate after a set hour each night'}
+              </Text>
+              {windDownEnabled && (
+                <View style={styles.windDownHourRow}>
+                  {[20, 21, 22, 23].map((h) => (
+                    <Pressable
+                      key={h}
+                      style={[
+                        styles.windDownHourPill,
+                        {
+                          backgroundColor: windDownHour === h ? C.purple + '33' : C.surface,
+                          borderColor: windDownHour === h ? C.purple : C.border,
+                        },
+                      ]}
+                      onPress={() => setWindDownHour(h)}
+                    >
+                      <Text style={[styles.windDownHourText, { color: windDownHour === h ? C.purple : C.textMuted }]}>
+                        {h}:00
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+            </View>
+            <Switch
+              value={windDownEnabled}
+              onValueChange={setWindDownEnabled}
+              trackColor={{ false: C.border, true: C.purple + '55' }}
+              thumbColor={windDownEnabled ? C.purple : C.textMuted}
+            />
+          </View>
+
+          <View style={[styles.settingsDivider, { backgroundColor: C.border }]} />
+
+          {/* ── Block schedule ── */}
+          {/* Only block during certain hours — e.g. work hours or before bed */}
+          <View style={styles.settingsRow}>
+            <Text style={{ fontSize: 20 }}>⏰</Text>
+            <View style={[styles.settingsRowMiddle, { gap: 6 }]}>
+              <Text style={[styles.settingsRowText, { color: C.textPrimary }]}>Block Schedule</Text>
+              <Text style={[styles.settingsRowSub, { color: C.textMuted }]}>
+                {blockScheduleEnabled
+                  ? `Active ${blockScheduleStart} – ${blockScheduleEnd}`
+                  : 'Block only during certain hours'}
+              </Text>
+              {blockScheduleEnabled && (
+                <>
+                <View style={styles.scheduleTimeRow}>
+                  <View style={styles.scheduleTimeField}>
+                    <Text style={[styles.scheduleTimeLabel, { color: C.textMuted }]}>FROM</Text>
+                    <TextInput
+                      style={[styles.scheduleTimeInput, { backgroundColor: C.surface, borderColor: C.border, color: C.textPrimary }]}
+                      value={blockScheduleStart}
+                      onChangeText={(v) => setBlockSchedule(blockScheduleEnabled, v, blockScheduleEnd, blockScheduleDays)}
+                      placeholder="22:00"
+                      placeholderTextColor={C.textMuted}
+                      maxLength={5}
+                      keyboardType="numbers-and-punctuation"
+                      returnKeyType="done"
+                    />
+                  </View>
+                  <Text style={[styles.scheduleTimeSep, { color: C.textMuted }]}>→</Text>
+                  <View style={styles.scheduleTimeField}>
+                    <Text style={[styles.scheduleTimeLabel, { color: C.textMuted }]}>TO</Text>
+                    <TextInput
+                      style={[styles.scheduleTimeInput, { backgroundColor: C.surface, borderColor: C.border, color: C.textPrimary }]}
+                      value={blockScheduleEnd}
+                      onChangeText={(v) => setBlockSchedule(blockScheduleEnabled, blockScheduleStart, v, blockScheduleDays)}
+                      placeholder="08:00"
+                      placeholderTextColor={C.textMuted}
+                      maxLength={5}
+                      keyboardType="numbers-and-punctuation"
+                      returnKeyType="done"
+                    />
+                  </View>
+                </View>
+
+                {/* Day-of-week picker — sits below the FROM→TO row */}
+                <View style={styles.dayPickerRow}>
+                  {['S','M','T','W','T','F','S'].map((label, i) => {
+                    const active = blockScheduleDays.length === 0 || blockScheduleDays.includes(i);
+                    return (
+                      <Pressable
+                        key={i}
+                        style={[
+                          styles.dayChip,
+                          { backgroundColor: active ? C.cyan + '22' : C.surface, borderColor: active ? C.cyan : C.border },
+                        ]}
+                        onPress={() => {
+                          const current = blockScheduleDays.length === 0 ? [0,1,2,3,4,5,6] : [...blockScheduleDays];
+                          const next = current.includes(i) ? current.filter(d => d !== i) : [...current, i].sort();
+                          // If all 7 days selected, store as empty (= every day)
+                          setBlockSchedule(blockScheduleEnabled, blockScheduleStart, blockScheduleEnd, next.length === 7 ? [] : next);
+                        }}
+                      >
+                        <Text style={[styles.dayChipText, { color: active ? C.cyan : C.textMuted }]}>{label}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                </>
+              )}
+            </View>
+            <Switch
+              value={blockScheduleEnabled}
+              onValueChange={(val) => setBlockSchedule(val, blockScheduleStart, blockScheduleEnd, blockScheduleDays)}
+              trackColor={{ false: C.border, true: C.cyan + '55' }}
+              thumbColor={blockScheduleEnabled ? C.cyan : C.textMuted}
             />
           </View>
 
@@ -386,6 +562,90 @@ export default function ProfileScreen() {
 
           <View style={[styles.settingsDivider, { backgroundColor: C.border }]} />
 
+          {/* ── Grayscale / dopamine-reduction overlay ── */}
+          {/* When ON: a dark overlay dims the screen for ~1.5s the instant a
+              blocked app or site is detected — before the gate even appears.
+              Breaks the browsing trance and signals "NoGoon stepped in."
+              Note: this dims the screen; for true phone-wide grayscale go to
+              Accessibility Settings → Color Correction → Grayscale. */}
+          <View style={styles.settingsRow}>
+            <Text style={{ fontSize: 20 }}>🔲</Text>
+            <View style={styles.settingsRowMiddle}>
+              <Text style={[styles.settingsRowText, { color: C.textPrimary }]}>Dim on Block</Text>
+              <Text style={[styles.settingsRowSub, { color: C.textMuted }]}>
+                {grayscaleEnabled
+                  ? 'Screen dims instantly when a blocked site is detected'
+                  : 'Flash a dark overlay when NoGoon intercepts'}
+              </Text>
+            </View>
+            <Switch
+              value={grayscaleEnabled}
+              onValueChange={setGrayscaleEnabled}
+              trackColor={{ false: C.border, true: C.textMuted + '55' }}
+              thumbColor={grayscaleEnabled ? C.textPrimary : C.textMuted}
+            />
+          </View>
+
+          <View style={[styles.settingsDivider, { backgroundColor: C.border }]} />
+
+          {/* ── Focus session ── */}
+          {/* Hard-lock for a set period: no game bypass, just a wall. */}
+          {(() => {
+            const isFocus = focusSessionEnd != null && focusSessionEnd > now;
+            const focusMinsLeft = isFocus ? Math.ceil((focusSessionEnd! - now) / 60_000) : 0;
+            return (
+              <>
+                <View style={styles.settingsRow}>
+                  <Text style={{ fontSize: 20 }}>🎯</Text>
+                  <View style={styles.settingsRowMiddle}>
+                    <Text style={[styles.settingsRowText, { color: C.textPrimary }]}>Focus Session</Text>
+                    {isFocus ? (
+                      <Text style={[styles.settingsRowSub, { color: C.green }]}>
+                        {focusMinsLeft} min left — no bypasses until{' '}
+                        {new Date(focusSessionEnd!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </Text>
+                    ) : (
+                      <Text style={[styles.settingsRowSub, { color: C.textMuted }]}>
+                        Hard lock with no game bypass
+                      </Text>
+                    )}
+                  </View>
+                  {isFocus && (
+                    <Pressable
+                      onPress={() => {
+                        Alert.alert(
+                          'End focus session?',
+                          'You set this time aside intentionally. Are you sure you want to end it early?',
+                          [
+                            { text: 'Keep going', style: 'cancel' },
+                            { text: 'End session', style: 'destructive', onPress: endFocusSession },
+                          ]
+                        );
+                      }}
+                    >
+                      <Text style={[styles.settingsRowSub, { color: C.textMuted }]}>End</Text>
+                    </Pressable>
+                  )}
+                </View>
+                {!isFocus && (
+                  <View style={styles.durationRow}>
+                    {([25, 50, 90] as const).map((min) => (
+                      <Pressable
+                        key={min}
+                        style={[styles.durationPill, { backgroundColor: C.background, borderColor: C.border }]}
+                        onPress={() => startFocusSession(min)}
+                      >
+                        <Text style={[styles.durationPillText, { color: C.textPrimary }]}>{min}m</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                )}
+              </>
+            );
+          })()}
+
+          <View style={[styles.settingsDivider, { backgroundColor: C.border }]} />
+
           {/* ── Game duration (Pro only) ── */}
           {/* Controls how long each mini-game lasts. Default 30s, Pro can extend. */}
           {isPro ? (
@@ -407,7 +667,7 @@ export default function ProfileScreen() {
                     style={[
                       styles.durationPill,
                       { backgroundColor: C.background, borderColor: C.border },
-                      gameDuration === d && [styles.durationPillActive, { backgroundColor: C.purpleDim, borderColor: C.purple + '66' }],
+                      gameDuration === d && { backgroundColor: C.purpleDim, borderColor: C.purple + '66' },
                     ]}
                     onPress={() => setGameDuration(d)}
                   >
@@ -534,7 +794,6 @@ export default function ProfileScreen() {
                 </View>
                 <Feather name="chevron-right" size={16} color={C.textMuted} />
               </Pressable>
-              <View style={[styles.settingsDivider, { backgroundColor: C.border }]} />
             </>
           ) : null}
 
@@ -579,7 +838,7 @@ export default function ProfileScreen() {
 
 // ─── StatCell sub-component ────────────────────────────────────────────────────
 
-function StatCell({ label, value, color, C }: { label: string; value: string; color: string; C: ReturnType<typeof getColors> }) {
+function StatCell({ label, value, color, C }: { label: string; value: string; color: string; C: typeof COLORS }) {
   return (
     <View style={[styles.statCell, { backgroundColor: C.surface, borderColor: C.cardBorder }]}>
       <Text style={[styles.statValue, { color }]}>{value}</Text>
@@ -597,44 +856,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.lg,
     gap: SPACING.md,
-  },
-
-  // ── Developer mode card ────────────────────────────────────────────────────
-  devCard: {
-    marginHorizontal: SPACING.lg,
-    marginTop: SPACING.md,
-    backgroundColor: COLORS.warning + '10',
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: COLORS.warning + '30',
-    padding: SPACING.lg,
-    gap: SPACING.sm,
-  },
-  devHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  devTitle: {
-    fontFamily: FONTS.bodyBold,
-    fontSize: 15,
-    color: COLORS.warning,
-  },
-  devDesc: {
-    fontFamily: FONTS.body,
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    lineHeight: 20,
-  },
-  devActiveRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.xs,
-  },
-  devWarning: {
-    fontFamily: FONTS.mono,
-    fontSize: 11,
-    color: COLORS.warning,
   },
 
   // ── Avatar ──
@@ -731,6 +952,33 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
   },
 
+  // ── Walk-Away Hero ──
+  walkAwayHero: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    padding: SPACING.lg,
+  },
+  walkAwayLeft: {
+    gap: 3,
+  },
+  walkAwayNumber: {
+    fontFamily: FONTS.monoBold,
+    fontSize: 42,
+    lineHeight: 46,
+  },
+  walkAwayLabel: {
+    fontFamily: FONTS.bodyMedium,
+    fontSize: 15,
+  },
+  walkAwayCaption: {
+    fontFamily: FONTS.body,
+    fontSize: 12,
+    marginTop: 1,
+  },
+
   // ── Stats grid ──
   statsGrid: {
     flexDirection: 'row',
@@ -744,31 +992,24 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: COLORS.cardBorder,
-    padding: SPACING.lg,
+    padding: SPACING.md,
+    gap: 2,
     alignItems: 'center',
-    gap: 4,
   },
   statValue: {
     fontFamily: FONTS.monoBold,
-    fontSize: 28,
+    fontSize: 24,
+    color: COLORS.textPrimary,
   },
   statLabel: {
-    fontFamily: FONTS.body,
-    fontSize: 12,
+    fontFamily: FONTS.mono,
+    fontSize: 11,
     color: COLORS.textMuted,
+    letterSpacing: 0.3,
+    textAlign: 'center',
   },
 
-  // ── Section headers ──
-  sectionHeader: {
-    fontFamily: FONTS.bodyBold,
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginTop: SPACING.sm,
-  },
-
-  // ── Achievements ──
+  // ── Achievements grid ──
   achievementsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -777,137 +1018,212 @@ const styles = StyleSheet.create({
   achievementCard: {
     flex: 1,
     minWidth: '45%',
-    backgroundColor: COLORS.surface,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.cardBorder,
     padding: SPACING.md,
     gap: 4,
-    position: 'relative',
+    alignItems: 'center',
   },
-  achievementLocked: { opacity: 0.4 },
-  achievementEmoji: { fontSize: 24, marginBottom: 2 },
+  achievementEmoji: {
+    fontSize: 28,
+    lineHeight: 36,
+  },
   achievementLabel: {
     fontFamily: FONTS.bodyBold,
     fontSize: 13,
-    color: COLORS.textPrimary,
+    textAlign: 'center',
   },
-  achievementLockedText: { color: COLORS.textMuted },
   achievementDesc: {
     fontFamily: FONTS.body,
     fontSize: 11,
-    color: COLORS.textMuted,
-    lineHeight: 16,
-  },
-  earnedBadge: {
-    position: 'absolute',
-    top: SPACING.sm,
-    right: SPACING.sm,
+    textAlign: 'center',
+    lineHeight: 15,
   },
 
-  // ── Settings ──
-  settingsCard: {
-    backgroundColor: COLORS.surface,
+  // ── Achievement extras ──
+  achievementLocked: {
+    opacity: 0.45,
+  },
+  earnedBadge: {
+    marginTop: 4,
+  },
+
+  // ── Daily intention input ──
+  intentionInput: {
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.cardBorder,
-    overflow: 'hidden',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 8,
+    fontFamily: FONTS.body,
+    fontSize: 14,
+    marginTop: 4,
   },
-  settingsRow: {
+
+  // ── Block schedule time pickers ──
+  scheduleTimeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    marginTop: SPACING.sm,
+  },
+  scheduleTimeField: {
+    flex: 1,
+    gap: 3,
+  },
+  scheduleTimeLabel: {
+    fontFamily: FONTS.mono,
+    fontSize: 10,
+    letterSpacing: 0.5,
+  },
+  scheduleTimeInput: {
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 6,
+    fontFamily: FONTS.mono,
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  scheduleTimeSep: {
+    fontFamily: FONTS.mono,
+    fontSize: 14,
+    marginTop: 16,
+  },
+
+  // ── Wind-down hour picker ──
+  windDownHourRow: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    marginTop: SPACING.sm,
+  },
+  windDownHourPill: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 6,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+  },
+  windDownHourText: {
+    fontFamily: FONTS.mono,
+    fontSize: 12,
+    letterSpacing: 0.2,
+  },
+
+
+
+  // ── Section header ──
+  sectionHeader: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 11,
+    letterSpacing: 1.2,
+    marginTop: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
+
+  // ── Pro upgrade banner ──
+  proActiveBanner: {
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    padding: SPACING.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  proActiveText: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 13,
+    flex: 1,
+  },
+  upgradeButton: {
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    padding: SPACING.md,
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.md,
-    padding: SPACING.lg,
-  },
-  settingsRowMiddle: {
-    flex: 1,
-    gap: 2,
-  },
-  settingsRowText: {
-    fontFamily: FONTS.bodyMedium,
-    fontSize: 15,
-  },
-  settingsRowSub: {
-    fontFamily: FONTS.body,
-    fontSize: 12,
-    color: COLORS.textMuted,
-  },
-  settingsDivider: {
-    height: 1,
-    backgroundColor: COLORS.border,
-    marginHorizontal: SPACING.lg,
-  },
-
-  // ── Game duration pills (Pro) ──
-  durationRow: {
-    flexDirection: 'row',
-    gap: SPACING.sm,
-    paddingHorizontal: SPACING.lg,
-    paddingBottom: SPACING.md,
-  },
-  durationPill: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    paddingVertical: SPACING.sm,
-    alignItems: 'center',
-  },
-  durationPillActive: {
-    backgroundColor: COLORS.purpleDim,
-    borderColor: COLORS.purple + '66',
-  },
-  durationPillText: {
-    fontFamily: FONTS.mono,
-    fontSize: 14,
-    color: COLORS.textMuted,
-  },
-  durationPillTextActive: {
-    color: COLORS.purple,
-  },
-
-  // ── Pro / Upgrade ──
-  proActiveBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-    backgroundColor: COLORS.purpleDim,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.purple + '44',
-    padding: SPACING.md,
-  },
-  proActiveText: {
-    fontFamily: FONTS.bodyMedium,
-    fontSize: 14,
-    color: COLORS.purple,
-  },
-  upgradeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.purpleDim,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.purple + '55',
-    padding: SPACING.lg,
-    gap: SPACING.sm,
   },
   upgradeLeft: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.md,
+    gap: 2,
   },
   upgradeTitle: {
     fontFamily: FONTS.bodyBold,
-    fontSize: 15,
-    color: COLORS.purple,
+    fontSize: 14,
   },
   upgradeSubtitle: {
     fontFamily: FONTS.body,
     fontSize: 12,
-    color: COLORS.textMuted,
-    marginTop: 1,
+  },
+
+  // ── Settings card ──
+  settingsCard: {
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  settingsDivider: {
+    height: 1,
+    marginHorizontal: SPACING.md,
+  },
+  settingsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md,
+  },
+  settingsRowMiddle: {
+    flex: 1,
+    gap: 1,
+  },
+  settingsRowText: {
+    fontFamily: FONTS.body,
+    fontSize: 14,
+  },
+  settingsRowSub: {
+    fontFamily: FONTS.body,
+    fontSize: 11,
+  },
+
+  // ── Duration row (Pro) ──
+  durationRow: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    paddingBottom: SPACING.md,
+  },
+  durationPill: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 6,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+  },
+  durationPillText: {
+    fontFamily: FONTS.mono,
+    fontSize: 12,
+  },
+  durationPillTextActive: {
+    fontFamily: FONTS.monoBold ?? FONTS.mono,
+    fontSize: 12,
+  },
+
+  // ── Day-of-week picker ────────────────────────────────────────────────────
+  dayPickerRow: {
+    flexDirection: 'row',
+    gap: 4,
+    marginTop: SPACING.sm,
+  },
+  dayChip: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 6,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+  },
+  dayChipText: {
+    fontFamily: FONTS.mono,
+    fontSize: 11,
+    letterSpacing: 0.2,
   },
 });

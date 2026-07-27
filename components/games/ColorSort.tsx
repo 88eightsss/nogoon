@@ -13,7 +13,7 @@
 //
 // PHASES: 'ready' → 'playing' → 'solved'
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -34,8 +34,10 @@ const PALETTE = [
   { id: 3, bg: '#be185d', label: 'D' },  // pink
 ];
 
-const COLS = 4;
-const ROWS = 3;
+// 4 colors × 3 tiles each = 12 tiles in a 3-col × 4-row grid.
+// Solved when each of the 4 rows is a single color.
+const COLS = 3;
+const ROWS = 4;
 const CELL_COUNT = COLS * ROWS; // 12
 
 // ─── Board generation ────────────────────────────────────────────────────────
@@ -46,7 +48,7 @@ function makeSolvedBoard(): number[] {
   // Actually 4 colors × 3 tiles = 12. Colors fill rows: row0 = color0, row1=color1, etc.
   const board: number[] = [];
   for (let c = 0; c < PALETTE.length; c++) {
-    for (let t = 0; t < ROWS; t++) board.push(c);
+    for (let t = 0; t < COLS; t++) board.push(c);
   }
   return board;
 }
@@ -104,17 +106,15 @@ export function ColorSort({ onComplete }: Props) {
     ]).start();
   };
 
-  const handleTap = useCallback((idx: number) => {
+  const handleTap = (idx: number) => {
     pulseTile(idx);
 
     if (selected === null) {
-      // Select this tile
       setSelected(idx);
       return;
     }
 
     if (selected === idx) {
-      // Deselect
       setSelected(null);
       return;
     }
@@ -133,7 +133,7 @@ export function ColorSort({ onComplete }: Props) {
       setPhase('solved');
       setTimeout(() => onComplete(pts), 900);
     }
-  }, [board, selected, moves]);
+  };
 
   // ─────────────────────────────────────────────────────────────────────────
   // PHASE: READY
@@ -215,16 +215,23 @@ export function ColorSort({ onComplete }: Props) {
           })}
         </View>
 
-        {/* ── Row labels ── */}
-        <View style={styles.rowLabels}>
-          {Array.from({ length: ROWS }, (_, r) => (
-            <Text key={r} style={styles.rowLabel}>Row {r + 1}</Text>
-          ))}
+        {/* ── Color target hints ── */}
+        <View style={styles.colorHints}>
+          <Text style={styles.colorHintsLabel}>Goal: each row one color →</Text>
+          <View style={styles.colorHintStrips}>
+            {PALETTE.map((p) => (
+              <View key={p.id} style={styles.colorHintStrip}>
+                <View style={[styles.colorHintTile, { backgroundColor: p.bg }]} />
+                <View style={[styles.colorHintTile, { backgroundColor: p.bg }]} />
+                <View style={[styles.colorHintTile, { backgroundColor: p.bg }]} />
+              </View>
+            ))}
+          </View>
         </View>
 
         {/* ── Solved overlay ── */}
         {phase === 'solved' && (
-          <View style={styles.solvedOverlay}>
+          <View pointerEvents="none" style={styles.solvedOverlay}>
             <Text style={styles.solvedEmoji}>✅</Text>
             <Text style={styles.solvedTitle}>Sorted!</Text>
             <Text style={styles.solvedMoves}>{moves} moves</Text>
@@ -355,7 +362,7 @@ const styles = StyleSheet.create({
     flexWrap:      'wrap',
     gap:           TILE_GAP,
     width:         COLS * TILE_SIZE + (COLS - 1) * TILE_GAP,
-    justifyContent: 'flex-start',
+    justifyContent: 'center',
   },
 
   tileWrap: {
@@ -387,18 +394,34 @@ const styles = StyleSheet.create({
     borderColor:  'rgba(255,255,255,0.4)',
   },
 
-  rowLabels: {
-    width:          COLS * TILE_SIZE + (COLS - 1) * TILE_GAP,
-    flexDirection:  'row',
-    justifyContent: 'space-around',
-    marginTop:      -SPACING.sm,
+  colorHints: {
+    alignItems:  'center',
+    marginTop:   SPACING.xs,
+    gap:         SPACING.xs,
   },
 
-  rowLabel: {
-    fontFamily: FONTS.mono,
-    fontSize:   10,
-    color:      COLORS.textMuted,
+  colorHintsLabel: {
+    fontFamily:    FONTS.mono,
+    fontSize:      10,
+    color:         COLORS.textMuted,
     letterSpacing: 0.4,
+    marginBottom:  4,
+  },
+
+  colorHintStrips: {
+    flexDirection: 'column',
+    gap:           4,
+  },
+
+  colorHintStrip: {
+    flexDirection: 'row',
+    gap:           3,
+  },
+
+  colorHintTile: {
+    width:        16,
+    height:       10,
+    borderRadius: 2,
   },
 
   // ── Solved overlay ────────────────────────────────────────────────────────

@@ -5,7 +5,7 @@
 //  The user makes one of two choices:
 //
 //    WALK AWAY  — keeps the streak, banks the points, goes back to life
-//    UNLOCK     — spends 200 points, resets the streak, access for 10 min
+//    UNLOCK     — 5-second countdown friction, then timed access (5 / 10 / 20 min)
 //
 //  Route params (strings, because URL params are always strings):
 //    pointsEarned — e.g. "85"
@@ -22,9 +22,9 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  SafeAreaView,
   Animated,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Feather } from '@expo/vector-icons';
@@ -32,10 +32,9 @@ import { useUserStore } from '@/stores/useUserStore';
 import { useSubscriptionStore } from '@/stores/useSubscriptionStore';
 import { useAppBlocker } from '@/hooks/useAppBlocker';
 import { AdBanner } from '@/components/ads/AdBanner';
-import { Card } from '@/components/ui/Card';
+import { AdRewarded } from '@/components/ads/AdRewarded';
 import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
-import { TYPE } from '@/constants/Typography';
 
 // ─── Micro-learning cards ──────────────────────────────────────────────────────
 
@@ -120,19 +119,19 @@ export default function PostGameScreen() {
 
   // ── Store ──────────────────────────────────────────────────────────────────
   const {
-    points,
     streak,
     level,
+    walkAwayCount,
     addPoints,
     addXP,
     incrementStreak,
-    resetStreak,
-    spendPoints,
     recordGamePlayed,
     streakRestoresLeft,
     useStreakRestore,
     incrementWalkAway,
     intentionGoal,
+    logTrigger,
+    notifyPartner,
   } = useUserStore();
   const { isPro } = useSubscriptionStore();
   // Hook to tell the Android native module about the 10-min unlock
@@ -155,6 +154,25 @@ export default function PostGameScreen() {
   const [card] = useState(
     () => MICRO_CARDS[Math.floor(Math.random() * MICRO_CARDS.length)]
   );
+
+  // ── Walk-away celebration ──────────────────────────────────────────────────
+  const [celebrating, setCelebrating] = useState(false);
+  const [celebrationCount, setCelebrationCount] = useState(0);
+
+  // ── Unlock countdown — replaces token-based friction ──────────────────────
+  // Free users must wait 10s before the unlock button becomes active.
+  // null = not started, N = counting down, 0 = ready to confirm.
+  const [unlockCountdown, setUnlockCountdown] = useState<number | null>(null);
+  const [bonusEarned, setBonusEarned] = useState(false);
+  const [bonusPoints] = useState(50);
+  const [selectedTrigger, setSelectedTrigger] = useState<string | null>(null);
+  const [unlockMinutes, setUnlockMinutes] = useState<5 | 10 | 20>(20);
+
+  useEffect(() => {
+    if (unlockCountdown === null || unlockCountdown === 0) return;
+    const t = setTimeout(() => setUnlockCountdown(c => (c ?? 1) - 1), 1000);
+    return () => clearTimeout(t);
+  }, [unlockCountdown]);
 
   // ── Score count-up animation ───────────────────────────────────────────────
   // Counts from 0 → pointsEarned over 1.2 seconds using plain JS setState.
@@ -199,67 +217,69 @@ export default function PostGameScreen() {
     ]).start();
   }, [scoreScale, scoreOpacity]);
 
-  // ── Can the user afford to unlock? ────────────────────────────────────────
-  // Pro users unlock free. Free users need 50 pause tokens.
-  // Cost was slashed from 200 → 50: the friction is the game itself, not a paywall.
-  // If BRICKED mode is on, the unlock section is hidden entirely — no escape.
-  const UNLOCK_COST = isPro ? 0 : 50;
-  const canUnlock   = isPro || points >= UNLOCK_COST;
-
-  // Pro perk: 1 streak restore per month. User can use it here instead of
-  // resetting their streak when they choose to unlock.
+  // Pro perk: 1 streak restore per month.
   const canRestoreStreak = isPro && streakRestoresLeft > 0;
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
   const handleWalkAway = () => {
+    const newCount = walkAwayCount + 1;
+    setCelebrationCount(newCount);
     incrementStreak();
-    // Track walk-aways separately — this is the real success metric.
-    // Every time someone plays a game and still walks away, that's the app working.
+    if (selectedTrigger) logTrigger(selectedTrigger);
     incrementWalkAway();
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    router.dismissAll();
+    setCelebrating(true);
+    setTimeout(() => router.dismissAll(), 1800);
   };
 
   const handleUnlock = () => {
-    if (!canUnlock) return;
-
-    // Tell the Android Accessibility Service to allow this domain through for 10 minutes.
-    // This is what actually enforces the unlock — without this call the service would
-    // intercept the next visit immediately. The domain comes from the route params.
-    if (domain) {
-      unlockTemporarily(domain, 10);
-    }
-
-    if (isPro) {
-      // Pro users unlock free — no streak reset, no point deduction
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-      router.dismissAll();
-    } else {
-      const success = spendPoints(UNLOCK_COST);
-      if (success) {
-        resetStreak();
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-        router.dismissAll();
-      }
-    }
+    if (domain) unlockTemporarily(domain, unlockMinutes);
+    notifyPartner(domainDisplay, 'unlock');
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    router.dismissAll();
   };
 
   // Pro-only: unlock AND save the streak using a monthly restore token
   const handleUnlockWithRestore = () => {
     if (!canRestoreStreak) return;
-    const restored = useStreakRestore(); // returns false if 0 left
+    const restored = useStreakRestore();
     if (restored) {
-      // Streak is preserved — incrementStreak keeps it going
       incrementStreak();
+      if (domain) unlockTemporarily(domain, unlockMinutes);
+      notifyPartner(domainDisplay, 'unlock');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.dismissAll();
+    }
+  };
+
+  const startUnlockCountdown = () => {
+    if (isPro) {
+      // Pro: no countdown needed, just confirm
+      setUnlockCountdown(0);
+    } else {
+      setUnlockCountdown(5);
     }
   };
 
   // ══════════════════════════════════════════════════════════════════════════
   //  RENDER
   // ══════════════════════════════════════════════════════════════════════════
+
+  // ── Walk-away celebration screen ──────────────────────────────────────────
+  if (celebrating) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.celebrationContainer}>
+          <Text style={styles.celebrationNumber}>{celebrationCount}</Text>
+          <Text style={styles.celebrationLabel}>
+            walk-away{celebrationCount === 1 ? '' : 's'}
+          </Text>
+          <Text style={styles.celebrationSub}>You made it.</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -274,7 +294,7 @@ export default function PostGameScreen() {
           <Text style={styles.completeEmoji}>
             {pointsEarned >= 80 ? '🏆' : pointsEarned >= 50 ? '⭐' : '✅'}
           </Text>
-          <Text style={styles.completeLabel}>CHALLENGE COMPLETE</Text>
+          <Text style={styles.completeLabel}>WELL PLAYED</Text>
           <Text style={styles.gameNameText}>{gameName}</Text>
           <Text style={styles.praiseText}>
             {pointsEarned >= 80
@@ -330,6 +350,164 @@ export default function PostGameScreen() {
           </View>
         )}
 
+        {/* ── Intention reminder — shown if user set a goal during onboarding ── */}
+        {/* A gentle, non-preachy reminder of what they're protecting time for */}
+        {intentionGoal ? (
+          <View style={styles.intentionReminder}>
+            <Text style={styles.intentionText}>
+              You wanted more time for{' '}
+              <Text style={styles.intentionGoal}>{intentionGoal}</Text>
+            </Text>
+          </View>
+        ) : null}
+
+
+        {/* ── Trigger tag — "what pulled you in?" ── */}
+        {/* Optional one-tap label; logged only if user walks away */}
+        <View style={styles.triggerRow}>
+          <Text style={[styles.triggerLabel, { color: COLORS.textMuted }]}>What pulled you in?</Text>
+          <View style={styles.triggerPills}>
+            {[
+              { id: 'bored',         emoji: '😴', label: 'Bored' },
+              { id: 'stressed',      emoji: '😰', label: 'Stressed' },
+              { id: 'habit',         emoji: '📱', label: 'Habit' },
+              { id: 'fomo',          emoji: '😱', label: 'FOMO' },
+            ].map((t) => {
+              const active = selectedTrigger === t.id;
+              return (
+                <Pressable
+                  key={t.id}
+                  style={[
+                    styles.triggerPill,
+                    {
+                      backgroundColor: active ? COLORS.indigoBright + '22' : COLORS.surface,
+                      borderColor: active ? COLORS.indigoBright : COLORS.cardBorder,
+                    },
+                  ]}
+                  onPress={() => {
+                    setSelectedTrigger(active ? null : t.id);
+                    Haptics.selectionAsync();
+                  }}
+                >
+                  <Text style={styles.triggerPillEmoji}>{t.emoji}</Text>
+                  <Text style={[styles.triggerPillText, { color: active ? COLORS.indigoBright : COLORS.textSecondary }]}>
+                    {t.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* ── Decision buttons ── */}
+        <View style={styles.decisions}>
+
+          {/* WALK AWAY — the dominant action */}
+          <Pressable style={styles.walkAwayButton} onPress={handleWalkAway}>
+            <Text style={styles.walkAwayTitle}>Walk Away</Text>
+            <Feather name="arrow-right-circle" size={30} color={COLORS.textPrimary} />
+          </Pressable>
+
+          {/* BRICKED: locked out message */}
+          {isBrickedMode ? (
+            <View style={styles.brickedLockout}>
+              <Text style={styles.brickedLockEmoji}>🧱</Text>
+              <View style={styles.brickedLockText}>
+                <Text style={styles.brickedLockTitle}>BRICKED Mode Active</Text>
+                <Text style={styles.brickedLockSub}>
+                  You disabled unlocking. Well done — walk away.
+                </Text>
+              </View>
+            </View>
+          ) : (
+            /* ── Unlock — subtle text link with countdown friction ── */
+            <View style={styles.unlockWrapper}>
+              {unlockCountdown === null && (
+                <Pressable style={styles.unlockLink} onPress={startUnlockCountdown}>
+                  <Text style={styles.unlockLinkText}>
+                    I still need to open it
+                  </Text>
+                </Pressable>
+              )}
+
+              {unlockCountdown !== null && unlockCountdown > 0 && (
+                <View style={styles.unlockCountdownBox}>
+                  <Text style={styles.unlockCountdownText}>
+                    Opening in {unlockCountdown}s...
+                  </Text>
+                  <View style={styles.unlockCountdownTrack}>
+                    <View
+                      style={[
+                        styles.unlockCountdownFill,
+                        { width: `${((5 - unlockCountdown) / 5) * 100}%` },
+                      ]}
+                    />
+                  </View>
+                </View>
+              )}
+
+              {unlockCountdown === 0 && (
+                <View style={styles.unlockConfirmBox}>
+                  {/* Duration picker */}
+                  <View style={styles.durationPicker}>
+                    {([5, 10, 20] as const).map((m) => (
+                      <Pressable
+                        key={m}
+                        style={[
+                          styles.durationChip,
+                          {
+                            backgroundColor: unlockMinutes === m ? COLORS.surface : 'transparent',
+                            borderColor: unlockMinutes === m ? COLORS.cardBorder : 'transparent',
+                          },
+                        ]}
+                        onPress={() => { setUnlockMinutes(m); Haptics.selectionAsync(); }}
+                      >
+                        <Text style={[styles.durationChipText, { color: unlockMinutes === m ? COLORS.textPrimary : COLORS.textMuted }]}>
+                          {m}m
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                  <Pressable style={styles.unlockConfirmButton} onPress={handleUnlock}>
+                    <Text style={styles.unlockConfirmText}>
+                      Open {domainDisplay} — {unlockMinutes} min
+                    </Text>
+                  </Pressable>
+                  {isPro && canRestoreStreak && (
+                    <Pressable style={styles.streakRestoreButton} onPress={handleUnlockWithRestore}>
+                      <Feather name="check-circle" size={15} color={COLORS.purple} />
+                      <Text style={styles.streakRestoreText}>
+                        Use Streak Restore — keep your {streak}-day streak
+                      </Text>
+                      <Text style={styles.streakRestoreCount}>
+                        {streakRestoresLeft} left
+                      </Text>
+                    </Pressable>
+                  )}
+                </View>
+              )}
+            </View>
+          )}
+        </View>
+
+        {/* ── Rewarded ad — optional bonus points for watching a 30s ad ── */}
+        {/* Only shown to free users who haven't already claimed the bonus this session */}
+        {!bonusEarned && (
+          <AdRewarded
+            bonusPoints={bonusPoints}
+            onRewarded={() => {
+              addPoints(bonusPoints);
+              setBonusEarned(true);
+            }}
+          />
+        )}
+        {bonusEarned && (
+          <View style={styles.bonusConfirm}>
+            <Feather name="check-circle" size={14} color={COLORS.green} />
+            <Text style={styles.bonusConfirmText}>+{bonusPoints} bonus points earned</Text>
+          </View>
+        )}
+
         {/* ── Micro-learning card ── */}
         <View style={[styles.microCard, { borderLeftColor: card.accent }]}>
           <View style={styles.microCardHeader}>
@@ -342,124 +520,7 @@ export default function PostGameScreen() {
           <Text style={styles.microSource}>— {card.source}</Text>
         </View>
 
-        {/* ── Intention reminder — shown if user set a goal during onboarding ── */}
-        {/* A gentle, non-preachy reminder of what they're protecting time for */}
-        {intentionGoal ? (
-          <View style={styles.intentionReminder}>
-            <Text style={styles.intentionText}>
-              You wanted more time for{' '}
-              <Text style={styles.intentionGoal}>{intentionGoal}</Text>
-            </Text>
-          </View>
-        ) : null}
-
-        {/* ── Decision buttons ── */}
-        <View style={styles.decisions}>
-
-          {/* WALK AWAY — always the recommended, prominent action */}
-          <Pressable style={styles.walkAwayButton} onPress={handleWalkAway}>
-            <View style={styles.walkAwayInner}>
-              <Text style={styles.walkAwayTitle}>Walk Away</Text>
-              <Text style={styles.walkAwayStreak}>
-                {streak > 0
-                  ? `${streak}-day streak — keep it going 🔥`
-                  : 'Good call. Start a streak today 🔥'}
-              </Text>
-            </View>
-            <Feather name="arrow-right-circle" size={28} color={COLORS.background} />
-          </Pressable>
-
-          {/* ── BRICKED MODE: replace unlock section with a locked-out message ── */}
-          {/* When BRICKED is active the user turned off their own escape hatch.
-              We honour that commitment by hiding the unlock button entirely. */}
-          {isBrickedMode ? (
-            <View style={styles.brickedLockout}>
-              <Text style={styles.brickedLockEmoji}>🧱</Text>
-              <View style={styles.brickedLockText}>
-                <Text style={styles.brickedLockTitle}>BRICKED Mode Active</Text>
-                <Text style={styles.brickedLockSub}>
-                  You disabled unlocking. Well done — walk away.
-                </Text>
-              </View>
-            </View>
-          ) : (
-            /* ── Normal unlock section ── */
-            <View style={styles.unlockWrapper}>
-              <Pressable
-                style={[
-                  styles.unlockButton,
-                  !canUnlock && styles.unlockButtonDisabled,
-                ]}
-                onPress={handleUnlock}
-                disabled={!canUnlock}
-              >
-                <View style={styles.unlockInner}>
-                  <Text
-                    style={[
-                      styles.unlockTitle,
-                      !canUnlock && styles.unlockTitleDisabled,
-                    ]}
-                  >
-                    {isPro
-                      ? `Still want to? Access ${domainDisplay} for 10 min`
-                      : `Still want to? Access ${domainDisplay} for 10 min`}
-                  </Text>
-                  <Text style={styles.unlockBalance}>
-                    {isPro
-                      ? 'Pro — no cost, no streak reset'
-                      : canUnlock
-                        ? `${UNLOCK_COST} pause tokens · balance: ${points.toLocaleString()}`
-                        : `Play one more game to unlock (need ${UNLOCK_COST - points} more tokens)`}
-                  </Text>
-                </View>
-                {/* Feather "unlock" — replacing the broken Ionicons reference */}
-                <Feather
-                  name="unlock"
-                  size={20}
-                  color={canUnlock ? COLORS.textMuted : COLORS.textMuted + '55'}
-                />
-              </Pressable>
-
-              {/* Brief note for free users who can unlock — no guilt, just facts */}
-              {!isPro && canUnlock && (
-                <Text style={styles.unlockWarning}>
-                  Resets your streak · 10 minutes access · your choice
-                </Text>
-              )}
-
-              {/* Pro streak protection — use monthly restore token to keep streak intact */}
-              {isPro && canUnlock && canRestoreStreak && (
-                <Pressable
-                  style={styles.streakRestoreButton}
-                  onPress={handleUnlockWithRestore}
-                >
-                  <Feather name="check-circle" size={15} color={COLORS.purple} />
-                  <Text style={styles.streakRestoreText}>
-                    Use Streak Restore — keep your {streak}-day streak
-                  </Text>
-                  <Text style={styles.streakRestoreCount}>
-                    {streakRestoresLeft} left this month
-                  </Text>
-                </Pressable>
-              )}
-
-              {/* Show upgrade prompt when user can't afford to unlock */}
-              {!isPro && !canUnlock && (
-                <Pressable
-                  style={styles.upgradeHint}
-                  onPress={() => router.push('/paywall')}
-                >
-                  <Feather name="zap" size={13} color={COLORS.purple} />
-                  <Text style={styles.upgradeHintText}>
-                    Get Pro — unlock free, anytime →
-                  </Text>
-                </Pressable>
-              )}
-            </View>
-          )}
-        </View>
-
-        {/* ── Ad banner — after the celebration, not before it ── */}
+        {/* ── Ad banner ── */}
         <AdBanner size="largeBanner" />
 
         {/* ── Personal proof — real data, not a fake aggregate ── */}
@@ -663,86 +724,107 @@ const styles = StyleSheet.create({
     color: COLORS.indigoBright,
   },
 
+  // ── Walk-away celebration screen ──
+  celebrationContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xs,
+  },
+  celebrationNumber: {
+    fontFamily: FONTS.monoBold,
+    fontSize: 96,
+    color: COLORS.green,
+    lineHeight: 104,
+  },
+  celebrationLabel: {
+    fontFamily: FONTS.body,
+    fontSize: 18,
+    color: COLORS.textSecondary,
+    letterSpacing: 0.2,
+  },
+  celebrationSub: {
+    fontFamily: FONTS.displayRegular,
+    fontSize: 28,
+    color: COLORS.textPrimary,
+    marginTop: SPACING.sm,
+    letterSpacing: 0.3,
+  },
+
   decisions: {
     gap: SPACING.sm,
   },
   walkAwayButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: COLORS.indigo,
-    borderRadius: RADIUS.md,
-    paddingVertical: SPACING.lg,
+    borderRadius: RADIUS.lg,
+    paddingVertical: SPACING.xxl,
     paddingHorizontal: SPACING.xl,
-    gap: SPACING.md,
-  },
-  walkAwayInner: {
-    flex: 1,
   },
   walkAwayTitle: {
     fontFamily: FONTS.display,
-    fontSize: 22,
-    color: COLORS.background,
+    fontSize: 28,
+    color: COLORS.textPrimary,
     letterSpacing: -0.3,
   },
-  walkAwayStreak: {
+  unlockWrapper: {
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  unlockLink: {
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.lg,
+  },
+  unlockLinkText: {
     fontFamily: FONTS.body,
     fontSize: 13,
-    color: COLORS.background + 'cc',
-    marginTop: 2,
+    color: COLORS.textMuted,
+    textDecorationLine: 'underline',
   },
-  unlockWrapper: {
-    gap: SPACING.xs,
-  },
-  unlockButton: {
-    flexDirection: 'row',
+  unlockCountdownBox: {
+    width: '100%',
     alignItems: 'center',
+    gap: SPACING.sm,
+    paddingVertical: SPACING.sm,
+  },
+  unlockCountdownText: {
+    fontFamily: FONTS.mono,
+    fontSize: 13,
+    color: COLORS.textMuted,
+  },
+  unlockCountdownTrack: {
+    width: '60%',
+    height: 3,
+    backgroundColor: COLORS.border,
+    borderRadius: RADIUS.full,
+    overflow: 'hidden',
+  },
+  unlockCountdownFill: {
+    height: '100%',
+    backgroundColor: COLORS.textMuted,
+    borderRadius: RADIUS.full,
+  },
+  unlockConfirmBox: {
+    width: '100%',
+    gap: SPACING.sm,
+  },
+  unlockConfirmButton: {
+    alignItems: 'center',
+    gap: 3,
     backgroundColor: COLORS.surface,
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: COLORS.cardBorder,
     paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.xl,
-    gap: SPACING.md,
+    paddingHorizontal: SPACING.lg,
   },
-  unlockButtonDisabled: {
-    opacity: 0.45,
-  },
-  unlockInner: {
-    flex: 1,
-  },
-  unlockTitle: {
+  unlockConfirmText: {
     fontFamily: FONTS.bodyMedium,
-    fontSize: 15,
+    fontSize: 14,
     color: COLORS.textSecondary,
   },
-  unlockTitleDisabled: {
-    color: COLORS.textMuted,
-  },
-  unlockBalance: {
-    fontFamily: FONTS.mono,
-    fontSize: 12,
-    color: COLORS.textMuted,
-    marginTop: 2,
-  },
-  unlockWarning: {
-    fontFamily: FONTS.body,
-    fontSize: 12,
-    color: COLORS.danger + 'aa',
-    textAlign: 'center',
-  },
-  upgradeHint: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    paddingVertical: 4,
-  },
-  upgradeHintText: {
-    fontFamily: FONTS.body,
-    fontSize: 12,
-    color: COLORS.purple,
-  },
-
   // ── BRICKED lockout message ──
   // Replaces the unlock section when BRICKED mode is on.
   brickedLockout: {
@@ -830,5 +912,72 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     textAlign: 'center',
     lineHeight: 20,
+  },
+
+  // ── Rewarded ad confirmation ──
+  bonusConfirm: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xs,
+    paddingVertical: SPACING.xs,
+  },
+  bonusConfirmText: {
+    fontFamily: FONTS.bodyMedium,
+    fontSize: 13,
+    color: COLORS.green,
+  },
+
+  // ── Trigger tag row ────────────────────────────────────────────────────────
+  triggerRow: {
+    gap: SPACING.sm,
+    marginBottom: SPACING.sm,
+  },
+  triggerLabel: {
+    fontFamily: FONTS.mono,
+    fontSize: 10,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    textAlign: 'center',
+  },
+  triggerPills: {
+    flexDirection: 'row',
+    gap: SPACING.xs,
+    justifyContent: 'center',
+  },
+  triggerPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 6,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+  },
+  triggerPillEmoji: {
+    fontSize: 14,
+  },
+  triggerPillText: {
+    fontFamily: FONTS.body,
+    fontSize: 12,
+  },
+
+  // ── Duration picker ────────────────────────────────────────────────────────
+  durationPicker: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: SPACING.xs,
+    marginBottom: SPACING.sm,
+  },
+  durationChip: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 6,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+  },
+  durationChipText: {
+    fontFamily: FONTS.mono,
+    fontSize: 13,
+    letterSpacing: 0.3,
   },
 });

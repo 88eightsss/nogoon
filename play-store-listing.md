@@ -11,23 +11,39 @@ When you open an app or website you've chosen to block, NoGoon intercepts it wit
 
 WHY IT WORKS
 
-Most cravings pass in 90 seconds. NoGoon fills that window with something engaging — a pattern memory challenge, a breathing exercise, a typing test — so by the time you finish, the urge to scroll has faded. You decide what happens next.
+Most cravings pass in 90 seconds. NoGoon fills that window with something genuinely engaging — a breathing exercise, a puzzle, a word game — so by the time you finish, the urge to scroll has faded. You decide what happens next.
 
 WHAT YOU GET
 
-• 8 mini-games: Stroop Challenge, Pattern Memory, Typing Test, Grounding Exercise, Breathing Reset, Why Am I Here, Reaction Speed, and Odd One Out
+• 13 mini-games across two tiers — 10 standard games free for everyone, plus 3 Pro-exclusive experiences (Warp, Why Am I Here?, and Typing Challenge)
 
 • Block any app or website — Instagram, TikTok, Reddit, Twitter, YouTube, or anything else on your list
 
-• Intentional Day streaks — track how many days you've walked away instead of scrolling
+• Daily Challenge — a different game every day, rotating through the full standard library
 
-• Brick Mode — for when you mean it. Removes the unlock button entirely. Play the game, then you're done.
+• Arcade mode — play any game any time for practice, no blocking required
 
-• Points system — earn points for every mini-game you complete. Walk away and earn bonus points.
+• Streaks and XP — track your walk-away streak and level up over time
 
-• Accountability partner — optionally add someone who gets notified about your milestones
+• Brick Mode — for when you mean it. Removes the unlock option entirely.
 
-• Random mode — NoGoon picks a different game each time to keep you on your toes
+• Choose or shuffle — let NoGoon pick a random game, or choose the one you want
+
+• Accountability partner — someone you trust gets notified about your milestones
+
+• Light and dark mode — adapts to your system preference automatically
+
+• Points system — earn points for completing games. Bonus points for walking away.
+
+THE GAMES
+
+Standard (free for all users):
+Breath Rhythm · Ground Yourself · Odd One Out · Color Sort · Ball Sort · Number Flow · Gem Match · Word Weave · Stack · Pattern Memory
+
+Pro exclusive:
+✦ Warp — drift through the cosmos and collect light fragments
+✦ Why Am I Here? — a 60-second check-in with your real motivation
+✦ Typing Challenge — type the phrase perfectly before time runs out
 
 HOW IT WORKS
 
@@ -57,7 +73,7 @@ NoGoon was built by someone who needed it. Not a Silicon Valley productivity app
 Break the scroll. Build the habit.
 
 ## Category
-Health & Fitness
+Lifestyle
 
 ## Tags
 screen time, digital wellbeing, app blocker, phone addiction, mindfulness, habit tracker, focus, productivity, digital detox, screen addiction
@@ -67,3 +83,6 @@ jtshibao@gmail.com
 
 ## Privacy Policy URL
 https://88eightsss.github.io/nogoon/privacy-policy.html
+
+## Changelog (What's New — versionCode 8)
+13 mini-games are now live — 10 standard games plus 3 Pro-exclusive experiences (Warp, Why Am I Here?, and Typing Challenge). Added Daily Challenge with a rotating game every day, Arcade mode for free-play practice, light and dark mode support, 10 achievements, and a full UX overhaul of the intercept screen, home dashboard, and post-game reflection.

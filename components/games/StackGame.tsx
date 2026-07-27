@@ -6,10 +6,12 @@
 //
 // WIN: Stack 10 blocks successfully.
 //
-// SCORING:
-//   10 blocks, perfect stacks (>90% overlap each): 120 pts
-//   10 blocks completed:                             85 pts
-//   Stopped by miss (≥5 stacks completed):           45 pts
+// SCORING (based on final block width — less remaining block = fewer points):
+//   10 blocks, final width >85% of original: 120 pts
+//   10 blocks, final width >55%:              85 pts
+//   10 blocks, final width >30%:              60 pts
+//   10 blocks, very thin final block:         40 pts
+//   Stopped by miss (≥5 stacks completed):    45 pts
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
@@ -174,7 +176,8 @@ export function StackGame({ onComplete }: Props) {
 
     if (newCount >= TARGET_STACKS) {
       setPhase('done');
-      const pts = newPerfect >= TARGET_STACKS - 1 ? 120 : 85;
+      const finalRatio = overlap / INITIAL_WIDTH;
+      const pts = finalRatio > 0.85 ? 120 : finalRatio > 0.55 ? 85 : finalRatio > 0.30 ? 60 : 40;
       setTimeout(() => onComplete(pts), 500);
       return;
     }
@@ -233,7 +236,7 @@ export function StackGame({ onComplete }: Props) {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <Pressable style={styles.gameArea} onPress={handleTap} activeOpacity={1}>
+      <Pressable style={styles.gameArea} onPress={handleTap}>
 
         {/* ── Header ── */}
         <View style={styles.hud}>

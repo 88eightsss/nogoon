@@ -13,35 +13,40 @@
 //    2 things you can SMELL
 //    1 thing you can TASTE
 //
-//  The user taps through each item. Completing all 25 taps takes ~60–90 seconds.
-//  Research shows this duration is enough to let a craving wave pass naturally.
-//
-//  WHY THIS REPLACES ANIMAL FACTS:
-//  Animal Facts was passive (read, guess, done). Grounding requires active
-//  attention and body awareness — a genuine pattern interrupt, not entertainment.
+//  INTERACTION MODEL:
+//  Rather than mindless tapping, the user types each observation.
+//  Typing forces genuine attention — you have to articulate what you notice —
+//  making it much harder to fake your way through and more therapeutically
+//  effective.  Entries appear in a running list as you add them.
 //
 //  Props:
 //    onComplete(score) — called when all steps are done (always 35 pts)
 // ═══════════════════════════════════════════════════════════════════════════
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
+  TextInput,
   Pressable,
   StyleSheet,
   SafeAreaView,
   Animated,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { Feather } from '@expo/vector-icons';
 import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
+import { ProceedButton } from '@/components/ui/ProceedButton';
 
 interface GroundingExerciseProps {
   onComplete: (score: number) => void;
 }
 
-// ─── The 5 senses, with how many items to notice for each ─────────────────────
+// ─── The 5 senses, with how many observations to log for each ─────────────────
 
 const SENSES = [
   {
@@ -49,27 +54,27 @@ const SENSES = [
     sense: 'SEE',
     icon: '👁️',
     color: COLORS.cyan,
-    prompt: 'Look around. Find 5 things you can see.',
-    tapLabel: 'I see something',
-    completion: 'Good eyes. Keep going.',
+    prompt: 'Look around. Name 5 things you can see.',
+    placeholder: 'I see...',
+    completion: 'Good eyes.',
   },
   {
     count: 4,
-    sense: 'TOUCH',
+    sense: 'FEEL',
     icon: '✋',
     color: COLORS.purple,
     prompt: 'Notice 4 things you can physically feel right now.',
-    tapLabel: 'I feel something',
-    completion: 'Your body is here. So are you.',
+    placeholder: 'I feel...',
+    completion: 'Your body is here.',
   },
   {
     count: 3,
     sense: 'HEAR',
     icon: '👂',
     color: COLORS.indigoBright,
-    prompt: 'Listen for 3 sounds in the room or outside.',
-    tapLabel: 'I hear something',
-    completion: 'The world is going on without you scrolling.',
+    prompt: 'Listen for 3 sounds around you.',
+    placeholder: 'I hear...',
+    completion: 'The world keeps going.',
   },
   {
     count: 2,
@@ -77,7 +82,7 @@ const SENSES = [
     icon: '👃',
     color: '#ff9d4d',
     prompt: 'Notice 2 things you can smell (or the absence of smell).',
-    tapLabel: 'I notice a smell',
+    placeholder: 'I smell...',
     completion: 'Almost there.',
   },
   {
@@ -85,109 +90,123 @@ const SENSES = [
     sense: 'TASTE',
     icon: '👅',
     color: COLORS.green,
-    prompt: 'Notice 1 thing you can taste right now.',
-    tapLabel: 'I notice a taste',
+    prompt: 'What\'s the one taste you notice right now?',
+    placeholder: 'I taste...',
     completion: 'Done.',
   },
 ] as const;
 
-// Fixed score — 35 pause tokens. The exercise itself is the reward.
 const SCORE = 35;
 
 // ─── Main component ────────────────────────────────────────────────────────────
 
 export function GroundingExercise({ onComplete }: GroundingExerciseProps) {
-  // Which sense we're currently on (0–4)
-  const [senseIndex, setSenseIndex] = useState(0);
-  // How many taps done for the current sense
-  const [tapsForSense, setTapsForSense] = useState(0);
-  // Whether we're showing the completion message for the current sense
-  const [showCompletion, setShowCompletion] = useState(false);
-  // Whether we've finished all senses (show final screen)
-  const [allDone, setAllDone] = useState(false);
+  const [senseIndex,  setSenseIndex]  = useState(0);
+  // Logged observations per sense (parallel array to SENSES)
+  const [logged, setLogged] = useState<string[][]>(SENSES.map(() => []));
+  const [inputText, setInputText] = useState('');
+  const [allDone,   setAllDone]   = useState(false);
+
+  const inputRef = useRef<TextInput>(null);
+
+  // New-item pop-in animation
+  const newItemScale = useRef(new Animated.Value(0.8)).current;
+  const newItemOpacity = useRef(new Animated.Value(0)).current;
 
   const currentSense = SENSES[senseIndex];
-  const totalTaps    = SENSES.reduce((sum, s) => sum + s.count, 0); // = 15
-  const doneTaps     = SENSES.slice(0, senseIndex).reduce((sum, s) => sum + s.count, 0) + tapsForSense;
-  const progress     = doneTaps / totalTaps;
+  const currentLogged = logged[senseIndex];
+  const remaining = currentSense.count - currentLogged.length;
 
-  // ── Tap animation ──────────────────────────────────────────────────────────
-  const tapScale = useRef(new Animated.Value(1)).current;
+  const totalObs = SENSES.reduce((s, _, i) => s + (logged[i]?.length ?? 0), 0);
+  const totalNeeded = SENSES.reduce((s, sense) => s + sense.count, 0);
+  const progress = totalObs / totalNeeded;
 
-  const doTapBounce = () => {
-    Animated.sequence([
-      Animated.timing(tapScale, { toValue: 0.93, duration: 70, useNativeDriver: true }),
-      Animated.spring(tapScale, { toValue: 1, damping: 8, useNativeDriver: true }),
+  // Auto-focus the input when the sense changes
+  useEffect(() => {
+    const timer = setTimeout(() => inputRef.current?.focus(), 300);
+    return () => clearTimeout(timer);
+  }, [senseIndex]);
+
+  const animateNewItem = () => {
+    newItemScale.setValue(0.8);
+    newItemOpacity.setValue(0);
+    Animated.parallel([
+      Animated.spring(newItemScale, { toValue: 1, damping: 12, useNativeDriver: true }),
+      Animated.timing(newItemOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
     ]).start();
   };
 
-  // ── Handle a tap ──────────────────────────────────────────────────────────
-
-  const handleTap = () => {
-    if (showCompletion || allDone) return;
+  const handleSubmit = () => {
+    const text = inputText.trim();
+    if (text.length < 2) return;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    doTapBounce();
+    animateNewItem();
 
-    const newTaps = tapsForSense + 1;
-    setTapsForSense(newTaps);
+    const newLogged = logged.map((arr, i) =>
+      i === senseIndex ? [...arr, text] : arr
+    );
+    setLogged(newLogged);
+    setInputText('');
 
-    if (newTaps >= currentSense.count) {
-      // Finished all taps for this sense
+    const nowCount = newLogged[senseIndex].length;
+    if (nowCount >= currentSense.count) {
+      // Sense complete
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setShowCompletion(true);
-
-      // Show completion message briefly, then advance
-      setTimeout(() => {
-        const nextIndex = senseIndex + 1;
-        if (nextIndex >= SENSES.length) {
-          // All 5 senses done
-          setAllDone(true);
-        } else {
+      const nextIndex = senseIndex + 1;
+      if (nextIndex >= SENSES.length) {
+        setAllDone(true);
+      } else {
+        setTimeout(() => {
           setSenseIndex(nextIndex);
-          setTapsForSense(0);
-          setShowCompletion(false);
-        }
-      }, 1200);
+          setInputText('');
+        }, 600);
+      }
     }
   };
-
-  // ── Finish ─────────────────────────────────────────────────────────────────
 
   const handleFinish = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     onComplete(SCORE);
   };
 
-  // ── Dot progress indicator ─────────────────────────────────────────────────
-  // Shows all 5 senses as dots, filled/empty based on completion
-
-  const dots = SENSES.map((s, i) => {
-    const isCompleted = i < senseIndex || (i === senseIndex && showCompletion && senseIndex === SENSES.length - 1);
-    const isCurrent   = i === senseIndex && !allDone;
-    return { sense: s, isCompleted, isCurrent };
-  });
-
   // ══════════════════════════════════════════════════════════════════════════
-  //  RENDER: All done — final screen
+  //  RENDER: All done
   // ══════════════════════════════════════════════════════════════════════════
 
   if (allDone) {
     return (
       <SafeAreaView style={styles.safe}>
-        <View style={styles.doneContainer}>
+        <ScrollView contentContainerStyle={styles.doneScroll}>
           <Text style={styles.doneEmoji}>🌿</Text>
           <Text style={styles.doneTitle}>You're here.</Text>
           <Text style={styles.doneBody}>
             Most cravings last 90 seconds.{'\n'}
-            You just waited them out.{'\n\n'}
+            You just noticed {totalNeeded} things around you.{'\n\n'}
             Now decide — with a clear head.
           </Text>
 
-          <Pressable style={styles.finishButton} onPress={handleFinish}>
-            <Text style={styles.finishButtonText}>Continue (+{SCORE} tokens)</Text>
-          </Pressable>
-        </View>
+          {/* Summary of all observations */}
+          <View style={styles.summaryContainer}>
+            {SENSES.map((sense, i) => (
+              <View key={sense.sense} style={styles.summarySection}>
+                <Text style={[styles.summarySenseLabel, { color: sense.color }]}>
+                  {sense.icon}  {sense.sense}
+                </Text>
+                {logged[i].map((obs, j) => (
+                  <Text key={j} style={styles.summaryObs}>
+                    • {obs}
+                  </Text>
+                ))}
+              </View>
+            ))}
+          </View>
+
+          <ProceedButton
+            label={`Continue (+${SCORE} tokens)`}
+            onPress={handleFinish}
+          />
+        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -198,73 +217,125 @@ export function GroundingExercise({ onComplete }: GroundingExerciseProps) {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.container}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <View style={styles.container}>
 
-        {/* ── Progress bar ── */}
-        <View style={styles.progressBar}>
-          <View style={[styles.progressFill, { width: `${progress * 100}%` as any, backgroundColor: currentSense.color }]} />
-        </View>
-
-        {/* ── Sense dots ── */}
-        <View style={styles.dotsRow}>
-          {dots.map(({ sense, isCompleted, isCurrent }, i) => (
-            <View
-              key={sense.sense}
+          {/* ── Progress bar ── */}
+          <View style={styles.progressBar}>
+            <Animated.View
               style={[
-                styles.dot,
+                styles.progressFill,
                 {
-                  backgroundColor: isCompleted
-                    ? sense.color
-                    : isCurrent
-                      ? sense.color + '55'
-                      : COLORS.border,
-                  borderColor: isCurrent ? sense.color : 'transparent',
-                  borderWidth: isCurrent ? 2 : 0,
+                  width: `${progress * 100}%` as any,
+                  backgroundColor: currentSense.color,
                 },
               ]}
             />
-          ))}
-        </View>
+          </View>
 
-        {/* ── Current sense header ── */}
-        <View style={styles.senseHeader}>
-          <Text style={styles.senseIcon}>{currentSense.icon}</Text>
-          <Text style={[styles.senseName, { color: currentSense.color }]}>
-            {currentSense.sense}
-          </Text>
-          <Text style={[styles.senseCount, { color: currentSense.color }]}>
-            {tapsForSense} / {currentSense.count}
-          </Text>
-        </View>
+          {/* ── Sense dots ── */}
+          <View style={styles.dotsRow}>
+            {SENSES.map((sense, i) => {
+              const isCompleted = logged[i]?.length >= sense.count;
+              const isCurrent   = i === senseIndex;
+              return (
+                <View
+                  key={sense.sense}
+                  style={[
+                    styles.dot,
+                    {
+                      backgroundColor: isCompleted
+                        ? sense.color
+                        : isCurrent
+                          ? sense.color + '55'
+                          : COLORS.border,
+                      borderColor:  isCurrent ? sense.color : 'transparent',
+                      borderWidth:  isCurrent ? 2 : 0,
+                    },
+                  ]}
+                />
+              );
+            })}
+          </View>
 
-        {/* ── Prompt text ── */}
-        <Text style={styles.prompt}>{currentSense.prompt}</Text>
+          {/* ── Sense header ── */}
+          <View style={styles.senseHeader}>
+            <Text style={styles.senseIcon}>{currentSense.icon}</Text>
+            <Text style={[styles.senseName, { color: currentSense.color }]}>
+              {currentSense.sense}
+            </Text>
+            <View style={[styles.countPill, { backgroundColor: currentSense.color + '22', borderColor: currentSense.color + '55' }]}>
+              <Text style={[styles.countText, { color: currentSense.color }]}>
+                {remaining} more
+              </Text>
+            </View>
+          </View>
 
-        {/* ── Completion message (briefly shown after all taps for a sense) ── */}
-        {showCompletion && (
-          <Text style={[styles.completionMsg, { color: currentSense.color }]}>
-            {currentSense.completion}
-          </Text>
-        )}
+          {/* ── Prompt ── */}
+          <Text style={styles.prompt}>{currentSense.prompt}</Text>
 
-        {/* ── Big tap button ── */}
-        {!showCompletion && (
-          <Animated.View style={{ transform: [{ scale: tapScale }] }}>
+          {/* ── Logged items list ── */}
+          <View style={styles.loggedList}>
+            {currentLogged.map((item, idx) => (
+              <Animated.View
+                key={`${senseIndex}-${idx}`}
+                style={[
+                  styles.loggedItem,
+                  { borderColor: currentSense.color + '44' },
+                  idx === currentLogged.length - 1 && {
+                    transform: [{ scale: newItemScale }],
+                    opacity: newItemOpacity,
+                  },
+                ]}
+              >
+                <Feather name="check" size={13} color={currentSense.color} />
+                <Text style={[styles.loggedText, { color: COLORS.textSecondary }]}>
+                  {item}
+                </Text>
+              </Animated.View>
+            ))}
+          </View>
+
+          {/* ── Text input + submit ── */}
+          <View style={styles.inputRow}>
+            <TextInput
+              ref={inputRef}
+              style={[
+                styles.input,
+                { borderColor: currentSense.color + '66', color: COLORS.textPrimary },
+              ]}
+              value={inputText}
+              onChangeText={setInputText}
+              placeholder={currentSense.placeholder}
+              placeholderTextColor={COLORS.textMuted}
+              returnKeyType="done"
+              onSubmitEditing={handleSubmit}
+              autoCorrect={false}
+              autoCapitalize="sentences"
+              blurOnSubmit={false}
+            />
             <Pressable
-              style={[styles.tapButton, { backgroundColor: currentSense.color + '22', borderColor: currentSense.color + '66' }]}
-              onPress={handleTap}
+              style={[
+                styles.submitBtn,
+                { backgroundColor: currentSense.color + '22', borderColor: currentSense.color + '66' },
+                inputText.trim().length < 2 && styles.submitBtnDisabled,
+              ]}
+              onPress={handleSubmit}
+              disabled={inputText.trim().length < 2}
             >
-              <Text style={[styles.tapButtonText, { color: currentSense.color }]}>
-                {currentSense.tapLabel}
-              </Text>
-              <Text style={[styles.tapCounter, { color: currentSense.color + '88' }]}>
-                {currentSense.count - tapsForSense} more
-              </Text>
+              <Feather
+                name="arrow-right"
+                size={20}
+                color={inputText.trim().length >= 2 ? currentSense.color : COLORS.textMuted}
+              />
             </Pressable>
-          </Animated.View>
-        )}
+          </View>
 
-      </View>
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -279,11 +350,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: SPACING.xl,
-    paddingTop: SPACING.xxl,
-    alignItems: 'center',
-    gap: SPACING.xl,
+    paddingTop: SPACING.xl,
+    gap: SPACING.lg,
   },
 
+  // ── Progress ──
   progressBar: {
     width: '100%',
     height: 4,
@@ -295,10 +366,10 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: RADIUS.full,
   },
-
   dotsRow: {
     flexDirection: 'row',
     gap: SPACING.sm,
+    justifyContent: 'center',
   },
   dot: {
     width: 10,
@@ -306,63 +377,99 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.full,
   },
 
+  // ── Sense header ──
   senseHeader: {
     alignItems: 'center',
     gap: SPACING.xs,
-    marginTop: SPACING.lg,
+    marginTop: SPACING.sm,
   },
   senseIcon: {
-    fontSize: 52,
+    fontSize: 44,
   },
   senseName: {
     fontFamily: FONTS.mono,
-    fontSize: 12,
+    fontSize: 11,
     letterSpacing: 3,
   },
-  senseCount: {
+  countPill: {
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 4,
+    marginTop: 4,
+  },
+  countText: {
     fontFamily: FONTS.monoBold,
-    fontSize: 32,
+    fontSize: 13,
+    letterSpacing: 0.5,
   },
 
+  // ── Prompt ──
   prompt: {
     fontFamily: FONTS.body,
-    fontSize: 18,
+    fontSize: 17,
     color: COLORS.textSecondary,
     textAlign: 'center',
-    lineHeight: 28,
+    lineHeight: 26,
   },
 
-  completionMsg: {
-    fontFamily: FONTS.bodyMedium,
-    fontSize: 16,
-    textAlign: 'center',
+  // ── Logged items ──
+  loggedList: {
+    flex: 1,
+    gap: SPACING.xs,
+  },
+  loggedItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    backgroundColor: COLORS.surface,
+  },
+  loggedText: {
+    fontFamily: FONTS.body,
+    fontSize: 14,
+    flex: 1,
   },
 
-  tapButton: {
-    paddingVertical: SPACING.xxl,
-    paddingHorizontal: SPACING.xxxl,
-    borderRadius: RADIUS.lg,
+  // ── Input row ──
+  inputRow: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    alignItems: 'center',
+    paddingBottom: SPACING.xl,
+  },
+  input: {
+    flex: 1,
+    borderWidth: 1.5,
+    borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md,
+    fontFamily: FONTS.body,
+    fontSize: 15,
+    backgroundColor: COLORS.surface,
+  },
+  submitBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: RADIUS.md,
     borderWidth: 1.5,
     alignItems: 'center',
-    gap: SPACING.xs,
-    minWidth: 220,
+    justifyContent: 'center',
   },
-  tapButtonText: {
-    fontFamily: FONTS.display,
-    fontSize: 22,
-    letterSpacing: -0.3,
-  },
-  tapCounter: {
-    fontFamily: FONTS.mono,
-    fontSize: 13,
+  submitBtnDisabled: {
+    opacity: 0.35,
   },
 
   // ── Done screen ──
-  doneContainer: {
-    flex: 1,
+  doneScroll: {
+    flexGrow: 1,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: SPACING.xxl,
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.xxxl,
+    paddingBottom: SPACING.xxxl,
     gap: SPACING.xl,
   },
   doneEmoji: {
@@ -381,16 +488,24 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 28,
   },
-  finishButton: {
-    backgroundColor: COLORS.indigo,
-    paddingVertical: SPACING.lg,
-    paddingHorizontal: SPACING.xxl,
-    borderRadius: RADIUS.md,
+  summaryContainer: {
+    width: '100%',
+    gap: SPACING.lg,
   },
-  finishButtonText: {
-    fontFamily: FONTS.display,
-    fontSize: 18,
-    color: COLORS.background,
-    letterSpacing: -0.3,
+  summarySection: {
+    gap: SPACING.xs,
+  },
+  summarySenseLabel: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 13,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  summaryObs: {
+    fontFamily: FONTS.body,
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    lineHeight: 22,
+    paddingLeft: SPACING.sm,
   },
 });

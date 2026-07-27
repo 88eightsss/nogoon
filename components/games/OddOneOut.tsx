@@ -33,6 +33,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
+import { ProceedButton } from '@/components/ui/ProceedButton';
 
 // ─── Ad data types ────────────────────────────────────────────────────────────
 
@@ -426,9 +427,11 @@ export function OddOneOut({ onComplete }: Props) {
             </Text>
           </View>
 
-          <Pressable style={styles.startButton} onPress={() => onComplete(score)}>
-            <Text style={styles.startButtonText}>Continue →</Text>
-          </Pressable>
+          <ProceedButton
+            label="Continue →"
+            onPress={() => onComplete(score)}
+            style={{ width: '100%' }}
+          />
         </ScrollView>
       </SafeAreaView>
     );

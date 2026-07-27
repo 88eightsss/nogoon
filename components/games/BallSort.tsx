@@ -1,75 +1,98 @@
 // ─── BallSort — Standard Game ────────────────────────────────────────────────
 //
 // Classic tube-sort puzzle. Sort colored balls so each tube contains only one
-// color. Tap a tube to pick up the top ball, tap another to drop it there
-// (only valid if top of destination is same color OR tube is empty).
+// color. Tap a tube to pick up its top ball, tap another to drop it there.
 //
-// BOARD: 5 tubes, 4 balls tall, 4 colors. One tube starts empty (free slot).
+// BOARD: 5 tubes, 4 balls tall, 4 colors, 1 empty tube buffer.
+//
+// PUZZLE GENERATION: reverse-from-solved (20 random reverse moves) so the
+// puzzle is always solvable and never one-move trivial.
 //
 // SCORING:
 //   Solved ≤ 15 moves: 110 pts
 //   Solved ≤ 25 moves:  80 pts
 //   Any solve:          55 pts
-//
-// RULE: You can only move the top ball, and only onto the same color or empty.
 
-import { useState, useRef, useCallback } from 'react';
+import { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   SafeAreaView,
   Pressable,
-  Animated,
 } from 'react-native';
 import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
-const TUBE_COUNT   = 5;
-const TUBE_DEPTH   = 4;
-const COLOR_COUNT  = 4; // = TUBE_COUNT - 1 (one empty tube)
+const TUBE_COUNT  = 5;
+const TUBE_DEPTH  = 4;
+const COLOR_COUNT = 4; // TUBE_COUNT - 1 (one empty tube)
 
-const BALL_COLORS = ['#7c3aed', '#0e7490', '#b45309', '#be185d']; // purple, teal, amber, pink
+const BALL_COLORS = ['#7c3aed', '#0e7490', '#b45309', '#be185d'];
 const BALL_LABELS = ['A', 'B', 'C', 'D'];
+const SHUFFLE_MOVES = 25; // reverse moves from solved → guarantees solvable + non-trivial
 
-// ─── Board helpers ────────────────────────────────────────────────────────────
-// Each tube is an array where index 0 = BOTTOM, index length-1 = TOP
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-type Tube = number[]; // color index, -1 = empty slot
+type Tube = number[]; // color index; index 0 = BOTTOM, last = TOP
 
-function makeSolvedTubes(): Tube[] {
-  const tubes: Tube[] = [];
-  for (let c = 0; c < COLOR_COUNT; c++) {
-    tubes.push(Array(TUBE_DEPTH).fill(c));
+// ─── Puzzle helpers ───────────────────────────────────────────────────────────
+
+function solvedTubes(): Tube[] {
+  const t: Tube[] = [];
+  for (let c = 0; c < COLOR_COUNT; c++) t.push(Array(TUBE_DEPTH).fill(c));
+  t.push([]); // empty buffer tube
+  return t;
+}
+
+/** Deep-copy tubes array */
+function copyTubes(tubes: Tube[]): Tube[] {
+  return tubes.map((t) => [...t]);
+}
+
+/** A reverse move: pick the top of `to` and push it onto `from`.
+ *  Valid if `from` has room AND (from is empty OR from's top matches). */
+function canReverseMove(tubes: Tube[], from: number, to: number): boolean {
+  if (from === to) return false;
+  if (tubes[to].length === 0) return false; // nothing to pick from `to`
+  if (tubes[from].length >= TUBE_DEPTH) return false; // `from` is full
+  if (tubes[from].length === 0) return true; // `from` is empty — accept anything
+  return tubes[from][tubes[from].length - 1] === tubes[to][tubes[to].length - 1];
+}
+
+/** Generate a puzzle by applying SHUFFLE_MOVES random reverse moves from solved state. */
+function makeGame(): Tube[] {
+  let tubes = solvedTubes();
+  let steps = 0;
+  let tries = 0;
+
+  while (steps < SHUFFLE_MOVES && tries < 10000) {
+    tries++;
+    const from = Math.floor(Math.random() * TUBE_COUNT);
+    const to   = Math.floor(Math.random() * TUBE_COUNT);
+    if (!canReverseMove(tubes, from, to)) continue;
+    const next = copyTubes(tubes);
+    const ball = next[to].pop()!;
+    next[from].push(ball);
+    tubes = next;
+    steps++;
   }
-  tubes.push([]); // one empty tube
+
   return tubes;
 }
 
-function shuffleTubes(tubes: Tube[]): Tube[] {
-  // Collect all balls and redistribute randomly across non-empty tubes
-  const allBalls: number[] = [];
-  for (let t = 0; t < tubes.length - 1; t++) {
-    allBalls.push(...tubes[t]);
-  }
-  // Fisher-Yates shuffle
-  for (let i = allBalls.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [allBalls[i], allBalls[j]] = [allBalls[j], allBalls[i]];
-  }
-  const result: Tube[] = [];
-  let ptr = 0;
-  for (let t = 0; t < tubes.length - 1; t++) {
-    result.push(allBalls.slice(ptr, ptr + TUBE_DEPTH));
-    ptr += TUBE_DEPTH;
-  }
-  result.push([]); // keep empty tube
-  return result;
+/** Forward move: can we move the top ball from `from` onto `to`? */
+function canDrop(tubes: Tube[], from: number, to: number): boolean {
+  if (from === to) return false;
+  if (tubes[from].length === 0) return false;
+  if (tubes[to].length >= TUBE_DEPTH) return false;
+  if (tubes[to].length === 0) return true; // empty tube accepts anything
+  return tubes[to][tubes[to].length - 1] === tubes[from][tubes[from].length - 1];
 }
 
-function isSolvedTubes(tubes: Tube[]): boolean {
+function isSolved(tubes: Tube[]): boolean {
   for (const tube of tubes) {
     if (tube.length === 0) continue;
     if (tube.length !== TUBE_DEPTH) return false;
@@ -78,27 +101,15 @@ function isSolvedTubes(tubes: Tube[]): boolean {
   return true;
 }
 
-function makeGame(): Tube[] {
-  const solved = makeSolvedTubes();
-  let game = shuffleTubes(solved);
-  while (isSolvedTubes(game)) game = shuffleTubes(solved);
-  return game;
+function isTubeDone(tube: Tube): boolean {
+  return tube.length === TUBE_DEPTH && tube.every((b) => b === tube[0]);
 }
 
-function canDrop(from: Tube, to: Tube): boolean {
-  if (from.length === 0) return false;
-  if (to.length >= TUBE_DEPTH) return false;
-  if (to.length === 0) return true; // empty tube accepts anything
-  return to[to.length - 1] === from[from.length - 1];
-}
-
-// ─── Props ────────────────────────────────────────────────────────────────────
+// ─── Component ───────────────────────────────────────────────────────────────
 
 interface Props {
   onComplete: (score: number) => void;
 }
-
-// ─── Component ───────────────────────────────────────────────────────────────
 
 export function BallSort({ onComplete }: Props) {
   const [phase, setPhase]       = useState<'ready' | 'playing' | 'solved'>('ready');
@@ -106,23 +117,11 @@ export function BallSort({ onComplete }: Props) {
   const [selected, setSelected] = useState<number | null>(null);
   const [moves, setMoves]       = useState(0);
 
-  // Per-tube bounce animation
-  const tubeScale = useRef<Animated.Value[]>(
-    Array.from({ length: TUBE_COUNT }, () => new Animated.Value(1))
-  ).current;
-
-  const bounceTube = (idx: number) => {
-    Animated.sequence([
-      Animated.timing(tubeScale[idx], { toValue: 0.92, duration: 70, useNativeDriver: true }),
-      Animated.spring(tubeScale[idx],  { toValue: 1,    damping: 10,  useNativeDriver: true }),
-    ]).start();
-  };
-
-  const handleTubeTap = useCallback((tubeIdx: number) => {
-    bounceTube(tubeIdx);
+  const tap = (tubeIdx: number) => {
+    if (phase !== 'playing') return;
 
     if (selected === null) {
-      if (tubes[tubeIdx].length === 0) return; // can't select empty tube
+      if (tubes[tubeIdx].length === 0) return;
       setSelected(tubeIdx);
       return;
     }
@@ -132,18 +131,19 @@ export function BallSort({ onComplete }: Props) {
       return;
     }
 
-    const from = tubes[selected];
-    const to   = tubes[tubeIdx];
-
-    if (!canDrop(from, to)) {
-      // Invalid move — deselect
-      setSelected(null);
+    if (!canDrop(tubes, selected, tubeIdx)) {
+      // Re-select new tube if it has balls
+      if (tubes[tubeIdx].length > 0) {
+        setSelected(tubeIdx);
+      } else {
+        setSelected(null);
+      }
       return;
     }
 
-    // Move top ball from → to
-    const next     = tubes.map((t) => [...t]);
-    const ball     = next[selected].pop()!;
+    // Execute move
+    const next = copyTubes(tubes);
+    const ball = next[selected].pop()!;
     next[tubeIdx].push(ball);
 
     const newMoves = moves + 1;
@@ -151,47 +151,45 @@ export function BallSort({ onComplete }: Props) {
     setMoves(newMoves);
     setSelected(null);
 
-    if (isSolvedTubes(next)) {
+    if (isSolved(next)) {
       const pts = newMoves <= 15 ? 110 : newMoves <= 25 ? 80 : 55;
       setPhase('solved');
-      setTimeout(() => onComplete(pts), 900);
+      setTimeout(() => onComplete(pts), 800);
     }
-  }, [tubes, selected, moves]);
+  };
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // PHASE: READY
-  // ─────────────────────────────────────────────────────────────────────────
+  // ── READY ──────────────────────────────────────────────────────────────────
 
   if (phase === 'ready') {
     return (
       <SafeAreaView style={styles.safe}>
-        <View style={styles.readyContainer}>
-          <Text style={styles.readyEmoji}>🧪</Text>
-          <Text style={styles.readyTitle}>Ball Sort</Text>
-          <View style={styles.readyCard}>
-            <Text style={styles.readyRule}>
-              Tap a tube to pick up the top ball. Tap another tube to drop it — but only
-              if the top ball matches or the tube is empty.{'\n\n'}
-              Sort every tube so each holds only one color.
+        <View style={styles.center}>
+          <Text style={styles.bigEmoji}>🧪</Text>
+          <Text style={styles.title}>Ball Sort</Text>
+          <View style={styles.rulesCard}>
+            <Text style={styles.rulesText}>
+              Tap a tube to pick up its top ball.{'\n'}
+              Tap another tube to drop it there.{'\n\n'}
+              You can only drop onto the same color{'\n'}
+              or into an empty tube.{'\n\n'}
+              Sort every tube so each holds one color.
             </Text>
           </View>
-          <Pressable style={styles.startButton} onPress={() => setPhase('playing')}>
-            <Text style={styles.startButtonText}>Let's sort →</Text>
+          <Pressable style={styles.startBtn} onPress={() => setPhase('playing')}>
+            <Text style={styles.startBtnText}>Let's sort →</Text>
           </Pressable>
         </View>
       </SafeAreaView>
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // PHASE: PLAYING / SOLVED
-  // ─────────────────────────────────────────────────────────────────────────
+  // ── PLAYING / SOLVED ───────────────────────────────────────────────────────
 
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.container}>
+      <View style={styles.gameContainer}>
 
-        {/* ── Header ── */}
+        {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Ball Sort</Text>
           <View style={styles.movesPill}>
@@ -199,68 +197,60 @@ export function BallSort({ onComplete }: Props) {
           </View>
         </View>
 
-        {/* ── Hint ── */}
+        {/* Hint */}
         <Text style={styles.hint}>
           {selected !== null
-            ? `Tap a tube to drop the ball`
+            ? 'Now tap a tube to drop the ball'
             : 'Tap a tube to pick up the top ball'}
         </Text>
 
-        {/* ── Tubes ── */}
+        {/* Tubes */}
         <View style={styles.tubesRow}>
           {tubes.map((tube, tIdx) => {
             const isSelected = tIdx === selected;
-            const topBall    = tube.length > 0 ? tube[tube.length - 1] : -1;
+            const isDone     = isTubeDone(tube);
+            const canReceive = selected !== null && selected !== tIdx && canDrop(tubes, selected, tIdx);
+
             return (
-              <Animated.View
+              <Pressable
                 key={tIdx}
                 style={[
-                  styles.tubeWrap,
-                  { transform: [{ scale: tubeScale[tIdx] }] },
+                  styles.tube,
+                  isSelected && styles.tubeSelected,
+                  canReceive && styles.tubeCanReceive,
+                  isDone     && styles.tubeDone,
                 ]}
+                onPress={() => tap(tIdx)}
               >
-                <Pressable
-                  style={[
-                    styles.tube,
-                    isSelected && { borderColor: '#ffffff', borderWidth: 2 },
-                  ]}
-                  onPress={() => handleTubeTap(tIdx)}
-                >
-                  {/* Empty slots (top) */}
-                  {Array.from({ length: TUBE_DEPTH - tube.length }).map((_, i) => (
-                    <View key={`e${i}`} style={styles.ballEmpty} />
-                  ))}
-                  {/* Balls (bottom to top, rendered top to bottom in column) */}
-                  {[...tube].reverse().map((colorId, bIdx) => {
-                    const isTop = bIdx === 0;
-                    return (
-                      <View
-                        key={bIdx}
-                        style={[
-                          styles.ball,
-                          { backgroundColor: BALL_COLORS[colorId] },
-                          isTop && isSelected && styles.ballSelected,
-                        ]}
-                      >
-                        <Text style={styles.ballLabel}>{BALL_LABELS[colorId]}</Text>
-                      </View>
-                    );
-                  })}
-                </Pressable>
-
-                {/* Tube solved indicator */}
-                {tube.length === TUBE_DEPTH && tube.every((b) => b === tube[0]) && (
-                  <Text style={styles.tubeCheck}>✓</Text>
-                )}
-              </Animated.View>
+                {/* Empty slots */}
+                {Array.from({ length: TUBE_DEPTH - tube.length }).map((_, i) => (
+                  <View key={`e${i}`} style={styles.emptySlot} />
+                ))}
+                {/* Balls — stored bottom-first, rendered top-first */}
+                {[...tube].reverse().map((colorId, bIdx) => {
+                  const isTopBall = bIdx === 0;
+                  return (
+                    <View
+                      key={bIdx}
+                      style={[
+                        styles.ball,
+                        { backgroundColor: BALL_COLORS[colorId] },
+                        isTopBall && isSelected && styles.ballLifted,
+                      ]}
+                    >
+                      <Text style={styles.ballLabel}>{BALL_LABELS[colorId]}</Text>
+                    </View>
+                  );
+                })}
+              </Pressable>
             );
           })}
         </View>
 
-        {/* ── Solved overlay ── */}
+        {/* Solved overlay — shown ONLY when solved to not block touch */}
         {phase === 'solved' && (
-          <View style={styles.solvedOverlay}>
-            <Text style={styles.solvedEmoji}>🧪</Text>
+          <View pointerEvents="none" style={styles.solvedOverlay}>
+            <Text style={styles.solvedEmoji}>🎉</Text>
             <Text style={styles.solvedTitle}>Sorted!</Text>
             <Text style={styles.solvedSub}>{moves} moves</Text>
           </View>
@@ -273,17 +263,14 @@ export function BallSort({ onComplete }: Props) {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const BALL_SIZE  = 52;
-const TUBE_WIDTH = 60;
+const BALL_SIZE  = 46;
+const TUBE_WIDTH = 54;
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
+  safe: { flex: 1, backgroundColor: COLORS.background },
 
   // ── Ready ─────────────────────────────────────────────────────────────────
-  readyContainer: {
+  center: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -291,15 +278,15 @@ const styles = StyleSheet.create({
     gap: SPACING.xl,
   },
 
-  readyEmoji: { fontSize: 72, lineHeight: 84 },
+  bigEmoji: { fontSize: 64, lineHeight: 76 },
 
-  readyTitle: {
+  title: {
     fontFamily: FONTS.display,
     fontSize: 34,
     color: COLORS.textPrimary,
   },
 
-  readyCard: {
+  rulesCard: {
     backgroundColor: COLORS.surface,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
@@ -308,34 +295,34 @@ const styles = StyleSheet.create({
     width: '100%',
   },
 
-  readyRule: {
+  rulesText: {
     fontFamily: FONTS.body,
     fontSize: 15,
     color: COLORS.textSecondary,
-    lineHeight: 22,
+    lineHeight: 24,
     textAlign: 'center',
   },
 
-  startButton: {
+  startBtn: {
     backgroundColor: COLORS.purple,
     borderRadius: RADIUS.md,
     paddingVertical: SPACING.lg,
     paddingHorizontal: SPACING.xxxl,
   },
 
-  startButtonText: {
+  startBtnText: {
     fontFamily: FONTS.bodyBold,
     fontSize: 17,
     color: COLORS.background,
   },
 
-  // ── Playing ───────────────────────────────────────────────────────────────
-  container: {
+  // ── Game ──────────────────────────────────────────────────────────────────
+  gameContainer: {
     flex: 1,
     alignItems: 'center',
     paddingTop: SPACING.xl,
-    paddingHorizontal: SPACING.lg,
-    gap: SPACING.lg,
+    paddingHorizontal: SPACING.md,
+    gap: SPACING.md,
   },
 
   header: {
@@ -343,6 +330,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     width: '100%',
+    paddingHorizontal: SPACING.sm,
   },
 
   headerTitle: {
@@ -371,18 +359,14 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: COLORS.textMuted,
     textAlign: 'center',
+    minHeight: 18,
   },
 
   tubesRow: {
     flexDirection: 'row',
-    gap: SPACING.md,
+    gap: SPACING.sm,
     alignItems: 'flex-end',
-    marginTop: SPACING.lg,
-  },
-
-  tubeWrap: {
-    alignItems: 'center',
-    gap: 4,
+    marginTop: SPACING.xl,
   },
 
   tube: {
@@ -395,13 +379,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     gap: 4,
     alignItems: 'center',
-    overflow: 'hidden',
+    minHeight: TUBE_DEPTH * (BALL_SIZE + 4) + 12,
+    justifyContent: 'flex-end',
   },
 
-  ballEmpty: {
+  tubeSelected: {
+    borderColor: COLORS.indigoBright,
+    borderWidth: 2,
+    backgroundColor: COLORS.indigoBright + '18',
+  },
+
+  tubeCanReceive: {
+    borderColor: COLORS.green,
+    borderWidth: 2,
+    backgroundColor: COLORS.green + '12',
+  },
+
+  tubeDone: {
+    borderColor: COLORS.green + '66',
+    backgroundColor: COLORS.green + '0a',
+  },
+
+  emptySlot: {
     width: BALL_SIZE,
     height: BALL_SIZE,
-    borderRadius: BALL_SIZE / 2,
   },
 
   ball: {
@@ -412,28 +413,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  ballSelected: {
+  ballLifted: {
     borderWidth: 2,
     borderColor: '#ffffff',
+    opacity: 0.85,
+    transform: [{ scale: 1.08 }],
   },
 
   ballLabel: {
     fontFamily: FONTS.bodyBold,
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
-  },
-
-  tubeCheck: {
-    fontFamily: FONTS.bodyBold,
-    fontSize: 16,
-    color: COLORS.green,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.85)',
   },
 
   // ── Solved overlay ────────────────────────────────────────────────────────
   solvedOverlay: {
     position: 'absolute',
     top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: 'rgba(13,12,20,0.82)',
+    backgroundColor: 'rgba(13,12,20,0.85)',
     alignItems: 'center',
     justifyContent: 'center',
     gap: SPACING.md,

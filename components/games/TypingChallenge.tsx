@@ -31,6 +31,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
+import { ProceedButton } from '@/components/ui/ProceedButton';
 
 // ─── Phrase bank ───────────────────────────────────────────────────────────────
 // Each phrase is chosen to reinforce the app's values while keeping fingers busy.
@@ -140,7 +141,7 @@ export function TypingChallenge({ onComplete, duration = 30 }: Props) {
 
   const renderPhrase = () =>
     phrase.split('').map((char, i) => {
-      let color = COLORS.textMuted;
+      let color: string = COLORS.textMuted;
       if (i < input.length) color = COLORS.green;         // typed correctly
       else if (i === input.length) color = COLORS.textPrimary; // cursor position
       return (
@@ -188,9 +189,11 @@ export function TypingChallenge({ onComplete, duration = 30 }: Props) {
           <Text style={styles.completeEmoji}>⏱️</Text>
           <Text style={styles.completeTitle}>Time's up</Text>
           <Text style={styles.completeSub}>Still counts — you broke the pattern.</Text>
-          <Pressable style={styles.startButton} onPress={() => onComplete(40)}>
-            <Text style={styles.startButtonText}>Continue</Text>
-          </Pressable>
+          <ProceedButton
+            label="Continue"
+            onPress={() => onComplete(40)}
+            style={{ width: '100%' }}
+          />
         </View>
       </SafeAreaView>
     );

@@ -10,7 +10,7 @@
 //   20+ gems cleared in ≤ 15 moves: 80 pts
 //   Clears 15+ gems:                 55 pts (partial success)
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -119,8 +119,13 @@ function swapCells(board: Board, r1: number, c1: number, r2: number, c2: number)
   return next;
 }
 
+/** True if (r2,c2) is any of the 8 surrounding cells of (r1,c1) — including diagonals. */
 function adjacent(r1: number, c1: number, r2: number, c2: number): boolean {
-  return Math.abs(r1 - r2) + Math.abs(c1 - c2) === 1;
+  return (
+    Math.abs(r1 - r2) <= 1 &&
+    Math.abs(c1 - c2) <= 1 &&
+    !(r1 === r2 && c1 === c2)
+  );
 }
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -139,12 +144,20 @@ export function GemMatch({ onComplete }: Props) {
   const [cleared, setCleared]   = useState(0);
   const [processing, setProcessing] = useState(false);
 
-  // Per-cell flash animation (for matches)
+  // Per-cell flash animation (scale) and fall animation (translateY)
   const cellFlash = useRef<Animated.Value[][]>(
     Array.from({ length: ROWS }, () =>
       Array.from({ length: COLS }, () => new Animated.Value(1))
     )
   ).current;
+
+  const cellFall = useRef<Animated.Value[][]>(
+    Array.from({ length: ROWS }, () =>
+      Array.from({ length: COLS }, () => new Animated.Value(0))
+    )
+  ).current;
+
+  const fallAnimRef = useRef<Animated.CompositeAnimation | null>(null);
 
   // Flash matched cells then resolve
   const flashAndClear = (b: Board, matches: Match[], totalCleared: number, moveCount: number) => {
@@ -165,8 +178,33 @@ export function GemMatch({ onComplete }: Props) {
       const settled = applyGravity(cleared_board);
       const total   = totalCleared + newClears;
 
+      // Stop any in-flight fall animation before starting new ones
+      if (fallAnimRef.current) {
+        fallAnimRef.current.stop();
+        for (let fr = 0; fr < ROWS; fr++) for (let fc = 0; fc < COLS; fc++) cellFall[fr][fc].setValue(0);
+      }
+
+      // Identify cells that changed (cleared → new gem fell in, or tile shifted down)
+      const changedCells: [number, number][] = [];
+      for (let fr = 0; fr < ROWS; fr++) {
+        for (let fc = 0; fc < COLS; fc++) {
+          if (cleared_board[fr][fc] !== settled[fr][fc]) changedCells.push([fr, fc]);
+        }
+      }
+
+      // Set board to settled positions, then animate gems falling in from above
       setBoard(settled);
       setCleared(total);
+
+      if (changedCells.length > 0) {
+        for (const [fr, fc] of changedCells) cellFall[fr][fc].setValue(-(CELL_SIZE + CELL_GAP) * 2.5);
+        const fallAnims = changedCells.map(([fr, fc]) =>
+          Animated.spring(cellFall[fr][fc], { toValue: 0, friction: 7, tension: 90, useNativeDriver: true })
+        );
+        const fa = Animated.stagger(18, fallAnims);
+        fallAnimRef.current = fa;
+        fa.start(() => { fallAnimRef.current = null; });
+      }
 
       // Check for cascading matches
       const cascadeMatches = findMatches(settled);
@@ -190,7 +228,7 @@ export function GemMatch({ onComplete }: Props) {
     });
   };
 
-  const handleTap = useCallback((r: number, c: number) => {
+  const handleTap = (r: number, c: number) => {
     if (processing || phase !== 'playing') return;
 
     if (selected === null) {
@@ -222,7 +260,7 @@ export function GemMatch({ onComplete }: Props) {
     setProcessing(true);
 
     setTimeout(() => flashAndClear(swapped, matches, cleared, newMoves), 100);
-  }, [board, selected, moves, cleared, processing, phase]);
+  };
 
   // ─────────────────────────────────────────────────────────────────────────
   // PHASE: READY
@@ -236,9 +274,9 @@ export function GemMatch({ onComplete }: Props) {
           <Text style={styles.readyTitle}>Gem Match</Text>
           <View style={styles.readyCard}>
             <Text style={styles.readyRule}>
-              Swap adjacent gems to match 3 or more in a row or column. Clear {TARGET_CLEARS} gems
-              in {MAX_MOVES} moves to win.{'\n\n'}
-              Only valid swaps (ones that create a match) are counted as moves.
+              Swap any neighboring gem — including diagonals — to match 3 or more in a row or column.{'\n\n'}
+              Clear {TARGET_CLEARS} gems in {MAX_MOVES} moves to win.{'\n\n'}
+              Only swaps that create a match are counted as moves.
             </Text>
           </View>
           <View style={styles.gemRow}>
@@ -296,7 +334,7 @@ export function GemMatch({ onComplete }: Props) {
                   key={`${r}-${c}`}
                   style={[
                     styles.cellWrap,
-                    { transform: [{ scale: cellFlash[r][c] }] },
+                    { transform: [{ translateY: cellFall[r][c] }, { scale: cellFlash[r][c] }] },
                   ]}
                 >
                   <Pressable
@@ -317,7 +355,7 @@ export function GemMatch({ onComplete }: Props) {
 
         {/* ── Done overlay ── */}
         {phase === 'done' && (
-          <View style={styles.doneOverlay}>
+          <View pointerEvents="none" style={styles.doneOverlay}>
             <Text style={styles.doneEmoji}>{cleared >= TARGET_CLEARS ? '💎' : '💫'}</Text>
             <Text style={styles.doneTitle}>
               {cleared >= TARGET_CLEARS ? 'Cleared!' : `${cleared} gems cleared`}

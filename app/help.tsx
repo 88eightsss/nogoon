@@ -18,8 +18,7 @@ import { ScrollView, View, Text, Pressable, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { useUserStore } from '@/stores/useUserStore';
-import { getColors, FONTS } from '@/constants/Colors';
+import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 
 // ─── Section content ─────────────────────────────────────────────────────────
@@ -66,8 +65,7 @@ const SECTIONS = [
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function HelpScreen() {
-  const { colorScheme } = useUserStore();
-  const C = getColors(colorScheme ?? 'dark');
+  const C = COLORS;
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]}>

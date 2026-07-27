@@ -18,7 +18,7 @@
 //   const { serviceEnabled, blockedApps, toggleApp, openSettings } = useAppBlocker()
 
 import { useState, useEffect, useCallback } from 'react';
-import { Platform, NativeModules } from 'react-native';
+import { Platform, NativeModules, AppState } from 'react-native';
 import * as IntentLauncher from 'expo-intent-launcher';
 import { useUserStore } from '@/stores/useUserStore';
 
@@ -81,6 +81,9 @@ export function useAppBlocker() {
   const { blockedApps, setBlockedApps, blocklist: websiteBlocklist } = useUserStore();
   const [serviceEnabled, setServiceEnabled] = useState(false);
   const [checking, setChecking]             = useState(true);
+  const [grayscaleEnabled, setGrayscaleEnabledState] = useState(false);
+  // Raw expiry timestamp from native (ms). 0 = not paused. > Date.now() = paused.
+  const [blockingPausedUntil, setBlockingPausedUntil] = useState<number>(0);
 
   // ── Temporary unlock state ─────────────────────────────────────────────────
   // Tracks domains the user has unlocked temporarily after playing a game.
@@ -89,8 +92,38 @@ export function useAppBlocker() {
   const [tempUnlocks, setTempUnlocks] = useState<Record<string, number>>({});
 
   // ── Check if Accessibility Service is enabled ──────────────────────────────
-  // Polls every 2 seconds so the UI updates immediately after the user grants
-  // permission in Android Settings without needing to restart the app.
+  // Checked on mount, on every app resume, and every 30s as a backstop.
+
+  // Load grayscale preference from native layer on mount
+  useEffect(() => {
+    if (!hasNativeModule) return;
+    AppBlocker.isGrayscaleEnabled()
+      .then((val: boolean) => setGrayscaleEnabledState(val))
+      .catch(() => {});
+  }, []);
+
+  // Load blockingPausedUntil timestamp from native layer on mount
+  useEffect(() => {
+    if (!hasNativeModule) return;
+    AppBlocker.isBlockingPaused()
+      .then((val: number) => setBlockingPausedUntil(val))
+      .catch(() => {});
+  }, []);
+
+  const setGrayscaleEnabled = useCallback(async (enabled: boolean) => {
+    setGrayscaleEnabledState(enabled);
+    if (hasNativeModule) {
+      try { await AppBlocker.setGrayscaleEnabled(enabled); } catch {}
+    }
+  }, []);
+
+  // Clears the pause — called when user taps "Resume" in the app.
+  const resumeBlocking = useCallback(async () => {
+    setBlockingPausedUntil(0);
+    if (hasNativeModule) {
+      try { await AppBlocker.setBlockingPaused(false); } catch {}
+    }
+  }, []);
 
   const checkServiceStatus = useCallback(async () => {
     if (!hasNativeModule) {
@@ -107,10 +140,34 @@ export function useAppBlocker() {
     }
   }, []);
 
+  // Check service status once on mount, then on every app resume.
+  // The service status only changes when the user enables/disables it in Android
+  // Settings — no need to poll continuously while the app is in the foreground.
   useEffect(() => {
     checkServiceStatus();
-    const interval = setInterval(checkServiceStatus, 2000);
-    return () => clearInterval(interval);
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') return;
+      checkServiceStatus();
+      // Re-check blockingPausedUntil in case user toggled the QS tile while away
+      if (hasNativeModule) {
+        AppBlocker.isBlockingPaused()
+          .then((val: number) => setBlockingPausedUntil(val))
+          .catch(() => {});
+      }
+      // Also clean up any temp unlocks that expired while the app was backgrounded
+      const now = Date.now();
+      setTempUnlocks(prev => {
+        const cleaned = { ...prev };
+        let changed = false;
+        for (const [domain, expiry] of Object.entries(cleaned)) {
+          if (expiry <= now) { delete cleaned[domain]; changed = true; }
+        }
+        return changed ? cleaned : prev;
+      });
+    });
+    // Re-check every 30 s — Android can kill the service between AppState changes
+    const pollInterval = setInterval(checkServiceStatus, 30_000);
+    return () => { sub.remove(); clearInterval(pollInterval); };
   }, [checkServiceStatus]);
 
   // ── Sync blocked apps to native layer ─────────────────────────────────────
@@ -199,6 +256,28 @@ export function useAppBlocker() {
     }
   }, [hasNativeModule]);
 
+  // ── Grayscale / dopamine-reduction shortcut ────────────────────────────────
+  // Opens Android Accessibility Settings → Color Correction so the user can
+  // enable "Grayscale" mode. Programmatic toggle requires WRITE_SECURE_SETTINGS
+  // which Play Store apps cannot obtain, so this is a one-tap shortcut instead.
+  const openGrayscaleSettings = useCallback(async () => {
+    if (hasNativeModule) {
+      try {
+        await AppBlocker.openGrayscaleSettings();
+        return;
+      } catch (e) {
+        console.warn('openGrayscaleSettings failed, trying fallback:', e);
+      }
+    }
+    try {
+      await IntentLauncher.startActivityAsync(
+        IntentLauncher.ActivityAction.ACCESSIBILITY_SETTINGS
+      );
+    } catch (e) {
+      console.warn('Could not open accessibility settings:', e);
+    }
+  }, [hasNativeModule]);
+
   // ── Temporary unlock ──────────────────────────────────────────────────────
   // Called from post-game.tsx when the user taps "Unlock for 10 min".
   // Stores the expiry in state (and tells the Android native module too).
@@ -226,30 +305,58 @@ export function useAppBlocker() {
     }, minutes * 60 * 1000);
   }, [hasNativeModule]);
 
+  // ── Computed pause values ─────────────────────────────────────────────────
+  // Derived from the raw timestamp each render — no extra state needed.
+  const nowMs = Date.now();
+  const isBlockingPaused       = blockingPausedUntil > nowMs;
+  const blockingPausedMinutesLeft = isBlockingPaused
+    ? Math.ceil((blockingPausedUntil - nowMs) / 60_000)
+    : 0;
+
+  // Auto-clear expired pause state so UI updates when the 30-min window closes.
+  // A 30s interval is more than accurate enough for a minutes-remaining display.
+  useEffect(() => {
+    if (!isBlockingPaused) return;
+    const interval = setInterval(() => {
+      if (blockingPausedUntil <= Date.now()) {
+        setBlockingPausedUntil(0);
+      }
+    }, 30_000);
+    return () => clearInterval(interval);
+  }, [isBlockingPaused, blockingPausedUntil]);
+
   // ── Derived blocking status ───────────────────────────────────────────────
-  // Three possible states that ShieldStatus and the home screen can display:
+  // Four possible states that ShieldStatus and the home screen can display:
+  //   'paused'  — blocking is temporarily paused via QS tile
   //   'active'  — accessibility service is ON and at least one site/app is blocked
   //   'empty'   — service is ON but the blocklist is empty (user hasn't added anything)
   //   'off'     — accessibility service is disabled (needs user to go to Settings)
   const hasAnyBlocks = blockedApps.length > 0 || websiteBlocklist.length > 0;
-  const blockingStatus: 'active' | 'empty' | 'off' = !serviceEnabled
-    ? 'off'
-    : hasAnyBlocks
-      ? 'active'
-      : 'empty';
+  const blockingStatus: 'paused' | 'active' | 'empty' | 'off' = isBlockingPaused
+    ? 'paused'
+    : !serviceEnabled
+      ? 'off'
+      : hasAnyBlocks
+        ? 'active'
+        : 'empty';
 
   return {
     serviceEnabled,        // boolean — true if user has granted permission
     checking,              // boolean — true while first checking status
-    blockedApps,           // string[] — list of blocked package names
-    toggleApp,             // (packageName: string) => void
+    blockedApps, toggleApp,             // (packageName: string) => void
     openSettings,          // () => void — opens Accessibility Settings
     checkBatteryOptimized, // () => Promise<boolean> — true if optimization is ON (bad)
     openBatterySettings,   // () => void — opens battery optimization settings
+    openGrayscaleSettings, // () => void — opens Accessibility Settings → Color Correction
+    grayscaleEnabled,      // boolean — whether dim overlay fires on gate launch
+    setGrayscaleEnabled,   // (enabled: boolean) => Promise<void>
     checkServiceStatus,
     hasNativeModule,       // boolean — false in Expo Go, true in built app
-    blockingStatus,        // 'active' | 'empty' | 'off' — for ShieldStatus component
+    blockingStatus,        // 'paused' | 'active' | 'empty' | 'off' — for ShieldStatus component
     unlockTemporarily,     // (domain, minutes) => void — after game, let domain through
     tempUnlocks,           // Record<domain, expiryMs> — currently unlocked domains
+    isBlockingPaused,           // boolean — true when QS tile has paused blocking
+    blockingPausedMinutesLeft,  // number — minutes remaining in the pause window
+    resumeBlocking,             // () => Promise<void> — clears the paused flag
   };
 }

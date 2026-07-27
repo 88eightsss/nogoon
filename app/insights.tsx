@@ -20,10 +20,11 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { useUserStore } from '@/stores/useUserStore';
@@ -88,7 +89,7 @@ export default function InsightsScreen() {
       {/* Back arrow + title + PRO badge */}
       <View style={styles.header}>
         <Pressable style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color={COLORS.textPrimary} />
+          <Feather name="arrow-left" size={22} color={COLORS.textPrimary} />
         </Pressable>
         <Text style={styles.headerTitle}>Weekly Insights</Text>
         {/* PRO badge sits to the right of the title */}

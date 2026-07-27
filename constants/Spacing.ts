@@ -1,8 +1,6 @@
 // Spacing scale — use these instead of hardcoded numbers for margins and padding.
-// This keeps all spacing consistent across the app. If you want things to feel
-// more spacious or compact, you change it here and it updates everywhere.
 //
-// Usage: import { SPACING } from '@/constants/Spacing'
+// Usage: import { SPACING, RADIUS } from '@/constants/Spacing'
 //        style={{ padding: SPACING.lg }}
 
 export const SPACING = {
@@ -16,8 +14,8 @@ export const SPACING = {
   huge: 48, // Maximum — top of screen breathing room
 } as const;
 
-// Border radius scale — how rounded the corners are
 export const RADIUS = {
+  xs: 4,    // Tight rounding — small chips, inline badges
   sm: 8,    // Buttons, small badges
   md: 12,   // Cards
   lg: 16,   // Large cards

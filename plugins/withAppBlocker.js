@@ -71,6 +71,39 @@ function withAppBlockerManifest(config) {
       });
     }
 
+    // ── Quick Settings tile ────────────────────────────────────────────────
+    const tileName     = '.NoGoonQsTile';
+    const tileExists   = application.service.some(
+      (s) => s.$?.['android:name'] === tileName
+    );
+
+    if (!tileExists) {
+      application.service.push({
+        $: {
+          'android:name':       tileName,
+          'android:label':      'NoGoon',
+          'android:permission': 'android.permission.BIND_QUICK_SETTINGS_TILE',
+          'android:exported':   'true',
+          'android:icon':       '@mipmap/ic_launcher',
+        },
+        'intent-filter': [
+          {
+            action: [
+              { $: { 'android:name': 'android.service.quicksettings.action.QS_TILE' } },
+            ],
+          },
+        ],
+        'meta-data': [
+          {
+            $: {
+              'android:name':  'android.service.quicksettings.TOGGLEABLE_TILE',
+              'android:value': 'true',
+            },
+          },
+        ],
+      });
+    }
+
     return cfg;
   });
 }
@@ -95,6 +128,7 @@ function withAppBlockerFiles(config) {
         'NoGoonAccessibilityService.kt',
         'AppBlockerModule.kt',
         'AppBlockerPackage.kt',
+        'NoGoonQsTile.kt',
       ];
 
       const srcDir = path.join(projectRoot, 'android-src');
@@ -115,13 +149,14 @@ function withAppBlockerFiles(config) {
       const xmlDir = path.join(platformRoot, 'app', 'src', 'main', 'res', 'xml');
       fs.mkdirSync(xmlDir, { recursive: true });
 
-      // typeWindowStateChanged  — fires when user switches apps (needed for app blocking)
-      // typeWindowContentChanged — fires when any text on screen changes (needed for URL detection)
+      // typeWindowStateChanged   — fires when user switches apps (needed for app blocking)
+      // typeWindowContentChanged  — fires when any text on screen changes (needed for URL detection)
+      // typeViewScrolled          — fires while user scrolls (needed for doom-scroll detection)
       // canRetrieveWindowContent="true" — allows us to read the browser address bar text
       const xmlContent = `<?xml version="1.0" encoding="utf-8"?>
 <accessibility-service
     xmlns:android="http://schemas.android.com/apk/res/android"
-    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged|typeViewScrolled"
     android:accessibilityFeedbackType="feedbackGeneric"
     android:accessibilityFlags="flagDefault"
     android:canRetrieveWindowContent="true"

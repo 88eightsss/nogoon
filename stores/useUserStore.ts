@@ -13,8 +13,19 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { NativeModules, Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { supabase } from '@/lib/supabase';
+import { maybeNotifyStreak, maybeNotifyWalkAway } from '@/utils/notifications';
+
+// Fire-and-forget helper: writes focusSessionEnd to SharedPreferences so the
+// Kotlin Accessibility Service can honour focus session hard-locks even when the
+// QS tile pause is active.  0 = no active session.
+function syncFocusSessionToNative(endMs: number): void {
+  if (Platform.OS === 'android' && NativeModules.AppBlocker) {
+    NativeModules.AppBlocker.setFocusSessionEnd(endMs).catch(() => {});
+  }
+}
 
 // ─── Background Write Helper ────────────────────────────────────────────────── //
 // Wraps all fire-and-forget Supabase writes so failures are logged instead of
@@ -22,7 +33,7 @@ import { supabase } from '@/lib/supabase';
 
 async function backgroundWrite(
   label: string,
-  writeFn: () => Promise<{ error: any }>
+  writeFn: () => PromiseLike<{ error: any }>
 ): Promise<void> {
   try {
     const { error } = await writeFn();
@@ -129,9 +140,30 @@ interface UserState {
   // App blocklist — array of Android package names (e.g. 'com.instagram.android')
   blockedApps: string[];
 
-  // Game mode — always random. A random game launches immediately on intercept.
-  // (choose mode was removed — games are always randomized)
-  gameMode: 'random';
+  // Game mode — 'random' (default) or 'choose' (user picks the game).
+  gameMode: 'random' | 'choose';
+
+  // No-Games mode — when true, the gate skips the game entirely.
+  // The calm + intent screens still fire, but instead of a game the user
+  // just sees an exit screen and can close the app themselves.
+  noGames: boolean;
+
+  // ── Open-count tracking ────────────────────────────────────────────────────
+  // How many times the user has hit the gate for each domain today.
+  // Shown on the gate calm screen as a reality check ("8 times today").
+  openCounts: Record<string, number>; // domain → count
+  openCountDate: string;              // 'YYYY-MM-DD' — reset when date changes
+
+  // ── Daily intention ────────────────────────────────────────────────────────
+  // One sentence the user sets in the morning. Shown on the gate calm screen
+  // as a reminder of their own stated goal.
+  dailyIntention: string;
+  intentionDate: string; // 'YYYY-MM-DD' — when it was set
+
+  // ── Wind-down mode ─────────────────────────────────────────────────────────
+  // After windDownHour, gate uses a softer tone and defaults game to breathing.
+  windDownEnabled: boolean;
+  windDownHour: number; // 0–23, default 21 (9pm)
 
   // ── BRICKED mode ("Hard Mode") ─────────────────────────────────────────────
   // When active, the unlock button is completely removed from the post-game
@@ -160,10 +192,17 @@ interface UserState {
   blockScheduleEnabled: boolean;
   blockScheduleStart: string;  // e.g. '22:00'
   blockScheduleEnd: string;    // e.g. '08:00'
+  blockScheduleDays: number[];    // 0=Sun…6=Sat; empty = all days
 
-  // ── Color scheme ──────────────────────────────────────────────────────────
-  // User's preferred theme. 'dark' = original dark luxury. 'light' = warm cream.
-  colorScheme: 'dark' | 'light';
+  // ── Focus session ──────────────────────────────────────────────────────────
+  // Timed hard lock: no game bypass for the session duration.
+  // focusSessionEnd is a Unix ms timestamp; null means no active session.
+  focusSessionEnd: number | null;
+
+  // ── Trigger tagging ────────────────────────────────────────────────────────
+  // Quick-tap on post-game to tag what pulled the user in.
+  // Totals accumulate so users can spot their own patterns.
+  triggerCounts: Record<string, number>; // e.g. { bored: 12, stressed: 4 }
 
   // ── Walk-away count ────────────────────────────────────────────────────────
   // How many times the user played a gate game and then chose NOT to unlock.
@@ -206,6 +245,19 @@ interface UserState {
   // Game mode toggle
   setGameMode: (mode: 'random' | 'choose') => void;
 
+  // No-Games mode toggle
+  setNoGames: (val: boolean) => void;
+
+  // Open-count tracking
+  incrementOpenCount: (domain: string) => void;
+
+  // Daily intention
+  setDailyIntention: (text: string) => void;
+
+  // Wind-down mode
+  setWindDownEnabled: (val: boolean) => void;
+  setWindDownHour: (hour: number) => void;
+
   // BRICKED actions
   enableBricked: () => void;
   requestDisableBricked: () => void;  // starts 24hr countdown
@@ -221,15 +273,22 @@ interface UserState {
   // Partner
   setPartner: (email: string, name: string) => void;
   setPartnerNotifications: (onUnlock: boolean, onBypass: boolean) => void;
+  // Fire-and-forget partner email notification.
+  // Checks the relevant toggle before sending — safe to call unconditionally.
+  notifyPartner: (domain: string, event: 'unlock' | 'bypass') => void;
 
   // Schedule
-  setBlockSchedule: (enabled: boolean, start: string, end: string) => void;
+  setBlockSchedule: (enabled: boolean, start: string, end: string, days?: number[]) => void;
+
+  // Focus session — starts a timed hard lock of given minutes
+  startFocusSession: (minutes: number) => void;
+  endFocusSession: () => void;
+
+  // Trigger tagging
+  logTrigger: (tag: string) => void;
 
   // Walk-away tracking
   incrementWalkAway: () => void;
-
-  // Color scheme
-  setColorScheme: (scheme: 'dark' | 'light') => void;
 
   // Intention goal (set in onboarding)
   setIntentionGoal: (goal: string) => void;
@@ -293,6 +352,20 @@ const DEFAULT_STATE = {
   gameMode: 'random' as const,
   // Default: skip picker, jump straight into a game
 
+  noGames: false,
+
+  // Open-count tracking
+  openCounts: {} as Record<string, number>,
+  openCountDate: '',
+
+  // Daily intention
+  dailyIntention: '',
+  intentionDate: '',
+
+  // Wind-down mode
+  windDownEnabled: false,
+  windDownHour: 21,
+
   // BRICKED
   isBricked: false,
   brickedEnabledAt: null as number | null,
@@ -315,12 +388,13 @@ const DEFAULT_STATE = {
   blockScheduleEnabled: false,
   blockScheduleStart: '22:00',
   blockScheduleEnd: '08:00',
+  blockScheduleDays: [] as number[], // empty = every day
+  focusSessionEnd: null as number | null,
+  triggerCounts: {} as Record<string, number>,
 
   // Journal
   journalEntries: [] as Array<{ id: string; text: string; domain: string; timestamp: number }>,
 
-  // Color scheme
-  colorScheme: 'dark' as 'dark' | 'light',
 
   // Walk-away count — how many times the user played and chose NOT to unlock
   walkAwayCount: 0,
@@ -360,11 +434,14 @@ export const useUserStore = create<UserState>()(
         return true;
       },
 
-      incrementStreak: () =>
+      incrementStreak: () => {
+        const newStreak = get().streak + 1;
         set((state) => ({
-          streak: state.streak + 1,
-          longestStreak: Math.max(state.longestStreak, state.streak + 1),
-        })),
+          streak: newStreak,
+          longestStreak: Math.max(state.longestStreak, newStreak),
+        }));
+        maybeNotifyStreak(newStreak);
+      },
 
       resetStreak: () => set({ streak: 0 }),
 
@@ -456,7 +533,28 @@ export const useUserStore = create<UserState>()(
         set({ blockedApps: packages });
       },
 
-      // ── Game mode (always random — no setter needed) ─────────────────────
+      setGameMode: (mode) => set({ gameMode: mode }),
+
+      setNoGames: (val) => set({ noGames: val }),
+
+      // ── Open-count tracking ──────────────────────────────────────────────────
+      incrementOpenCount: (domain) => {
+        const today = new Date().toISOString().split('T')[0];
+        const { openCounts, openCountDate } = get();
+        const counts = openCountDate === today ? { ...openCounts } : {};
+        counts[domain] = (counts[domain] ?? 0) + 1;
+        set({ openCounts: counts, openCountDate: today });
+      },
+
+      // ── Daily intention ──────────────────────────────────────────────────────
+      setDailyIntention: (text) => {
+        const today = new Date().toISOString().split('T')[0];
+        set({ dailyIntention: text, intentionDate: today });
+      },
+
+      // ── Wind-down mode ───────────────────────────────────────────────────────
+      setWindDownEnabled: (val) => set({ windDownEnabled: val }),
+      setWindDownHour: (hour) => set({ windDownHour: hour }),
 
       // ── BRICKED mode ────────────────────────────────────────────────────────
       enableBricked: () =>
@@ -530,24 +628,56 @@ export const useUserStore = create<UserState>()(
           partnerNotifyOnBypass: onBypass,
         }),
 
+      notifyPartner: (domain, event) => {
+        const { partnerEmail, partnerNotifyOnUnlock, partnerNotifyOnBypass } = get();
+        if (!partnerEmail) return;
+        if (event === 'unlock' && !partnerNotifyOnUnlock) return;
+        if (event === 'bypass' && !partnerNotifyOnBypass) return;
+        // Fire-and-forget — errors are swallowed so a failed notification never
+        // blocks the user's flow (unlocking or navigating away from the gate).
+        supabase.functions
+          .invoke('notify-partner', { body: { domain } })
+          .catch((e) => console.warn('[NoGoon] Partner notification failed:', e));
+      },
+
       // ── Block schedule ───────────────────────────────────────────────────────
-      setBlockSchedule: (enabled, start, end) =>
+      setBlockSchedule: (enabled, start, end, days = []) =>
         set({
           blockScheduleEnabled: enabled,
           blockScheduleStart: start,
           blockScheduleEnd: end,
+          blockScheduleDays: days,
         }),
+
+      // ── Focus session ────────────────────────────────────────────────────────
+      startFocusSession: (minutes) => {
+        const endMs = Date.now() + minutes * 60_000;
+        set({ focusSessionEnd: endMs });
+        syncFocusSessionToNative(endMs);
+      },
+
+      endFocusSession: () => {
+        set({ focusSessionEnd: null });
+        syncFocusSessionToNative(0);
+      },
+
+      // ── Trigger tagging ──────────────────────────────────────────────────────
+      logTrigger: (tag) =>
+        set((state) => ({
+          triggerCounts: {
+            ...state.triggerCounts,
+            [tag]: (state.triggerCounts[tag] ?? 0) + 1,
+          },
+        })),
 
       // ── Walk-away tracking ───────────────────────────────────────────────────
       // Called when user taps "Walk Away" on the post-game screen.
       // This increments the real success metric — no unlock, chose to leave.
-      incrementWalkAway: () =>
-        set((state) => ({
-          walkAwayCount: state.walkAwayCount + 1,
-        })),
-
-      // ── Color scheme ─────────────────────────────────────────────────────────
-      setColorScheme: (scheme) => set({ colorScheme: scheme }),
+      incrementWalkAway: () => {
+        const newCount = get().walkAwayCount + 1;
+        set({ walkAwayCount: newCount });
+        maybeNotifyWalkAway(newCount);
+      },
 
       // ── Intention goal ───────────────────────────────────────────────────────
       setIntentionGoal: (goal) => set({ intentionGoal: goal }),
@@ -590,6 +720,7 @@ export const useUserStore = create<UserState>()(
       // Called after login — fetches the user's data from Supabase and
       // updates the local store so the UI shows real numbers, not zeros.
       loadFromSupabase: async (userId) => {
+        try {
         // Build the date range for the last 7 days
         const days = getLast7Days(); // ['2025-01-09', ..., '2025-01-15']
 
@@ -646,36 +777,30 @@ export const useUserStore = create<UserState>()(
           }
 
           // Map each day in our 7-day window to its count (0 if no sessions)
-          const weeklyActivity = days.map((d) => activityMap[d] ?? 0) as [
-            number,
-            number,
-            number,
-            number,
-            number,
-            number,
-            number,
-          ];
+          const weeklyActivity = days.map((d) => activityMap[d] ?? 0) as [number, number, number, number, number, number, number];
           set({ weeklyActivity });
         }
-      },
+      } catch (err) {
+        console.error('[loadFromSupabase] error:', err);
+      }
+    },
 
-      // Called after key actions (game complete, walk away, unlock) —
-      // pushes the current local state up to Supabase
       syncToSupabase: async (userId) => {
-        const { points, xp, streak, longestStreak, name, gamesPlayed } = get();
-        await supabase.from('profiles').upsert({
-          id: userId,
-          name,
-          points,
-          xp,
-          streak,
-          longest_streak: longestStreak,
-          games_played: gamesPlayed,
-        });
+        const { points, xp, level, streak, longestStreak, gamesPlayed, walkAwayCount } = get();
+        await backgroundWrite('syncToSupabase', () =>
+          supabase.from('profiles').upsert({
+            id: userId,
+            points,
+            xp,
+            level,
+            streak,
+            longest_streak: longestStreak,
+            games_played: gamesPlayed,
+            walk_away_count: walkAwayCount,
+          })
+        );
       },
 
-      // ── resetStore ────────────────────────────────────────────────────────
-      // Wipes all local user data back to defaults.
       // Called on sign out so the next person who logs in starts fresh.
       // The persist middleware automatically clears SecureStore as part
       // of the state reset.
@@ -683,7 +808,7 @@ export const useUserStore = create<UserState>()(
         set(DEFAULT_STATE);
       },
     }),
-    // ── Persist config ──────────────────────────────────────────────────────
+    // \u2500\u2500 Persist config \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
     {
       name: 'nogoon-user-store', // Key used in SecureStore
       storage: secureStorage,
@@ -702,6 +827,7 @@ export const useUserStore = create<UserState>()(
         blocklist: state.blocklist,
         blockedApps: state.blockedApps,
         gameMode: state.gameMode,
+        noGames: state.noGames,
         isBricked: state.isBricked,
         brickedEnabledAt: state.brickedEnabledAt,
         brickedDisableRequestedAt: state.brickedDisableRequestedAt,
@@ -715,11 +841,26 @@ export const useUserStore = create<UserState>()(
         blockScheduleEnabled: state.blockScheduleEnabled,
         blockScheduleStart: state.blockScheduleStart,
         blockScheduleEnd: state.blockScheduleEnd,
+        blockScheduleDays: state.blockScheduleDays,
+        openCounts: state.openCounts,
+        openCountDate: state.openCountDate,
+        dailyIntention: state.dailyIntention,
+        intentionDate: state.intentionDate,
+        windDownEnabled: state.windDownEnabled,
+        windDownHour: state.windDownHour,
+        intentionGoal: state.intentionGoal,
         journalEntries: state.journalEntries,
         walkAwayCount: state.walkAwayCount,
-        intentionGoal: state.intentionGoal,
-        colorScheme: state.colorScheme,
+        triggerCounts: state.triggerCounts,
+        focusSessionEnd: state.focusSessionEnd,
       }),
+      // After SecureStore rehydration, push focusSessionEnd to SharedPreferences
+      // so the Kotlin Accessibility Service sees it immediately on the next app open.
+      onRehydrateStorage: () => (state) => {
+        if (state?.focusSessionEnd) {
+          syncFocusSessionToNative(state.focusSessionEnd);
+        }
+      },
     }
   )
 );

@@ -24,7 +24,7 @@ import { PointsBadge } from '@/components/home/PointsBadge';
 import { WeeklyChart } from '@/components/home/WeeklyChart';
 import { DailyChallengeCard } from '@/components/home/DailyChallengeCard';
 import { Badge } from '@/components/ui/Badge';
-import { getColors, COLORS, FONTS } from '@/constants/Colors';
+import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { TYPE } from '@/constants/Typography';
 import { router } from 'expo-router';
@@ -96,21 +96,26 @@ export default function HomeScreen() {
     dailyChallengeCompleted,
     walkAwayCount,
     loadFromSupabase,
-    colorScheme,
   } = useUserStore();
 
-  const C = getColors(colorScheme ?? 'dark');
+  const C = COLORS;
 
   // Pull the real blocking state from the hook that talks to Android
-  // blockingStatus: 'active' | 'empty' | 'off'
-  const { blockingStatus, openSettings } = useAppBlocker();
+  // blockingStatus: 'paused' | 'active' | 'empty' | 'off'
+  const {
+    blockingStatus,
+    openSettings,
+    isBlockingPaused,
+    blockingPausedMinutesLeft,
+    resumeBlocking,
+  } = useAppBlocker();
 
   // Re-fetch data from Supabase every time this tab comes into view.
   useEffect(() => {
     if (session?.user?.id) {
       loadFromSupabase(session.user.id);
     }
-  }, [session?.user?.id]);
+  }, [session?.user?.id, loadFromSupabase]);
 
   // Calculate how far the user is through their current XP level
   const levelProgress = getLevelProgress(xp);
@@ -148,6 +153,23 @@ export default function HomeScreen() {
         {/* ─── Section 2: Shield Status ──────────────────────── */}
         <ShieldStatus status={blockingStatus} onFix={openSettings} />
 
+        {/* ─── Blocking Paused Banner (QS tile toggled off) ──── */}
+        {isBlockingPaused && (
+          <Pressable
+            style={[styles.pausedBanner, { backgroundColor: C.surface, borderColor: '#f59e0b55' }]}
+            onPress={resumeBlocking}
+          >
+            <Feather name="pause-circle" size={20} color="#f59e0b" />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.pausedTitle, { color: '#f59e0b' }]}>Blocking paused</Text>
+              <Text style={[styles.pausedSub, { color: C.textMuted }]}>
+                {blockingPausedMinutesLeft} min remaining · Tap to resume now
+              </Text>
+            </View>
+            <Feather name="chevron-right" size={18} color="#f59e0b" />
+          </Pressable>
+        )}
+
         {/* ─── Setup Help Card (shown when blocking is off) ──── */}
         {blockingStatus === 'off' && <SetupHelpCard />}
 
@@ -182,6 +204,17 @@ export default function HomeScreen() {
           <Feather name="chevron-right" size={20} color={C.purple + 'aa'} />
         </Pressable>
 
+        {/* ─── Walk-Away Counter ─────────────────────────────── */}
+        {walkAwayCount > 0 && (
+          <View style={[styles.walkAwayCard, { backgroundColor: C.surface, borderColor: C.border }]}>
+            <Feather name="trending-up" size={16} color={C.cyan} />
+            <Text style={[styles.walkAwayText, { color: C.textSecondary }]}>
+              <Text style={[styles.walkAwayCount, { color: C.cyan }]}>{walkAwayCount}</Text>
+              {'  '}times you walked away from distraction
+            </Text>
+          </View>
+        )}
+
         {/* ─── Section 4: Weekly Chart ───────────────────────── */}
         <WeeklyChart data={weeklyActivity} />
 
@@ -203,7 +236,7 @@ export default function HomeScreen() {
       <AdBanner size="banner" />
     </SafeAreaView>
   );
-      }
+}
 
 const styles = StyleSheet.create({
   safe: {
@@ -258,6 +291,27 @@ const styles = StyleSheet.create({
     height: SPACING.xl,
   },
 
+  // ── Walk-away counter card ──
+  walkAwayCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+  },
+  walkAwayText: {
+    fontFamily: FONTS.body,
+    fontSize: 13,
+    flex: 1,
+    lineHeight: 18,
+  },
+  walkAwayCount: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 15,
+  },
+
   // ── Arcade card ──
   arcadeCard: {
     flexDirection: 'row',
@@ -294,6 +348,26 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.body,
     fontSize: 12,
     color: COLORS.purple + 'aa',
+  },
+
+  // ── Blocking paused banner ──
+  pausedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+  },
+  pausedTitle: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 14,
+  },
+  pausedSub: {
+    fontFamily: FONTS.body,
+    fontSize: 12,
+    marginTop: 2,
   },
 });
 

@@ -22,10 +22,10 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { useUserStore } from '@/stores/useUserStore';
@@ -45,7 +45,7 @@ function formatRelativeTime(timestamp: number): string {
   const HOUR   = 60 * MINUTE;
   const DAY    = 24 * HOUR;
 
-  if (delta < 60 * SECOND) {
+  if (delta < MINUTE) {
     return 'just now';
   }
   if (delta < 60 * MINUTE) {
@@ -66,10 +66,7 @@ export default function JournalScreen() {
   // Pull all journal entries from the global store
   const { journalEntries } = useUserStore();
 
-  // Show entries newest-first by reversing the array.
-  // The store already prepends new entries (index 0 = newest), but .reverse()
-  // here makes the intent explicit and safe even if that ever changes.
-  const sortedEntries = [...journalEntries].reverse();
+
 
   // ─────────────────────────────────────────────────────────────────────────────
   //  RENDER
@@ -81,7 +78,7 @@ export default function JournalScreen() {
       {/* ── Header ── */}
       <View style={styles.header}>
         <Pressable style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color={COLORS.textPrimary} />
+          <Feather name="arrow-left" size={22} color={COLORS.textPrimary} />
         </Pressable>
         <Text style={styles.headerTitle}>Impulse Journal</Text>
         {/* Spacer keeps title centered */}
@@ -97,7 +94,7 @@ export default function JournalScreen() {
         {/* ── Privacy note ── */}
         {/* Always shown at the top regardless of whether there are entries */}
         <View style={styles.privacyNote}>
-          <Ionicons name="lock-closed-outline" size={14} color={COLORS.textMuted} />
+          <Feather name="lock" size={14} color={COLORS.textMuted} />
           <Text style={styles.privacyNoteText}>
             These notes are private. Writing down how you feel in the moment
             helps you understand your triggers.
@@ -105,7 +102,7 @@ export default function JournalScreen() {
         </View>
 
         {/* ── Empty state ── */}
-        {sortedEntries.length === 0 && (
+        {journalEntries.length === 0 && (
           <View style={styles.emptyState}>
             <Text style={styles.emptyEmoji}>📝</Text>
             <Text style={styles.emptyHeading}>No entries yet</Text>
@@ -119,12 +116,12 @@ export default function JournalScreen() {
         {/* ── Entry cards ── */}
         {/* Rendered as a plain map inside ScrollView — simpler than FlatList
             for a screen that never has more than 90 entries (store trims at 90). */}
-        {sortedEntries.map((entry) => (
+        {journalEntries.map((entry) => (
           <View key={entry.id} style={styles.entryCard}>
 
             {/* Domain chip — shows which site triggered the intercept */}
             <View style={styles.domainChip}>
-              <Ionicons name="globe-outline" size={12} color={COLORS.cyan} />
+              <Feather name="globe" size={12} color={COLORS.cyan} />
               <Text style={styles.domainText}>{entry.domain}</Text>
             </View>
 

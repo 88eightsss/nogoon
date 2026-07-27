@@ -1,18 +1,35 @@
 // ─── AppBlocker Native Module ─────────────────────────────────────────────────
 //
 // Bridge between React Native JavaScript and Android system features.
-// Exposes three functions to JS:
-//   setBlockedApps(packages)      — updates the blocklist in SharedPreferences
-//   isServiceEnabled()            — checks if Accessibility permission is granted
-//   openAccessibilitySettings()   — opens Android's Accessibility Settings screen
+// Exposes native methods to JS:
+//   setBlockedApps(packages)           — updates the app blocklist in SharedPreferences
+//   setBlockedDomains(domains)         — updates the website blocklist in SharedPreferences
+//   isServiceEnabled()                 — checks if Accessibility permission is granted
+//   openAccessibilitySettings()        — opens Android's Accessibility Settings screen
+//   isBatteryOptimized()               — returns true if battery optimization is still on (bad)
+//   openBatteryOptimizationSettings()  — opens the battery exemption dialog
+//   setTemporaryUnlock(domain, expiry) — unlocks a domain until the given timestamp
+//   clearTemporaryUnlock(domain)       — removes a temporary unlock
+//   isBlockingPaused()                 — returns QS-tile pausedUntil timestamp (0 = not paused)
+//   setBlockingPaused(paused)          — set/clear a 30-min pause from JS
+//   setFocusSessionEnd(endMs)          — writes focus session expiry so Kotlin can enforce it
+//   setGrayscaleEnabled(enabled)       — saves the dim-overlay preference
+//   isGrayscaleEnabled()               — reads the dim-overlay preference
+//   openGrayscaleSettings()            — shortcut to Android Accessibility → Color Correction
 
 package com.nogoon.app
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
+import android.util.Log
+import androidx.core.app.NotificationCompat
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
@@ -29,9 +46,74 @@ class AppBlockerModule(reactContext: ReactApplicationContext) :
         const val KEY_BLOCKLIST      = "blockedPackages"   // app package names
         const val KEY_DOMAIN_BLOCKLIST = "blockedDomains" // website domains
         const val KEY_ENABLED        = "serviceActive"
+
+        private const val TAG = "NoGoon"
+        private const val CRASH_NOTIFICATION_ID      = 9900
+        private const val CRASH_NOTIFICATION_CHANNEL = "nogoon-crash"
+
+        // Ensures we only install the crash handler once even if the module
+        // is instantiated multiple times during the React Native bridge lifecycle.
+        @Volatile private var crashHandlerInstalled = false
+    }
+
+    init {
+        // Install an UncaughtExceptionHandler so that if the app crashes, the user
+        // receives a notification explaining that blocking has paused.
+        // NotificationManager.notify() posts to the system process, so it completes
+        // successfully even though our process is about to exit.
+        installCrashNotifier(reactContext)
     }
 
     override fun getName(): String = NAME
+
+    // ── Crash notification ────────────────────────────────────────────────────
+    // Fires a high-priority local notification when the app crashes unexpectedly.
+    // The notification title is intentionally calm: we don't want to alarm the user,
+    // just let them know they should reopen NoGoon to restore blocking.
+
+    private fun installCrashNotifier(context: ReactApplicationContext) {
+        if (crashHandlerInstalled) return
+        crashHandlerInstalled = true
+
+        val appContext = context.applicationContext
+        val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
+
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            try {
+                val nm = appContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    val channel = NotificationChannel(
+                        CRASH_NOTIFICATION_CHANNEL,
+                        "NoGoon alerts",
+                        NotificationManager.IMPORTANCE_HIGH
+                    ).apply { description = "Alerts when NoGoon needs attention" }
+                    nm.createNotificationChannel(channel)
+                }
+
+                val launchIntent = appContext.packageManager
+                    .getLaunchIntentForPackage(appContext.packageName)
+                val pendingFlags = PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+                val pending = PendingIntent.getActivity(appContext, 0, launchIntent, pendingFlags)
+
+                val notification = NotificationCompat.Builder(appContext, CRASH_NOTIFICATION_CHANNEL)
+                    .setSmallIcon(android.R.drawable.ic_dialog_alert)
+                    .setContentTitle("NoGoon stopped")
+                    .setContentText("Blocking is paused. Tap to restart NoGoon.")
+                    .setAutoCancel(true)
+                    .setPriority(NotificationCompat.PRIORITY_HIGH)
+                    .setContentIntent(pending)
+                    .build()
+
+                nm.notify(CRASH_NOTIFICATION_ID, notification)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to send crash notification", e)
+            }
+            // Always delegate to the default handler so Android can log the crash
+            // and show the "App stopped" system dialog.
+            defaultHandler?.uncaughtException(thread, throwable)
+        }
+    }
 
     @ReactMethod
     fun setBlockedApps(packages: ReadableArray, promise: Promise) {
@@ -210,6 +292,103 @@ class AppBlockerModule(reactContext: ReactApplicationContext) :
             promise.resolve(true)
         } catch (e: Exception) {
             promise.reject("OPEN_BATTERY_SETTINGS_ERROR", e.message ?: "Unknown error", e)
+        }
+    }
+
+    // ── Grayscale preference ──────────────────────────────────────────────────
+    // Stores whether the dim overlay should fire when the gate launches.
+    // The preference is read directly by NoGoonAccessibilityService from the
+    // same SharedPreferences instance ("NoGoonBlocker").
+
+    // ── blockingPaused (QS tile) ──────────────────────────────────────────────
+    // The Quick Settings tile writes "blockingPausedUntil" (ms timestamp) to
+    // SharedPreferences. These two methods let JS read and clear that value so
+    // the UI can reflect the paused state and offer a "Resume" button.
+    //
+    // isBlockingPaused() returns the pausedUntil timestamp as a Double so JS
+    // can compute both whether blocking is paused AND how many minutes remain.
+    // Returns 0.0 when not paused.
+    //
+    // setBlockingPaused(true)  → writes now + 30 min
+    // setBlockingPaused(false) → writes 0 (clears the pause)
+
+    // ── focusSessionEnd (focus session hard-lock) ─────────────────────────────
+    // Called by JS when a focus session starts or ends. Writes the expiry
+    // timestamp to SharedPreferences so the Accessibility Service can read it
+    // and refuse to honour the QS tile pause during an active session.
+    // endMs = 0 clears the session (no active focus session).
+
+    @ReactMethod
+    fun setFocusSessionEnd(endMs: Double, promise: Promise) {
+        try {
+            val prefs = reactApplicationContext.getSharedPreferences(PREFS_NAME, 0)
+            prefs.edit().putLong("focusSessionEnd", endMs.toLong()).apply()
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("SET_FOCUS_SESSION_ERROR", e.message ?: "Unknown error", e)
+        }
+    }
+
+    @ReactMethod
+    fun isBlockingPaused(promise: Promise) {
+        try {
+            val prefs = reactApplicationContext.getSharedPreferences(PREFS_NAME, 0)
+            promise.resolve(prefs.getLong("blockingPausedUntil", 0L).toDouble())
+        } catch (e: Exception) {
+            promise.resolve(0.0)
+        }
+    }
+
+    @ReactMethod
+    fun setBlockingPaused(paused: Boolean, promise: Promise) {
+        try {
+            val prefs = reactApplicationContext.getSharedPreferences(PREFS_NAME, 0)
+            val until = if (paused) System.currentTimeMillis() + 30 * 60 * 1000L else 0L
+            prefs.edit().putLong("blockingPausedUntil", until).apply()
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("SET_PAUSED_ERROR", e.message ?: "Unknown error", e)
+        }
+    }
+
+    @ReactMethod
+    fun setGrayscaleEnabled(enabled: Boolean, promise: Promise) {
+        try {
+            val prefs = reactApplicationContext.getSharedPreferences(PREFS_NAME, 0)
+            prefs.edit().putBoolean("grayscale_enabled", enabled).apply()
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("SET_GRAYSCALE_ERROR", e.message ?: "Unknown error", e)
+        }
+    }
+
+    @ReactMethod
+    fun isGrayscaleEnabled(promise: Promise) {
+        try {
+            val prefs = reactApplicationContext.getSharedPreferences(PREFS_NAME, 0)
+            promise.resolve(prefs.getBoolean("grayscale_enabled", false))
+        } catch (e: Exception) {
+            promise.resolve(false)
+        }
+    }
+
+    // ── openGrayscaleSettings ─────────────────────────────────────────────────
+    // Opens Android Accessibility Settings where the user can enable
+    // "Color Correction → Grayscale" to desaturate the phone display and reduce
+    // visual dopamine stimulation.  Programmatic grayscale requires
+    // WRITE_SECURE_SETTINGS (a signature-level permission not available to Play
+    // Store apps), so this is the best we can do: get the user one tap away.
+
+    @ReactMethod
+    fun openGrayscaleSettings(promise: Promise) {
+        try {
+            val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            reactApplicationContext.startActivity(intent)
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("OPEN_GRAYSCALE_ERROR", e.message ?: "Unknown error", e)
         }
     }
 }
