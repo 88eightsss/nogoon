@@ -20,7 +20,7 @@
 //  so they work offline and are fully customizable.
 // ═══════════════════════════════════════════════════════════════════════════
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -29,11 +29,13 @@ import {
   SafeAreaView,
   ScrollView,
   Animated,
+  Linking,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { ProceedButton } from '@/components/ui/ProceedButton';
+import { fetchAdForPlacement, trackAdEvent, type AdCampaign } from '@/services/ads';
 
 // ─── Ad data types ────────────────────────────────────────────────────────────
 
@@ -307,32 +309,98 @@ export function OddOneOut({ onComplete }: Props) {
   // Total correct answers
   const [correctCount, setCorrectCount] = useState(0);
 
-  const round = ROUNDS[roundIndex];
+  // ── Sponsored round ───────────────────────────────────────────────────────
+  // Loaded async on mount. Inserted as round 0 if a campaign is live.
+  // sponsoredPos: which of the 3 cards is the real (honest) brand ad.
+
+  const [sponsoredCampaign, setSponsoredCampaign] = useState<AdCampaign | null>(null);
+  const [sponsoredPos]  = useState<0 | 1 | 2>(() => (Math.floor(Math.random() * 3) as 0 | 1 | 2));
+  const sponsoredTrackedRef = useRef(false);
+
+  useEffect(() => {
+    fetchAdForPlacement('odd_one_out').then((campaign) => {
+      if (campaign) {
+        setSponsoredCampaign(campaign);
+        trackAdEvent('impression', campaign.id, 'odd_one_out');
+      }
+    });
+  }, []);
+
+  // Total rounds = base ROUNDS + 1 if sponsored
+  const totalRounds = ROUNDS.length + (sponsoredCampaign ? 1 : 0);
+
+  // roundIndex 0 = sponsored (if live), then ROUNDS[0..4]
+  const isSponsoredRound = sponsoredCampaign !== null && roundIndex === 0;
+  const baseRoundIndex   = sponsoredCampaign ? roundIndex - 1 : roundIndex;
+  const round = isSponsoredRound ? null : ROUNDS[baseRoundIndex];
 
   // ── Build the 3 ads for this round ────────────────────────────────────────
-  // positions 0, 1, 2 — one is the odd one, two are the base
+
+  const DARK_PATTERN_ADS: AdData[] = [
+    {
+      brand: 'LIMITD', headline: 'Last Chance!',
+      subtext: 'Only 3 left in stock',
+      buttonLabel: 'Buy Now', buttonColor: '#dc2626',
+      badgeText: 'ENDS IN 9 MINS', price: '$9.99',
+    },
+    {
+      brand: 'KLICKZ', headline: 'Free Forever*',
+      subtext: '*Credit card required',
+      buttonLabel: 'Claim Free', buttonColor: '#7c3aed',
+      badgeText: 'TODAY ONLY',
+    },
+  ];
+
+  const getSponsoredAdAtPosition = (pos: number): AdData => {
+    if (!sponsoredCampaign) return DARK_PATTERN_ADS[0];
+    if (pos === sponsoredPos) {
+      return {
+        brand: sponsoredCampaign.brand_name.toUpperCase(),
+        headline: sponsoredCampaign.headline,
+        subtext: sponsoredCampaign.subtext,
+        buttonLabel: sponsoredCampaign.cta_label,
+        buttonColor: sponsoredCampaign.brand_color,
+      };
+    }
+    return DARK_PATTERN_ADS[pos === 0 ? 0 : 1];
+  };
 
   const getAdAtPosition = (pos: number): AdData => {
-    return pos === round.oddPosition ? round.odd : round.base;
+    if (isSponsoredRound) return getSponsoredAdAtPosition(pos);
+    return pos === round!.oddPosition ? round!.odd : round!.base;
   };
 
   // ── Handle a tap on one of the 3 ads ──────────────────────────────────────
 
   const handleTap = (position: number) => {
     if (answered) return;
-
     setSelectedPos(position);
     setAnswered(true);
 
-    const isCorrect = position === round.oddPosition;
+    if (isSponsoredRound && sponsoredCampaign) {
+      const isCorrect = position === sponsoredPos;
+      trackAdEvent(
+        isCorrect ? 'correct_tap' : 'wrong_tap',
+        sponsoredCampaign.id,
+        'odd_one_out'
+      );
+      if (isCorrect) {
+        setScore((s) => s + 20);
+        setCorrectCount((c) => c + 1);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } else {
+        setScore((s) => s + 10);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      }
+      return;
+    }
 
+    const isCorrect = position === round!.oddPosition;
     if (isCorrect) {
       setScore((s) => s + 20);
       setCorrectCount((c) => c + 1);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } else {
-      // Wrong answer still earns 10 pts — engaging with the pattern interrupt counts.
-      // The educational value is in seeing the explanation, win or lose.
       setScore((s) => s + 10);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
@@ -341,7 +409,11 @@ export function OddOneOut({ onComplete }: Props) {
   // ── Advance to next round ──────────────────────────────────────────────────
 
   const handleNext = () => {
-    if (roundIndex >= ROUNDS.length - 1) {
+    if (isSponsoredRound && sponsoredCampaign && !sponsoredTrackedRef.current) {
+      sponsoredTrackedRef.current = true;
+      trackAdEvent('completion', sponsoredCampaign.id, 'odd_one_out');
+    }
+    if (roundIndex >= totalRounds - 1) {
       setGamePhase('complete');
     } else {
       setRoundIndex((i) => i + 1);
@@ -350,22 +422,30 @@ export function OddOneOut({ onComplete }: Props) {
     }
   };
 
+  const handleCtaPress = useCallback(() => {
+    if (!sponsoredCampaign) return;
+    trackAdEvent('cta_click', sponsoredCampaign.id, 'odd_one_out');
+    Linking.openURL(sponsoredCampaign.cta_url).catch(() => {});
+  }, [sponsoredCampaign]);
+
   // ── Determine result state for each card ──────────────────────────────────
 
   const getCardResult = (pos: number): 'correct' | 'wrong' | 'revealed' | null => {
     if (!answered) return null;
-    if (pos === selectedPos && selectedPos === round.oddPosition) return 'correct';
-    if (pos === selectedPos && selectedPos !== round.oddPosition) return 'wrong';
-    if (pos === round.oddPosition && selectedPos !== round.oddPosition) return 'revealed';
+    const oddPos = isSponsoredRound ? sponsoredPos : round!.oddPosition;
+    if (pos === selectedPos && selectedPos === oddPos) return 'correct';
+    if (pos === selectedPos && selectedPos !== oddPos) return 'wrong';
+    if (pos === oddPos && selectedPos !== oddPos) return 'revealed';
     return null;
   };
 
   // ── Difficulty badge color ─────────────────────────────────────────────────
 
-  const difficultyColor =
-    round.difficulty === 'easy'   ? COLORS.green :
-    round.difficulty === 'medium' ? COLORS.warning :
-                                    COLORS.danger;
+  const difficultyColor = isSponsoredRound
+    ? COLORS.cyan
+    : round!.difficulty === 'easy'   ? COLORS.green
+    : round!.difficulty === 'medium' ? COLORS.warning
+    :                                   COLORS.danger;
 
   // ══════════════════════════════════════════════════════════════════════════
   //  RENDER: Intro
@@ -448,10 +528,10 @@ export function OddOneOut({ onComplete }: Props) {
         {/* ── Header ── */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <Text style={styles.roundCounter}>Round {roundIndex + 1} / {ROUNDS.length}</Text>
+            <Text style={styles.roundCounter}>Round {roundIndex + 1} / {totalRounds}</Text>
             <View style={[styles.difficultyBadge, { borderColor: difficultyColor }]}>
               <Text style={[styles.difficultyText, { color: difficultyColor }]}>
-                {round.difficulty.toUpperCase()}
+                {isSponsoredRound ? 'SPONSORED' : round!.difficulty.toUpperCase()}
               </Text>
             </View>
           </View>
@@ -460,8 +540,15 @@ export function OddOneOut({ onComplete }: Props) {
 
         {/* ── Instruction ── */}
         <Text style={styles.instruction}>
-          Which one is different?
+          {isSponsoredRound
+            ? 'Which one is the HONEST ad?'
+            : 'Which one is different?'}
         </Text>
+        {isSponsoredRound && (
+          <Text style={styles.sponsoredHint}>
+            Two ads use dark patterns. One is upfront about what it is.
+          </Text>
+        )}
 
         {/* ── The 3 ad cards ── */}
         <View style={styles.adsRow}>
@@ -478,19 +565,55 @@ export function OddOneOut({ onComplete }: Props) {
         </View>
 
         {/* ── Post-answer explanation ── */}
-        {answered && (
-          <View style={styles.explanationCard}>
+        {answered && isSponsoredRound && sponsoredCampaign ? (
+          <View style={[styles.explanationCard, styles.sponsoredCard]}>
+            <View style={styles.sponsoredHeader}>
+              <Text style={styles.sponsoredEmoji}>
+                {sponsoredCampaign.brand_avatar_emoji ?? '✦'}
+              </Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.sponsoredBrandName}>{sponsoredCampaign.brand_name}</Text>
+                {sponsoredCampaign.brand_handle ? (
+                  <Text style={styles.sponsoredHandle}>{sponsoredCampaign.brand_handle}</Text>
+                ) : null}
+              </View>
+              <View style={styles.sponsoredBadge}>
+                <Text style={styles.sponsoredBadgeText}>Honest Ad</Text>
+              </View>
+            </View>
             <Text style={styles.explanationTitle}>
-              {selectedPos === round.oddPosition ? '✅ Correct!' : '❌ Wrong'}
+              {selectedPos === sponsoredPos ? '✅ You spotted it!' : '❌ Not quite'}
             </Text>
-            <Text style={styles.explanationText}>{round.explanation}</Text>
+            <Text style={styles.explanationText}>
+              {selectedPos === sponsoredPos
+                ? `${sponsoredCampaign.brand_name} disclosed this as an ad and made a straightforward pitch — no tricks, no fake urgency.`
+                : `The honest one was ${sponsoredCampaign.brand_name}: no hidden fees, no fake urgency — just a clear pitch.`}
+            </Text>
+            <Pressable
+              style={[styles.ctaButton, { backgroundColor: sponsoredCampaign.brand_color }]}
+              onPress={handleCtaPress}
+            >
+              <Text style={styles.ctaButtonText}>{sponsoredCampaign.cta_label} ↗</Text>
+            </Pressable>
             <Pressable style={styles.nextButton} onPress={handleNext}>
               <Text style={styles.nextButtonText}>
-                {roundIndex >= ROUNDS.length - 1 ? 'See Results →' : 'Next Round →'}
+                {roundIndex >= totalRounds - 1 ? 'See Results →' : 'Next Round →'}
               </Text>
             </Pressable>
           </View>
-        )}
+        ) : answered ? (
+          <View style={styles.explanationCard}>
+            <Text style={styles.explanationTitle}>
+              {selectedPos === round!.oddPosition ? '✅ Correct!' : '❌ Wrong'}
+            </Text>
+            <Text style={styles.explanationText}>{round!.explanation}</Text>
+            <Pressable style={styles.nextButton} onPress={handleNext}>
+              <Text style={styles.nextButtonText}>
+                {roundIndex >= totalRounds - 1 ? 'See Results →' : 'Next Round →'}
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
 
       </ScrollView>
     </SafeAreaView>
@@ -784,5 +907,70 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.bodyBold,
     fontSize: 16,
     color: COLORS.background,
+  },
+
+  // Sponsored round hint line
+  sponsoredHint: {
+    fontFamily: FONTS.body,
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    marginTop: -SPACING.sm,
+    paddingHorizontal: SPACING.md,
+  },
+
+  // Sponsored explanation card
+  sponsoredCard: {
+    borderColor: COLORS.cyan,
+  },
+
+  sponsoredHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    marginBottom: SPACING.xs,
+  },
+
+  sponsoredEmoji: {
+    fontSize: 28,
+  },
+
+  sponsoredBrandName: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 14,
+    color: COLORS.textPrimary,
+  },
+
+  sponsoredHandle: {
+    fontFamily: FONTS.body,
+    fontSize: 12,
+    color: COLORS.textSecondary,
+  },
+
+  sponsoredBadge: {
+    backgroundColor: COLORS.cyan + '22',
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    borderColor: COLORS.cyan,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 2,
+  },
+
+  sponsoredBadgeText: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 11,
+    color: COLORS.cyan,
+  },
+
+  ctaButton: {
+    borderRadius: RADIUS.md,
+    paddingVertical: SPACING.md,
+    alignItems: 'center',
+  },
+
+  ctaButtonText: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 15,
+    color: '#ffffff',
   },
 });
