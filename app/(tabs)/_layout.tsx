@@ -1,60 +1,69 @@
 // ─── Tab Bar Layout ────────────────────────────────────────────────────────────
 //
-// Controls the bottom navigation strip with 3 tabs (Arcade moved to Home card).
-// Uses Feather icons (included in @expo/vector-icons) — thinner and more modern
-// than the default Ionicons set.
+// 4-tab navigation — each tab maps to a user intent:
+//   Protect  → all blocking configuration (purple)
+//   Today    → daily status + focus CTA (green)
+//   Calm     → recovery tools when struggling (amber)
+//   Me       → stats, insights, settings (cyan)
 //
-// TAB COLOR SYSTEM:
-//   Block    → indigo bright (#5b52f0) — primary brand
-//   Home     → indigo bright (#5b52f0) — primary brand (center)
-//   Profile  → cyan (#00d4ff)          — personal/identity
+// Arcade lives inside Calm — hidden from tab bar.
 
 import { Tabs, router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { Pressable } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '@/constants/Colors';
 
-// Feather icon name type
 type FeatherName = React.ComponentProps<typeof Feather>['name'];
 
-// Tab configuration — one object per tab makes adding/reordering easy
 const TABS: {
   name: string;
   title: string;
-  icon: FeatherName;       // Feather uses the same icon for active/inactive
-  color: string;           // Active tint color for this tab
+  icon: FeatherName;
+  color: string;
+  pillBg: string;
+  hidden?: boolean;
 }[] = [
   {
-    name:  'blocklist',
-    title: 'Block',
-    icon:  'shield',
-    color: COLORS.indigoBright,
+    name:   'blocklist',
+    title:  'Protect',
+    icon:   'shield',
+    color:  COLORS.purple,
+    pillBg: COLORS.purpleDim,
   },
   {
-    name:  'index',
-    title: 'Home',
-    icon:  'home',
-    color: COLORS.indigoBright,
+    name:   'index',
+    title:  'Today',
+    icon:   'home',
+    color:  COLORS.green,
+    pillBg: COLORS.greenDim,
   },
   {
-    name:  'profile',
-    title: 'Profile',
-    icon:  'user',
-    color: COLORS.cyan,
+    name:   'calm',
+    title:  'Calm',
+    icon:   'wind',
+    color:  COLORS.warning,
+    pillBg: COLORS.warningDim,
   },
-  // Arcade is no longer a tab — it lives as a card on the Home screen
   {
-    name:  'arcade',
-    title: 'Arcade',
-    icon:  'zap',
-    color: COLORS.purple,
+    name:   'profile',
+    title:  'Me',
+    icon:   'user',
+    color:  COLORS.cyan,
+    pillBg: COLORS.cyanDim,
+  },
+  // Arcade lives inside Calm — hidden from tab bar
+  {
+    name:   'arcade',
+    title:  'Arcade',
+    icon:   'zap',
+    color:  COLORS.arcade,
+    pillBg: COLORS.arcadeDim,
+    hidden: true,
   },
 ];
 
 export default function TabsLayout() {
-  // insets.bottom = height of Android gesture nav bar / iOS home indicator.
-  // Adding it to the tab bar height pushes tabs above the system UI.
   const insets = useSafeAreaInsets();
 
   return (
@@ -62,7 +71,6 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: true,
         headerStyle: { backgroundColor: COLORS.background },
-        headerTintColor: COLORS.textPrimary,
         headerShadowVisible: false,
         headerRight: () => (
           <Pressable
@@ -73,8 +81,6 @@ export default function TabsLayout() {
             <Feather name="help-circle" size={22} color={COLORS.textMuted} />
           </Pressable>
         ),
-
-        // Tab bar dark theme — matches app background with subtle top border
         tabBarStyle: {
           backgroundColor: COLORS.background,
           borderTopColor: COLORS.border,
@@ -82,9 +88,9 @@ export default function TabsLayout() {
           height: 60 + insets.bottom,
           paddingBottom: insets.bottom + 4,
         },
-
-        // Inactive tabs are dimmed
-        tabBarInactiveTintColor: COLORS.textMuted,
+        // Inactive tabs keep their own color (slightly muted via opacity)
+        // — handled per-tab below so each stays distinct
+        tabBarInactiveTintColor: 'transparent',
       }}
     >
       {TABS.map((tab) => (
@@ -94,16 +100,21 @@ export default function TabsLayout() {
           options={{
             title: tab.title,
             tabBarActiveTintColor: tab.color,
-            // Hide arcade from the tab bar — it's a Home screen card now
-            tabBarItemStyle: tab.name === 'arcade' ? { display: 'none' } : undefined,
-
-            // Feather renders same icon always — we control opacity via color
-            tabBarIcon: ({ color, size }) => (
-              <Feather
-                name={tab.icon}
-                size={size - 1}  // Feather strokes look slightly large at default size
-                color={color}
-              />
+            headerTintColor: tab.color,     // Page header accent matches tab color
+            tabBarItemStyle: tab.hidden ? { display: 'none' } : undefined,
+            tabBarIcon: ({ focused, size }) => (
+              <View style={focused ? {
+                backgroundColor: tab.pillBg,
+                borderRadius: 20,
+                paddingHorizontal: 12,
+                paddingVertical: 3,
+              } : undefined}>
+                <Feather
+                  name={tab.icon}
+                  size={size - 1}
+                  color={focused ? tab.color : tab.color + 'AA'} // inactive = 67% opacity
+                />
+              </View>
             ),
           }}
         />

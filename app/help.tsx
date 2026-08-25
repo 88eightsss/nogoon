@@ -95,6 +95,23 @@ export default function HelpScreen() {
           </Text>
         </View>
 
+        {/* Tour CTA */}
+        <Pressable
+          style={[styles.tourCard, { backgroundColor: C.indigoBright + '12', borderColor: C.indigoBright + '40' }]}
+          onPress={() => router.push('/tutorial')}
+        >
+          <View style={styles.tourLeft}>
+            <Text style={[styles.tourIcon]}>🗺️</Text>
+            <View style={styles.tourText}>
+              <Text style={[styles.tourTitle, { color: C.indigoBright }]}>Interactive Tour</Text>
+              <Text style={[styles.tourBody, { color: C.textSecondary }]}>
+                9 steps · animated walkthrough of every feature
+              </Text>
+            </View>
+          </View>
+          <Feather name="arrow-right" size={18} color={C.indigoBright} />
+        </Pressable>
+
         {/* Sections */}
         {SECTIONS.map((section, i) => (
           <View
@@ -235,6 +252,43 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.body,
     fontSize: 15,
     lineHeight: 24,
+  },
+
+  tourCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    padding: SPACING.lg,
+    gap: SPACING.md,
+  },
+
+  tourLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+    flex: 1,
+  },
+
+  tourIcon: {
+    fontSize: 28,
+  },
+
+  tourText: {
+    flex: 1,
+    gap: SPACING.xs,
+  },
+
+  tourTitle: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 15,
+  },
+
+  tourBody: {
+    fontFamily: FONTS.body,
+    fontSize: 13,
+    lineHeight: 18,
   },
 
   footerCard: {

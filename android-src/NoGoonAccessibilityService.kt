@@ -69,6 +69,19 @@ class NoGoonAccessibilityService : AccessibilityService() {
         private const val RAPID_LOCKOUT_COUNT = 5               // trigger lockout after this many rapid returns
         private const val RAPID_LOCKOUT_MS    = 10L * 60 * 1000 // 10-minute hard lockout duration
 
+        // ── Digital Curfew (Sleep Mode) ───────────────────────────────────────
+        // Written by AppBlockerModule.setCurfew() when JS curfew settings change.
+        // Stored as "HH:mm" strings and a boolean enable flag.
+        const val KEY_CURFEW_ENABLED = "curfew_enabled"
+        const val KEY_CURFEW_START   = "curfew_start"   // e.g. "22:00"
+        const val KEY_CURFEW_END     = "curfew_end"     // e.g. "07:00"
+
+        // ── Unlock-time tracking ──────────────────────────────────────────────
+        // When a user unlocks a blocked app and enters it, track how long they
+        // spend there before switching away.  Written per-day as running totals.
+        // Key format: "unlock_time_YYYY-MM-DD" → total ms spent in unlocked apps.
+        private const val KEY_UNLOCK_TIME_PREFIX = "unlock_time_"
+
         // ── Crash guard ───────────────────────────────────────────────────────
         // Prevents double-launches when rapid clicking causes multiple events
         // (e.g. TYPE_WINDOW_STATE_CHANGED + TYPE_WINDOW_CONTENT_CHANGED) to pass
@@ -131,6 +144,15 @@ class NoGoonAccessibilityService : AccessibilityService() {
     private var grayscaleOverlay: View? = null
     private val mainHandler = Handler(Looper.getMainLooper())
 
+    // ── Unlock-time tracking ──────────────────────────────────────────────────
+    // When a temporarily-unlocked target comes to the foreground, we record the
+    // entry timestamp.  When the user leaves (a different package foregrounds),
+    // we add the elapsed time to today's running total in SharedPreferences.
+    //
+    // In-memory only — no need to survive a service restart since a restart
+    // happens precisely when the screen changes, ending any active session.
+    private val unlockEntryMs = mutableMapOf<String, Long>()
+
     // ── Packages that are NEVER blocked ───────────────────────────────────────
     // System essentials, launchers, NoGoon itself, and all known browsers.
     // Browsers are excluded from APP blocking but handled via URL detection below.
@@ -149,6 +171,21 @@ class NoGoonAccessibilityService : AccessibilityService() {
         "org.mozilla.firefox", "org.mozilla.firefox_beta",
         "com.brave.browser", "com.microsoft.emmx", "com.opera.browser",
         "com.opera.mini.native", "com.sec.android.app.sbrowser",
+    )
+
+    // ── Packages exempt from Digital Curfew ───────────────────────────────────
+    // Same as neverBlock MINUS browsers: during curfew the whole browser is blocked
+    // (not just specific URLs), so browsers must NOT be exempt here.
+
+    private val curfewNeverBlock = setOf(
+        "com.nogoon.app",
+        "com.android.launcher", "com.android.launcher2", "com.android.launcher3",
+        "com.google.android.apps.nexuslauncher",
+        "com.miui.home", "com.huawei.android.launcher",
+        "com.sec.android.app.launcher", "com.oppo.launcher",
+        "com.realme.launcher", "com.oneplus.launcher",
+        "com.android.systemui", "com.android.settings", "android",
+        "com.android.phone", "com.android.dialer", "com.google.android.dialer",
     )
 
     // ── Known browser packages — URL detection runs for these ─────────────────
@@ -185,12 +222,46 @@ class NoGoonAccessibilityService : AccessibilityService() {
 
         val hasBlockedApps    = prefs.getStringSet(KEY_BLOCKLIST, emptySet())?.isNotEmpty() ?: false
         val hasBlockedDomains = prefs.getStringSet(KEY_DOMAIN_BLOCKLIST, emptySet())?.isNotEmpty() ?: false
-        if (!hasBlockedApps && !hasBlockedDomains) return
+        // Curfew is checked independently — it can fire even when blocklists are empty.
+        val curfewActive      = isWithinCurfew()
+
+        if (!hasBlockedApps && !hasBlockedDomains && !curfewActive) return
 
         when (event.eventType) {
-            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED   -> handleAppSwitch(event)
-            AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> handleBrowserUrl(event)
-            AccessibilityEvent.TYPE_VIEW_SCROLLED          -> handleScrollEvent(event)
+            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED   -> handleAppSwitch(event, curfewActive)
+            AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> if (hasBlockedDomains) handleBrowserUrl(event)
+            AccessibilityEvent.TYPE_VIEW_SCROLLED          -> if (hasBlockedApps || hasBlockedDomains) handleScrollEvent(event)
+        }
+    }
+
+    // ── Curfew check ──────────────────────────────────────────────────────────
+    // Returns true if the current time of day falls within the configured
+    // curfew window.  Handles overnight windows (e.g. 22:00–07:00) correctly.
+
+    private fun isWithinCurfew(): Boolean {
+        if (!prefs.getBoolean(KEY_CURFEW_ENABLED, false)) return false
+        val startStr = prefs.getString(KEY_CURFEW_START, "22:00") ?: "22:00"
+        val endStr   = prefs.getString(KEY_CURFEW_END,   "07:00") ?: "07:00"
+
+        return try {
+            val (startH, startM) = startStr.split(":").map { it.toInt() }
+            val (endH,   endM)   = endStr.split(":").map   { it.toInt() }
+            val cal = java.util.Calendar.getInstance()
+            val nowH = cal.get(java.util.Calendar.HOUR_OF_DAY)
+            val nowM = cal.get(java.util.Calendar.MINUTE)
+            val nowMins   = nowH * 60 + nowM
+            val startMins = startH * 60 + startM
+            val endMins   = endH * 60 + endM
+
+            if (startMins < endMins) {
+                // Same-day window (e.g. 09:00–17:00)
+                nowMins in startMins until endMins
+            } else {
+                // Overnight window (e.g. 22:00–07:00): wraps past midnight
+                nowMins >= startMins || nowMins < endMins
+            }
+        } catch (_: Exception) {
+            false
         }
     }
 
@@ -209,7 +280,7 @@ class NoGoonAccessibilityService : AccessibilityService() {
     // blocked site — such tabs don't fire TYPE_WINDOW_CONTENT_CHANGED because
     // the page content isn't changing, so the normal URL debounce path misses them.
 
-    private fun handleAppSwitch(event: AccessibilityEvent) {
+    private fun handleAppSwitch(event: AccessibilityEvent, curfewActive: Boolean = false) {
         val packageName = event.packageName?.toString() ?: return
         if (packageName.isBlank()) return
 
@@ -217,11 +288,33 @@ class NoGoonAccessibilityService : AccessibilityService() {
         // This ensures returning to a blocked app after pressing Home is correctly
         // detected as a new switch rather than skipped as a "duplicate" event.
         val isNewForeground = packageName != currentForegroundPackage
+
+        // ── Unlock-time tracking: record exit ─────────────────────────────────
+        // When foreground switches away from a tracked (unlocked) target, compute
+        // how long the user spent there and accumulate it in today's total.
+        if (isNewForeground) {
+            val prev = currentForegroundPackage
+            val entryMs = unlockEntryMs.remove(prev)
+            if (entryMs != null) {
+                val duration = System.currentTimeMillis() - entryMs
+                if (duration > 0L) accumulateUnlockTime(duration)
+            }
+        }
+
         currentForegroundPackage = packageName
 
+        // ── Curfew enforcement ────────────────────────────────────────────────
+        // MUST run before the browser early-return and neverBlock check:
+        // during curfew the entire browser is blocked (not just specific URLs),
+        // so browsers must not be exempt here.
+        // curfewNeverBlock excludes browsers; neverBlock includes them.
+        if (curfewActive && isNewForeground &&
+                curfewNeverBlock.none { packageName.startsWith(it) }) {
+            triggerCurfewIfNotOnCooldown(packageName)
+            return
+        }
+
         // Browsers: on a new foreground event, immediately check the active URL.
-        // Clear the URL cache and debounce timer so we re-evaluate even if the
-        // domain hasn't changed since the last check.
         if (isNewForeground && browserPackages.contains(packageName)) {
             lastSeenUrl.remove(packageName)
             lastBrowserCheckMs.remove(packageName)
@@ -232,8 +325,17 @@ class NoGoonAccessibilityService : AccessibilityService() {
         if (neverBlock.any { packageName.startsWith(it) }) return
         if (!isNewForeground) return   // in-app dialog/popup within blocked app
 
+        // ── Regular blocklist enforcement ─────────────────────────────────────
         val blockedSet = prefs.getStringSet(KEY_BLOCKLIST, emptySet()) ?: emptySet()
         if (!blockedSet.contains(packageName)) return
+
+        // ── Unlock-time tracking: record entry ────────────────────────────────
+        // If the target is blocked but temporarily unlocked (user played a game),
+        // record when they entered instead of re-triggering the gate.
+        if (isTemporarilyUnlocked(packageName)) {
+            unlockEntryMs[packageName] = System.currentTimeMillis()
+            return
+        }
 
         triggerIfNotOnCooldown(packageName, source = "app")
     }
@@ -372,6 +474,53 @@ class NoGoonAccessibilityService : AccessibilityService() {
         scrollSessionStartMs[target] = now   // prevent immediate re-trigger after dismiss
 
         launchNoGoon(target, source = "scroll", rapid = false, rapidCount = 0)
+    }
+
+    // ── Curfew gate trigger ───────────────────────────────────────────────────
+    // Same 3s cooldown as normal blocking to prevent repeated fires from in-app
+    // events while the gate is already on screen.  Uses a shared "curfew" key
+    // per package so rapid returns during curfew don't stack into lockout.
+
+    private fun triggerCurfewIfNotOnCooldown(packageName: String) {
+        val now = System.currentTimeMillis()
+        val cooldownKey = "${KEY_COOLDOWN_PREFIX}curfew_$packageName"
+        val lastTrigger = prefs.getLong(cooldownKey, 0L)
+        if (now - lastTrigger < COOLDOWN_MS) return
+        prefs.edit().putLong(cooldownKey, now).apply()
+        // Launch gate with curfew=1 so gate.tsx jumps straight to curfew phase
+        val now2 = System.currentTimeMillis()
+        if (now2 - lastGateLaunchMs < GATE_LAUNCH_DEBOUNCE_MS) return
+        lastGateLaunchMs = now2
+        showGrayscaleOverlay()
+        try {
+            val uri = Uri.parse(
+                "nogoon://gate?domain=${Uri.encode(packageName)}&source=curfew&curfew=1"
+            )
+            val intent = Intent(Intent.ACTION_VIEW, uri).apply {
+                addFlags(
+                    Intent.FLAG_ACTIVITY_NEW_TASK  or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP
+                )
+            }
+            applicationContext.startActivity(intent)
+        } catch (e: Exception) {
+            Log.e(TAG, "triggerCurfewIfNotOnCooldown failed for $packageName", e)
+        }
+    }
+
+    // ── Unlock-time accumulator ────────────────────────────────────────────────
+    // Adds `durationMs` to today's running total of time spent in unlocked apps.
+    // Written to SharedPreferences under key "unlock_time_YYYY-MM-DD".
+    // JS reads this via AppBlockerModule.getUnlockTimeLog() on app resume.
+
+    private fun accumulateUnlockTime(durationMs: Long) {
+        val dateKey = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+            .format(java.util.Date())
+        val prefKey = "$KEY_UNLOCK_TIME_PREFIX$dateKey"
+        val existing = prefs.getLong(prefKey, 0L)
+        prefs.edit().putLong(prefKey, existing + durationMs).apply()
+        Log.d(TAG, "Unlock time +${durationMs}ms → today total ${existing + durationMs}ms")
     }
 
     // ── Temporary unlock check ────────────────────────────────────────────────
@@ -543,6 +692,17 @@ class NoGoonAccessibilityService : AccessibilityService() {
             if (key.startsWith(KEY_SCROLL_COOLDOWN_PREFIX) && value is Long) {
                 if (now - value > SCROLL_GATE_COOLDOWN_MS) { editor.remove(key); pruned++ }
             }
+            // Unlock time keys: prune entries older than 8 days
+            if (key.startsWith(KEY_UNLOCK_TIME_PREFIX) && value is Long) {
+                val datePart = key.removePrefix(KEY_UNLOCK_TIME_PREFIX)
+                try {
+                    val entryDate = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+                        .parse(datePart)
+                    if (entryDate != null && now - entryDate.time > 8L * 24 * 60 * 60 * 1000) {
+                        editor.remove(key); pruned++
+                    }
+                } catch (_: Exception) { /* malformed key — ignore */ }
+            }
         }
         if (pruned > 0) editor.apply()
     }
@@ -623,6 +783,7 @@ class NoGoonAccessibilityService : AccessibilityService() {
         scrollSessionStartMs.clear()
         lastScrollEventMs.clear()
         scrollDebounceMs.clear()
+        unlockEntryMs.clear()
         currentForegroundPackage = ""
         lastGateLaunchMs = 0L
         mainHandler.post { removeGrayscaleOverlayLocked() }

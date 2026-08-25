@@ -22,14 +22,12 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Feather } from '@expo/vector-icons';
 import { useUserStore } from '@/stores/useUserStore';
-import { useSubscriptionStore } from '@/stores/useSubscriptionStore';
 import { useAppBlocker } from '@/hooks/useAppBlocker';
 import { AdBanner } from '@/components/ads/AdBanner';
 import { AdRewarded } from '@/components/ads/AdRewarded';
@@ -96,17 +94,132 @@ const MICRO_CARDS = [
 // XP earned = half of points earned, rounded up
 const pointsToXP = (pts: number) => Math.round(pts * 0.5);
 
+// ─── "Now what?" bridge hints ─────────────────────────────────────────────────
+// Context-aware: adapts suggestions to time-of-day, blocked domain, and label.
+function getNowWhatHints(label: string, domain: string): string[] {
+  const hour = new Date().getHours();
+  const isNight   = hour >= 22 || hour < 5;
+  const isEvening = hour >= 18 && hour < 22;
+  const isMorning = hour >= 5  && hour < 12;
+
+  const d = domain.toLowerCase();
+  const isShortVideo = ['tiktok', 'youtube', 'reels', 'twitch'].some(k => d.includes(k));
+  const isNews       = ['reddit', 'twitter', 'x.com', 'hacker', 'news', 'threads'].some(k => d.includes(k));
+  const isSocial     = ['instagram', 'facebook', 'snapchat', 'linkedin'].some(k => d.includes(k));
+  const domainName   = domain.length > 0 ? domain : 'that app';
+
+  switch (label) {
+    case 'Read / write / create':
+      return [
+        isNight
+          ? 'Late night is actually great for writing. No distractions.'
+          : isMorning
+          ? 'Morning pages. Even three sentences. Just start.'
+          : 'You just freed up the time. Open something and go.',
+        isShortVideo
+          ? `${domainName} is designed to eat hours. A page of a book won't do that.`
+          : isSocial
+          ? `You were checking lives. Now go build yours — even 10 minutes of creating counts.`
+          : 'Even 5 minutes of real writing beats an hour of consuming.',
+        'Phone face-down, screen off. The cursor is less scary than the feed.',
+      ];
+
+    case 'Go outside':
+      return [
+        isNight
+          ? 'A short walk at night is underrated. 10 minutes.'
+          : isEvening
+          ? 'Evening air. Shoes on — that\'s the whole task.'
+          : 'No destination needed. Just move.',
+        isShortVideo
+          ? `${domainName} is designed to keep you horizontal. This is the antidote.`
+          : 'The urge fades faster when your body is moving.',
+        'Leave the phone in your pocket. Eyes up.',
+      ];
+
+    case 'Make food':
+      return [
+        isNight
+          ? 'Late snack is fine. The act of making it is grounding.'
+          : isMorning
+          ? 'Real breakfast takes 10 minutes and actually fills you up.'
+          : 'You\'re probably hungry. Real food, not a scroll.',
+        'Check what\'s in the fridge. One thing. Make it.',
+        isNews
+          ? `${domainName} is anxiety on a loop. Cooking is the opposite — present and real.`
+          : 'The act is the reward. Start with one ingredient.',
+      ];
+
+    case 'Call or text someone':
+      return [
+        isSocial
+          ? `You were watching their posts. Just text them directly.`
+          : 'An actual message beats passive feed-watching every time.',
+        isNight
+          ? 'Even a "thinking of you" text lands well at night.'
+          : 'Pick one person. Send the message you\'ve been meaning to.',
+        'It doesn\'t have to be deep. Connection is the point.',
+      ];
+
+    case 'Exercise / stretch':
+      return [
+        isNight
+          ? '5 minutes of stretching before bed beats doomscrolling it.'
+          : isMorning
+          ? 'Morning movement sets the day. Even 10 push-ups.'
+          : 'Your body has been waiting. Any movement counts.',
+        isShortVideo
+          ? `${domainName} keeps you still. This undoes that.`
+          : 'Floor stretch, walk, push-ups — anything that isn\'t sitting.',
+        'Start small. One set. The rest follows.',
+      ];
+
+    case 'Work on something':
+      return [
+        isMorning
+          ? 'You just blocked the biggest distraction. Now is prime time.'
+          : isNight
+          ? 'Even 20 minutes of real work at night feels better than none.'
+          : 'The tab is closed. Open what you were actually supposed to be doing.',
+        isNews
+          ? 'You were reading about the world. This is your chance to affect it slightly.'
+          : 'You already won — now stack another win on top.',
+        'Pick the smallest next step. Just that one thing.',
+      ];
+
+    case 'Nothing specific':
+    default:
+      return [
+        isNight
+          ? 'It\'s late. Phone down, lights low. The feed will still be there — you won\'t miss anything real.'
+          : isEvening
+          ? 'Evening urges are habit, not need. Sit with it — 90 seconds and it softens.'
+          : 'Phone face-down for a few minutes. The urge is already fading.',
+        d.length > 0
+          ? `${domainName} is designed to pull you back. You just didn\'t let it.`
+          : 'The discomfort is normal. It peaks, then passes.',
+        'Nothing needs to happen right now. That\'s fine.',
+      ];
+  }
+}
+
 // ─── Main component ────────────────────────────────────────────────────────────
 
 export default function PostGameScreen() {
   // ── Route params ───────────────────────────────────────────────────────────
   // isBricked = '1' means BRICKED (Hard Mode) is active — unlock button is hidden
+  // isColdTurkey passed separately — superset of BRICKED with zero unlock path
   const {
     pointsEarned: rawPoints = '0',
     gameName = 'Mini-Game',
+    // 'app' = raw package name / site domain forwarded from gate (e.g. 'com.instagram.android').
+    // Used for unlockTemporarily() so the native module gets the right identifier.
+    // 'domain' = pretty display name (e.g. 'Instagram') — used for UI and partner notify only.
+    app = '',
     domain = '',
     isBricked: brickedParam = '0',
-  } = useLocalSearchParams<{ pointsEarned: string; gameName: string; domain: string; isBricked: string }>();
+    isColdTurkey: coldTurkeyParam = '0',
+  } = useLocalSearchParams<{ pointsEarned: string; gameName: string; app: string; domain: string; isBricked: string; isColdTurkey: string }>();
 
   // Format domain for display — "instagram.com" or "Instagram" depending on what was blocked
   const domainDisplay = domain || 'this site';
@@ -114,8 +227,9 @@ export default function PostGameScreen() {
   const pointsEarned = parseInt(rawPoints, 10);
   const xpEarned     = pointsToXP(pointsEarned);
 
-  // Whether BRICKED mode is active (passed from gate.tsx as a route param)
-  const isBrickedMode = brickedParam === '1';
+  // Whether BRICKED or Cold Turkey mode is active
+  const isBrickedMode    = brickedParam === '1' || coldTurkeyParam === '1';
+  const isColdTurkeyMode = coldTurkeyParam === '1';
 
   // ── Store ──────────────────────────────────────────────────────────────────
   const {
@@ -129,11 +243,14 @@ export default function PostGameScreen() {
     streakRestoresLeft,
     useStreakRestore,
     incrementWalkAway,
+    recordDailyWalkAway,
+    setCommitment,
     intentionGoal,
     logTrigger,
+    logReflection,
+    addUrgeEntry,
     notifyPartner,
   } = useUserStore();
-  const { isPro } = useSubscriptionStore();
   // Hook to tell the Android native module about the 10-min unlock
   const { unlockTemporarily } = useAppBlocker();
 
@@ -155,18 +272,32 @@ export default function PostGameScreen() {
     () => MICRO_CARDS[Math.floor(Math.random() * MICRO_CARDS.length)]
   );
 
-  // ── Walk-away celebration ──────────────────────────────────────────────────
-  const [celebrating, setCelebrating] = useState(false);
+  // ── Walk-away flow ────────────────────────────────────────────────────────
+  const [celebrating, setCelebrating]       = useState(false);
+  const [showCommitment, setShowCommitment] = useState(false);
+  const [showNowWhat, setShowNowWhat]       = useState(false);
+  const [nowWhatLabel, setNowWhatLabel]     = useState('');
   const [celebrationCount, setCelebrationCount] = useState(0);
+  const [reflectionDone, setReflectionDone] = useState(false);
+
+  const COMMITMENT_OPTIONS = [
+    { id: 'read',     label: 'Read / write / create', emoji: '📖' },
+    { id: 'outside',  label: 'Go outside',            emoji: '🌿' },
+    { id: 'food',     label: 'Make food',             emoji: '🍳' },
+    { id: 'call',     label: 'Call or text someone',  emoji: '💬' },
+    { id: 'exercise', label: 'Exercise / stretch',    emoji: '🏃' },
+    { id: 'work',     label: 'Work on something',     emoji: '💼' },
+    { id: 'nothing',  label: 'Nothing specific',      emoji: '✌️' },
+  ] as const;
 
   // ── Unlock countdown — replaces token-based friction ──────────────────────
   // Free users must wait 10s before the unlock button becomes active.
   // null = not started, N = counting down, 0 = ready to confirm.
   const [unlockCountdown, setUnlockCountdown] = useState<number | null>(null);
   const [bonusEarned, setBonusEarned] = useState(false);
-  const [bonusPoints] = useState(50);
+  const bonusPoints = 50;
   const [selectedTrigger, setSelectedTrigger] = useState<string | null>(null);
-  const [unlockMinutes, setUnlockMinutes] = useState<5 | 10 | 20>(20);
+  const unlockMinutes = 20; // Fixed at 20 min — no shorter options
 
   useEffect(() => {
     if (unlockCountdown === null || unlockCountdown === 0) return;
@@ -174,51 +305,7 @@ export default function PostGameScreen() {
     return () => clearTimeout(t);
   }, [unlockCountdown]);
 
-  // ── Score count-up animation ───────────────────────────────────────────────
-  // Counts from 0 → pointsEarned over 1.2 seconds using plain JS setState.
-  const [displayScore, setDisplayScore] = useState(0);
-  useEffect(() => {
-    const steps        = 30;
-    const stepDuration = 1200 / steps;
-    const increment    = pointsEarned / steps;
-    let current        = 0;
-
-    const interval = setInterval(() => {
-      current += increment;
-      if (current >= pointsEarned) {
-        setDisplayScore(pointsEarned);
-        clearInterval(interval);
-      } else {
-        setDisplayScore(Math.round(current));
-      }
-    }, stepDuration);
-
-    return () => clearInterval(interval);
-  }, [pointsEarned]);
-
-  // ── Score card pop-in ──────────────────────────────────────────────────────
-  // The card scales up from 0.7 and fades in when the screen first appears.
-  const scoreScale   = useRef(new Animated.Value(0.7)).current;
-  const scoreOpacity = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.spring(scoreScale, {
-        toValue: 1,
-        damping: 12,
-        stiffness: 180,
-        useNativeDriver: true,
-      }),
-      Animated.timing(scoreOpacity, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [scoreScale, scoreOpacity]);
-
-  // Pro perk: 1 streak restore per month.
-  const canRestoreStreak = isPro && streakRestoresLeft > 0;
+  const canRestoreStreak = streakRestoresLeft > 0;
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -228,13 +315,24 @@ export default function PostGameScreen() {
     incrementStreak();
     if (selectedTrigger) logTrigger(selectedTrigger);
     incrementWalkAway();
+    recordDailyWalkAway();
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setCelebrating(true);
-    setTimeout(() => router.dismissAll(), 1800);
+    // Show commitment step first — ask what they'll do instead
+    setShowCommitment(true);
+  };
+
+  const handleCommitment = (label: string) => {
+    setCommitment(label, domainDisplay);
+    Haptics.selectionAsync();
+    setShowCommitment(false);
+    setNowWhatLabel(label);
+    setShowNowWhat(true);
   };
 
   const handleUnlock = () => {
-    if (domain) unlockTemporarily(domain, unlockMinutes);
+    // Use 'app' (raw) for native unlock — it carries the package name for app blocks.
+    // Fall back to 'domain' for web-only sessions where 'app' isn't present.
+    if (app || domain) unlockTemporarily(app || domain, unlockMinutes);
     notifyPartner(domainDisplay, 'unlock');
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     router.dismissAll();
@@ -246,7 +344,7 @@ export default function PostGameScreen() {
     const restored = useStreakRestore();
     if (restored) {
       incrementStreak();
-      if (domain) unlockTemporarily(domain, unlockMinutes);
+      if (app || domain) unlockTemporarily(app || domain, unlockMinutes);
       notifyPartner(domainDisplay, 'unlock');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.dismissAll();
@@ -254,28 +352,148 @@ export default function PostGameScreen() {
   };
 
   const startUnlockCountdown = () => {
-    if (isPro) {
-      // Pro: no countdown needed, just confirm
-      setUnlockCountdown(0);
-    } else {
-      setUnlockCountdown(5);
-    }
+    // 60-second real delay — not skip-able, not point-buyable.
+    // The game was a pattern interrupt, not payment for access.
+    setUnlockCountdown(60);
   };
 
   // ══════════════════════════════════════════════════════════════════════════
   //  RENDER
   // ══════════════════════════════════════════════════════════════════════════
 
-  // ── Walk-away celebration screen ──────────────────────────────────────────
-  if (celebrating) {
+  // ── Walk-away celebration + reflection screen ─────────────────────────────
+  // Two phases: first show the walk-away count (celebrationCount), then
+  // show a one-tap reflection question. No auto-dismiss — user controls pacing.
+  const REFLECTION_OPTIONS = [
+    { id: 'Bored',           emoji: '😴', label: 'Bored' },
+    { id: 'Stressed',        emoji: '😤', label: 'Stressed' },
+    { id: 'Procrastinating', emoji: '⏰', label: 'Avoiding' },
+    { id: 'Lonely',          emoji: '🫂', label: 'Lonely' },
+    { id: 'Habit',           emoji: '🔁', label: 'Just Habit' },
+    { id: 'Anxious',         emoji: '😰', label: 'Anxious' },
+  ] as const;
+
+  // ── Commitment screen ────────────────────────────────────────────────────
+  if (showCommitment) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.celebrationContainer}>
+          <Text style={[styles.celebrationLabel, { marginBottom: SPACING.xs }]}>
+            Good call.
+          </Text>
+          <Text style={[styles.celebrationSub, { fontSize: 20, marginBottom: SPACING.xl }]}>
+            What are you going to do instead?
+          </Text>
+
+          <View style={{ width: '100%', gap: SPACING.sm }}>
+            {COMMITMENT_OPTIONS.map((opt) => (
+              <Pressable
+                key={opt.id}
+                style={[styles.commitmentCard, { borderColor: COLORS.cardBorder, backgroundColor: COLORS.surface }]}
+                onPress={() => handleCommitment(opt.label)}
+              >
+                <Text style={styles.commitmentEmoji}>{opt.emoji}</Text>
+                <Text style={[styles.commitmentLabel, { color: COLORS.textPrimary }]}>{opt.label}</Text>
+              </Pressable>
+            ))}
+          </View>
+
+          <Pressable
+            style={{ marginTop: SPACING.lg }}
+            onPress={() => { setShowCommitment(false); setCelebrating(true); }}
+          >
+            <Text style={[styles.reflectionSkipText, { color: COLORS.textMuted }]}>Skip</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // ── "Now what?" bridge ───────────────────────────────────────────────────────
+  if (showNowWhat) {
+    const hints = getNowWhatHints(nowWhatLabel, domain);
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.celebrationContainer}>
+          <Text style={[styles.celebrationSub, { color: COLORS.textMuted, fontSize: 13, letterSpacing: 1.5, marginBottom: SPACING.xs }]}>
+            YOU CHOSE
+          </Text>
+          <Text style={[styles.celebrationSub, { fontSize: 24, marginBottom: SPACING.xl }]}>
+            {nowWhatLabel}
+          </Text>
+          <View style={{ gap: SPACING.lg, width: '100%' }}>
+            {hints.map((hint, i) => (
+              <View key={i} style={styles.nowWhatRow}>
+                <Text style={styles.nowWhatDot}>·</Text>
+                <Text style={styles.nowWhatHint}>{hint}</Text>
+              </View>
+            ))}
+          </View>
+          <Pressable
+            style={styles.nowWhatBtn}
+            onPress={() => { setShowNowWhat(false); setCelebrating(true); }}
+          >
+            <Text style={styles.nowWhatBtnText}>I'm ready →</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (celebrating) {
+    if (reflectionDone) {
+      // Brief flash after reflection tap, then dismiss
+      return (
+        <SafeAreaView style={styles.safe}>
+          <View style={styles.celebrationContainer}>
+            <Text style={{ fontSize: 52 }}>✓</Text>
+            <Text style={[styles.celebrationSub, { color: COLORS.green }]}>Logged.</Text>
+          </View>
+        </SafeAreaView>
+      );
+    }
+
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.celebrationContainer}>
+          {/* Walk-away count */}
           <Text style={styles.celebrationNumber}>{celebrationCount}</Text>
           <Text style={styles.celebrationLabel}>
             walk-away{celebrationCount === 1 ? '' : 's'}
           </Text>
           <Text style={styles.celebrationSub}>You made it.</Text>
+
+          {/* Reflection question */}
+          <View style={styles.reflectionBlock}>
+            <Text style={styles.reflectionLabel}>What were you feeling?</Text>
+            <View style={styles.reflectionPills}>
+              {REFLECTION_OPTIONS.map((opt) => (
+                <Pressable
+                  key={opt.id}
+                  style={[styles.reflectionPill, { borderColor: COLORS.cardBorder, backgroundColor: COLORS.surface }]}
+                  onPress={() => {
+                    logReflection(opt.id);
+                    addUrgeEntry(opt.id, domainDisplay); // timestamped urge journal entry
+                    Haptics.selectionAsync();
+                    setReflectionDone(true);
+                    setTimeout(() => router.dismissAll(), 700);
+                  }}
+                >
+                  <Text style={styles.reflectionEmoji}>{opt.emoji}</Text>
+                  <Text style={[styles.reflectionPillText, { color: COLORS.textSecondary }]}>{opt.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+            <Pressable
+              onPress={() => {
+                setReflectionDone(true);
+                setTimeout(() => router.dismissAll(), 300);
+              }}
+              style={styles.reflectionSkip}
+            >
+              <Text style={[styles.reflectionSkipText, { color: COLORS.textMuted }]}>Skip</Text>
+            </Pressable>
+          </View>
         </View>
       </SafeAreaView>
     );
@@ -291,43 +509,12 @@ export default function PostGameScreen() {
 
         {/* ── Completion header ── */}
         <View style={styles.header}>
-          <Text style={styles.completeEmoji}>
-            {pointsEarned >= 80 ? '🏆' : pointsEarned >= 50 ? '⭐' : '✅'}
-          </Text>
           <Text style={styles.completeLabel}>WELL PLAYED</Text>
           <Text style={styles.gameNameText}>{gameName}</Text>
           <Text style={styles.praiseText}>
-            {pointsEarned >= 80
-              ? 'Crushing it. That craving never stood a chance.'
-              : pointsEarned >= 50
-              ? 'Solid. You showed up for yourself.'
-              : 'Every rep rewires the brain. Keep going.'}
+            You interrupted the loop. Now choose what happens next.
           </Text>
         </View>
-
-        {/* ── Score display — pops in and counts up ── */}
-        <Animated.View
-          style={[
-            styles.scoreCard,
-            {
-              opacity: scoreOpacity,
-              transform: [{ scale: scoreScale }],
-            },
-          ]}
-        >
-          <Text style={styles.scorePrefix}>+</Text>
-          <Text style={styles.scoreNumber}>{displayScore}</Text>
-          {/* "pause tokens" — renamed from "points" to reinforce the philosophy:
-              this isn't a game economy, it's a friction buffer */}
-          <Text style={styles.scoreUnit}>pause tokens</Text>
-
-          <View style={styles.xpChip}>
-            <Feather name="zap" size={13} color={COLORS.purple} />
-            <Text style={styles.xpChipText}>
-              +{xpEarned} XP  ·  {level}
-            </Text>
-          </View>
-        </Animated.View>
 
         {/* ── Streak callout ── */}
         {streak > 0 && (
@@ -408,14 +595,18 @@ export default function PostGameScreen() {
             <Feather name="arrow-right-circle" size={30} color={COLORS.textPrimary} />
           </Pressable>
 
-          {/* BRICKED: locked out message */}
+          {/* BRICKED / Cold Turkey: locked out message */}
           {isBrickedMode ? (
             <View style={styles.brickedLockout}>
-              <Text style={styles.brickedLockEmoji}>🧱</Text>
+              <Text style={styles.brickedLockEmoji}>{isColdTurkeyMode ? '🦃' : '🧱'}</Text>
               <View style={styles.brickedLockText}>
-                <Text style={styles.brickedLockTitle}>BRICKED Mode Active</Text>
+                <Text style={styles.brickedLockTitle}>
+                  {isColdTurkeyMode ? 'Cold Turkey Active' : 'BRICKED Mode Active'}
+                </Text>
                 <Text style={styles.brickedLockSub}>
-                  You disabled unlocking. Well done — walk away.
+                  {isColdTurkeyMode
+                    ? 'Zero unlock path. There is no way through. Walk away.'
+                    : 'You disabled unlocking. Well done — walk away.'}
                 </Text>
               </View>
             </View>
@@ -433,13 +624,13 @@ export default function PostGameScreen() {
               {unlockCountdown !== null && unlockCountdown > 0 && (
                 <View style={styles.unlockCountdownBox}>
                   <Text style={styles.unlockCountdownText}>
-                    Opening in {unlockCountdown}s...
+                    {unlockCountdown}s — are you sure?
                   </Text>
                   <View style={styles.unlockCountdownTrack}>
                     <View
                       style={[
                         styles.unlockCountdownFill,
-                        { width: `${((5 - unlockCountdown) / 5) * 100}%` },
+                        { width: `${((60 - unlockCountdown) / 60) * 100}%` },
                       ]}
                     />
                   </View>
@@ -448,32 +639,12 @@ export default function PostGameScreen() {
 
               {unlockCountdown === 0 && (
                 <View style={styles.unlockConfirmBox}>
-                  {/* Duration picker */}
-                  <View style={styles.durationPicker}>
-                    {([5, 10, 20] as const).map((m) => (
-                      <Pressable
-                        key={m}
-                        style={[
-                          styles.durationChip,
-                          {
-                            backgroundColor: unlockMinutes === m ? COLORS.surface : 'transparent',
-                            borderColor: unlockMinutes === m ? COLORS.cardBorder : 'transparent',
-                          },
-                        ]}
-                        onPress={() => { setUnlockMinutes(m); Haptics.selectionAsync(); }}
-                      >
-                        <Text style={[styles.durationChipText, { color: unlockMinutes === m ? COLORS.textPrimary : COLORS.textMuted }]}>
-                          {m}m
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
                   <Pressable style={styles.unlockConfirmButton} onPress={handleUnlock}>
                     <Text style={styles.unlockConfirmText}>
-                      Open {domainDisplay} — {unlockMinutes} min
+                      Open {domainDisplay} — 20 min
                     </Text>
                   </Pressable>
-                  {isPro && canRestoreStreak && (
+                  {canRestoreStreak && (
                     <Pressable style={styles.streakRestoreButton} onPress={handleUnlockWithRestore}>
                       <Feather name="check-circle" size={15} color={COLORS.purple} />
                       <Text style={styles.streakRestoreText}>
@@ -574,10 +745,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: SPACING.xs,
   },
-  completeEmoji: {
-    fontSize: 48,
-    marginBottom: SPACING.xs,
-  },
   completeLabel: {
     fontFamily: FONTS.mono,
     fontSize: 11,
@@ -621,51 +788,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: COLORS.textSecondary,
     lineHeight: 18,
-  },
-
-  scoreCard: {
-    alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: COLORS.green + '33',
-    paddingVertical: SPACING.xl,
-    paddingHorizontal: SPACING.lg,
-    gap: SPACING.xs,
-  },
-  scorePrefix: {
-    fontFamily: FONTS.monoBold,
-    fontSize: 32,
-    color: COLORS.green,
-    marginBottom: -16,
-  },
-  scoreNumber: {
-    fontFamily: FONTS.monoBold,
-    fontSize: 88,
-    color: COLORS.green,
-    lineHeight: 96,
-  },
-  scoreUnit: {
-    fontFamily: FONTS.body,
-    fontSize: 15,
-    color: COLORS.textSecondary,
-  },
-  xpChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.xs,
-    backgroundColor: COLORS.purpleDim,
-    borderRadius: RADIUS.full,
-    borderWidth: 1,
-    borderColor: COLORS.purple + '44',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
-    marginTop: SPACING.sm,
-  },
-  xpChipText: {
-    fontFamily: FONTS.mono,
-    fontSize: 12,
-    color: COLORS.purple,
   },
 
   microCard: {
@@ -730,6 +852,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: SPACING.xs,
+    paddingHorizontal: SPACING.xl,
   },
   celebrationNumber: {
     fontFamily: FONTS.monoBold,
@@ -749,6 +872,65 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
     marginTop: SPACING.sm,
     letterSpacing: 0.3,
+  },
+
+  // ── Reflection block ──
+  reflectionBlock: {
+    marginTop: SPACING.xxxl,
+    alignItems: 'center',
+    gap: SPACING.md,
+    width: '100%',
+  },
+  reflectionLabel: {
+    fontFamily: FONTS.mono,
+    fontSize: 11,
+    color: COLORS.textMuted,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  reflectionPills: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+    justifyContent: 'center',
+  },
+  reflectionPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: RADIUS.full,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+  },
+  reflectionEmoji: { fontSize: 16 },
+  reflectionPillText: {
+    fontFamily: FONTS.body,
+    fontSize: 14,
+  },
+
+  // ── Commitment cards ────────────────────────────────────────────────────
+  commitmentCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+    borderWidth: 1,
+    borderRadius: RADIUS.lg,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+  },
+  commitmentEmoji: { fontSize: 22 },
+  commitmentLabel: {
+    fontFamily: FONTS.bodyMedium,
+    fontSize: 16,
+  },
+  reflectionSkip: {
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.lg,
+  },
+  reflectionSkipText: {
+    fontFamily: FONTS.body,
+    fontSize: 13,
   },
 
   decisions: {
@@ -962,22 +1144,39 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
 
-  // ── Duration picker ────────────────────────────────────────────────────────
-  durationPicker: {
+  // ── Now what? bridge ──────────────────────────────────────────────────────
+  nowWhatRow: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: SPACING.xs,
-    marginBottom: SPACING.sm,
+    alignItems: 'flex-start',
+    gap: SPACING.sm,
+    width: '100%',
   },
-  durationChip: {
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 6,
-    borderRadius: RADIUS.full,
-    borderWidth: 1,
+  nowWhatDot: {
+    fontFamily: FONTS.display,
+    fontSize: 28,
+    color: COLORS.indigoBright,
+    lineHeight: 28,
+    marginTop: -2,
   },
-  durationChipText: {
-    fontFamily: FONTS.mono,
-    fontSize: 13,
-    letterSpacing: 0.3,
+  nowWhatHint: {
+    flex: 1,
+    fontFamily: FONTS.body,
+    fontSize: 17,
+    color: COLORS.textSecondary,
+    lineHeight: 26,
   },
+  nowWhatBtn: {
+    marginTop: SPACING.xxxl,
+    backgroundColor: COLORS.indigo,
+    borderRadius: RADIUS.lg,
+    paddingVertical: SPACING.lg,
+    paddingHorizontal: SPACING.xxl,
+    alignItems: 'center',
+  },
+  nowWhatBtnText: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 16,
+    color: COLORS.background,
+  },
+
 });

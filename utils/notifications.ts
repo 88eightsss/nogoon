@@ -107,3 +107,81 @@ function buildRecapBody(walkAways: number, streak: number): string {
   if (streak >= 7)  return `${walkAways} walk-away${walkAways === 1 ? '' : 's'} this week · ${streak}-day streak 🔥 Keep going.`;
   return `${walkAways} walk-away${walkAways === 1 ? '' : 's'} this week. Every one counts. 💪`;
 }
+
+// ── Pet / feed token notifications ───────────────────────────────────────────
+
+/**
+ * Fire immediately when the user earns feed tokens for being off their phone.
+ * Points AWAY from phone use — reinforces the reversed mechanic.
+ */
+export async function notifyTokenEarned(tokens: number, minutesOff: number): Promise<void> {
+  const plural  = tokens === 1 ? 'meal' : 'meals';
+  const timeStr = minutesOff >= 60
+    ? `${Math.floor(minutesOff / 60)}h ${minutesOff % 60}m`
+    : `${minutesOff}m`;
+  await fire(
+    `+${tokens} ${plural} earned`,
+    `You were off your phone for ${timeStr}. Your companion is grateful.`,
+  );
+}
+
+/**
+ * Fire immediately when hunger drops below 20.
+ */
+export async function notifyHungerWarning(petName: string): Promise<void> {
+  await fire(
+    `${petName} is getting hungry`,
+    'Stay off your phone a bit longer to earn feed tokens.',
+  );
+}
+
+/**
+ * Schedule a comeback reminder 48 hours from now.
+ * Cancel it with cancelComebackReminder() when the app is opened.
+ */
+export async function scheduleComebackReminder(petName: string): Promise<void> {
+  try {
+    await Notifications.cancelScheduledNotificationAsync('pet-comeback').catch(() => {});
+    const fireAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
+    await Notifications.scheduleNotificationAsync({
+      identifier: 'pet-comeback',
+      content: {
+        title: `${petName} misses you`,
+        body:  "It's been a while. Come back and check in.",
+        sound: true,
+      },
+      trigger: { date: fireAt } as any,
+    });
+  } catch {}
+}
+
+/** Cancel the comeback reminder — call on every app open. */
+export async function cancelComebackReminder(): Promise<void> {
+  try {
+    await Notifications.cancelScheduledNotificationAsync('pet-comeback').catch(() => {});
+  } catch {}
+}
+
+// ── Daily summary — fires at 8pm with today's walk-away count ───────────────
+// Rescheduled every time the user walks away so the count stays accurate.
+// Does nothing if it's already past 8pm (the old one already fired or never fired).
+export async function scheduleDailySummary(todayWalkAways: number, topDomain?: string): Promise<void> {
+  try {
+    const now = new Date();
+    const eightPm = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 20, 0, 0);
+    if (eightPm.getTime() <= now.getTime()) return; // Past 8pm — skip until tomorrow
+
+    const body = todayWalkAways === 0
+      ? "The urge might hit tonight. NoGoon's got you."
+      : `${todayWalkAways} walk-away${todayWalkAways !== 1 ? 's' : ''} today${topDomain ? ` · ${topDomain} was calling` : ''}. Strong work.`;
+
+    await Notifications.cancelScheduledNotificationAsync('daily-summary').catch(() => {});
+    await Notifications.scheduleNotificationAsync({
+      identifier: 'daily-summary',
+      content: { title: 'Your day at a glance 📊', body, sound: false },
+      trigger: { date: eightPm } as any,
+    });
+  } catch {
+    // Permissions not granted or unavailable — fail silently
+  }
+}

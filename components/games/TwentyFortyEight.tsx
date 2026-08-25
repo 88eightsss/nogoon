@@ -39,18 +39,19 @@ function py(row: number): number { return BOARD_PAD + row * STRIDE; }
 
 // ─── Tile colors ──────────────────────────────────────────────────────────────
 
+// Authentic 2048 warm tile palette
 const TILE_COLORS: Record<number, { bg: string; fg: string }> = {
-  2:    { bg: '#2d2d50', fg: '#c8c4e8' },
-  4:    { bg: '#3d3470', fg: '#d4d0f0' },
-  8:    { bg: '#f2a05a', fg: '#fff' },
-  16:   { bg: '#f28b3a', fg: '#fff' },
-  32:   { bg: '#e8714a', fg: '#fff' },
-  64:   { bg: '#e8502a', fg: '#fff' },
-  128:  { bg: '#f0c840', fg: '#fff' },
-  256:  { bg: '#f0bc28', fg: '#fff' },
-  512:  { bg: '#e8b020', fg: '#fff' },
-  1024: { bg: '#e8a010', fg: '#fff' },
-  2048: { bg: '#5b52f0', fg: '#fff' },
+  2:    { bg: '#eee4da', fg: '#776e65' },
+  4:    { bg: '#ede0c8', fg: '#776e65' },
+  8:    { bg: '#f2b179', fg: '#ffffff' },
+  16:   { bg: '#f59563', fg: '#ffffff' },
+  32:   { bg: '#f67c5f', fg: '#ffffff' },
+  64:   { bg: '#f65e3b', fg: '#ffffff' },
+  128:  { bg: '#edcf72', fg: '#ffffff' },
+  256:  { bg: '#edcc61', fg: '#ffffff' },
+  512:  { bg: '#edc850', fg: '#ffffff' },
+  1024: { bg: '#edc53f', fg: '#ffffff' },
+  2048: { bg: '#edc22e', fg: '#ffffff' },
 };
 function tileColors(val: number) { return TILE_COLORS[val] ?? { bg: '#5b52f0', fg: '#fff' }; }
 function tileFontSize(val: number): number {
@@ -448,14 +449,14 @@ const styles = StyleSheet.create({
   board: {
     width: BOARD_SIZE,
     height: BOARD_SIZE,
-    backgroundColor: '#0e0e1e',
+    backgroundColor: '#bbada0',  // authentic 2048 warm board color
     borderRadius: RADIUS.lg,
   },
   bgCell: {
     position: 'absolute',
     width: CELL_SIZE,
     height: CELL_SIZE,
-    backgroundColor: '#1a1a30',
+    backgroundColor: '#cdc1b4',  // authentic 2048 empty cell color
     borderRadius: RADIUS.sm,
   },
   tile: {

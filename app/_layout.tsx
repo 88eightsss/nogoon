@@ -34,7 +34,9 @@ import {
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUserStore } from '@/stores/useUserStore';
 import { useSubscriptionStore } from '@/stores/useSubscriptionStore';
-import { requestNotificationPermission, scheduleWeeklyRecap } from '@/utils/notifications';
+import { requestNotificationPermission, scheduleWeeklyRecap, cancelComebackReminder, notifyTokenEarned } from '@/utils/notifications';
+import { useAdAppOpen } from '@/components/ads/AdAppOpen';
+import { processCheckIn } from '@/services/feedTokens';
 
 // ─── Error Boundary ─────────────────────────────────────────────────────────── //
 //
@@ -147,8 +149,19 @@ const errorStyles = StyleSheet.create({
 
 export default function RootLayout() {
   const { session, loading, initialize } = useAuthStore();
-  const { hasOnboarded, loadFromSupabase, walkAwayCount, streak } = useUserStore();
+  const { hasOnboarded, loadFromSupabase, walkAwayCount, streak, refreshStreakRestores, checkStreakContinuity } = useUserStore();
   const { initialize: initSubscription } = useSubscriptionStore();
+
+  // Full-screen ad on every app foreground (= every NoGoon intercept)
+  useAdAppOpen();
+
+  // On every app open: cash out earned tokens, reset accumulation clock
+  useEffect(() => {
+    processCheckIn((tokens, minutesAway) => {
+      notifyTokenEarned(tokens, minutesAway).catch(() => {});
+    }).catch(() => {});
+    cancelComebackReminder().catch(() => {});
+  }, []);
 
   // Load all custom fonts before any screen renders
   const [fontsLoaded] = useFonts({
@@ -182,6 +195,9 @@ export default function RootLayout() {
       // Sync Supabase data and initialize subscription status in parallel
       loadFromSupabase(session.user.id);
       initSubscription(session.user.id);
+      // On every app open: reset monthly streak restores + protect streak with freeze tokens
+      refreshStreakRestores();
+      checkStreakContinuity();
       // Request notification permission then schedule weekly recap
       requestNotificationPermission().then((granted) => {
         if (granted) scheduleWeeklyRecap(walkAwayCount, streak);
@@ -266,6 +282,61 @@ export default function RootLayout() {
           {/* Setup guide — re-enable Accessibility Service from home screen */}
           <Stack.Screen
             name="setup-guide"
+            options={{
+              presentation: 'modal',
+              animation: 'slide_from_bottom',
+            }}
+          />
+
+          {/* Ad Wall — "what the internet looks like without NoGoon" */}
+          <Stack.Screen
+            name="ad-wall"
+            options={{
+              presentation: 'modal',
+              animation: 'slide_from_bottom',
+            }}
+          />
+
+          {/* Protection Layers — VPN, Notification Filter, App Blocker toggles */}
+          <Stack.Screen
+            name="protection"
+            options={{
+              presentation: 'modal',
+              animation: 'slide_from_bottom',
+            }}
+          />
+
+          {/* The Waiting Room — 5s pause before unlock */}
+          <Stack.Screen
+            name="waiting-room"
+            options={{
+              presentation: 'fullScreenModal',
+              animation: 'fade',
+              gestureEnabled: false,
+            }}
+          />
+
+          {/* Dead Reckoning — daily prediction vs actual */}
+          <Stack.Screen
+            name="dead-reckoning"
+            options={{
+              presentation: 'modal',
+              animation: 'slide_from_bottom',
+            }}
+          />
+
+          {/* Privacy Policy */}
+          <Stack.Screen
+            name="privacy"
+            options={{
+              presentation: 'modal',
+              animation: 'slide_from_bottom',
+            }}
+          />
+
+          {/* Brain Bubbles canvas */}
+          <Stack.Screen
+            name="bubbles"
             options={{
               presentation: 'modal',
               animation: 'slide_from_bottom',

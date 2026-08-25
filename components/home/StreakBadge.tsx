@@ -1,11 +1,11 @@
-// StreakBadge — shows the user's consecutive intentional days.
+// ConsistencyBadge (StreakBadge.tsx) — 30-day rolling consistency score
 //
-// PHILOSOPHY SHIFT:
-// This used to be "Day Streak" framed as retention bait — don't break it or you lose!
-// Now it's "Intentional Days" — celebrating what the user DIDN'T mindlessly do.
-// No guilt messaging. No "losing" a streak. Just honest encouragement.
+// PHILOSOPHY: Streaks punish missed days catastrophically and create anxiety.
+// Consistency % is resilient — a bad day barely moves the needle, but a good
+// month shows clearly. "78% consistent over 30 days" is more honest and more
+// motivating than "14-day streak" that resets to 0 on one off day.
 //
-// The flame gets brighter as the streak grows, but there's no alarm if it resets.
+// Secondary: streak is still shown small for users who track it personally.
 
 import { View, Text, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
@@ -13,70 +13,87 @@ import { Card } from '@/components/ui/Card';
 import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING } from '@/constants/Spacing';
 import { TYPE } from '@/constants/Typography';
+import { computeConsistencyScore } from '@/utils/consistencyScore';
 
 interface StreakBadgeProps {
-  streak: number;        // Current streak in days
-  longestStreak: number; // Personal best
-  walkAwayCount?: number; // How many times they played and still walked away
+  streak: number;
+  longestStreak: number;
+  walkAwayCount?: number;
+  freezeTokens?: number;
+  dailyGateFires: Record<string, number>;
+  dailyWalkAways: Record<string, number>;
 }
 
-export function StreakBadge({ streak, longestStreak, walkAwayCount = 0 }: StreakBadgeProps) {
-  // Flame color scales with streak length — but never goes red/urgent
-  // 0: dim grey | 3+: warm orange | 7+: bright orange
-  const flameColor =
-    streak === 0 ? COLORS.textMuted :
-    streak < 3   ? '#ff8c00' :
-    streak < 7   ? '#ff6b00' :
-                   '#ff4500';
+const GRADE_COLOR: Record<string, string> = {
+  S: COLORS.indigoBright,
+  A: COLORS.green,
+  B: COLORS.cyan,
+  C: '#e0a500',
+  D: COLORS.danger,
+};
 
-  // Milestone message — shown when streak is at a meaningful number
-  // Non-manipulative: celebrates the achievement, doesn't threaten loss
-  const milestone =
-    streak === 3  ? '3 days of pausing first. Real.' :
-    streak === 7  ? 'A week of intentional choices.' :
-    streak === 14 ? 'Two weeks. You\'re building this.' :
-    streak === 30 ? 'A month. You\'ve got this.' :
-    null;
+export function StreakBadge({
+  streak,
+  longestStreak,
+  walkAwayCount = 0,
+  freezeTokens = 0,
+  dailyGateFires,
+  dailyWalkAways,
+}: StreakBadgeProps) {
+  const consistency = computeConsistencyScore(dailyGateFires, dailyWalkAways);
+  const gradeColor = GRADE_COLOR[consistency.grade] ?? COLORS.textMuted;
 
-  // Zero state — don't show a big "0", show a start-fresh message instead
-  if (streak === 0) {
+  // Zero state — no gate fires recorded yet
+  if (consistency.daysActive === 0) {
     return (
       <Card style={styles.card}>
-        <Text style={TYPE.label}>Intentional Days</Text>
+        <Text style={TYPE.label}>Consistency</Text>
         <View style={styles.mainRow}>
-          <Feather name="zap" size={28} color={COLORS.textMuted} />
+          <Feather name="activity" size={26} color={COLORS.textMuted} />
         </View>
-        <Text style={styles.dayLabel}>
-          {walkAwayCount > 0 ? 'Start a new streak today' : 'Play and walk away to start'}
+        <Text style={styles.sub}>
+          {walkAwayCount > 0 ? 'Keep going to build your score' : 'Walk away once to start tracking'}
         </Text>
-        {walkAwayCount > 0 && (
-          <Text style={styles.best}>{walkAwayCount}× walked away ✓</Text>
-        )}
       </Card>
     );
   }
 
   return (
     <Card style={styles.card}>
-      <Text style={TYPE.label}>Intentional Days</Text>
+      <Text style={TYPE.label}>Consistency</Text>
+
       <View style={styles.mainRow}>
-        <Feather name="zap" size={28} color={flameColor} />
-        <Text style={[TYPE.monoL, styles.number]}>{streak}</Text>
+        <Text style={[styles.score, { color: gradeColor }]}>
+          {consistency.score}%
+        </Text>
+        <View style={[styles.gradePill, { backgroundColor: gradeColor + '22' }]}>
+          <Text style={[styles.grade, { color: gradeColor }]}>{consistency.grade}</Text>
+        </View>
       </View>
-      <Text style={styles.dayLabel}>days stayed intentional</Text>
-      {milestone ? (
-        <Text style={styles.milestone}>{milestone}</Text>
-      ) : walkAwayCount > 0 ? (
-        <Text style={styles.best}>{walkAwayCount}× walked away ✓</Text>
-      ) : (
-        <Text style={styles.best}>Best: {longestStreak}d</Text>
+
+      <Text style={styles.sub}>
+        {consistency.daysWon}/{consistency.daysActive} days walked away
+      </Text>
+
+      {streak > 0 && (
+        <View style={styles.streakRow}>
+          <Feather name="zap" size={10} color={COLORS.textMuted} />
+          <Text style={styles.streakText}>{streak}d streak</Text>
+          {freezeTokens > 0 && (
+            <>
+              <Feather name="shield" size={10} color={COLORS.cyan} style={{ marginLeft: 6 }} />
+              <Text style={[styles.streakText, { color: COLORS.cyan }]}>
+                {freezeTokens}×
+              </Text>
+            </>
+          )}
+        </View>
       )}
     </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  // The card fills half the row (parent sets flex: 1 on each card)
   card: {
     flex: 1,
   },
@@ -86,26 +103,36 @@ const styles = StyleSheet.create({
     marginTop: SPACING.xs,
     gap: SPACING.xs,
   },
-  number: {
-    color: COLORS.indigoBright,
+  score: {
+    fontFamily: FONTS.display,
+    fontSize: 36,
+    lineHeight: 40,
   },
-  dayLabel: {
+  gradePill: {
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginBottom: 4,
+  },
+  grade: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 16,
+  },
+  sub: {
     fontFamily: FONTS.body,
-    fontSize: 12,
+    fontSize: 11,
     color: COLORS.textSecondary,
     marginTop: 2,
   },
-  milestone: {
-    fontFamily: FONTS.bodyMedium,
-    fontSize: 11,
-    color: COLORS.indigoBright,
-    lineHeight: 15,
-  },
-  best: {
-    fontFamily: FONTS.mono,
-    fontSize: 11,
-    color: COLORS.textMuted,
+  streakRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
     marginTop: SPACING.sm,
   },
+  streakText: {
+    fontFamily: FONTS.mono,
+    fontSize: 10,
+    color: COLORS.textMuted,
+  },
 });
-

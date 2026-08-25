@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 //  ARCADE TAB — NoGoon
 //  ────────────────────
-//  13 games. Standard is open to all paid plans. Pro is Pro-only.
+//  13 exclusive games, all free.
 // ═══════════════════════════════════════════════════════════════════════════
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -13,9 +13,10 @@ import {
   Pressable,
   Animated,
   Modal,
+  Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 
 // ── Standard games ──────────────────────────────────────────────────────────
@@ -23,9 +24,8 @@ import { GroundingExercise } from '@/components/games/GroundingExercise';
 import { BreathRhythm }     from '@/components/games/BreathRhythm';
 import { OddOneOut }        from '@/components/games/OddOneOut';
 import { ColorSort }        from '@/components/games/ColorSort';
-import { BallSort }         from '@/components/games/BallSort';
+// BallSort removed
 import { TwentyFortyEight } from '@/components/games/TwentyFortyEight';
-import { GemMatch }         from '@/components/games/GemMatch';
 import { WordWeave }        from '@/components/games/WordWeave';
 import { StackGame }        from '@/components/games/StackGame';
 import { PatternMemory }    from '@/components/games/PatternMemory';
@@ -33,12 +33,23 @@ import { PatternMemory }    from '@/components/games/PatternMemory';
 import { WarpGame }         from '@/components/games/WarpGame';
 import { IntentionCheck }   from '@/components/games/IntentionCheck';
 import { TypingChallenge }  from '@/components/games/TypingChallenge';
+// SandToy removed
+import { SpotTheSponsored } from '@/components/games/SpotTheSponsored';
+// ── Retro 2-bit games ────────────────────────────────────────────────────────
+import { PixelDodge }       from '@/components/games/PixelDodge';
+// FlashTap removed
+import { SnakeGame }        from '@/components/games/SnakeGame';
+import { BrickBreak }       from '@/components/games/BrickBreak';
+import { EndlessRunner }    from '@/components/games/EndlessRunner';
+import { FlappyBird }       from '@/components/games/FlappyBird';
+import { Minesweeper }      from '@/components/games/Minesweeper';
+import GoonWord             from '@/components/games/GoonWord';
 
 import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
-import { ALL_GAMES, type GameMeta, type GameId } from '@/constants/games';
-
-type GameEntry = GameMeta;
+import { ALL_GAMES, GATE_GAMES, getGamesByCategory, type GameCategory, type GameMeta, type GameId } from '@/constants/games';
+import { AdBanner } from '@/components/ads/AdBanner';
+import { useThemeStore } from '@/stores/useThemeStore';
 
 // ─── Post-game screen ─────────────────────────────────────────────────────────
 
@@ -73,7 +84,7 @@ function ArcadePostGame({ gameName, onBack, onPlayAgain }: {
 // ─── Game info modal ──────────────────────────────────────────────────────────
 
 function GameInfoModal({ game, onClose, onPlay }: {
-  game: GameEntry;
+  game: GameMeta;
   onClose: () => void;
   onPlay: (id: GameId) => void;
 }) {
@@ -109,9 +120,9 @@ function GameInfoModal({ game, onClose, onPlay }: {
 // ─── Game card ────────────────────────────────────────────────────────────────
 
 function ArcadeGameCard({ game, onPlay, onInfo }: {
-  game: GameEntry;
+  game: GameMeta;
   onPlay: (id: GameId) => void;
-  onInfo: (game: GameEntry) => void;
+  onInfo: (game: GameMeta) => void;
 }) {
   const scale = useRef(new Animated.Value(1)).current;
   return (
@@ -128,14 +139,16 @@ function ArcadeGameCard({ game, onPlay, onInfo }: {
           { transform: [{ scale }] },
         ]}
       >
-        {game.tier === 'pro' && (
-          <View style={[styles.proBadge, { backgroundColor: game.color + '18', borderColor: game.color + '45' }]}>
-            <Text style={[styles.proBadgeText, { color: game.color }]}>✦ PRO</Text>
-          </View>
-        )}
         <Text style={styles.gameEmoji}>{game.emoji}</Text>
         <View style={styles.gameInfo}>
-          <Text style={styles.gameName}>{game.name}</Text>
+          <View style={styles.gameNameRow}>
+            <Text style={styles.gameName}>{game.name}</Text>
+            {game.category === 'awareness' && (
+              <View style={[styles.experienceBadge, { backgroundColor: game.color + '22', borderColor: game.color + '55' }]}>
+                <Text style={[styles.experienceBadgeText, { color: game.color }]}>Awareness</Text>
+              </View>
+            )}
+          </View>
           <Text style={styles.gameDescription}>{game.description}</Text>
           <Text style={[styles.gameTagline, { color: game.color }]}>{game.tagline}</Text>
         </View>
@@ -154,10 +167,15 @@ function ArcadeGameCard({ game, onPlay, onInfo }: {
 // ─── Main Arcade Screen ───────────────────────────────────────────────────────
 
 export default function ArcadeScreen() {
-  const { game: gameParam } = useLocalSearchParams<{ game?: string }>();
+  const { game: gameParam, category: categoryParam } = useLocalSearchParams<{ game?: string; category?: string }>();
+  const { disabledGateGames, toggleGateGame } = useThemeStore();
+
+  const [showAll, setShowAll]           = useState(false);
+  const calmOnly = categoryParam === 'calm' && !showAll;
   const [activeGame, setActiveGame]     = useState<GameId | null>(null);
-  const [finishedGame, setFinishedGame] = useState<GameEntry | null>(null);
-  const [infoGame, setInfoGame]         = useState<GameEntry | null>(null);
+  const [finishedGame, setFinishedGame] = useState<GameMeta | null>(null);
+  const [infoGame, setInfoGame]         = useState<GameMeta | null>(null);
+  const navigation = useNavigation();
 
   // Auto-launch if navigated here with a specific game (e.g. from Daily Challenge)
   useEffect(() => {
@@ -165,6 +183,18 @@ export default function ArcadeScreen() {
       setActiveGame(gameParam as GameId);
     }
   }, [gameParam]);
+
+  // Dynamic header color — matches the active game's color identity
+  useEffect(() => {
+    if (activeGame) {
+      const game = ALL_GAMES.find((g) => g.id === activeGame);
+      if (game) {
+        navigation.setOptions({ headerTintColor: game.color, title: game.name });
+      }
+    } else {
+      navigation.setOptions({ headerTintColor: COLORS.arcade, title: 'Arcade' });
+    }
+  }, [activeGame, navigation]);
 
   const handleGameComplete = (_score: number) => {
     const game = ALL_GAMES.find((g) => g.id === activeGame) ?? null;
@@ -187,15 +217,21 @@ export default function ArcadeScreen() {
     if (activeGame === 'grounding')  gameNode = <GroundingExercise onComplete={handleGameComplete} />;
     if (activeGame === 'oddone')     gameNode = <OddOneOut        onComplete={handleGameComplete} />;
     if (activeGame === 'colorsort')  gameNode = <ColorSort        onComplete={handleGameComplete} />;
-    if (activeGame === 'ballsort')   gameNode = <BallSort         onComplete={handleGameComplete} />;
     if (activeGame === 'twentyfortyeight') gameNode = <TwentyFortyEight onComplete={handleGameComplete} />;
-    if (activeGame === 'gemmatch')   gameNode = <GemMatch         onComplete={handleGameComplete} />;
-    if (activeGame === 'wordweave')  gameNode = <WordWeave        onComplete={handleGameComplete} />;
-    if (activeGame === 'warp')       gameNode = <WarpGame         onComplete={handleGameComplete} />;
-    if (activeGame === 'stack')      gameNode = <StackGame        onComplete={handleGameComplete} />;
-    if (activeGame === 'intention')  gameNode = <IntentionCheck   onComplete={handleGameComplete} />;
-    if (activeGame === 'typing')     gameNode = <TypingChallenge  onComplete={handleGameComplete} duration={30} />;
-    if (activeGame === 'memory')     gameNode = <PatternMemory    onComplete={handleGameComplete} />;
+    if (activeGame === 'wordweave')      gameNode = <WordWeave        onComplete={handleGameComplete} />;
+    if (activeGame === 'warp')           gameNode = <WarpGame         onComplete={handleGameComplete} />;
+    if (activeGame === 'stack')          gameNode = <StackGame        onComplete={handleGameComplete} />;
+    if (activeGame === 'intention')      gameNode = <IntentionCheck   onComplete={handleGameComplete} />;
+    if (activeGame === 'typing')         gameNode = <TypingChallenge  onComplete={handleGameComplete} duration={30} />;
+    if (activeGame === 'memory')         gameNode = <PatternMemory    onComplete={handleGameComplete} />;
+    if (activeGame === 'spotsponsored')  gameNode = <SpotTheSponsored onComplete={handleGameComplete} />;
+    if (activeGame === 'pixeldodge')     gameNode = <PixelDodge       onComplete={handleGameComplete} />;
+    if (activeGame === 'snakegame')      gameNode = <SnakeGame        onComplete={handleGameComplete} />;
+    if (activeGame === 'brickbreak')     gameNode = <BrickBreak       onComplete={handleGameComplete} />;
+    if (activeGame === 'runner')         gameNode = <EndlessRunner    onComplete={handleGameComplete} />;
+    if (activeGame === 'flappy')         gameNode = <FlappyBird       onComplete={handleGameComplete} />;
+    if (activeGame === 'minesweeper')    gameNode = <Minesweeper      onComplete={handleGameComplete} />;
+    if (activeGame === 'goon')           gameNode = <GoonWord         onComplete={(won) => handleGameComplete(won ? 100 : 0)} />;
 
     if (gameNode) {
       return (
@@ -222,9 +258,6 @@ export default function ArcadeScreen() {
 
   // ── Game list ─────────────────────────────────────────────────────────────
 
-  const standardGames = ALL_GAMES.filter((g) => g.tier === 'standard');
-  const proGames      = ALL_GAMES.filter((g) => g.tier === 'pro');
-
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView
@@ -234,31 +267,60 @@ export default function ArcadeScreen() {
       >
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Arcade</Text>
-          <Text style={styles.headerSubtitle}>Play for fun · No points earned</Text>
-        </View>
-
-        <View style={styles.freeCallout}>
-          <Feather name="zap" size={18} color={COLORS.purple} />
-          <Text style={styles.freeCalloutText}>
-            All games are <Text style={styles.freeHighlight}>always free</Text> to play here.{'\n'}
-            Upgrade to earn points when you're intercepted.
+          <Text style={styles.headerSubtitle}>
+            {calmOnly ? 'Calm games · low stimulation only' : 'Play for fun · No points earned here'}
           </Text>
         </View>
 
-        {/* Standard */}
-        <Text style={styles.sectionLabel}>Standard  ·  {standardGames.length} games</Text>
-        {standardGames.map((game) => (
-          <ArcadeGameCard key={game.id} game={game} onPlay={handlePlay} onInfo={setInfoGame} />
-        ))}
+        {calmOnly ? (
+          <View>
+            <View style={styles.calmBanner}>
+              <Feather name="wind" size={16} color={COLORS.warning} />
+              <Text style={styles.calmBannerText}>
+                Showing calm games only — lower stimulation, easier to step away from.
+              </Text>
+            </View>
+            <Pressable
+              style={styles.seeAllBtn}
+              onPress={() => setShowAll(true)}
+            >
+              <Text style={styles.seeAllText}>See all {ALL_GAMES.length} games →</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <View style={styles.freeCallout}>
+            <Feather name="zap" size={18} color={COLORS.arcade} />
+            <Text style={styles.freeCalloutText}>
+              <Text style={styles.freeHighlight}>{ALL_GAMES.length} games</Text>
+              {' '}included with NoGoon — all free, forever.
+            </Text>
+          </View>
+        )}
 
-        {/* Pro */}
-        <Text style={styles.sectionLabel}>
-          {'Pro  ·  '}
-          <Text style={styles.proNote}>✦ Free to play in Arcade</Text>
-        </Text>
-        {proGames.map((game) => (
-          <ArcadeGameCard key={game.id} game={game} onPlay={handlePlay} onInfo={setInfoGame} />
-        ))}
+        {/* Categorized game sections */}
+        {(
+          (calmOnly
+            ? [{ key: 'calm' as GameCategory, label: 'Calm' }]
+            : [
+                { key: 'calm',      label: 'Calm' },
+                { key: 'puzzle',    label: 'Puzzle' },
+                { key: 'reflex',    label: 'Reflex' },
+                { key: 'skill',     label: 'Skill' },
+                { key: 'awareness', label: 'Awareness' },
+              ]
+          ) as { key: GameCategory; label: string }[]
+        ).map(({ key, label }) => {
+          const games = getGamesByCategory(key);
+          if (games.length === 0) return null;
+          return (
+            <React.Fragment key={key}>
+              <Text style={styles.sectionLabel}>{label}  ·  {games.length}</Text>
+              {games.map((game) => (
+                <ArcadeGameCard key={game.id} game={game} onPlay={handlePlay} onInfo={setInfoGame} />
+              ))}
+            </React.Fragment>
+          );
+        })}
 
         {/* Game info modal */}
         {infoGame && (
@@ -268,6 +330,48 @@ export default function ArcadeScreen() {
             onPlay={handlePlay}
           />
         )}
+
+        {/* Gate intercept game toggles */}
+        {!calmOnly && (
+          <>
+            <Text style={[styles.sectionLabel, { marginTop: SPACING.xl }]}>
+              Intercept games  ·  {GATE_GAMES.length - disabledGateGames.filter(id => GATE_GAMES.some(g => g.id === id)).length} on
+            </Text>
+            <View style={styles.gateToggleCard}>
+              <Text style={styles.gateToggleHint}>
+                Choose which games can pop up when you hit a blocker.
+                Turn off games you don't enjoy.
+              </Text>
+              {GATE_GAMES.map((game, idx) => {
+                const enabled = !disabledGateGames.includes(game.id);
+                const isLast  = idx === GATE_GAMES.length - 1;
+                return (
+                  <View
+                    key={game.id}
+                    style={[
+                      styles.gateToggleRow,
+                      !isLast && styles.gateToggleDivider,
+                    ]}
+                  >
+                    <Text style={styles.gateToggleEmoji}>{game.emoji}</Text>
+                    <Text style={[styles.gateToggleName, !enabled && styles.gateToggleNameOff]}>
+                      {game.name}
+                    </Text>
+                    <Switch
+                      value={enabled}
+                      onValueChange={() => toggleGateGame(game.id)}
+                      trackColor={{ false: COLORS.surface, true: COLORS.green + '66' }}
+                      thumbColor={enabled ? COLORS.green : COLORS.textMuted}
+                    />
+                  </View>
+                );
+              })}
+            </View>
+          </>
+        )}
+
+        {/* Medium rectangle ad below the game list */}
+        <AdBanner size="mediumRectangle" style={{ marginTop: SPACING.md }} />
 
         <View style={{ height: SPACING.xxl }} />
       </ScrollView>
@@ -292,6 +396,30 @@ const styles = StyleSheet.create({
   headerTitle:    { fontFamily: FONTS.display, fontSize: 36, color: COLORS.textPrimary, letterSpacing: -0.5 },
   headerSubtitle: { fontFamily: FONTS.body,    fontSize: 14, color: COLORS.textMuted,   marginTop: 2 },
 
+  calmBanner: {
+    flexDirection:   'row',
+    alignItems:      'flex-start',
+    gap:             SPACING.sm,
+    backgroundColor: COLORS.warning + '12',
+    borderRadius:    RADIUS.md,
+    borderWidth:     1,
+    borderColor:     COLORS.warning + '30',
+    padding:         SPACING.md,
+    marginBottom:    SPACING.md,
+  },
+  calmBannerText: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.textSecondary, lineHeight: 20, flex: 1 },
+
+  seeAllBtn: {
+    paddingVertical: SPACING.sm,
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
+  },
+  seeAllText: {
+    fontFamily: FONTS.bodyMedium,
+    fontSize: 13,
+    color: COLORS.arcade,
+  },
+
   freeCallout: {
     flexDirection:   'row',
     alignItems:      'flex-start',
@@ -305,7 +433,7 @@ const styles = StyleSheet.create({
   },
 
   freeCalloutText: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.textSecondary, lineHeight: 20, flex: 1 },
-  freeHighlight:   { fontFamily: FONTS.bodyBold, color: COLORS.purple },
+  freeHighlight:   { fontFamily: FONTS.bodyBold, color: COLORS.arcade },
 
   sectionLabel: {
     fontFamily:    FONTS.mono,
@@ -315,14 +443,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginTop:     SPACING.md,
     marginBottom:  SPACING.xs,
-  },
-
-  proNote: {
-    fontFamily:    FONTS.mono,
-    fontSize:      10,
-    color:         '#7dd3fc',
-    letterSpacing: 0.5,
-    textTransform: 'none',
   },
 
   cardPressable: { width: '100%' },
@@ -338,24 +458,53 @@ const styles = StyleSheet.create({
     position:        'relative',
   },
 
-  proBadge: {
-    position:          'absolute',
-    top:               SPACING.sm,
-    right:             SPACING.sm,
-    borderRadius:      RADIUS.xs,
-    paddingHorizontal: 6,
-    paddingVertical:   2,
-    borderWidth:       1,
-  },
-
-  proBadgeText: { fontFamily: FONTS.mono, fontSize: 9, letterSpacing: 0.5 },
-
   gameEmoji:       { fontSize: 36, width: 46, textAlign: 'center' },
   gameInfo:        { flex: 1, gap: 2 },
+  gameNameRow:     { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
   gameName:        { fontFamily: FONTS.bodyBold, fontSize: 16, color: COLORS.textPrimary },
+  experienceBadge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, borderWidth: 1 },
+  experienceBadgeText: { fontFamily: FONTS.bodyMedium, fontSize: 10, letterSpacing: 0.3 },
   gameDescription: { fontFamily: FONTS.body,     fontSize: 13, color: COLORS.textSecondary, lineHeight: 18 },
   gameTagline:     { fontFamily: FONTS.mono,     fontSize: 10, letterSpacing: 0.5, marginTop: 2 },
   infoBtn:         { padding: 4 },
+
+  // ── Gate toggle section ───────────────────────────────────────────────────
+  gateToggleCard: {
+    backgroundColor:  COLORS.surface,
+    borderRadius:     RADIUS.lg,
+    borderWidth:      1,
+    borderColor:      COLORS.cardBorder,
+    overflow:         'hidden',
+    marginBottom:     SPACING.sm,
+  },
+  gateToggleHint: {
+    fontFamily:  FONTS.body,
+    fontSize:    12,
+    color:       COLORS.textMuted,
+    lineHeight:  18,
+    paddingHorizontal: SPACING.md,
+    paddingTop:  SPACING.md,
+    paddingBottom: SPACING.sm,
+  },
+  gateToggleRow: {
+    flexDirection:  'row',
+    alignItems:     'center',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    gap:            SPACING.sm,
+  },
+  gateToggleDivider: {
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  gateToggleEmoji: { fontSize: 18, width: 28 },
+  gateToggleName: {
+    fontFamily: FONTS.bodyMedium,
+    fontSize:   14,
+    color:      COLORS.textPrimary,
+    flex:       1,
+  },
+  gateToggleNameOff: { color: COLORS.textMuted },
 
   // ── Game info modal ───────────────────────────────────────────────────────
   modalBackdrop: {

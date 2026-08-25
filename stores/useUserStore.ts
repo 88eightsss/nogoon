@@ -16,7 +16,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { NativeModules, Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { supabase } from '@/lib/supabase';
-import { maybeNotifyStreak, maybeNotifyWalkAway } from '@/utils/notifications';
+import { maybeNotifyStreak, maybeNotifyWalkAway, scheduleDailySummary } from '@/utils/notifications';
 
 // Fire-and-forget helper: writes focusSessionEnd to SharedPreferences so the
 // Kotlin Accessibility Service can honour focus session hard-locks even when the
@@ -160,6 +160,12 @@ interface UserState {
   dailyIntention: string;
   intentionDate: string; // 'YYYY-MM-DD' — when it was set
 
+  // ── Nightly pre-commitment ritual ──────────────────────────────────────────
+  // Set in the evening. Surfaces on the gate calm screen the NEXT day as a
+  // banner — "Last night you set a rule: [text]".
+  nightlyCommitment: string;
+  nightlyCommitmentSetAt: number; // timestamp (ms) when it was set — 0 if not set
+
   // ── Wind-down mode ─────────────────────────────────────────────────────────
   // After windDownHour, gate uses a softer tone and defaults game to breathing.
   windDownEnabled: boolean;
@@ -172,6 +178,21 @@ interface UserState {
   brickedEnabledAt: number | null;          // timestamp (ms) when BRICKED was turned on
   brickedDisableRequestedAt: number | null; // timestamp when user requested to turn it OFF
 
+  // ── Cold Turkey mode ("Nuclear Option") ────────────────────────────────────
+  // Harder than BRICKED: NO unlock path at all — not even spending points.
+  // Re-enabling requires 48hr wait + typing the confirmation phrase exactly.
+  isColdTurkey: boolean;
+  coldTurkeyEnabledAt: number | null;
+  coldTurkeyDisableRequestedAt: number | null;
+
+  // ── Digital curfew ("Sleep Mode") ─────────────────────────────────────────
+  // Recurring hard block window — like Cold Turkey but time-based.
+  // During curfew: gate fires but has zero unlock path (no game, no points).
+  // Handles overnight ranges (e.g. 22:00 → 07:00).
+  curfewEnabled: boolean;
+  curfewStart: string; // e.g. '22:00'
+  curfewEnd: string;   // e.g. '07:00'
+
   // ── Game duration (Pro only) ───────────────────────────────────────────────
   // Longer games = stronger pattern interruption = more likely to walk away
   gameDuration: 30 | 60 | 90;
@@ -180,6 +201,12 @@ interface UserState {
   // One free streak restore per calendar month — Pro only
   streakRestoresLeft: number;
   streakRestoreMonth: string; // 'YYYY-MM' — tracks which month restores were last granted
+
+  // ── Streak freeze tokens (earned, not Pro) ─────────────────────────────────
+  // Awarded at each 5-walk-away milestone. Auto-consumed if user misses a day.
+  // Unlike Pro streak restores, these are earned through consistent behaviour.
+  streakFreezeTokens: number;
+  lastStreakDate: string; // 'YYYY-MM-DD' of last streak increment — gap detection
 
   // ── Accountability partner (Pro+ only) ─────────────────────────────────────
   partnerEmail: string;
@@ -204,6 +231,21 @@ interface UserState {
   // Totals accumulate so users can spot their own patterns.
   triggerCounts: Record<string, number>; // e.g. { bored: 12, stressed: 4 }
 
+  // ── Post-walk-away reflection ──────────────────────────────────────────────
+  // What the user was feeling when they walked away. One tap after celebration.
+  // Used on the Insights screen to show emotional patterns over time.
+  reflectionCounts: Record<string, number>; // e.g. { bored: 8, anxious: 3 }
+
+  // ── Walk-away daily activity (7-day) ──────────────────────────────────────
+  // Mirrors weeklyActivity but counts walk-aways (not games played).
+  // Index 0 = 6 days ago, index 6 = today. Used on Insights screen.
+  walkAwayActivity: [number, number, number, number, number, number, number];
+
+  // ── Hourly open counts ────────────────────────────────────────────────────
+  // Lifetime tally of which hours the gate has fired — 24 elements (0–23).
+  // Never resets: shows the user's chronic peak-urge window over time.
+  hourlyOpenCounts: number[];
+
   // ── Walk-away count ────────────────────────────────────────────────────────
   // How many times the user played a gate game and then chose NOT to unlock.
   // This is the real success metric — the app working as intended.
@@ -215,6 +257,11 @@ interface UserState {
   // Shown subtly on the gate screen as a reminder of their own intention.
   intentionGoal: string;
 
+  // ── Tutorial ───────────────────────────────────────────────────────────────
+  // Set to true once the user completes or skips the interactive tour.
+  // Prevents it from auto-triggering on every launch.
+  hasSeenTutorial: boolean;
+
   // ── Impulse journal ────────────────────────────────────────────────────────
   // User writes what triggered them before each game — builds self-awareness
   journalEntries: Array<{
@@ -224,9 +271,27 @@ interface UserState {
     timestamp: number;
   }>;
 
+  // ── 30-day consistency tracking ────────────────────────────────────────────
+  // Date-keyed records (YYYY-MM-DD) of gate fires and walk-aways per day.
+  // Used to compute the rolling 30-day consistency score.
+  // Old entries (>30 days) are pruned on each write to cap storage.
+  dailyGateFires: Record<string, number>;   // date → gate fire count
+  dailyWalkAways: Record<string, number>;   // date → walk-away count
+
+  // ── Urge journal (post-walk-away quick-tap) ────────────────────────────────
+  // After walking away, user taps what was pulling them in (1 tap = 1 entry).
+  // Rolling last-10 visible on Insights. Different from reflectionCounts (which
+  // is a lifetime aggregate) — this keeps the full timestamped sequence.
+  urgeJournal: Array<{
+    tag: string;      // e.g. 'Bored', 'Stressed', 'Procrastinating', 'Lonely', 'Habit'
+    domain: string;
+    timestamp: number;
+  }>;
+
   // ── Actions ──
   setName: (name: string) => void;
   completeOnboarding: () => void;
+  markTutorialSeen: () => void;
   addPoints: (amount: number) => void;
   addXP: (amount: number) => void;
   spendPoints: (amount: number) => boolean;
@@ -254,6 +319,10 @@ interface UserState {
   // Daily intention
   setDailyIntention: (text: string) => void;
 
+  // Nightly pre-commitment ritual
+  setNightlyCommitment: (text: string) => void;
+  clearNightlyCommitment: () => void;
+
   // Wind-down mode
   setWindDownEnabled: (val: boolean) => void;
   setWindDownHour: (hour: number) => void;
@@ -263,12 +332,23 @@ interface UserState {
   requestDisableBricked: () => void;  // starts 24hr countdown
   confirmDisableBricked: () => void;  // called after 24hrs have passed
 
+  // Cold Turkey actions
+  enableColdTurkey: () => void;
+  requestDisableColdTurkey: () => void; // starts 48hr countdown
+  confirmDisableColdTurkey: () => void; // called after 48hrs + phrase verified
+
+  // Curfew / sleep mode
+  setCurfew: (enabled: boolean, start: string, end: string) => void;
+
   // Game duration
   setGameDuration: (duration: 30 | 60 | 90) => void;
 
   // Streak protection
   useStreakRestore: () => boolean;    // returns false if no restores left
   refreshStreakRestores: () => void;  // call on app open to reset monthly
+
+  // Streak freeze tokens
+  checkStreakContinuity: () => void;  // call on app open — auto-applies freeze if gap day
 
   // Partner
   setPartner: (email: string, name: string) => void;
@@ -287,6 +367,13 @@ interface UserState {
   // Trigger tagging
   logTrigger: (tag: string) => void;
 
+  // Post-walk-away reflection
+  logReflection: (tag: string) => void;
+
+  // 30-day consistency
+  recordDailyGateFire: () => void;    // call on every gate open
+  recordDailyWalkAway: () => void;    // call on every walk-away
+
   // Walk-away tracking
   incrementWalkAway: () => void;
 
@@ -296,6 +383,33 @@ interface UserState {
   // Journal
   addJournalEntry: (text: string, domain: string) => void;
   clearOldJournalEntries: () => void; // keeps last 90 entries
+
+  // Urge journal
+  addUrgeEntry: (tag: string, domain: string) => void;
+
+  // ── Commitment device ──────────────────────────────────────────────────────
+  // After walking away, user states what they'll do instead. Surfaced on
+  // the next gate fire for the same domain within 2 hours.
+  pendingCommitment: { text: string; domain: string; timestamp: number } | null;
+  // Full log for insights — keeps last 30 entries
+  commitmentLog: Array<{ text: string; domain: string; timestamp: number }>;
+  setCommitment: (text: string, domain: string) => void;
+  clearCommitment: () => void;
+
+  // ── Follow-through tracking ────────────────────────────────────────────────
+  // After a commitment check on the next gate fire, log whether the user did it.
+  followThroughLog: Array<{ text: string; domain: string; timestamp: number; completed: boolean }>;
+  logFollowThrough: (text: string, domain: string, completed: boolean) => void;
+
+  // ── Daily walk-away goal ───────────────────────────────────────────────────
+  // Soft default goal shown on home screen. User-adjustable. No penalty for missing.
+  dailyWalkAwayGoal: number;
+  setDailyWalkAwayGoal: (n: number) => void;
+
+  // ── First-gate intro ───────────────────────────────────────────────────────
+  // One-time screen shown to new users explaining what's happening.
+  hasSeenGateIntro: boolean;
+  markGateIntroSeen: () => void;
 
   // The point cost to permanently remove a site from the blocklist.
   // Pro users get this for free. Free users pay REMOVE_COST points.
@@ -362,6 +476,10 @@ const DEFAULT_STATE = {
   dailyIntention: '',
   intentionDate: '',
 
+  // Nightly pre-commitment ritual
+  nightlyCommitment: '',
+  nightlyCommitmentSetAt: 0,
+
   // Wind-down mode
   windDownEnabled: false,
   windDownHour: 21,
@@ -371,12 +489,26 @@ const DEFAULT_STATE = {
   brickedEnabledAt: null as number | null,
   brickedDisableRequestedAt: null as number | null,
 
+  // Cold Turkey
+  isColdTurkey: false,
+  coldTurkeyEnabledAt: null as number | null,
+  coldTurkeyDisableRequestedAt: null as number | null,
+
+  // Curfew
+  curfewEnabled: false,
+  curfewStart: '22:00',
+  curfewEnd: '07:00',
+
   // Game duration
   gameDuration: 30 as 30 | 60 | 90,
 
   // Streak protection
   streakRestoresLeft: 0,
   streakRestoreMonth: '',
+
+  // Streak freeze tokens
+  streakFreezeTokens: 0,
+  lastStreakDate: '',
 
   // Partner
   partnerEmail: '',
@@ -391,9 +523,23 @@ const DEFAULT_STATE = {
   blockScheduleDays: [] as number[], // empty = every day
   focusSessionEnd: null as number | null,
   triggerCounts: {} as Record<string, number>,
+  reflectionCounts: {} as Record<string, number>,
+  walkAwayActivity: [0, 0, 0, 0, 0, 0, 0] as [number, number, number, number, number, number, number],
+  hourlyOpenCounts: Array(24).fill(0) as number[],
 
   // Journal
   journalEntries: [] as Array<{ id: string; text: string; domain: string; timestamp: number }>,
+
+  // Urge journal
+  urgeJournal: [] as Array<{ tag: string; domain: string; timestamp: number }>,
+
+  // Commitment device
+  pendingCommitment: null as { text: string; domain: string; timestamp: number } | null,
+  commitmentLog: [] as Array<{ text: string; domain: string; timestamp: number }>,
+
+  // 30-day consistency tracking
+  dailyGateFires: {} as Record<string, number>,
+  dailyWalkAways: {} as Record<string, number>,
 
 
   // Walk-away count — how many times the user played and chose NOT to unlock
@@ -401,6 +547,18 @@ const DEFAULT_STATE = {
 
   // Onboarding goal — what they said they want more time for
   intentionGoal: '',
+
+  // Tutorial
+  hasSeenTutorial: false,
+
+  // Follow-through tracking
+  followThroughLog: [] as Array<{ text: string; domain: string; timestamp: number; completed: boolean }>,
+
+  // Daily walk-away goal
+  dailyWalkAwayGoal: 3,
+
+  // First-gate intro
+  hasSeenGateIntro: false,
 };
 
 // ─── The store ────────────────────────────────────────────────────────────────
@@ -417,6 +575,8 @@ export const useUserStore = create<UserState>()(
       setName: (name) => set({ name }),
 
       completeOnboarding: () => set({ hasOnboarded: true }),
+
+      markTutorialSeen: () => set({ hasSeenTutorial: true }),
 
       addPoints: (amount) =>
         set((state) => ({ points: state.points + amount })),
@@ -435,15 +595,20 @@ export const useUserStore = create<UserState>()(
       },
 
       incrementStreak: () => {
+        const today = new Date().toISOString().split('T')[0];
+        const { lastStreakDate } = get();
+        // Guard: only count once per calendar day
+        if (lastStreakDate === today) return;
         const newStreak = get().streak + 1;
         set((state) => ({
           streak: newStreak,
           longestStreak: Math.max(state.longestStreak, newStreak),
+          lastStreakDate: today,
         }));
         maybeNotifyStreak(newStreak);
       },
 
-      resetStreak: () => set({ streak: 0 }),
+      resetStreak: () => set({ streak: 0, lastStreakDate: '' }),
 
       // ── recordGamePlayed ─────────────────────────────────────────────────
       // Called when a user completes any game (from post-game.tsx).
@@ -489,8 +654,13 @@ export const useUserStore = create<UserState>()(
         if (!cleaned) return;
 
         const { blocklist } = get();
-        if (blocklist.includes(cleaned)) return;
-        set({ blocklist: [...blocklist, cleaned] });
+        // Dedupe existing list in case stale persisted data has duplicates
+        const deduped = [...new Set(blocklist)];
+        if (deduped.includes(cleaned)) {
+          if (deduped.length !== blocklist.length) set({ blocklist: deduped });
+          return;
+        }
+        set({ blocklist: [...deduped, cleaned] });
 
         // Sync to Supabase in the background
         supabase.auth.getUser().then(({ data }) => {
@@ -540,10 +710,13 @@ export const useUserStore = create<UserState>()(
       // ── Open-count tracking ──────────────────────────────────────────────────
       incrementOpenCount: (domain) => {
         const today = new Date().toISOString().split('T')[0];
-        const { openCounts, openCountDate } = get();
+        const hour = new Date().getHours();
+        const { openCounts, openCountDate, hourlyOpenCounts } = get();
         const counts = openCountDate === today ? { ...openCounts } : {};
         counts[domain] = (counts[domain] ?? 0) + 1;
-        set({ openCounts: counts, openCountDate: today });
+        const updatedHourly = [...hourlyOpenCounts];
+        updatedHourly[hour] = (updatedHourly[hour] ?? 0) + 1;
+        set({ openCounts: counts, openCountDate: today, hourlyOpenCounts: updatedHourly });
       },
 
       // ── Daily intention ──────────────────────────────────────────────────────
@@ -551,6 +724,12 @@ export const useUserStore = create<UserState>()(
         const today = new Date().toISOString().split('T')[0];
         set({ dailyIntention: text, intentionDate: today });
       },
+
+      // ── Nightly pre-commitment ritual ──────────────────────────────────────
+      setNightlyCommitment: (text) =>
+        set({ nightlyCommitment: text, nightlyCommitmentSetAt: Date.now() }),
+      clearNightlyCommitment: () =>
+        set({ nightlyCommitment: '', nightlyCommitmentSetAt: 0 }),
 
       // ── Wind-down mode ───────────────────────────────────────────────────────
       setWindDownEnabled: (val) => set({ windDownEnabled: val }),
@@ -577,6 +756,35 @@ export const useUserStore = create<UserState>()(
           brickedDisableRequestedAt: null,
         }),
 
+      // ── Cold Turkey mode ─────────────────────────────────────────────────────
+      // Nuclear option: no unlock path whatsoever. 48hr re-enable delay.
+      enableColdTurkey: () =>
+        set({
+          isColdTurkey: true,
+          coldTurkeyEnabledAt: Date.now(),
+          coldTurkeyDisableRequestedAt: null,
+          // Enabling Cold Turkey also enables BRICKED (superset)
+          isBricked: true,
+          brickedEnabledAt: Date.now(),
+          brickedDisableRequestedAt: null,
+        }),
+
+      requestDisableColdTurkey: () =>
+        set({ coldTurkeyDisableRequestedAt: Date.now() }),
+
+      // Only called from settings after 48hrs have elapsed AND the user has
+      // typed the confirmation phrase. UI enforces both checks before calling.
+      confirmDisableColdTurkey: () =>
+        set({
+          isColdTurkey: false,
+          coldTurkeyEnabledAt: null,
+          coldTurkeyDisableRequestedAt: null,
+        }),
+
+      // ── Curfew / sleep mode ──────────────────────────────────────────────────
+      setCurfew: (enabled, start, end) =>
+        set({ curfewEnabled: enabled, curfewStart: start, curfewEnd: end }),
+
       // ── Game duration ────────────────────────────────────────────────────────
       setGameDuration: (duration) => set({ gameDuration: duration }),
 
@@ -595,6 +803,34 @@ export const useUserStore = create<UserState>()(
         const { streakRestoreMonth } = get();
         if (streakRestoreMonth !== thisMonth) {
           set({ streakRestoresLeft: 1, streakRestoreMonth: thisMonth });
+        }
+      },
+
+      // ── Streak continuity check ──────────────────────────────────────────────
+      // Call on every app open. Compares lastStreakDate to today:
+      // - Same day or yesterday → streak is intact, nothing to do
+      // - Gap of exactly 1 day (today - lastStreakDate > 1) → missed a day
+      //   → auto-consume a freeze token if available, otherwise reset streak
+      checkStreakContinuity: () => {
+        const { lastStreakDate, streak, streakFreezeTokens } = get();
+        if (!lastStreakDate || streak === 0) return; // no streak to protect
+        const today = new Date().toISOString().split('T')[0];
+        if (lastStreakDate === today) return; // still the same calendar day
+        const last = new Date(lastStreakDate).getTime();
+        const now  = new Date(today).getTime();
+        const daysDiff = Math.round((now - last) / 86_400_000);
+        if (daysDiff <= 1) return; // yesterday — streak still alive
+        // Missed at least one day
+        if (streakFreezeTokens > 0) {
+          // Burn one freeze token, move lastStreakDate to yesterday so the next
+          // walk-away today will re-increment the streak normally.
+          const yesterday = new Date(now - 86_400_000).toISOString().split('T')[0];
+          set({
+            streakFreezeTokens: streakFreezeTokens - 1,
+            lastStreakDate: yesterday,
+          });
+        } else {
+          set({ streak: 0, lastStreakDate: '' });
         }
       },
 
@@ -670,13 +906,74 @@ export const useUserStore = create<UserState>()(
           },
         })),
 
+      // ── Post-walk-away reflection ────────────────────────────────────────────
+      logReflection: (tag) =>
+        set((state) => ({
+          reflectionCounts: {
+            ...state.reflectionCounts,
+            [tag]: (state.reflectionCounts[tag] ?? 0) + 1,
+          },
+        })),
+
+      // ── 30-day consistency tracking ──────────────────────────────────────────
+      // Helper: prune entries older than 30 days
+      recordDailyGateFire: () => {
+        const today = new Date().toISOString().split('T')[0];
+        const cutoff = new Date(Date.now() - 30 * 86_400_000).toISOString().split('T')[0];
+        set((state) => {
+          const updated = { ...state.dailyGateFires };
+          updated[today] = (updated[today] ?? 0) + 1;
+          // Prune old entries
+          for (const key of Object.keys(updated)) {
+            if (key < cutoff) delete updated[key];
+          }
+          return { dailyGateFires: updated };
+        });
+      },
+
+      recordDailyWalkAway: () => {
+        const today = new Date().toISOString().split('T')[0];
+        const cutoff = new Date(Date.now() - 30 * 86_400_000).toISOString().split('T')[0];
+        set((state) => {
+          const updated = { ...state.dailyWalkAways };
+          updated[today] = (updated[today] ?? 0) + 1;
+          for (const key of Object.keys(updated)) {
+            if (key < cutoff) delete updated[key];
+          }
+          return { dailyWalkAways: updated };
+        });
+      },
+
       // ── Walk-away tracking ───────────────────────────────────────────────────
       // Called when user taps "Walk Away" on the post-game screen.
-      // This increments the real success metric — no unlock, chose to leave.
+      // Also increments today's slot in walkAwayActivity and schedules the
+      // 8pm daily summary notification with the updated count.
+      // Awards a streak freeze token at each 5 walk-away milestone.
       incrementWalkAway: () => {
-        const newCount = get().walkAwayCount + 1;
-        set({ walkAwayCount: newCount });
+        const prev = get().walkAwayCount;
+        const newCount = prev + 1;
+        let newTodayWalkAways = 1;
+        set((state) => {
+          const updated = [...state.walkAwayActivity] as typeof state.walkAwayActivity;
+          updated[6] = updated[6] + 1;
+          newTodayWalkAways = updated[6];
+          // Award a freeze token at each 5-walk-away milestone (5, 10, 15 …)
+          const crossedMilestone = Math.floor(newCount / 5) > Math.floor(prev / 5);
+          return {
+            walkAwayCount: newCount,
+            walkAwayActivity: updated,
+            streakFreezeTokens: crossedMilestone
+              ? state.streakFreezeTokens + 1
+              : state.streakFreezeTokens,
+          };
+        });
         maybeNotifyWalkAway(newCount);
+        // Reschedule the 8pm summary with the fresh daily count
+        const { openCounts, openCountDate } = get();
+        const today = new Date().toISOString().split('T')[0];
+        const todayCounts = openCountDate === today ? openCounts : {};
+        const topDomain = Object.entries(todayCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
+        scheduleDailySummary(newTodayWalkAways, topDomain).catch(() => {});
       },
 
       // ── Intention goal ───────────────────────────────────────────────────────
@@ -712,6 +1009,41 @@ export const useUserStore = create<UserState>()(
         set((state) => ({
           journalEntries: state.journalEntries.slice(0, 90),
         })),
+
+      // ── Urge journal ─────────────────────────────────────────────────────────
+      addUrgeEntry: (tag, domain) =>
+        set((state) => ({
+          urgeJournal: [
+            { tag, domain, timestamp: Date.now() },
+            ...state.urgeJournal,
+          ].slice(0, 30), // keep last 30
+        })),
+
+      // ── Commitment device ─────────────────────────────────────────────────
+      setCommitment: (text, domain) =>
+        set((state) => {
+          const entry = { text, domain, timestamp: Date.now() };
+          return {
+            pendingCommitment: entry,
+            commitmentLog: [entry, ...state.commitmentLog].slice(0, 30),
+          };
+        }),
+      clearCommitment: () => set({ pendingCommitment: null }),
+
+      // ── Follow-through ────────────────────────────────────────────────────
+      logFollowThrough: (text, domain, completed) =>
+        set((state) => ({
+          followThroughLog: [
+            { text, domain, timestamp: Date.now(), completed },
+            ...state.followThroughLog,
+          ].slice(0, 30),
+        })),
+
+      // ── Daily walk-away goal ──────────────────────────────────────────────
+      setDailyWalkAwayGoal: (n) => set({ dailyWalkAwayGoal: Math.max(1, Math.min(20, n)) }),
+
+      // ── First-gate intro ──────────────────────────────────────────────────
+      markGateIntroSeen: () => set({ hasSeenGateIntro: true }),
 
       // Expose the constant so UI can read it without a separate import
       REMOVE_COST,
@@ -831,9 +1163,17 @@ export const useUserStore = create<UserState>()(
         isBricked: state.isBricked,
         brickedEnabledAt: state.brickedEnabledAt,
         brickedDisableRequestedAt: state.brickedDisableRequestedAt,
+        isColdTurkey: state.isColdTurkey,
+        coldTurkeyEnabledAt: state.coldTurkeyEnabledAt,
+        coldTurkeyDisableRequestedAt: state.coldTurkeyDisableRequestedAt,
+        curfewEnabled: state.curfewEnabled,
+        curfewStart: state.curfewStart,
+        curfewEnd: state.curfewEnd,
         gameDuration: state.gameDuration,
         streakRestoresLeft: state.streakRestoresLeft,
         streakRestoreMonth: state.streakRestoreMonth,
+        streakFreezeTokens: state.streakFreezeTokens,
+        lastStreakDate: state.lastStreakDate,
         partnerEmail: state.partnerEmail,
         partnerName: state.partnerName,
         partnerNotifyOnUnlock: state.partnerNotifyOnUnlock,
@@ -846,13 +1186,27 @@ export const useUserStore = create<UserState>()(
         openCountDate: state.openCountDate,
         dailyIntention: state.dailyIntention,
         intentionDate: state.intentionDate,
+        nightlyCommitment: state.nightlyCommitment,
+        nightlyCommitmentSetAt: state.nightlyCommitmentSetAt,
         windDownEnabled: state.windDownEnabled,
         windDownHour: state.windDownHour,
         intentionGoal: state.intentionGoal,
         journalEntries: state.journalEntries,
+        urgeJournal: state.urgeJournal,
+        pendingCommitment: state.pendingCommitment,
+        commitmentLog: state.commitmentLog,
+        dailyGateFires: state.dailyGateFires,
+        dailyWalkAways: state.dailyWalkAways,
         walkAwayCount: state.walkAwayCount,
         triggerCounts: state.triggerCounts,
+        reflectionCounts: state.reflectionCounts,
+        walkAwayActivity: state.walkAwayActivity,
+        hourlyOpenCounts: state.hourlyOpenCounts,
         focusSessionEnd: state.focusSessionEnd,
+        followThroughLog: state.followThroughLog,
+        dailyWalkAwayGoal: state.dailyWalkAwayGoal,
+        hasSeenGateIntro: state.hasSeenGateIntro,
+        hasSeenTutorial: state.hasSeenTutorial,
       }),
       // After SecureStore rehydration, push focusSessionEnd to SharedPreferences
       // so the Kotlin Accessibility Service sees it immediately on the next app open.

@@ -1,427 +1,435 @@
-// ─── Home Screen ────────────────────────────────────────────────────────────── //
+// ─── Home Screen (Today) ─────────────────────────────────────────────────────
 //
-// The main dashboard the user sees every time they open NoGoon.
-// Scrollable page with 5 sections:
-//   1. Header (greeting + level badge)
-//   2. Shield status (is NoGoon active?)
-//   3. Stats row (streak + points side by side)
-//   4. Weekly activity chart (real data from Supabase game_sessions)
-//   5. Daily challenge card
-//
-// All data comes from useUserStore, which is populated by loadFromSupabase()
-// on every login. No mock data — if a value is 0, the user genuinely has 0.
+// Layout (top to bottom):
+//   1. Header    — greeting + day count + help icon
+//   2. Shield    — blocking status (top so it's never missed)
+//   3. Goon      — character + cumulative walk-away number + milestone flash
+//   4. Struggle  — "Having a hard day?" (small, optional)
+//   5. Intention — today's entry
 
-import { useEffect } from 'react';
-import { ScrollView, View, Text, StyleSheet, Pressable } from 'react-native';
+import { useEffect, useState, useRef, useCallback } from 'react';
+import {
+  ScrollView, View, Text, StyleSheet, Pressable,
+  TextInput, Animated,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useUserStore, getLevelProgress } from '@/stores/useUserStore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useUserStore } from '@/stores/useUserStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useAppBlocker } from '@/hooks/useAppBlocker';
-import { AdBanner } from '@/components/ads/AdBanner';
-import { ShieldStatus } from '@/components/home/ShieldStatus';
-import { StreakBadge } from '@/components/home/StreakBadge';
-import { PointsBadge } from '@/components/home/PointsBadge';
-import { WeeklyChart } from '@/components/home/WeeklyChart';
-import { DailyChallengeCard } from '@/components/home/DailyChallengeCard';
-import { Badge } from '@/components/ui/Badge';
-import { COLORS, FONTS } from '@/constants/Colors';
+import { useTheme } from '@/hooks/useTheme';
+import { FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
-import { TYPE } from '@/constants/Typography';
 import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
+import { GoonMascot } from '@/components/home/GoonMascot';
 
-// ─── Getting Started Card ────────────────────────────────────────────────────── //
-// Shown on the home screen only when the user has zero activity yet
-// (weeklyActivity is all 0s). Tapping it takes them to the blocklist tab
-// so they can set up their first blocked site and get protected.
-function GettingStartedCard() {
+// ─── Milestone thresholds ─────────────────────────────────────────────────────
+const MILESTONES = [10, 25, 50, 100, 250, 500, 1000, 2500, 5000];
+const MILESTONE_KEY = 'goon_last_shown_milestone';
+
+// ─── Milestone flash ──────────────────────────────────────────────────────────
+
+function MilestoneFlash({ count, onDone }: { count: number; onDone: () => void }) {
+  const { colors } = useTheme();
+  const opacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.sequence([
+      Animated.timing(opacity, { toValue: 1, duration: 350, useNativeDriver: true }),
+      Animated.delay(2200),
+      Animated.timing(opacity, { toValue: 0, duration: 400, useNativeDriver: true }),
+    ]).start(onDone);
+  }, []);
+
+  return (
+    <Animated.View style={[milestoneStyles.wrap, { opacity, backgroundColor: colors.accentDim, borderColor: colors.cardBorder }]}>
+      <Text style={[milestoneStyles.text, { color: colors.accent }]}>
+        {count} walk-aways ✦ keep going
+      </Text>
+    </Animated.View>
+  );
+}
+
+const milestoneStyles = StyleSheet.create({
+  wrap: {
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    alignSelf: 'center',
+    marginTop: SPACING.xs,
+  },
+  text: {
+    fontFamily: FONTS.bodyMedium,
+    fontSize: 13,
+    textAlign: 'center',
+  },
+});
+
+// ─── Intention card ───────────────────────────────────────────────────────────
+
+const INTENTION_KEY = 'nogoon_today_intention';
+const INTENTION_DATE_KEY = 'nogoon_intention_date';
+
+function IntentionCard() {
+  const { colors, cardStyle } = useTheme();
+  const [intention, setIntention] = useState('');
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+
+  // Load today's intention from AsyncStorage
+  useEffect(() => {
+    async function load() {
+      const today = new Date().toISOString().split('T')[0];
+      const [saved, savedDate] = await Promise.all([
+        AsyncStorage.getItem(INTENTION_KEY),
+        AsyncStorage.getItem(INTENTION_DATE_KEY),
+      ]);
+      if (savedDate === today && saved) {
+        setIntention(saved);
+      }
+    }
+    load();
+  }, []);
+
+  const save = useCallback(async () => {
+    const today = new Date().toISOString().split('T')[0];
+    const val = draft.trim();
+    setIntention(val);
+    setEditing(false);
+    if (val) {
+      await AsyncStorage.setItem(INTENTION_KEY, val);
+      await AsyncStorage.setItem(INTENTION_DATE_KEY, today);
+    }
+  }, [draft]);
+
+  const startEdit = () => {
+    setDraft(intention);
+    setEditing(true);
+  };
+
+  if (editing) {
+    return (
+      <View style={[intentionStyles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+        <Text style={[intentionStyles.label, { color: colors.textMuted }]}>What are you choosing instead?</Text>
+        <TextInput
+          style={[intentionStyles.input, { color: colors.text }]}
+          value={draft}
+          onChangeText={setDraft}
+          placeholder="I'm here to..."
+          placeholderTextColor={colors.textMuted}
+          multiline
+          autoFocus
+          returnKeyType="done"
+          onSubmitEditing={save}
+          blurOnSubmit
+          onBlur={save}
+        />
+      </View>
+    );
+  }
+
   return (
     <Pressable
-      style={gettingStartedStyles.card}
-      onPress={() => router.push('/(tabs)/blocklist')}
+      style={[intentionStyles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
+      onPress={startEdit}
     >
-      <Text style={gettingStartedStyles.emoji}>🚀</Text>
-      <View style={gettingStartedStyles.text}>
-        <Text style={gettingStartedStyles.title}>Get protected in 30 seconds</Text>
-        <Text style={gettingStartedStyles.body}>
-          Add your first blocked site and enable app blocking to start building
-          your streak.
-        </Text>
+      <View style={intentionStyles.headerRow}>
+        <Text style={[intentionStyles.label, { color: colors.textMuted }]}>Today's intention</Text>
+        <Feather name={intention ? 'edit-2' : 'plus'} size={14} color={colors.textMuted} />
       </View>
-      <Feather name="chevron-right" size={20} color={COLORS.indigoBright} />
+      {intention ? (
+        <Text style={[intentionStyles.text, { color: colors.text }]} numberOfLines={3}>
+          {intention}
+        </Text>
+      ) : (
+        <Text style={[intentionStyles.placeholder, { color: colors.textMuted }]}>
+          What are you choosing instead?
+        </Text>
+      )}
     </Pressable>
   );
 }
 
-// ─── Setup Help Card ─────────────────────────────────────────────────────────── //
-// Shown when the Accessibility Service is disabled (blockingStatus === 'off').
-// Tapping opens the setup guide screen so the user can re-enable blocking.
-function SetupHelpCard() {
-  return (
-    <Pressable
-      style={setupHelpStyles.card}
-      onPress={() => router.push('/setup-guide')}
-    >
-      <Feather name="alert-circle" size={24} color={COLORS.hotPink} />
-      <View style={setupHelpStyles.text}>
-        <Text style={setupHelpStyles.title}>Blocking is disabled</Text>
-        <Text style={setupHelpStyles.body}>
-          Tap here to reopen the setup guide and enable the Accessibility Service.
-        </Text>
+const intentionStyles = StyleSheet.create({
+  card: {
+    padding: SPACING.lg,
+    gap: SPACING.sm,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  label: {
+    fontFamily: FONTS.mono,
+    fontSize: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+  },
+  text: {
+    fontFamily: FONTS.body,
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  placeholder: {
+    fontFamily: FONTS.body,
+    fontSize: 14,
+    fontStyle: 'italic',
+  },
+  input: {
+    fontFamily: FONTS.body,
+    fontSize: 15,
+    lineHeight: 22,
+    minHeight: 60,
+    textAlignVertical: 'top',
+  },
+});
+
+// ─── Shield status strip ──────────────────────────────────────────────────────
+
+function ShieldStrip({ status, onFix }: { status: string; onFix: () => void }) {
+  const { colors } = useTheme();
+  if (status === 'active') {
+    return (
+      <View style={[stripStyles.wrap, { backgroundColor: colors.successDim }]}>
+        <Feather name="shield" size={14} color={colors.success} />
+        <Text style={[stripStyles.text, { color: colors.success }]}>Blocking active</Text>
       </View>
-      <Feather name="chevron-right" size={20} color={COLORS.hotPink} />
+    );
+  }
+  return (
+    <Pressable style={[stripStyles.wrap, { backgroundColor: colors.dangerDim }]} onPress={onFix}>
+      <Feather name="alert-circle" size={14} color={colors.danger} />
+      <Text style={[stripStyles.text, { color: colors.danger }]}>Blocking off — tap to fix</Text>
     </Pressable>
   );
 }
 
-// Returns "Good morning", "Good afternoon", or "Good evening"
-// based on the current hour of the day
-function getGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 18) return 'Good afternoon';
-  return 'Good evening';
-}
+const stripStyles = StyleSheet.create({
+  wrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.sm,
+    alignSelf: 'flex-start',
+  },
+  text: {
+    fontFamily: FONTS.bodyMedium,
+    fontSize: 12,
+  },
+});
+
+// ─── Home screen ──────────────────────────────────────────────────────────────
 
 export default function HomeScreen() {
   const { session } = useAuthStore();
-  const {
-    name,
-    streak,
-    longestStreak,
-    points,
-    xp,
-    level,
-    weeklyActivity,
-    dailyChallengeCompleted,
-    walkAwayCount,
-    loadFromSupabase,
-  } = useUserStore();
+  const { name, walkAwayCount, loadFromSupabase } = useUserStore();
+  const { blockingStatus, openSettings } = useAppBlocker();
+  const { colors, struggling, setStruggling, cardStyle } = useTheme();
 
-  const C = COLORS;
+  const [showMilestone, setShowMilestone] = useState<number | null>(null);
 
-  // Pull the real blocking state from the hook that talks to Android
-  // blockingStatus: 'paused' | 'active' | 'empty' | 'off'
-  const {
-    blockingStatus,
-    openSettings,
-    isBlockingPaused,
-    blockingPausedMinutesLeft,
-    resumeBlocking,
-  } = useAppBlocker();
-
-  // Re-fetch data from Supabase every time this tab comes into view.
+  // Load Supabase data after login
   useEffect(() => {
     if (session?.user?.id) {
       loadFromSupabase(session.user.id);
     }
   }, [session?.user?.id, loadFromSupabase]);
 
-  // Calculate how far the user is through their current XP level
-  const levelProgress = getLevelProgress(xp);
+  // Check milestone
+  useEffect(() => {
+    async function checkMilestone() {
+      const lastShown = parseInt((await AsyncStorage.getItem(MILESTONE_KEY)) ?? '0', 10);
+      const next = MILESTONES.find((m) => m > lastShown && walkAwayCount >= m);
+      if (next) {
+        setShowMilestone(next);
+        await AsyncStorage.setItem(MILESTONE_KEY, String(next));
+      }
+    }
+    if (walkAwayCount > 0) checkMilestone();
+  }, [walkAwayCount]);
+
+  // Greeting
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Morning' : hour < 18 ? 'Hey' : 'Evening';
+
+  // Day count since onboarding (stored in AsyncStorage on first launch)
+  const [dayCount, setDayCount] = useState<number>(1);
+  useEffect(() => {
+    async function computeDay() {
+      const startDate = await AsyncStorage.getItem('nogoon_start_date');
+      if (!startDate) {
+        const today = new Date().toISOString().split('T')[0];
+        await AsyncStorage.setItem('nogoon_start_date', today);
+        setDayCount(1);
+      } else {
+        const start = new Date(startDate).getTime();
+        const now   = new Date().getTime();
+        const days  = Math.floor((now - start) / 86_400_000) + 1;
+        setDayCount(days);
+      }
+    }
+    computeDay();
+  }, []);
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
       <ScrollView
-        style={[styles.scroll, { backgroundColor: C.background }]}
-        contentContainerStyle={styles.content}
+        style={[styles.scroll, { backgroundColor: colors.background }]}
+        contentContainerStyle={[styles.content, { backgroundColor: colors.background }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* ─── Section 1: Header ─────────────────────────────── */}
+        {/* ── Header ── */}
         <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Text style={[styles.greeting, { color: C.textSecondary }]}>{getGreeting()}</Text>
-            <Text style={[TYPE.headingM, styles.name]}>
-              {name ? `${name} 👋` : '👋'}
+          <View>
+            <Text style={[styles.greeting, { color: colors.text }]}>
+              {greeting}{name ? `, ${name}` : ''}
+            </Text>
+            <Text style={[styles.dayCount, { color: colors.textMuted }]}>
+              Day {dayCount} with NoGoon
             </Text>
           </View>
-
-          <View style={styles.headerRight}>
-            {/* Help button — opens setup guide */}
-            <Pressable
-              style={[styles.helpButton, { backgroundColor: C.surface, borderColor: C.cardBorder }]}
-              onPress={() => router.push('/help')}
-              hitSlop={8}
-            >
-              <Feather name="help-circle" size={20} color={C.textMuted} />
-            </Pressable>
-            {/* Level badge */}
-            <Badge label={level} color={C.purple} size="sm" />
-          </View>
-        </View>
-
-        {/* ─── Section 2: Shield Status ──────────────────────── */}
-        <ShieldStatus status={blockingStatus} onFix={openSettings} />
-
-        {/* ─── Blocking Paused Banner (QS tile toggled off) ──── */}
-        {isBlockingPaused && (
           <Pressable
-            style={[styles.pausedBanner, { backgroundColor: C.surface, borderColor: '#f59e0b55' }]}
-            onPress={resumeBlocking}
+            style={[styles.helpBtn, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
+            onPress={() => router.push('/help')}
+            hitSlop={8}
           >
-            <Feather name="pause-circle" size={20} color="#f59e0b" />
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.pausedTitle, { color: '#f59e0b' }]}>Blocking paused</Text>
-              <Text style={[styles.pausedSub, { color: C.textMuted }]}>
-                {blockingPausedMinutesLeft} min remaining · Tap to resume now
-              </Text>
-            </View>
-            <Feather name="chevron-right" size={18} color="#f59e0b" />
+            <Feather name="help-circle" size={18} color={colors.textMuted} />
           </Pressable>
-        )}
-
-        {/* ─── Setup Help Card (shown when blocking is off) ──── */}
-        {blockingStatus === 'off' && <SetupHelpCard />}
-
-        {/* ─── Section 3: Stats Row ──────────────────────────── */}
-        <View style={styles.statsRow}>
-          <StreakBadge
-            streak={streak}
-            longestStreak={longestStreak}
-            walkAwayCount={walkAwayCount}
-          />
-          <PointsBadge
-            points={points}
-            level={level}
-            xpPercent={levelProgress.percent}
-          />
         </View>
 
-        {/* ─── Arcade Card ───────────────────────────────────── */}
-        <Pressable
-          style={[styles.arcadeCard, { backgroundColor: C.purpleDim, borderColor: C.purple + '44' }]}
-          onPress={() => router.push('/(tabs)/arcade')}
-        >
-          <View style={styles.arcadeLeft}>
-            <View style={[styles.arcadeIconWrap, { backgroundColor: C.purple + '22', borderColor: C.purple + '44' }]}>
-              <Feather name="zap" size={22} color={C.purple} />
-            </View>
-            <View style={styles.arcadeText}>
-              <Text style={[styles.arcadeTitle, { color: C.purple }]}>Play Arcade</Text>
-              <Text style={[styles.arcadeSub, { color: C.purple + 'aa' }]}>Earn points · Beat cravings</Text>
-            </View>
-          </View>
-          <Feather name="chevron-right" size={20} color={C.purple + 'aa'} />
-        </Pressable>
+        {/* ── Shield status strip — top so blocking state is never missed ── */}
+        <ShieldStrip status={blockingStatus} onFix={openSettings} />
 
-        {/* ─── Walk-Away Counter ─────────────────────────────── */}
-        {walkAwayCount > 0 && (
-          <View style={[styles.walkAwayCard, { backgroundColor: C.surface, borderColor: C.border }]}>
-            <Feather name="trending-up" size={16} color={C.cyan} />
-            <Text style={[styles.walkAwayText, { color: C.textSecondary }]}>
-              <Text style={[styles.walkAwayCount, { color: C.cyan }]}>{walkAwayCount}</Text>
-              {'  '}times you walked away from distraction
-            </Text>
-          </View>
-        )}
+        {/* ── Goon character zone ── */}
+        <View style={styles.goonZone}>
+          <GoonMascot walkAwayCount={walkAwayCount} />
 
-        {/* ─── Section 4: Weekly Chart ───────────────────────── */}
-        <WeeklyChart data={weeklyActivity} />
+          <Text style={[styles.walkAwayNum, { color: colors.accent }]}>
+            {walkAwayCount.toLocaleString()}
+          </Text>
+          <Text style={[styles.walkAwayLabel, { color: colors.textSecondary }]}>
+            times you walked away
+          </Text>
 
-        {weeklyActivity.every(v => v === 0) && (
-          <GettingStartedCard />
-        )}
+          {showMilestone && (
+            <MilestoneFlash
+              count={showMilestone}
+              onDone={() => setShowMilestone(null)}
+            />
+          )}
 
-        {/* ─── Section 5: Daily Challenge ────────────────────── */}
-        <DailyChallengeCard
-          alreadyCompleted={dailyChallengeCompleted}
-          onPress={(gameId) => {
-            router.push({ pathname: '/(tabs)/arcade', params: { game: gameId } });
-          }}
-        />
+          {/* Struggling mode toggle */}
+          {!struggling ? (
+            <Pressable
+              style={styles.struggleBtn}
+              onPress={() => setStruggling(true)}
+              hitSlop={12}
+            >
+              <Text style={[styles.struggleTxt, { color: colors.textMuted }]}>
+                Having a hard day?
+              </Text>
+            </Pressable>
+          ) : (
+            <Pressable
+              style={[styles.struggleBtnActive, { backgroundColor: colors.accentDim, borderColor: colors.accent }]}
+              onPress={() => setStruggling(false)}
+            >
+              <Text style={[styles.struggleTxtActive, { color: colors.accent }]}>
+                🤝 You're doing great — tap to reset
+              </Text>
+            </Pressable>
+          )}
+        </View>
 
-        <View style={styles.bottomPad} />
+        {/* ── Today's intention ── */}
+        <IntentionCard />
+
+        <View style={{ height: SPACING.xl }} />
       </ScrollView>
-
-      <AdBanner size="banner" />
     </SafeAreaView>
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  scroll: {
-    flex: 1,
-  },
+  safe:    { flex: 1 },
+  scroll:  { flex: 1 },
   content: {
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.lg,
     gap: SPACING.md,
   },
+
+  // Header
   header: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    paddingTop: SPACING.sm,
-  },
-  headerLeft: {
-    gap: 2,
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
-  helpButton: {
-    width: 36,
-    height: 36,
-    borderRadius: RADIUS.full,
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.cardBorder,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingBottom: SPACING.xs,
   },
   greeting: {
-    fontFamily: FONTS.body,
-    fontSize: 14,
-    color: COLORS.textSecondary,
-  },
-  name: {
-    marginTop: 0,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    gap: SPACING.md,
-  },
-  bottomPad: {
-    height: SPACING.xl,
-  },
-
-  // ── Walk-away counter card ──
-  walkAwayCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-  },
-  walkAwayText: {
-    fontFamily: FONTS.body,
-    fontSize: 13,
-    flex: 1,
-    lineHeight: 18,
-  },
-  walkAwayCount: {
     fontFamily: FONTS.bodyBold,
-    fontSize: 15,
+    fontSize: 20,
+    letterSpacing: -0.3,
   },
-
-  // ── Arcade card ──
-  arcadeCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: COLORS.purpleDim,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.purple + '44',
-    padding: SPACING.lg,
-  },
-  arcadeLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.md,
-  },
-  arcadeIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: RADIUS.full,
-    backgroundColor: COLORS.purple + '22',
-    borderWidth: 1,
-    borderColor: COLORS.purple + '44',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  arcadeText: { gap: 2 },
-  arcadeTitle: {
-    fontFamily: FONTS.bodyBold,
-    fontSize: 16,
-    color: COLORS.purple,
-  },
-  arcadeSub: {
-    fontFamily: FONTS.body,
-    fontSize: 12,
-    color: COLORS.purple + 'aa',
-  },
-
-  // ── Blocking paused banner ──
-  pausedBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-  },
-  pausedTitle: {
-    fontFamily: FONTS.bodyBold,
-    fontSize: 14,
-  },
-  pausedSub: {
+  dayCount: {
     fontFamily: FONTS.body,
     fontSize: 12,
     marginTop: 2,
   },
-});
-
-// ─── Getting Started Card styles ─────────────────────────────────────────────── //
-const gettingStartedStyles = StyleSheet.create({
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.md,
+  helpBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: RADIUS.full,
     borderWidth: 1,
-    borderColor: COLORS.indigoBright + '33',
-    padding: SPACING.lg,
-    gap: SPACING.md,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  emoji: { fontSize: 32 },
-  text: { flex: 1, gap: 4 },
-  title: {
-    fontFamily: FONTS.bodyBold,
-    fontSize: 15,
-    color: COLORS.textPrimary,
+
+  // Goon zone
+  goonZone: {
+    alignItems: 'center',
+    paddingVertical: SPACING.lg,
+    gap: SPACING.xs,
   },
-  body: {
+  walkAwayNum: {
+    fontFamily: FONTS.display,
+    fontSize: 52,
+    lineHeight: 60,
+    letterSpacing: -1,
+    marginTop: SPACING.sm,
+  },
+  walkAwayLabel: {
+    fontFamily: FONTS.body,
+    fontSize: 14,
+    letterSpacing: 0.2,
+  },
+  struggleBtn: {
+    marginTop: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    paddingHorizontal: SPACING.sm,
+  },
+  struggleTxt: {
     fontFamily: FONTS.body,
     fontSize: 13,
-    color: COLORS.textSecondary,
-    lineHeight: 18,
+    textDecorationLine: 'underline',
+    textDecorationStyle: 'dotted',
   },
-});
-
-// ─── Setup Help Card styles ──────────────────────────────────────────────────── //
-// Shown when blocking is disabled. Uses hotPink to convey urgency per design system.
-const setupHelpStyles = StyleSheet.create({
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.md,
+  struggleBtnActive: {
+    marginTop: SPACING.sm,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADIUS.full,
     borderWidth: 1,
-    borderColor: COLORS.hotPink + '33',
-    padding: SPACING.lg,
-    gap: SPACING.md,
   },
-  text: { flex: 1, gap: 4 },
-  title: {
-    fontFamily: FONTS.bodyBold,
-    fontSize: 15,
-    color: COLORS.hotPink,
-  },
-  body: {
-    fontFamily: FONTS.body,
+  struggleTxtActive: {
+    fontFamily: FONTS.bodyMedium,
     fontSize: 13,
-    color: COLORS.textSecondary,
-    lineHeight: 18,
   },
 });
-

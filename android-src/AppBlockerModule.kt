@@ -2,23 +2,31 @@
 //
 // Bridge between React Native JavaScript and Android system features.
 // Exposes native methods to JS:
-//   setBlockedApps(packages)           — updates the app blocklist in SharedPreferences
-//   setBlockedDomains(domains)         — updates the website blocklist in SharedPreferences
-//   isServiceEnabled()                 — checks if Accessibility permission is granted
-//   openAccessibilitySettings()        — opens Android's Accessibility Settings screen
-//   isBatteryOptimized()               — returns true if battery optimization is still on (bad)
-//   openBatteryOptimizationSettings()  — opens the battery exemption dialog
-//   setTemporaryUnlock(domain, expiry) — unlocks a domain until the given timestamp
-//   clearTemporaryUnlock(domain)       — removes a temporary unlock
-//   isBlockingPaused()                 — returns QS-tile pausedUntil timestamp (0 = not paused)
-//   setBlockingPaused(paused)          — set/clear a 30-min pause from JS
-//   setFocusSessionEnd(endMs)          — writes focus session expiry so Kotlin can enforce it
-//   setGrayscaleEnabled(enabled)       — saves the dim-overlay preference
-//   isGrayscaleEnabled()               — reads the dim-overlay preference
-//   openGrayscaleSettings()            — shortcut to Android Accessibility → Color Correction
+//   setBlockedApps(packages)                  — updates the app blocklist in SharedPreferences
+//   setBlockedDomains(domains)                — updates the website blocklist in SharedPreferences
+//   isServiceEnabled()                        — checks if Accessibility permission is granted
+//   openAccessibilitySettings()               — opens Android's Accessibility Settings screen
+//   isBatteryOptimized()                      — returns true if battery optimization is still on (bad)
+//   openBatteryOptimizationSettings()         — opens the battery exemption dialog
+//   setTemporaryUnlock(domain, expiry)        — unlocks a domain until the given timestamp
+//   clearTemporaryUnlock(domain)              — removes a temporary unlock
+//   isBlockingPaused()                        — returns QS-tile pausedUntil timestamp (0 = not paused)
+//   setBlockingPaused(paused)                 — set/clear a 30-min pause from JS
+//   setFocusSessionEnd(endMs)                 — writes focus session expiry so Kotlin can enforce it
+//   setGrayscaleEnabled(enabled)              — saves the dim-overlay preference
+//   isGrayscaleEnabled()                      — reads the dim-overlay preference
+//   openGrayscaleSettings()                   — shortcut to Android Accessibility → Color Correction
+//   startVpn()                                — launches NoGoonVpnService (DNS-only blocker)
+//   stopVpn()                                 — stops NoGoonVpnService
+//   isVpnActive()                             — returns true if VPN service is running
+//   setNotificationFilterEnabled(enabled)     — enables/disables notification suppression
+//   isNotificationListenerEnabled()           — returns true if Notification Access is granted
+//   openNotificationListenerSettings()        — opens Notification Access settings
+//   getVpnDomainLog()                         — returns JSON array of recent blocked domains
 
 package com.nogoon.app
 
+import android.app.Activity
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -30,6 +38,8 @@ import android.os.PowerManager
 import android.provider.Settings
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import com.facebook.react.bridge.ActivityEventListener
+import com.facebook.react.bridge.BaseActivityEventListener
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
@@ -54,6 +64,37 @@ class AppBlockerModule(reactContext: ReactApplicationContext) :
         // Ensures we only install the crash handler once even if the module
         // is instantiated multiple times during the React Native bridge lifecycle.
         @Volatile private var crashHandlerInstalled = false
+
+        // Request code for the VPN permission consent dialog
+        private const val VPN_REQUEST_CODE = 7777
+    }
+
+    // Held while waiting for the VPN consent dialog result
+    private var vpnStartPromise: Promise? = null
+
+    // Receives the result of VpnService.prepare() → startActivityForResult
+    private val activityEventListener = object : BaseActivityEventListener() {
+        override fun onActivityResult(activity: Activity, requestCode: Int, resultCode: Int, data: Intent?) {
+            if (requestCode != VPN_REQUEST_CODE) return
+            val promise = vpnStartPromise ?: return
+            vpnStartPromise = null
+            if (resultCode == Activity.RESULT_OK) {
+                // User approved — now start the VPN service
+                try {
+                    val serviceIntent = Intent(reactApplicationContext, NoGoonVpnService::class.java)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        reactApplicationContext.startForegroundService(serviceIntent)
+                    } else {
+                        reactApplicationContext.startService(serviceIntent)
+                    }
+                    promise.resolve(true)
+                } catch (e: Exception) {
+                    promise.reject("VPN_START_ERROR", e.message ?: "Unknown error", e)
+                }
+            } else {
+                promise.reject("VPN_PERMISSION_DENIED", "User denied VPN permission")
+            }
+        }
     }
 
     init {
@@ -62,6 +103,8 @@ class AppBlockerModule(reactContext: ReactApplicationContext) :
         // NotificationManager.notify() posts to the system process, so it completes
         // successfully even though our process is about to exit.
         installCrashNotifier(reactContext)
+        // Register for VPN consent dialog result
+        reactContext.addActivityEventListener(activityEventListener)
     }
 
     override fun getName(): String = NAME
@@ -389,6 +432,242 @@ class AppBlockerModule(reactContext: ReactApplicationContext) :
             promise.resolve(true)
         } catch (e: Exception) {
             promise.reject("OPEN_GRAYSCALE_ERROR", e.message ?: "Unknown error", e)
+        }
+    }
+
+    // ── VPN Service (Network Shield) ──────────────────────────────────────────
+    //
+    // Starts / stops NoGoonVpnService, which intercepts DNS queries to block
+    // domains at the network layer. This is the second protection layer.
+    //
+    // IMPORTANT: VpnService.prepare(context) must be called first (in JS, via
+    // the system VPN permission dialog). After the user approves once, Android
+    // remembers it. We check VpnService.prepare() return value in the JS hook
+    // and only call startVpn() after the user has granted permission.
+
+    @ReactMethod
+    fun startVpn(promise: Promise) {
+        try {
+            // prepare() returns an Intent if the user hasn't approved this VPN yet (null = approved)
+            val prepareIntent = android.net.VpnService.prepare(reactApplicationContext)
+            if (prepareIntent != null) {
+                // Show the Android system VPN consent dialog via startActivityForResult.
+                // The result arrives in activityEventListener.onActivityResult().
+                val activity = reactApplicationContext.currentActivity
+                if (activity == null) {
+                    promise.reject("VPN_NO_ACTIVITY", "No foreground activity available")
+                    return
+                }
+                vpnStartPromise = promise
+                activity.startActivityForResult(prepareIntent, VPN_REQUEST_CODE)
+                return
+            }
+            // Already approved — start the service directly
+            val serviceIntent = Intent(reactApplicationContext, NoGoonVpnService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                reactApplicationContext.startForegroundService(serviceIntent)
+            } else {
+                reactApplicationContext.startService(serviceIntent)
+            }
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("VPN_START_ERROR", e.message ?: "Unknown error", e)
+        }
+    }
+
+    @ReactMethod
+    fun stopVpn(promise: Promise) {
+        try {
+            val intent = Intent(reactApplicationContext, NoGoonVpnService::class.java).apply {
+                action = NoGoonVpnService.ACTION_STOP
+            }
+            reactApplicationContext.startService(intent)
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("VPN_STOP_ERROR", e.message ?: "Unknown error", e)
+        }
+    }
+
+    @ReactMethod
+    fun isVpnActive(promise: Promise) {
+        try {
+            val prefs = reactApplicationContext.getSharedPreferences(PREFS_NAME, 0)
+            val flagSet = prefs.getBoolean("vpnRunning", false)
+            if (!flagSet) {
+                promise.resolve(false)
+                return
+            }
+            // Validate with heartbeat: if the service was SIGKILL'd, onDestroy()
+            // never ran, so the flag is stale. The heartbeat timestamp goes stale
+            // after ~10s (written every 5s by the packet loop).
+            val heartbeat = prefs.getLong("vpnHeartbeat", 0L)
+            val age = System.currentTimeMillis() - heartbeat
+            if (age > 10_000L) {
+                // Service is gone — clear stale flag
+                prefs.edit().putBoolean("vpnRunning", false).remove("vpnHeartbeat").apply()
+                promise.resolve(false)
+            } else {
+                promise.resolve(true)
+            }
+        } catch (e: Exception) {
+            promise.resolve(false)
+        }
+    }
+
+    // Returns true if the user has already granted the one-time VPN consent.
+    // VpnService.prepare() returns null when permission is already held.
+    // Used by the UI to distinguish "VPN off, never set up" from "VPN off, was set up before".
+    @ReactMethod
+    fun isVpnPermissionGranted(promise: Promise) {
+        try {
+            val needsConsent = android.net.VpnService.prepare(reactApplicationContext) != null
+            promise.resolve(!needsConsent)
+        } catch (e: Exception) {
+            promise.resolve(false)
+        }
+    }
+
+    // ── Notification Filter ───────────────────────────────────────────────────
+    //
+    // The actual filtering happens inside NoGoonNotificationListener.kt.
+    // This method just writes the toggle to SharedPreferences — the listener
+    // reads it on every incoming notification.
+
+    @ReactMethod
+    fun setNotificationFilterEnabled(enabled: Boolean, promise: Promise) {
+        try {
+            val prefs = reactApplicationContext.getSharedPreferences(PREFS_NAME, 0)
+            prefs.edit().putBoolean("notificationFilterEnabled", enabled).apply()
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("SET_NOTIF_FILTER_ERROR", e.message ?: "Unknown error", e)
+        }
+    }
+
+    @ReactMethod
+    fun isNotificationListenerEnabled(promise: Promise) {
+        try {
+            val enabledListeners = Settings.Secure.getString(
+                reactApplicationContext.contentResolver,
+                "enabled_notification_listeners"
+            ) ?: ""
+            val ourPackage = reactApplicationContext.packageName
+            promise.resolve(enabledListeners.contains(ourPackage, ignoreCase = true))
+        } catch (e: Exception) {
+            promise.resolve(false)
+        }
+    }
+
+    @ReactMethod
+    fun openNotificationListenerSettings(promise: Promise) {
+        try {
+            val intent = Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS").apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            reactApplicationContext.startActivity(intent)
+            promise.resolve(true)
+        } catch (e: Exception) {
+            // Fallback for older Android versions
+            try {
+                val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                reactApplicationContext.startActivity(intent)
+                promise.resolve(true)
+            } catch (e2: Exception) {
+                promise.reject("OPEN_NOTIF_SETTINGS_ERROR", e2.message ?: "Unknown error", e2)
+            }
+        }
+    }
+
+    // ── VPN Domain Log ────────────────────────────────────────────────────────
+    //
+    // Returns the last 20 blocked domains as a JSON string:
+    // [{"domain":"ads.twitter.com","ts":1722345678000}, ...]
+    // Written by NoGoonVpnService.logBlockedDomain() each time a domain is blocked.
+
+    @ReactMethod
+    fun getVpnDomainLog(promise: Promise) {
+        try {
+            val prefs = reactApplicationContext.getSharedPreferences(PREFS_NAME, 0)
+            val log = prefs.getString("vpnDomainLog", "[]") ?: "[]"
+            promise.resolve(log)
+        } catch (e: Exception) {
+            promise.resolve("[]")
+        }
+    }
+
+    // ── setCurfew ─────────────────────────────────────────────────────────────
+    // Called from JS (useAppBlocker) when the user changes curfew settings.
+    // Writes the curfew config to SharedPreferences so the Accessibility Service
+    // can enforce it natively without waiting for JS to load.
+    //
+    // Arguments:
+    //   enabled   — whether curfew is active
+    //   startTime — "HH:mm" string, e.g. "22:00"
+    //   endTime   — "HH:mm" string, e.g. "07:00"
+
+    @ReactMethod
+    fun setCurfew(enabled: Boolean, startTime: String, endTime: String, promise: Promise) {
+        try {
+            val prefs = reactApplicationContext.getSharedPreferences(PREFS_NAME, 0)
+            prefs.edit()
+                .putBoolean(NoGoonAccessibilityService.KEY_CURFEW_ENABLED, enabled)
+                .putString(NoGoonAccessibilityService.KEY_CURFEW_START, startTime)
+                .putString(NoGoonAccessibilityService.KEY_CURFEW_END, endTime)
+                .apply()
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("SET_CURFEW_ERROR", e.message ?: "Unknown error", e)
+        }
+    }
+
+    // ── getUnlockTimeLog ──────────────────────────────────────────────────────
+    // Returns the last 7 days of unlock-time data as a JSON string:
+    // {"2026-08-01": 300000, "2026-08-02": 120000}
+    // Values are in milliseconds. Written by NoGoonAccessibilityService when
+    // the user leaves a temporarily-unlocked blocked app.
+
+    @ReactMethod
+    fun getUnlockTimeLog(promise: Promise) {
+        try {
+            val prefs = reactApplicationContext.getSharedPreferences(PREFS_NAME, 0)
+            val prefix = "unlock_time_"
+            val result = org.json.JSONObject()
+            for ((key, value) in prefs.all) {
+                if (key.startsWith(prefix) && value is Long) {
+                    val dateKey = key.removePrefix(prefix)
+                    result.put(dateKey, value)
+                }
+            }
+            promise.resolve(result.toString())
+        } catch (e: Exception) {
+            promise.resolve("{}")
+        }
+    }
+
+    // ── setTodayStats ─────────────────────────────────────────────────────────
+    // Called from JS after every walk-away to keep the home screen widget in sync.
+    // The widget reads these values directly from SharedPreferences.
+    //
+    // Arguments:
+    //   walkAways — today's walk-away count
+    //   streak    — current streak (days)
+
+    @ReactMethod
+    fun setTodayStats(walkAways: Int, streak: Int, promise: Promise) {
+        try {
+            val prefs = reactApplicationContext.getSharedPreferences(PREFS_NAME, 0)
+            val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+                .format(java.util.Date())
+            prefs.edit()
+                .putInt("widget_walk_aways_today", walkAways)
+                .putInt("widget_streak", streak)
+                .putString("widget_date", today)
+                .apply()
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("SET_TODAY_STATS_ERROR", e.message ?: "Unknown error", e)
         }
     }
 }

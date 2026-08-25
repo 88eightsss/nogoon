@@ -153,7 +153,8 @@ serve(async (req: Request) => {
     `;
 
     // ── 5. Send via Resend ───────────────────────────────────────────────── //
-    // TODO: Replace YOUR_VERIFIED_DOMAIN with your actual Resend-verified domain
+    // Deployment: set RESEND_API_KEY in Supabase dashboard → Project Settings → Edge Functions.
+    // Sender domain (notifications@nogoon.app) must be verified in Resend before emails deliver.
     const resendKey = Deno.env.get('RESEND_API_KEY');
     if (!resendKey) {
       return new Response(

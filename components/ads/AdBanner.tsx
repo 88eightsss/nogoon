@@ -46,7 +46,7 @@ const REAL_BANNER_ID_ANDROID = 'ca-app-pub-REPLACE_ME/REPLACE_ME';
 const REAL_BANNER_ID_IOS     = 'ca-app-pub-REPLACE_ME/REPLACE_ME';
 
 // Switch between test and real IDs — set IS_PRODUCTION = true before releasing
-export const IS_PRODUCTION = false;
+export const IS_PRODUCTION = true;
 
 export const BANNER_ID = Platform.select({
   android: IS_PRODUCTION ? REAL_BANNER_ID_ANDROID : TEST_BANNER_ID_ANDROID,

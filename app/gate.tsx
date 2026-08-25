@@ -43,10 +43,19 @@ import { BreathRhythm }     from '@/components/games/BreathRhythm';
 import { GroundingExercise } from '@/components/games/GroundingExercise';
 import { OddOneOut }         from '@/components/games/OddOneOut';
 import { ColorSort }         from '@/components/games/ColorSort';
-import { BallSort }          from '@/components/games/BallSort';
+// BallSort removed
 import { TwentyFortyEight } from '@/components/games/TwentyFortyEight';
-import { GemMatch }          from '@/components/games/GemMatch';
-import { WordWeave }         from '@/components/games/WordWeave';
+// SandToy removed
+import { SpotTheSponsored } from '@/components/games/SpotTheSponsored';
+import { PixelDodge }       from '@/components/games/PixelDodge';
+// FlashTap removed
+import { SnakeGame }        from '@/components/games/SnakeGame';
+import { BrickBreak }       from '@/components/games/BrickBreak';
+import { EndlessRunner }    from '@/components/games/EndlessRunner';
+import { FlappyBird }       from '@/components/games/FlappyBird';
+import { Minesweeper }      from '@/components/games/Minesweeper';
+import { WordWeave }        from '@/components/games/WordWeave';
+import GoonWord             from '@/components/games/GoonWord';
 import { StackGame }         from '@/components/games/StackGame';
 import { PatternMemory }     from '@/components/games/PatternMemory';
 import { WarpGame }          from '@/components/games/WarpGame';
@@ -54,31 +63,21 @@ import { IntentionCheck }    from '@/components/games/IntentionCheck';
 import { TypingChallenge }   from '@/components/games/TypingChallenge';
 import { PACKAGE_TO_NAME } from '@/hooks/useAppBlocker';
 import { useUserStore } from '@/stores/useUserStore';
-import { useSubscriptionStore } from '@/stores/useSubscriptionStore';
 import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
-import { STANDARD_GAMES, PRO_GAMES, pickRandomGame, getGameById, type GameId } from '@/constants/games';
+import { ALL_GAMES, GATE_GAMES, pickRandomGame, getGameById, type GameId } from '@/constants/games';
+import { useThemeStore } from '@/stores/useThemeStore';
 import { useAdInterstitial } from '@/components/ads/AdInterstitial';
 
-// ─── Rapid re-entry sarcasm pages ─────────────────────────────────────────────
+// ─── Rapid re-entry options ────────────────────────────────────────────────────
+// Single empathy question on rapid re-entry. No mocking, no multi-slide cycle.
+// Research: shame → "screw it" thinking. Curiosity → pause + self-awareness.
 
-const SARCASM_PAGES = [
-  { bg: '#f59e0b', msg: "Oh. You're back already.", emoji: '👋' },
-  { bg: '#dc2626', msg: "That was… impressively fast.", emoji: '⚡' },
-  { bg: '#7c3aed', msg: "Miss us that much?", emoji: '🥹' },
-  { bg: '#0e7490', msg: "Bold strategy, honestly.", emoji: '🎯' },
-  { bg: '#be185d', msg: "Your restraint is truly inspiring.", emoji: '🏆' },
-  { bg: '#1d4ed8', msg: "This time for sure, right?", emoji: '👀' },
-  { bg: '#047857', msg: "The urge must be strong today.", emoji: '💪' },
-  { bg: '#b45309', msg: "We believe in you. We really do.", emoji: '🙏' },
-  { bg: '#4f46e5', msg: "Almost through it. Breathe.", emoji: '🌬️' },
-  { bg: '#0f766e', msg: "Last one. You've got this.", emoji: '✨' },
-] as const;
-
-const CHECKIN_OPTIONS = [
-  { id: 'aware',  label: 'I caught myself',       sub: 'That awareness is everything' },
-  { id: 'funny',  label: 'That was kind of funny', sub: 'Good. Keep that lightness' },
-  { id: 'honest', label: 'I still want to go back', sub: "Honest. Let's try the game" },
+const RAPID_OPTIONS = [
+  { id: 'avoiding', label: 'Avoiding something',  emoji: '😶‍🌫️' },
+  { id: 'bored',    label: 'Bored',               emoji: '😑' },
+  { id: 'stressed', label: 'Stressed',            emoji: '😮‍💨' },
+  { id: 'habit',    label: 'Just habit',          emoji: '🔄' },
 ] as const;
 
 // ─── Intent options ────────────────────────────────────────────────────────────
@@ -108,13 +107,15 @@ const INTENT_OPTIONS: IntentOption[] = [
   },
 ];
 
-// Low-stimulation games only — for stressed users.
-// Excludes timed/high-pressure games: warp, stack, typing, wordweave, memory, numberflow.
-const CALM_GAMES: GameId[] = ['breathing', 'grounding', 'colorsort', 'ballsort', 'oddone'];
+// Low-stimulation games for stressed users. Excludes reflex/skill games (stack, typing, pixeldodge, etc.).
+const CALM_GAMES: GameId[] = ['breathing', 'grounding', 'colorsort', 'warp', 'intention', 'wordweave', 'memory'];
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const OVERRIDE_PHRASE = 'I am choosing to open this intentionally';
+const TWO_HOURS         = 2  * 60 * 60 * 1000;
+const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+const THIRTY_SIX_HOURS  = 36 * 60 * 60 * 1000;
 
 // ─── Block schedule helper ─────────────────────────────────────────────────────
 // Returns true if the current time falls within the block window.
@@ -141,7 +142,7 @@ function pickCalmGame(): GameId {
 
 // ─── Main component ────────────────────────────────────────────────────────────
 
-type Phase = 'sarcasm' | 'checkin' | 'lockout' | 'calm' | 'friction' | 'intent' | 'nogames' | 'context' | 'pick' | 'playing' | 'override';
+type Phase = 'intro' | 'followthrough' | 'rapid' | 'lockout' | 'calm' | 'friction' | 'intent' | 'nogames' | 'context' | 'pick' | 'playing' | 'override' | 'curfew';
 
 export default function NoGoonScreen() {
   const {
@@ -149,28 +150,40 @@ export default function NoGoonScreen() {
     source = 'web',
     rapid = '0',
     rapidCount: rapidCountStr = '0',
+    curfew = '0',   // '1' when the native AccessibilityService triggered this gate during curfew hours
   } = useLocalSearchParams<{
     domain: string;
     source: string;
     rapid: string;
     rapidCount: string;
+    curfew: string;
   }>();
 
-  const isRapidEntry   = rapid === '1';
+  const isRapidEntry    = rapid === '1';
   const rapidEntryCount = parseInt(rapidCountStr, 10);
+  // Native-triggered curfew: skip all gate logic and go straight to the curfew screen.
+  const isCurfewTriggered = curfew === '1' || source === 'curfew';
 
   const {
-    isBricked, gameDuration, streak, walkAwayCount, intentionGoal, gameMode, noGames,
-    openCounts, openCountDate, incrementOpenCount,
+    isBricked, isColdTurkey, gameDuration, streak, walkAwayCount, intentionGoal, gameMode, noGames,
+    openCounts, openCountDate, incrementOpenCount, recordDailyGateFire,
     dailyIntention, intentionDate,
+    nightlyCommitment, nightlyCommitmentSetAt,
     windDownEnabled, windDownHour,
     blockScheduleEnabled, blockScheduleStart, blockScheduleEnd, blockScheduleDays,
+    curfewEnabled, curfewStart, curfewEnd,
     blocklist, addSite,
     focusSessionEnd, endFocusSession,
     notifyPartner,
+    urgeJournal,
+    pendingCommitment,
+    clearCommitment,
+    hasSeenGateIntro,
+    markGateIntroSeen,
+    logFollowThrough,
   } = useUserStore();
-  const { isPro } = useSubscriptionStore();
   const { maybeShowInterstitial } = useAdInterstitial();
+  const { disabledGateGames } = useThemeStore();
 
   const C = COLORS;
 
@@ -204,13 +217,28 @@ export default function NoGoonScreen() {
     return () => { isMountedRef.current = false; };
   }, []);
 
-  const [phase, setPhase]       = useState<Phase>(isRapidEntry ? 'sarcasm' : 'calm');
-  const [selectedGame, setSelectedGame] = useState<GameId | null>(null);
-  // Each rapid return shows the NEXT sarcasm slide in the cycle (not all 10 at once).
-  // rapidEntryCount is 1-indexed, so subtract 1 to get 0-indexed page number.
-  const [sarcasmPage, setSarcasmPage]   = useState(
-    Math.max(0, (rapidEntryCount - 1) % SARCASM_PAGES.length)
+  // Commitment follow-through: commitment for same domain that's 2h–24h old.
+  // We waited long enough that the user should have acted on it — ask if they did.
+  const pendingFollowThroughCommitment =
+    pendingCommitment &&
+    pendingCommitment.domain === displayDomain &&
+    now - pendingCommitment.timestamp >= TWO_HOURS &&
+    now - pendingCommitment.timestamp < TWENTY_FOUR_HOURS
+      ? pendingCommitment
+      : null;
+
+  const [phase, setPhase] = useState<Phase>(
+    !hasSeenGateIntro
+      ? 'intro'
+      : isCurfewTriggered          // native hard-block during curfew window
+      ? 'curfew'
+      : isRapidEntry
+      ? 'rapid'
+      : pendingFollowThroughCommitment
+      ? 'followthrough'
+      : 'calm'
   );
+  const [selectedGame, setSelectedGame] = useState<GameId | null>(null);
   const [overrideText, setOverrideText] = useState('');
   // Calm screen countdown (5 → 0 then button appears)
   const [calmCountdown, setCalmCountdown] = useState(5);
@@ -229,9 +257,21 @@ export default function NoGoonScreen() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ── Curfew check — hard block with zero unlock path ───────────────────────
+  // Unlike blockSchedule (which exits the gate when outside window), curfew
+  // stays on screen during the active window and shows a dead-end. No game,
+  // no points, no override. The only action is closing the gate.
+  useEffect(() => {
+    if (curfewEnabled && isWithinBlockSchedule(curfewStart, curfewEnd)) {
+      setPhase('curfew');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // ── Increment open count for this domain on first render ─────────────────
   useEffect(() => {
     incrementOpenCount(domain);
+    recordDailyGateFire();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -243,9 +283,9 @@ export default function NoGoonScreen() {
 
   useEffect(() => {
     // Only run calm-specific setup when actually on the calm screen.
-    // Without this guard the 3s timer would fire mid-sarcasm sequence
-    // and jump straight to 'intent', cutting the flow short.
-    if (isRapidEntry) return;
+    // Keyed on `phase` so it fires when intro users transition to 'calm'
+    // after tapping "Got it", not just on mount.
+    if (phase !== 'calm') return;
 
     // Fade in content
     Animated.timing(contentOpacity, {
@@ -310,7 +350,7 @@ export default function NoGoonScreen() {
       pulseScale.stopAnimation();
       pulseOpacity.stopAnimation();
     };
-  }, []);
+  }, [phase]);
 
   // ── Context phase — 2 sec bridge, then auto-advance to playing ───────────
   useEffect(() => {
@@ -352,21 +392,12 @@ export default function NoGoonScreen() {
       if (gameMode === 'choose') {
         setPhase('pick');
       } else {
-        setSelectedGame(pickRandomGame(isPro));
+        setSelectedGame(pickRandomGame(disabledGateGames));
         setPhase('context');
       }
     },
-    [isPro, gameMode, isWindDown, noGames]
+    [gameMode, isWindDown, noGames, disabledGateGames]
   );
-
-  // ── Sarcasm page — show ONE slide per rapid return, then go to checkin ──────
-  // Which slide is shown is determined by rapidEntryCount (set at mount above).
-  // After 2s the user moves on to the check-in. No auto-cycling through all 10.
-  useEffect(() => {
-    if (phase !== 'sarcasm') return;
-    const timer = setTimeout(() => setPhase('checkin'), 2000);
-    return () => clearTimeout(timer);
-  }, [phase]);
 
   // ── Friction phase — countdown per button, re-runs when frictionStep changes ──
   useEffect(() => {
@@ -398,17 +429,22 @@ export default function NoGoonScreen() {
       // Guard: component may have unmounted while the ad was showing (rapid back-press,
       // or another gate triggered during the interstitial).
       if (!isMountedRef.current) return;
+      // Route through The Waiting Room — a 5-second psychological pause before
+      // the unlock decision. The waiting room forwards to /post-game after the countdown.
       router.replace({
-        pathname: '/post-game',
+        pathname: '/waiting-room',
         params: {
+          app: domain,
+          // Pass post-game params through so waiting-room can forward them
           pointsEarned: String(score),
           gameName: selectedGame ?? 'Mini-Game',
           domain: displayDomain,
-          isBricked: isBricked ? '1' : '0',
+          isBricked: (isBricked || isColdTurkey) ? '1' : '0',
+          isColdTurkey: isColdTurkey ? '1' : '0',
         },
       });
     },
-    [selectedGame, isBricked, displayDomain, maybeShowInterstitial]
+    [selectedGame, isBricked, isColdTurkey, displayDomain, maybeShowInterstitial]
   );
 
   // ── Context line shown on calm screen ────────────────────────────────────
@@ -416,6 +452,19 @@ export default function NoGoonScreen() {
   const today = new Date().toISOString().split('T')[0];
   const todayOpenCount = openCountDate === today ? (openCounts[domain] ?? 0) : 0;
   const todayIntention = intentionDate === today && dailyIntention ? dailyIntention : null;
+
+  // Nightly pre-commitment: show if set on a *different* calendar day (i.e. set last night)
+  // and not expired (within 36h — covers late risers)
+  const nightlySetDate = nightlyCommitmentSetAt
+    ? new Date(nightlyCommitmentSetAt).toISOString().split('T')[0]
+    : null;
+  const hasYesterdayCommitment =
+    nightlyCommitment.trim().length > 0 &&
+    nightlySetDate !== null &&
+    nightlySetDate !== today &&
+    Date.now() - nightlyCommitmentSetAt < THIRTY_SIX_HOURS
+      ? nightlyCommitment
+      : null;
 
   // Scroll trigger gets its own context line — more specific than the generic streak/goal copy.
   const contextLine = source === 'scroll'
@@ -429,6 +478,25 @@ export default function NoGoonScreen() {
     : walkAwayCount > 0
     ? `You've walked away ${walkAwayCount} time${walkAwayCount === 1 ? '' : 's'} — you've got this`
     : null;
+
+  // ── Commitment reminder — surface if within 2 hours and same domain ──────────
+  const activeCommitment =
+    pendingCommitment &&
+    pendingCommitment.domain === displayDomain &&
+    Date.now() - pendingCommitment.timestamp < TWO_HOURS
+      ? pendingCommitment.text
+      : null;
+
+  // ── Urge pattern for this domain (last 4 entries from urge journal) ─────────
+  // Shown on calm screen: "Last 3 times: Bored, Stressed, Bored"
+  // Makes the pattern visible at the exact moment it's being repeated.
+  // Filter by displayDomain — journal entries are stored with the pretty display
+  // name (e.g. "Instagram"), not the raw package name ("com.instagram.android"),
+  // because post-game receives displayDomain as its `domain` param from gate.
+  const domainUrgePattern = urgeJournal
+    .filter((e) => e.domain === displayDomain)
+    .slice(0, 4)
+    .map((e) => e.tag);
 
   // Friction buttons to show: 1 per rapid re-entry, max 10
   const frictionTotal = isRapidEntry ? Math.min(rapidEntryCount, 10) : 0;
@@ -479,64 +547,159 @@ export default function NoGoonScreen() {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // RENDER: Sarcasm — 10 colored pages, 1.5s each, auto-advance
   // ══════════════════════════════════════════════════════════════════════════
-  if (phase === 'sarcasm') {
-    const page = SARCASM_PAGES[sarcasmPage];
-    const progress = sarcasmPage + 1;
+  // RENDER: Curfew — dead-end screen, no unlock path
+  // ══════════════════════════════════════════════════════════════════════════
+  if (phase === 'curfew') {
+    const [endHour, endMin] = curfewEnd.split(':').map(Number);
+    const endFormatted = new Date(
+      new Date().setHours(endHour ?? 0, endMin ?? 0, 0, 0)
+    ).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     return (
-      <Pressable
-        style={[styles.sarcasmScreen, { backgroundColor: page.bg }]}
-        onPress={() => {
-          if (sarcasmPage >= SARCASM_PAGES.length - 1) setPhase('checkin');
-          else setSarcasmPage((p) => p + 1);
-        }}
-      >
-        <Text style={styles.sarcasmEmoji}>{page.emoji}</Text>
-        <Text style={styles.sarcasmMsg}>{page.msg}</Text>
-        <View style={styles.sarcasmProgress}>
-          {Array.from({ length: SARCASM_PAGES.length }).map((_, i) => (
-            <View
-              key={i}
-              style={[
-                styles.sarcasmDot,
-                { backgroundColor: i <= sarcasmPage ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.25)' },
-              ]}
-            />
-          ))}
+      <SafeAreaView style={[styles.safe, { backgroundColor: COLORS.background }]}>
+        <View style={styles.curfewContainer}>
+          <Text style={styles.curfewMoon}>🌙</Text>
+          <Text style={styles.curfewTitle}>Digital Curfew Active</Text>
+          <Text style={[styles.curfewSub, { color: COLORS.textMuted }]}>
+            Your screen time window is closed.{'\n'}
+            Come back at {endFormatted}.
+          </Text>
+          <Text style={[styles.curfewDomain, { color: COLORS.textMuted }]}>
+            {displayDomain}
+          </Text>
+          <Pressable
+            style={[styles.curfewBtn, { backgroundColor: COLORS.surface, borderColor: COLORS.border }]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.dismissAll();
+            }}
+          >
+            <Text style={[styles.curfewBtnText, { color: COLORS.textSecondary }]}>Close</Text>
+          </Pressable>
         </View>
-        <Text style={styles.sarcasmCounter}>{progress} / {SARCASM_PAGES.length}</Text>
-      </Pressable>
+      </SafeAreaView>
     );
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // RENDER: Check-in — "How did that feel?"
+  // RENDER: Intro — one-time explainer for new users (shown on first gate fire)
   // ══════════════════════════════════════════════════════════════════════════
-  if (phase === 'checkin') {
-    const nextPhase = rapidEntryCount >= 5 ? 'lockout' : 'calm';
+  if (phase === 'intro') {
     return (
       <SafeAreaView style={[styles.safe, { backgroundColor: '#0b1217' }]}>
         <View style={styles.checkinContainer}>
-          <Text style={styles.checkinTitle}>How did that feel?</Text>
-          <Text style={[styles.checkinSub, { color: C.textMuted }]}>
-            {rapidEntryCount} quick return{rapidEntryCount === 1 ? '' : 's'} today
+          <Text style={[styles.sarcasmEmoji, { fontSize: 56 }]}>🛡️</Text>
+          <Text style={[styles.checkinTitle, { color: C.textPrimary }]}>
+            You just hit a block
           </Text>
-          <View style={styles.checkinOptions}>
-            {CHECKIN_OPTIONS.map((opt) => (
+          <View style={[styles.checkinCard, { backgroundColor: C.surface, borderColor: C.cardBorder }]}>
+            <Text style={[styles.checkinCardLabel, { color: C.textSecondary, fontFamily: FONTS.body, fontSize: 15, lineHeight: 24 }]}>
+              NoGoon intercepts blocked apps with a short pause, then a quick game, then a choice — walk away or unlock.{'\n\n'}No judgment. Just a moment to decide.
+            </Text>
+          </View>
+          <View style={[styles.checkinCard, { backgroundColor: C.surface, borderColor: C.cardBorder }]}>
+            <Text style={[styles.checkinCardLabel, { color: C.textMuted, fontFamily: FONTS.mono, fontSize: 11, letterSpacing: 0.4 }]}>
+              BLOCKED
+            </Text>
+            <Text style={[styles.checkinCardSub, { color: C.indigoBright, fontFamily: FONTS.bodyBold, fontSize: 17, marginTop: 4 }]}>
+              {displayDomain}
+            </Text>
+          </View>
+          <Pressable
+            style={[styles.calmContinueBtn, { borderColor: '#4ecdc4' + '88', backgroundColor: '#4ecdc4' + '18', width: '100%', justifyContent: 'center' }]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              markGateIntroSeen();
+              setPhase('calm');
+            }}
+          >
+            <Text style={[styles.calmContinueText, { color: '#4ecdc4' }]}>Got it</Text>
+            <Feather name="arrow-right" size={16} color="#4ecdc4" />
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // RENDER: Follow-through — "Did you do what you committed to?"
+  // Fires on gate re-entry for same domain 2–24h after a commitment was made.
+  // ══════════════════════════════════════════════════════════════════════════
+  if (phase === 'followthrough' && pendingFollowThroughCommitment) {
+    return (
+      <SafeAreaView style={[styles.safe, { backgroundColor: '#0b1217' }]}>
+        <View style={styles.checkinContainer}>
+          <Text style={[styles.checkinTitle, { color: C.textPrimary }]}>
+            Did you do it?
+          </Text>
+          <View style={[styles.checkinCard, { backgroundColor: C.surface, borderColor: C.cardBorder }]}>
+            <Text style={[styles.checkinCardLabel, { color: C.textMuted, fontFamily: FONTS.mono, fontSize: 11, letterSpacing: 0.4 }]}>
+              YOU SAID YOU'D
+            </Text>
+            <Text style={[styles.checkinCardSub, { color: C.textPrimary, fontFamily: FONTS.bodyBold, fontSize: 17, marginTop: 4 }]}>
+              {pendingFollowThroughCommitment.text}
+            </Text>
+          </View>
+          <View style={{ gap: SPACING.sm, width: '100%' }}>
+            <Pressable
+              style={[styles.calmContinueBtn, { borderColor: C.green + '88', backgroundColor: C.green + '18', justifyContent: 'center' }]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                logFollowThrough(pendingFollowThroughCommitment.text, displayDomain, true);
+                clearCommitment();
+                setPhase('calm');
+              }}
+            >
+              <Feather name="check" size={16} color={C.green} />
+              <Text style={[styles.calmContinueText, { color: C.green }]}>Yes, I did</Text>
+            </Pressable>
+            <Pressable
+              style={styles.exitTextRow}
+              onPress={() => {
+                logFollowThrough(pendingFollowThroughCommitment.text, displayDomain, false);
+                clearCommitment();
+                setPhase('calm');
+              }}
+            >
+              <Text style={[styles.exitText, { color: C.textMuted }]}>Not this time</Text>
+            </Pressable>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // RENDER: Rapid re-entry — single empathy question, no mocking
+  // ══════════════════════════════════════════════════════════════════════════
+  if (phase === 'rapid') {
+    const nextPhase = rapidEntryCount >= 5 ? 'lockout' : 'calm';
+    return (
+      <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]}>
+        <View style={styles.checkinContainer}>
+          <Text style={[styles.checkinTitle, { color: C.textPrimary }]}>
+            What's pulling you back?
+          </Text>
+          <Text style={[styles.rapidSub, { color: C.textMuted }]}>
+            {rapidEntryCount > 1
+              ? `You've opened ${displayDomain} ${rapidEntryCount} times in a short window.`
+              : `Back again on ${displayDomain}.`}
+          </Text>
+          <View style={styles.rapidOptions}>
+            {RAPID_OPTIONS.map((opt) => (
               <Pressable
                 key={opt.id}
                 style={({ pressed }) => [
-                  styles.checkinCard,
-                  { backgroundColor: pressed ? C.surfaceHigh : C.surface, borderColor: C.cardBorder },
+                  styles.rapidCard,
+                  { backgroundColor: pressed ? C.surfaceHigh : C.surface, borderColor: C.border },
                 ]}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   setPhase(nextPhase);
                 }}
               >
-                <Text style={[styles.checkinCardLabel, { color: C.textPrimary }]}>{opt.label}</Text>
-                <Text style={[styles.checkinCardSub, { color: C.textSecondary }]}>{opt.sub}</Text>
+                <Text style={styles.rapidCardEmoji}>{opt.emoji}</Text>
+                <Text style={[styles.rapidCardLabel, { color: C.textPrimary }]}>{opt.label}</Text>
               </Pressable>
             ))}
           </View>
@@ -745,24 +908,28 @@ export default function NoGoonScreen() {
     if (selectedGame === 'grounding')  return <GroundingExercise onComplete={handleGameComplete} />;
     if (selectedGame === 'oddone')     return <OddOneOut        onComplete={handleGameComplete} />;
     if (selectedGame === 'colorsort')  return <ColorSort        onComplete={handleGameComplete} />;
-    if (selectedGame === 'ballsort')   return <BallSort         onComplete={handleGameComplete} />;
     if (selectedGame === 'twentyfortyeight') return <TwentyFortyEight onComplete={handleGameComplete} />;
-    if (selectedGame === 'gemmatch')   return <GemMatch         onComplete={handleGameComplete} />;
-    if (selectedGame === 'wordweave')  return <WordWeave        onComplete={handleGameComplete} />;
-    if (selectedGame === 'stack')      return <StackGame        onComplete={handleGameComplete} />;
-    if (selectedGame === 'memory')     return <PatternMemory    onComplete={handleGameComplete} />;
-    if (selectedGame === 'warp')       return <WarpGame         onComplete={handleGameComplete} />;
-    if (selectedGame === 'intention')  return <IntentionCheck   onComplete={handleGameComplete} />;
-    if (selectedGame === 'typing')     return <TypingChallenge  onComplete={handleGameComplete} duration={gameDuration} />;
+    if (selectedGame === 'wordweave')      return <WordWeave        onComplete={handleGameComplete} />;
+    if (selectedGame === 'stack')          return <StackGame        onComplete={handleGameComplete} />;
+    if (selectedGame === 'memory')         return <PatternMemory    onComplete={handleGameComplete} />;
+    if (selectedGame === 'warp')           return <WarpGame         onComplete={handleGameComplete} />;
+    if (selectedGame === 'intention')      return <IntentionCheck   onComplete={handleGameComplete} />;
+    if (selectedGame === 'typing')         return <TypingChallenge  onComplete={handleGameComplete} duration={gameDuration} />;
+    if (selectedGame === 'spotsponsored')  return <SpotTheSponsored onComplete={handleGameComplete} />;
+    if (selectedGame === 'pixeldodge')     return <PixelDodge       onComplete={handleGameComplete} />;
+    if (selectedGame === 'snakegame')      return <SnakeGame        onComplete={handleGameComplete} />;
+    if (selectedGame === 'brickbreak')     return <BrickBreak       onComplete={handleGameComplete} />;
+    if (selectedGame === 'runner')         return <EndlessRunner    onComplete={handleGameComplete} />;
+    if (selectedGame === 'flappy')         return <FlappyBird       onComplete={handleGameComplete} />;
+    if (selectedGame === 'minesweeper')    return <Minesweeper      onComplete={handleGameComplete} />;
+    if (selectedGame === 'goon')           return <GoonWord         onComplete={(won) => handleGameComplete(won ? 100 : 0)} />;
   }
 
   // ══════════════════════════════════════════════════════════════════════════
   // RENDER: Pick — game chooser (when gameMode === 'choose')
   // ══════════════════════════════════════════════════════════════════════════
   if (phase === 'pick') {
-    const pool = isPro
-      ? [...STANDARD_GAMES, ...PRO_GAMES]
-      : [...STANDARD_GAMES];
+    const pool = [...GATE_GAMES];
 
     return (
       <SafeAreaView style={[styles.safe, { backgroundColor: '#0b1217' }]}>
@@ -772,8 +939,7 @@ export default function NoGoonScreen() {
           </Text>
           <View style={styles.intentOptions}>
             {pool.map((g) => {
-              const meta = getGameById(g.id);
-              if (!meta) return null;
+              const meta = getGameById(g.id)!;
               return (
                 <Pressable
                   key={g.id}
@@ -793,9 +959,6 @@ export default function NoGoonScreen() {
                   <Text style={[styles.intentCardLabel, { color: C.textPrimary }]}>
                     {meta.name}
                   </Text>
-                  {'isPro' in g && (g as { isPro?: boolean }).isPro && (
-                    <Text style={[styles.proTag, { color: '#7dd3fc' }]}>✦</Text>
-                  )}
                 </Pressable>
               );
             })}
@@ -968,6 +1131,44 @@ export default function NoGoonScreen() {
           <Text style={[styles.contextLine, { color: C.textSecondary }]}>
             The urge passes. Give it a moment.
           </Text>
+        )}
+
+        {/* Nightly pre-commitment — "Last night you said: No doomscrolling after 10pm" */}
+        {hasYesterdayCommitment && (
+          <View style={[styles.urgePatternRow, { backgroundColor: '#7c3aed14', borderColor: '#7c3aed33', borderWidth: 1 }]}>
+            <Feather name="moon" size={12} color="#a78bfa" />
+            <Text style={[styles.urgePatternText, { color: '#a78bfa' }]}>
+              Last night you said:{' '}
+              <Text style={{ color: COLORS.textPrimary }}>{hasYesterdayCommitment}</Text>
+            </Text>
+          </View>
+        )}
+
+        {/* Commitment reminder — "You said you were going to: Read / write / create" */}
+        {activeCommitment && (
+          <View style={[styles.urgePatternRow, { backgroundColor: COLORS.green + '14', borderColor: COLORS.green + '33', borderWidth: 1 }]}>
+            <Feather name="check-circle" size={12} color={COLORS.green} />
+            <Text style={[styles.urgePatternText, { color: COLORS.green }]}>
+              You said you'd:{' '}
+              <Text style={{ color: COLORS.textPrimary }}>{activeCommitment}</Text>
+            </Text>
+            <Pressable onPress={clearCommitment} hitSlop={8}>
+              <Feather name="x" size={12} color={COLORS.textMuted} />
+            </Pressable>
+          </View>
+        )}
+
+        {/* Urge pattern — "Last X times: Bored, Bored, Stressed" */}
+        {domainUrgePattern.length >= 2 && (
+          <View style={styles.urgePatternRow}>
+            <Feather name="repeat" size={11} color={C.textMuted} />
+            <Text style={[styles.urgePatternText, { color: C.textMuted }]}>
+              Last {domainUrgePattern.length}×:{' '}
+              <Text style={{ color: C.textSecondary }}>
+                {domainUrgePattern.join(', ')}
+              </Text>
+            </Text>
+          </View>
         )}
 
         {/* Quick-add: one tap to permanently block this site */}
@@ -1148,6 +1349,23 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
 
+  // ── Urge pattern strip ────────────────────────────────────────────────────
+  urgePatternRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+  },
+  urgePatternText: {
+    fontFamily: FONTS.mono,
+    fontSize: 11,
+    letterSpacing: 0.2,
+  },
+
   // ── Hard lock calm breath option ──────────────────────────────────────────
   calmBreathButton: {
     flexDirection: 'row',
@@ -1204,45 +1422,84 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
 
-  // ── Sarcasm sequence ─────────────────────────────────────────────────────────────────
-  sarcasmScreen: {
+  // ── Curfew dead-end screen ────────────────────────────────────────────────
+  curfewContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: SPACING.xxl,
-    gap: SPACING.xxxl,
+    gap: SPACING.lg,
   },
-  sarcasmEmoji: {
+  curfewMoon: {
     fontSize: 72,
     lineHeight: 84,
     textAlign: 'center',
   },
-  sarcasmMsg: {
+  curfewTitle: {
     fontFamily: FONTS.displayRegular,
-    fontSize: 32,
-    color: '#ffffff',
+    fontSize: 28,
+    color: COLORS.textPrimary,
     textAlign: 'center',
-    lineHeight: 42,
-    letterSpacing: 0.3,
   },
-  sarcasmProgress: {
-    flexDirection: 'row',
-    gap: 6,
-    justifyContent: 'center',
+  curfewSub: {
+    fontFamily: FONTS.body,
+    fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 24,
   },
-  sarcasmDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  sarcasmCounter: {
+  curfewDomain: {
     fontFamily: FONTS.mono,
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.5)',
-    letterSpacing: 0.5,
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: SPACING.xs,
+  },
+  curfewBtn: {
+    marginTop: SPACING.xl,
+    paddingHorizontal: SPACING.xxl,
+    paddingVertical: SPACING.md,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+  },
+  curfewBtnText: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 15,
   },
 
-  // ── Check-in ────────────────────────────────────────────────────────────────────────
+  // ── Rapid re-entry — single empathy question ──────────────────────────────────────────
+  sarcasmEmoji: {
+    // kept: reused by nogames, override, lockout phases
+    fontSize: 72,
+    lineHeight: 84,
+    textAlign: 'center',
+  },
+  rapidSub: {
+    fontFamily: FONTS.body,
+    fontSize: 15,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  rapidOptions: {
+    gap: SPACING.sm,
+  },
+  rapidCard: {
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    padding: SPACING.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+  },
+  rapidCardEmoji: {
+    fontSize: 24,
+    lineHeight: 28,
+  },
+  rapidCardLabel: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 16,
+    flex: 1,
+  },
+
+  // ── Check-in / shared layout ─────────────────────────────────────────────────────────
   checkinContainer: {
     flex: 1,
     paddingHorizontal: SPACING.lg,
@@ -1255,15 +1512,6 @@ const styles = StyleSheet.create({
     fontSize: 28,
     color: COLORS.textPrimary,
     textAlign: 'center',
-  },
-  checkinSub: {
-    fontFamily: FONTS.mono,
-    fontSize: 13,
-    textAlign: 'center',
-    letterSpacing: 0.3,
-  },
-  checkinOptions: {
-    gap: SPACING.sm,
   },
   checkinCard: {
     borderRadius: RADIUS.lg,

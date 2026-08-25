@@ -1,0 +1,2 @@
+@echo off
+powershell -NoProfile -Command "$t='Prepare release'; Get-Process chrome | Where-Object {$_.MainWindowTitle -like ('*'+$t+'*')} | ForEach-Object { Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public class W { [DllImport(\"user32.dll\")] public static extern bool SetForegroundWindow(IntPtr h); [DllImport(\"user32.dll\")] public static extern bool ShowWindow(IntPtr h, int n); }'; [W]::ShowWindow($_.MainWindowHandle, 9); [W]::SetForegroundWindow($_.MainWindowHandle); Write-Host Focused: $_.MainWindowTitle }"

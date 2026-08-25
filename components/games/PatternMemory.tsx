@@ -30,7 +30,7 @@ import {
   Easing,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { COLORS, FONTS } from '@/constants/Colors';
+import { FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { ProceedButton } from '@/components/ui/ProceedButton';
 
@@ -43,13 +43,27 @@ const BASE_POINTS       = 15;    // points per completed round
 const SPEED_BONUS       = 5;     // bonus for completing a round in < 3 seconds
 const SPEED_THRESHOLD   = 3000;  // ms
 
+// ─── 80s arcade neon palette ──────────────────────────────────────────────────
+
+const NEON = {
+  pink:    '#ff2d78',
+  blue:    '#00e5ff',
+  green:   '#39ff14',
+  yellow:  '#ffe600',
+  bg:      '#000000',
+  surface: '#0c0c1e',
+  border:  '#1a1a40',
+  text:    '#ffffff',
+  muted:   '#555577',
+};
+
 // ─── Tile definitions — 4 colored tiles in a 2×2 grid ────────────────────────
 
 const TILES = [
-  { id: 0, color: COLORS.purple,  dimColor: COLORS.purple  + '33' },
-  { id: 1, color: COLORS.cyan,    dimColor: COLORS.cyan    + '33' },
-  { id: 2, color: COLORS.green,   dimColor: COLORS.green   + '33' },
-  { id: 3, color: COLORS.warning, dimColor: COLORS.warning + '33' },
+  { id: 0, color: NEON.pink,   dimColor: '#2a0010' },
+  { id: 1, color: NEON.blue,   dimColor: '#001520' },
+  { id: 2, color: NEON.green,  dimColor: '#001500' },
+  { id: 3, color: NEON.yellow, dimColor: '#1a1400' },
 ] as const;
 
 type TileId = 0 | 1 | 2 | 3;
@@ -240,9 +254,9 @@ export function PatternMemory({ onComplete }: PatternMemoryProps) {
   // ── Timer bar color ───────────────────────────────────────────────────────
 
   const timerColor =
-    timeLeft > 15 ? COLORS.green :
-    timeLeft > 7  ? COLORS.warning :
-                    COLORS.danger;
+    timeLeft > 15 ? NEON.green :
+    timeLeft > 7  ? NEON.yellow :
+                    NEON.pink;
 
   // ══════════════════════════════════════════════════════════════════════════
   //  RENDER: Countdown
@@ -251,13 +265,13 @@ export function PatternMemory({ onComplete }: PatternMemoryProps) {
   if (phase === 'countdown') {
     return (
       <View style={styles.centeredContainer}>
-        <Text style={styles.titleText}>Pattern Memory</Text>
+        <Text style={styles.arcadeTitle}>PATTERN{'\n'}MEMORY</Text>
         <View style={styles.ruleBox}>
           <Text style={styles.ruleText}>
-            Watch the tiles light up,{'\n'}then tap them back{' '}
-            <Text style={styles.ruleHighlight}>in the same order</Text>.
+            WATCH THE TILES LIGHT UP{'\n'}TAP THEM BACK{' '}
+            <Text style={[styles.ruleText, { color: NEON.blue }]}>IN ORDER</Text>
           </Text>
-          <Text style={styles.ruleSubtext}>One wrong tap ends the game.</Text>
+          <Text style={styles.ruleSubtext}>ONE WRONG TAP = GAME OVER</Text>
         </View>
         <Text style={styles.countdownNumber}>
           {countdownNum === 0 ? 'GO!' : countdownNum}
@@ -273,20 +287,18 @@ export function PatternMemory({ onComplete }: PatternMemoryProps) {
   if (phase === 'complete') {
     return (
       <View style={styles.centeredContainer}>
-        <Text style={styles.completeHeadline}>
-          {round <= 1 ? 'Nice try!' : `Round ${round}!`}
-        </Text>
-        <Text style={styles.finalScore}>{score}</Text>
-        <Text style={styles.finalScoreLabel}>points earned</Text>
+        <Text style={styles.gameOverText}>GAME OVER</Text>
+        <Text style={styles.finalScore}>{String(score).padStart(6, '0')}</Text>
+        <Text style={styles.finalScoreLabel}>SCORE</Text>
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: COLORS.green }]}>{round}</Text>
-            <Text style={styles.statLabel}>Rounds</Text>
+            <Text style={[styles.statValue, { color: NEON.green }]}>{round}</Text>
+            <Text style={styles.statLabel}>ROUNDS</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>{sequence.length}</Text>
-            <Text style={styles.statLabel}>Sequence length</Text>
+            <Text style={[styles.statValue, { color: NEON.blue }]}>{sequence.length}</Text>
+            <Text style={styles.statLabel}>SEQ LEN</Text>
           </View>
         </View>
         <ProceedButton label="Continue →" onPress={() => onComplete(score)} />
@@ -297,6 +309,8 @@ export function PatternMemory({ onComplete }: PatternMemoryProps) {
   // ══════════════════════════════════════════════════════════════════════════
   //  RENDER: Showing / Input
   // ══════════════════════════════════════════════════════════════════════════
+
+  const phaseColor = phase === 'showing' ? NEON.yellow : NEON.green;
 
   return (
     <SafeAreaView style={styles.gameContainer}>
@@ -321,23 +335,23 @@ export function PatternMemory({ onComplete }: PatternMemoryProps) {
       <View style={styles.hud}>
         <View>
           <Text style={styles.hudLabel}>SCORE</Text>
-          <Text style={styles.hudValue}>{score}</Text>
+          <Text style={styles.hudValue}>{String(score).padStart(5, '0')}</Text>
         </View>
         <View style={styles.hudCenter}>
-          <Text style={styles.roundLabel}>
-            {phase === 'showing' ? 'WATCH' : 'YOUR TURN'}
+          <Text style={[styles.phaseLabel, { color: phaseColor }]}>
+            {phase === 'showing' ? '◉ WATCH' : '▶ TAP!'}
           </Text>
-          <Text style={styles.roundNumber}>Round {round}</Text>
+          <Text style={styles.roundNumber}>LVL {String(round).padStart(2, '0')}</Text>
         </View>
         <View style={styles.hudRight}>
           <Text style={styles.hudLabel}>TIME</Text>
-          <Text style={[styles.hudValue, timeLeft <= 7 && { color: COLORS.danger }]}>
-            {timeLeft}s
+          <Text style={[styles.hudValue, timeLeft <= 7 && { color: NEON.pink }]}>
+            {String(timeLeft).padStart(2, '0')}
           </Text>
         </View>
       </View>
 
-      {/* ── Progress dots — shows how many taps are left in this round ── */}
+      {/* ── Progress dots ── */}
       {phase === 'input' && (
         <View style={styles.progressDots}>
           {sequence.map((_, i) => (
@@ -405,9 +419,15 @@ function TileButton({
       <Animated.View
         style={[
           styles.tile,
-          // When lit: full color. When dim: very faded version of the color.
           { backgroundColor: isLit ? tile.color : tile.dimColor },
-          isLit && styles.tileLit,
+          isLit && {
+            shadowColor: tile.color,
+            shadowOpacity: 0.9,
+            shadowRadius: 20,
+            elevation: 12,
+            borderColor: tile.color,
+          },
+          !isLit && { borderColor: tile.color + '55' },
           { transform: [{ scale }] },
         ]}
       />
@@ -420,82 +440,94 @@ function TileButton({
 const styles = StyleSheet.create({
   centeredContainer: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: NEON.bg,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: SPACING.xl,
   },
 
   // ── Countdown ──
-  titleText: {
-    fontFamily: FONTS.display,
-    fontSize: 32,
-    color: COLORS.textPrimary,
+  arcadeTitle: {
+    fontFamily: FONTS.monoBold,
+    fontSize: 36,
+    color: NEON.pink,
+    textAlign: 'center',
+    letterSpacing: 4,
     marginBottom: SPACING.xl,
-    letterSpacing: -0.3,
+    textShadowColor: NEON.pink,
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 12,
   },
   ruleBox: {
     alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: COLORS.cardBorder,
+    backgroundColor: NEON.surface,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: NEON.blue + '66',
     padding: SPACING.xl,
     marginBottom: SPACING.xxxl,
     width: '100%',
   },
   ruleText: {
-    fontFamily: FONTS.body,
-    fontSize: 17,
-    color: COLORS.textSecondary,
+    fontFamily: FONTS.mono,
+    fontSize: 14,
+    color: NEON.text,
     textAlign: 'center',
-    lineHeight: 26,
-  },
-  ruleHighlight: {
-    fontFamily: FONTS.bodyBold,
-    color: COLORS.cyan,
+    lineHeight: 24,
+    letterSpacing: 1,
   },
   ruleSubtext: {
     fontFamily: FONTS.mono,
-    fontSize: 12,
-    color: COLORS.textMuted,
-    marginTop: SPACING.sm,
+    fontSize: 11,
+    color: NEON.pink,
+    marginTop: SPACING.md,
+    letterSpacing: 1.5,
   },
   countdownNumber: {
     fontFamily: FONTS.monoBold,
-    fontSize: 88,
-    color: COLORS.cyan,
-    lineHeight: 100,
+    fontSize: 96,
+    color: NEON.yellow,
+    lineHeight: 108,
+    textShadowColor: NEON.yellow,
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 20,
   },
 
   // ── Complete ──
-  completeHeadline: {
-    fontFamily: FONTS.display,
-    fontSize: 40,
-    color: COLORS.textPrimary,
+  gameOverText: {
+    fontFamily: FONTS.monoBold,
+    fontSize: 38,
+    color: NEON.pink,
+    letterSpacing: 6,
     marginBottom: SPACING.xl,
-    letterSpacing: -0.5,
+    textShadowColor: NEON.pink,
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 14,
   },
   finalScore: {
     fontFamily: FONTS.monoBold,
-    fontSize: 80,
-    color: COLORS.cyan,
-    lineHeight: 90,
+    fontSize: 72,
+    color: NEON.yellow,
+    lineHeight: 80,
+    textShadowColor: NEON.yellow,
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 16,
   },
   finalScoreLabel: {
-    fontFamily: FONTS.body,
-    fontSize: 15,
-    color: COLORS.textSecondary,
+    fontFamily: FONTS.mono,
+    fontSize: 12,
+    color: NEON.muted,
+    letterSpacing: 4,
     marginBottom: SPACING.xxl,
     marginTop: SPACING.xs,
   },
   statsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.cardBorder,
+    backgroundColor: NEON.surface,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: NEON.border,
     paddingVertical: SPACING.lg,
     paddingHorizontal: SPACING.xl,
     width: '100%',
@@ -504,49 +536,38 @@ const styles = StyleSheet.create({
   statItem: { flex: 1, alignItems: 'center' },
   statValue: {
     fontFamily: FONTS.monoBold,
-    fontSize: 26,
-    color: COLORS.textPrimary,
+    fontSize: 28,
+    color: NEON.text,
   },
   statLabel: {
-    fontFamily: FONTS.body,
-    fontSize: 12,
-    color: COLORS.textMuted,
+    fontFamily: FONTS.mono,
+    fontSize: 10,
+    color: NEON.muted,
     marginTop: 2,
+    letterSpacing: 2,
   },
   statDivider: {
-    width: 1,
+    width: 2,
     height: 36,
-    backgroundColor: COLORS.border,
-  },
-  continueButton: {
-    backgroundColor: COLORS.cyan,
-    borderRadius: RADIUS.sm,
-    paddingVertical: SPACING.md + 2,
-    paddingHorizontal: SPACING.xxxl,
-    alignItems: 'center',
-  },
-  continueButtonText: {
-    fontFamily: FONTS.bodyBold,
-    fontSize: 16,
-    color: COLORS.background,
+    backgroundColor: NEON.border,
   },
 
   // ── Playing screen ──
   gameContainer: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: NEON.bg,
   },
   timerTrack: {
-    height: 4,
-    backgroundColor: COLORS.border,
+    height: 6,
+    backgroundColor: NEON.border,
     marginHorizontal: SPACING.lg,
     marginTop: SPACING.lg,
-    borderRadius: RADIUS.full,
+    borderRadius: 1,
     overflow: 'hidden',
   },
   timerFill: {
     height: '100%',
-    borderRadius: RADIUS.full,
+    borderRadius: 1,
   },
   hud: {
     flexDirection: 'row',
@@ -556,33 +577,30 @@ const styles = StyleSheet.create({
     paddingTop: SPACING.md,
     paddingBottom: SPACING.xs,
   },
-  hudCenter: {
-    alignItems: 'center',
-  },
-  hudRight: {
-    alignItems: 'flex-end',
-  },
+  hudCenter: { alignItems: 'center' },
+  hudRight: { alignItems: 'flex-end' },
   hudLabel: {
     fontFamily: FONTS.mono,
-    fontSize: 10,
-    color: COLORS.textMuted,
-    letterSpacing: 1.5,
+    fontSize: 9,
+    color: NEON.muted,
+    letterSpacing: 2,
   },
   hudValue: {
     fontFamily: FONTS.monoBold,
-    fontSize: 24,
-    color: COLORS.textPrimary,
+    fontSize: 26,
+    color: NEON.text,
+    letterSpacing: 2,
   },
-  roundLabel: {
-    fontFamily: FONTS.mono,
-    fontSize: 10,
-    color: COLORS.cyan,
+  phaseLabel: {
+    fontFamily: FONTS.monoBold,
+    fontSize: 13,
     letterSpacing: 2,
   },
   roundNumber: {
     fontFamily: FONTS.monoBold,
-    fontSize: 18,
-    color: COLORS.textPrimary,
+    fontSize: 20,
+    color: NEON.text,
+    letterSpacing: 3,
   },
   progressDots: {
     flexDirection: 'row',
@@ -593,17 +611,21 @@ const styles = StyleSheet.create({
   progressDot: {
     width: 8,
     height: 8,
-    borderRadius: 4,
-    backgroundColor: COLORS.border,
+    borderRadius: 2,
+    backgroundColor: NEON.border,
   },
   progressDotDone: {
-    backgroundColor: COLORS.cyan + '66',
+    backgroundColor: NEON.blue + '55',
   },
   progressDotCurrent: {
-    backgroundColor: COLORS.cyan,
+    backgroundColor: NEON.blue,
     width: 12,
     height: 12,
-    borderRadius: 6,
+    borderRadius: 2,
+    shadowColor: NEON.blue,
+    shadowOpacity: 0.8,
+    shadowRadius: 6,
+    elevation: 4,
   },
 
   // ── Tile grid ──
@@ -623,13 +645,7 @@ const styles = StyleSheet.create({
   },
   tile: {
     flex: 1,
-    borderRadius: RADIUS.lg,
-  },
-  tileLit: {
-    // Extra brightness effect when flashing — slightly lighter shadow
-    shadowColor: '#fff',
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 4,
+    borderRadius: 6,
+    borderWidth: 2,
   },
 });

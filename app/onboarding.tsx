@@ -21,6 +21,7 @@ import {
   Platform,
   Animated,
   AppState,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -52,20 +53,22 @@ const SLIDES = [
   {
     emoji: '🔥',
     title: 'Build a streak,\nearn rewards',
-    body: 'Every time you walk away, your streak grows. Spend your points to unlock a site for 10 minutes if you really need it.',
+    body: 'Every time you walk away, your streak grows. If you still need the site, a short pause unlocks it — no points needed.',
     color: COLORS.cyan,
   },
 ] as const;
 
-// Default sites blocked with one tap during onboarding
-const DEFAULT_BLOCKED_SITES = [
-  'tiktok.com',
-  'instagram.com',
-  'pornhub.com',
-  'xhamster.com',
-  'erome.com',
-  'redgifs.com',
-  'chaturbate.com',
+// Suggested sites shown as toggleable chips during setup — all pre-selected
+const SITE_SUGGESTIONS = [
+  { domain: 'tiktok.com',    name: 'TikTok',     emoji: '🎵' },
+  { domain: 'instagram.com', name: 'Instagram',  emoji: '📸' },
+  { domain: 'youtube.com',   name: 'YouTube',    emoji: '▶️' },
+  { domain: 'reddit.com',    name: 'Reddit',     emoji: '🤖' },
+  { domain: 'twitter.com',   name: 'X',          emoji: '𝕏' },
+  { domain: 'facebook.com',  name: 'Facebook',   emoji: '👥' },
+  { domain: 'snapchat.com',  name: 'Snapchat',   emoji: '👻' },
+  { domain: 'twitch.tv',     name: 'Twitch',     emoji: '🟣' },
+  { domain: 'pornhub.com',   name: 'Pornhub',    emoji: '🔞' },
 ];
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -92,6 +95,9 @@ export default function OnboardingScreen() {
   const [nameSaved, setNameSaved]         = useState(false);
   const [sitesAdded, setSitesAdded]       = useState(false);
   const [batteryExempt, setBatteryExempt] = useState(false); // tracks battery optimization grant
+  const [selectedDomains, setSelectedDomains] = useState<Set<string>>(
+    () => new Set(SITE_SUGGESTIONS.map((s) => s.domain))
+  );
 
   // Slide animation — translates the slide container left/right
   const slideX = useRef(new Animated.Value(0)).current;
@@ -149,20 +155,9 @@ export default function OnboardingScreen() {
     // Navigation to /(tabs) happens from the setup screen's Continue button.
   };
 
-  // Adds all the default blocked domains in one tap.
-  // Called when the user presses "Add" on the setup screen.
-  const DEFAULT_BLOCKED_SITES = [
-    'tiktok.com',
-    'instagram.com',
-    'pornhub.com',
-    'xhamster.com',
-    'erome.com',
-    'redgifs.com',
-    'chaturbate.com',
-  ];
-
-  const handleAddDefaults = () => {
-    DEFAULT_BLOCKED_SITES.forEach((domain) => addSite(domain));
+  // Adds all selected domains from the chip grid.
+  const handleAddSelected = () => {
+    selectedDomains.forEach((domain) => addSite(domain));
     setSitesAdded(true);
   };
 
@@ -173,34 +168,74 @@ export default function OnboardingScreen() {
     if (nameSaved && step === SLIDES.length) {
       return (
         <SafeAreaView style={styles.safe}>
-          <View style={styles.setupScreen}>
+          <ScrollView
+            style={styles.flex}
+            contentContainerStyle={styles.setupScreen}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
 
             {/* Title */}
             <Text style={styles.setupTitle}>Set it up in{'\n'}30 seconds</Text>
-            <Text style={styles.setupSubtitle}>Two things and you're protected.</Text>
+            <Text style={styles.setupSubtitle}>Three steps and you're protected.</Text>
 
-            {/* Setup card with two action rows */}
+            {/* Setup card with action rows */}
             <View style={styles.setupCard}>
 
-              {/* Row 1 — Block default sites */}
+              {/* Row 1 — Block sites */}
               <View style={styles.setupRow}>
                 <View style={styles.setupRowLeft}>
                   <Text style={styles.setupRowEmoji}>🛡️</Text>
                   <View style={styles.setupRowText}>
-                    <Text style={styles.setupRowTitle}>Block default sites</Text>
-                    <Text style={styles.setupRowSub}>TikTok, Instagram + 5 more</Text>
+                    <Text style={styles.setupRowTitle}>Block sites</Text>
+                    <Text style={styles.setupRowSub}>
+                      {sitesAdded
+                        ? `${selectedDomains.size} site${selectedDomains.size === 1 ? '' : 's'} blocked`
+                        : 'Pick the ones that get you'}
+                    </Text>
                   </View>
                 </View>
-
-                {/* Show green checkmark once sites are added, otherwise show Add button */}
-                {sitesAdded ? (
-                  <Feather name="check-circle" size={28} color={COLORS.green} />
-                ) : (
-                  <Pressable style={styles.setupAddButton} onPress={handleAddDefaults}>
-                    <Text style={styles.setupAddButtonText}>Add</Text>
-                  </Pressable>
-                )}
+                {sitesAdded && <Feather name="check-circle" size={28} color={COLORS.green} />}
               </View>
+
+              {/* Chip grid — shown before sites are added */}
+              {!sitesAdded && (
+                <View style={styles.chipSection}>
+                  <View style={styles.chipGrid}>
+                    {SITE_SUGGESTIONS.map(({ domain, name, emoji }) => {
+                      const selected = selectedDomains.has(domain);
+                      return (
+                        <Pressable
+                          key={domain}
+                          style={[styles.chip, selected && styles.chipSelected]}
+                          onPress={() =>
+                            setSelectedDomains((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(domain)) next.delete(domain);
+                              else next.add(domain);
+                              return next;
+                            })
+                          }
+                        >
+                          <Text style={styles.chipEmoji}>{emoji}</Text>
+                          <Text style={[styles.chipName, selected && styles.chipNameSelected]}>
+                            {name}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                  <Pressable
+                    style={[styles.chipAddBtn, selectedDomains.size === 0 && { opacity: 0.4 }]}
+                    disabled={selectedDomains.size === 0}
+                    onPress={handleAddSelected}
+                  >
+                    <Text style={styles.chipAddBtnText}>
+                      Block {selectedDomains.size} site{selectedDomains.size === 1 ? '' : 's'} →
+                    </Text>
+                  </Pressable>
+                </View>
+              )}
 
               {/* Divider */}
               <View style={styles.setupDivider} />
@@ -296,7 +331,7 @@ export default function OnboardingScreen() {
               <Text style={styles.setupSkipText}>Skip for now</Text>
             </Pressable>
 
-          </View>
+          </ScrollView>
         </SafeAreaView>
       );
     }
@@ -575,11 +610,61 @@ const styles = StyleSheet.create({
   // Shown after the name input. Guides the user to add blocked sites
   // and enable the Accessibility Service before entering the main app.
   setupScreen: {
-    flex: 1,
+    flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.xl,
     gap: SPACING.lg,
+  },
+
+  // ── Site suggestion chips ──
+  chipSection: {
+    paddingHorizontal: SPACING.lg,
+    paddingBottom: SPACING.lg,
+    gap: SPACING.md,
+  },
+  chipGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 7,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
+    backgroundColor: COLORS.background,
+  },
+  chipSelected: {
+    borderColor: COLORS.green,
+    backgroundColor: COLORS.green + '18',
+  },
+  chipEmoji: {
+    fontSize: 14,
+  },
+  chipName: {
+    fontFamily: FONTS.body,
+    fontSize: 13,
+    color: COLORS.textSecondary,
+  },
+  chipNameSelected: {
+    color: COLORS.green,
+  },
+  chipAddBtn: {
+    backgroundColor: COLORS.indigo,
+    borderRadius: RADIUS.md,
+    paddingVertical: SPACING.md,
+    alignItems: 'center',
+  },
+  chipAddBtnText: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 15,
+    color: COLORS.background,
   },
   setupTitle: {
     fontFamily: FONTS.display,

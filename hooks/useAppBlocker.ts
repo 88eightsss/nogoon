@@ -78,7 +78,11 @@ export const PACKAGE_TO_NAME: Record<string, string> = Object.fromEntries(
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useAppBlocker() {
-  const { blockedApps, setBlockedApps, blocklist: websiteBlocklist } = useUserStore();
+  const {
+    blockedApps, setBlockedApps, blocklist: websiteBlocklist,
+    curfewEnabled, curfewStart, curfewEnd,
+    walkAwayCount, streak, dailyWalkAways,
+  } = useUserStore();
   const [serviceEnabled, setServiceEnabled] = useState(false);
   const [checking, setChecking]             = useState(true);
   const [grayscaleEnabled, setGrayscaleEnabledState] = useState(false);
@@ -90,6 +94,8 @@ export function useAppBlocker() {
   // Key = domain string, Value = expiry timestamp (ms).
   // When the current time passes the expiry, the domain is blocked again.
   const [tempUnlocks, setTempUnlocks] = useState<Record<string, number>>({});
+  // Unlock-time log from native: Record<"YYYY-MM-DD", ms>
+  const [unlockTimeLog, setUnlockTimeLog] = useState<Record<string, number>>({});
 
   // ── Check if Accessibility Service is enabled ──────────────────────────────
   // Checked on mount, on every app resume, and every 30s as a backstop.
@@ -188,6 +194,47 @@ export function useAppBlocker() {
     if (!hasNativeModule) return;
     AppBlocker.setBlockedDomains(websiteBlocklist).catch(console.warn);
   }, [websiteBlocklist]);
+
+  // ── Sync curfew settings to native ────────────────────────────────────────
+  // Called whenever the user changes Digital Curfew in the profile screen so
+  // the Accessibility Service can enforce it even before JS finishes loading.
+
+  useEffect(() => {
+    if (!hasNativeModule) return;
+    AppBlocker.setCurfew(curfewEnabled, curfewStart, curfewEnd).catch(console.warn);
+  }, [curfewEnabled, curfewStart, curfewEnd]);
+
+  // ── Sync today's stats to native (for home screen widget) ─────────────────
+  // The Glance widget reads "widget_walk_aways_today" and "widget_streak"
+  // from SharedPreferences. We update them whenever walk-away count or streak
+  // changes so the widget always shows fresh data.
+
+  useEffect(() => {
+    if (!hasNativeModule) return;
+    const today = new Date().toISOString().split('T')[0];
+    const todayCount = dailyWalkAways[today] ?? 0;
+    AppBlocker.setTodayStats(todayCount, streak).catch(console.warn);
+  }, [walkAwayCount, streak, dailyWalkAways]);
+
+  // ── Load unlock-time log on mount + app resume ─────────────────────────────
+  // Reads per-day unlock time totals written by the Accessibility Service and
+  // makes them available to any screen that needs them (e.g. insights).
+
+  useEffect(() => {
+    if (!hasNativeModule) return;
+    const fetchUnlockLog = () => {
+      AppBlocker.getUnlockTimeLog()
+        .then((json: string) => {
+          try { setUnlockTimeLog(JSON.parse(json)); } catch {}
+        })
+        .catch(() => {});
+    };
+    fetchUnlockLog();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') fetchUnlockLog();
+    });
+    return () => sub.remove();
+  }, []);
 
   // ── Actions ────────────────────────────────────────────────────────────────
 
@@ -358,5 +405,6 @@ export function useAppBlocker() {
     isBlockingPaused,           // boolean — true when QS tile has paused blocking
     blockingPausedMinutesLeft,  // number — minutes remaining in the pause window
     resumeBlocking,             // () => Promise<void> — clears the paused flag
+    unlockTimeLog,              // Record<"YYYY-MM-DD", ms> — time spent in unlocked apps per day
   };
 }

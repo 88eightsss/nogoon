@@ -34,7 +34,7 @@ const INTERSTITIAL_ID = IS_PRODUCTION
   : TEST_INTERSTITIAL_ID_ANDROID;
 
 // Show interstitial every N gate game completions
-const SHOW_EVERY_N_GAMES = 3;
+const SHOW_EVERY_N_GAMES = 2;
 
 // ─── Lazy SDK import ──────────────────────────────────────────────────────────
 let InterstitialAdSDK: any = null;

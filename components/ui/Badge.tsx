@@ -5,7 +5,7 @@
 //   <Badge label="Explorer" color={COLORS.purple} size="sm" />
 
 import { View, Text, StyleSheet, ViewStyle } from 'react-native';
-import { COLORS, FONTS } from '@/constants/Colors';
+import { FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 
 interface BadgeProps {
