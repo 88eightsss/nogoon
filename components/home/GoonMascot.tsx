@@ -76,6 +76,8 @@ const CHARACTER_TAGLINES: Record<CharacterId, string> = {
 const STORAGE_KEY        = '@nogoon_goon_character';
 const CUSTOM_SPEECH_KEY  = '@nogoon_pet_speech';
 const SHOW_STATS_KEY     = '@nogoon_show_stats';
+const PET_NAME_KEY       = '@nogoon_pet_name';
+const LAST_STAGE_KEY     = '@nogoon_last_stage';
 
 // ─── Pixel grid ───────────────────────────────────────────────────────────────
 // 10×12 grid, 8px/cell. Pixel values:
@@ -370,6 +372,110 @@ function GoonSprite({
   );
 }
 
+// ─── Evolution ceremony modal ─────────────────────────────────────────────────
+
+function EvolutionModal({
+  char, stage, petName, onDone,
+}: { char: CharacterId; stage: GoonStage; petName: string; onDone: () => void }) {
+  const glow = useRef(new Animated.Value(0)).current;
+  const scale = useRef(new Animated.Value(0.6)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(scale, { toValue: 1, friction: 5, useNativeDriver: true }),
+      Animated.sequence([
+        Animated.timing(glow, { toValue: 1, duration: 600, useNativeDriver: true }),
+        Animated.timing(glow, { toValue: 0.5, duration: 400, useNativeDriver: true }),
+        Animated.timing(glow, { toValue: 1, duration: 400, useNativeDriver: true }),
+      ]),
+    ]).start();
+  }, []);
+
+  const accentColor = CHAR_COLORS[char][stage][1];
+
+  return (
+    <Modal visible transparent animationType="fade">
+      <View style={evoStyles.backdrop}>
+        <Animated.View style={[evoStyles.sheet, { transform: [{ scale }] }]}>
+          <Text style={evoStyles.eyebrow}>Evolution</Text>
+          <Animated.View style={{ opacity: glow }}>
+            <GoonSprite char={char} stage={stage} size={1.5} />
+          </Animated.View>
+          <Text style={[evoStyles.stageName, { color: accentColor }]}>
+            {STAGE_LABELS[stage]}
+          </Text>
+          <Text style={evoStyles.name}>{petName} evolved!</Text>
+          <Text style={evoStyles.sub}>
+            {CHARACTER_TAGLINES[char]}
+          </Text>
+          <Pressable
+            style={[evoStyles.btn, { backgroundColor: accentColor }]}
+            onPress={onDone}
+          >
+            <Text style={evoStyles.btnText}>Keep going</Text>
+          </Pressable>
+        </Animated.View>
+      </View>
+    </Modal>
+  );
+}
+
+const evoStyles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.90)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.xl,
+  },
+  sheet: {
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.xl,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
+    padding: SPACING.xl,
+    alignItems: 'center',
+    gap: SPACING.md,
+    width: '100%',
+  },
+  eyebrow: {
+    fontFamily: FONTS.mono,
+    fontSize: 11,
+    color: COLORS.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
+  },
+  stageName: {
+    fontFamily: FONTS.display,
+    fontSize: 26,
+    letterSpacing: -0.5,
+    marginTop: SPACING.xs,
+  },
+  name: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 16,
+    color: COLORS.textPrimary,
+    marginTop: -SPACING.xs,
+  },
+  sub: {
+    fontFamily: FONTS.body,
+    fontSize: 13,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+  },
+  btn: {
+    marginTop: SPACING.sm,
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.md,
+    borderRadius: RADIUS.full,
+  },
+  btnText: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 15,
+    color: '#fff',
+  },
+});
+
 // ─── Character picker ─────────────────────────────────────────────────────────
 
 function CharacterPicker({ onPick }: { onPick: (id: CharacterId) => void }) {
@@ -515,6 +621,7 @@ interface SecretPanelProps {
   stats:        { hunger: number; happiness: number; energy: number };
   customSpeech: string;
   showStats:    boolean;
+  onChangeName:   (v: string) => void;
   onChangeSpeech: (v: string) => void;
   onToggleStats:  (v: boolean) => void;
   onClose:      () => void;
@@ -523,22 +630,35 @@ interface SecretPanelProps {
 
 function SecretPanel({
   petName, stats, customSpeech, showStats,
-  onChangeSpeech, onToggleStats, onClose, accentColor,
+  onChangeName, onChangeSpeech, onToggleStats, onClose, accentColor,
 }: SecretPanelProps) {
-  const [draft, setDraft] = useState(customSpeech);
+  const [nameDraft,   setNameDraft]   = useState(petName);
+  const [speechDraft, setSpeechDraft] = useState(customSpeech);
 
   return (
     <Modal visible transparent animationType="slide">
       <View style={panelStyles.backdrop}>
         <View style={panelStyles.sheet}>
-          <Text style={panelStyles.title}>{petName}'s settings</Text>
+          <Text style={panelStyles.title}>Customize {petName}</Text>
+
+          <View style={panelStyles.section}>
+            <Text style={panelStyles.sectionLabel}>Nickname</Text>
+            <TextInput
+              style={panelStyles.input}
+              value={nameDraft}
+              onChangeText={setNameDraft}
+              placeholder="Give your companion a name"
+              placeholderTextColor={COLORS.textMuted}
+              maxLength={20}
+            />
+          </View>
 
           <View style={panelStyles.section}>
             <Text style={panelStyles.sectionLabel}>Custom speech bubble</Text>
             <TextInput
               style={panelStyles.input}
-              value={draft}
-              onChangeText={setDraft}
+              value={speechDraft}
+              onChangeText={setSpeechDraft}
               placeholder="Leave blank for auto mood messages"
               placeholderTextColor={COLORS.textMuted}
               maxLength={80}
@@ -566,7 +686,12 @@ function SecretPanel({
 
           <View style={panelStyles.buttons}>
             <Pressable style={[panelStyles.btn, panelStyles.btnPrimary, { backgroundColor: accentColor }]}
-              onPress={() => { onChangeSpeech(draft); onClose(); }}>
+              onPress={() => {
+                const trimmed = nameDraft.trim();
+                if (trimmed) onChangeName(trimmed);
+                onChangeSpeech(speechDraft);
+                onClose();
+              }}>
               <Text style={panelStyles.btnTextPrimary}>Save</Text>
             </Pressable>
             <Pressable style={[panelStyles.btn, panelStyles.btnSecondary]} onPress={onClose}>
@@ -709,17 +834,20 @@ interface Props {
 }
 
 export function GoonMascot({ walkAwayCount, onPress }: Props) {
-  const [character,    setCharacter]    = useState<CharacterId | null>(null);
-  const [showPicker,   setShowPicker]   = useState(false);
-  const [showPanel,    setShowPanel]    = useState(false);
-  const [loaded,       setLoaded]       = useState(false);
-  const [feedTokens,   setFeedTokens]   = useState(0);
-  const [minsAway,     setMinsAway]     = useState(0);
-  const [customSpeech, setCustomSpeech] = useState('');
-  const [showStats,    setShowStats]    = useState(false);
-  const [speechText,   setSpeechText]   = useState<string | null>(null);
-  const speechTimer                     = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [feedFeedback, setFeedFeedback] = useState<string | null>(null);
+  const [character,      setCharacter]      = useState<CharacterId | null>(null);
+  const [petName,        setPetName]        = useState('');
+  const [showPicker,     setShowPicker]     = useState(false);
+  const [showPanel,      setShowPanel]      = useState(false);
+  const [showEvolution,  setShowEvolution]  = useState(false);
+  const [evolvedStage,   setEvolvedStage]   = useState<GoonStage>(0);
+  const [loaded,         setLoaded]         = useState(false);
+  const [feedTokens,     setFeedTokens]     = useState(0);
+  const [minsAway,       setMinsAway]       = useState(0);
+  const [customSpeech,   setCustomSpeech]   = useState('');
+  const [showStats,      setShowStats]      = useState(false);
+  const [speechText,     setSpeechText]     = useState<string | null>(null);
+  const speechTimer                         = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [feedFeedback,   setFeedFeedback]   = useState<string | null>(null);
 
   const petStore = usePetStore();
 
@@ -729,9 +857,12 @@ export function GoonMascot({ walkAwayCount, onPress }: Props) {
       AsyncStorage.getItem(STORAGE_KEY),
       AsyncStorage.getItem(CUSTOM_SPEECH_KEY),
       AsyncStorage.getItem(SHOW_STATS_KEY),
-    ]).then(([charVal, speechVal, statsVal]) => {
+      AsyncStorage.getItem(PET_NAME_KEY),
+    ]).then(([charVal, speechVal, statsVal, nameVal]) => {
       if (charVal !== null) {
-        setCharacter(Number(charVal) as CharacterId);
+        const charId = Number(charVal) as CharacterId;
+        setCharacter(charId);
+        setPetName(nameVal || CHARACTER_NAMES[charId]);
       } else {
         setShowPicker(true);
       }
@@ -751,7 +882,7 @@ export function GoonMascot({ walkAwayCount, onPress }: Props) {
   useEffect(() => {
     if (petStore.hunger < 20 && !hungerWarnedRef.current && character !== null) {
       hungerWarnedRef.current = true;
-      notifyHungerWarning(CHARACTER_NAMES[character]).catch(() => {});
+      notifyHungerWarning(petName || CHARACTER_NAMES[character]).catch(() => {});
     }
     if (petStore.hunger >= 30) {
       hungerWarnedRef.current = false;
@@ -770,10 +901,39 @@ export function GoonMascot({ walkAwayCount, onPress }: Props) {
     return () => clearInterval(interval);
   }, []);
 
+  // ── Evolution check — fires whenever stage or loaded changes ─────────────
+  useEffect(() => {
+    if (!loaded || character === null) return;
+    const stage = getGoonStage(walkAwayCount);
+    AsyncStorage.getItem(LAST_STAGE_KEY).then((raw) => {
+      const lastStage = raw !== null ? (Number(raw) as GoonStage) : null;
+      if (lastStage === null) {
+        // First time — just save current stage, no ceremony
+        AsyncStorage.setItem(LAST_STAGE_KEY, String(stage));
+      } else if (stage > lastStage) {
+        // Evolved — save new stage and show ceremony
+        AsyncStorage.setItem(LAST_STAGE_KEY, String(stage));
+        setEvolvedStage(stage);
+        setShowEvolution(true);
+      }
+    });
+  }, [loaded, character, walkAwayCount]);
+
   const pickCharacter = useCallback((id: CharacterId) => {
     setCharacter(id);
     setShowPicker(false);
+    const defaultName = CHARACTER_NAMES[id];
+    setPetName(defaultName);
     AsyncStorage.setItem(STORAGE_KEY, String(id));
+    // Don't wipe a custom name — only reset if they had no name yet
+    AsyncStorage.getItem(PET_NAME_KEY).then((saved) => {
+      if (!saved) AsyncStorage.setItem(PET_NAME_KEY, defaultName);
+    });
+  }, []);
+
+  const handleSaveName = useCallback((val: string) => {
+    setPetName(val);
+    AsyncStorage.setItem(PET_NAME_KEY, val);
   }, []);
 
   const handleSaveSpeech = useCallback((val: string) => {
@@ -807,7 +967,7 @@ export function GoonMascot({ walkAwayCount, onPress }: Props) {
       await AsyncStorage.setItem('@nogoon_feed_tokens', String(Math.min(current + 1, 8)));
       showSpeech("I'm already full!");
     } else {
-      const name = character !== null ? CHARACTER_NAMES[character] : 'your companion';
+      const name = petName || (character !== null ? CHARACTER_NAMES[character] : 'your companion');
       showSpeech(`${name} loved that meal!`);
       setFeedFeedback('+1');
       setTimeout(() => setFeedFeedback(null), 1200);
@@ -856,19 +1016,29 @@ export function GoonMascot({ walkAwayCount, onPress }: Props) {
   const accentColor = character !== null ? CHAR_COLORS[character][stage][3] : COLORS.indigoBright;
   const mood        = getPetMood(petStore);
   const autoSpeech  = character !== null
-    ? getPetSpeech(mood, CHARACTER_NAMES[character])
+    ? getPetSpeech(mood, petName || CHARACTER_NAMES[character])
     : '';
 
   return (
     <>
       {showPicker && <CharacterPicker onPick={pickCharacter} />}
 
+      {showEvolution && character !== null && (
+        <EvolutionModal
+          char={character}
+          stage={evolvedStage}
+          petName={petName}
+          onDone={() => setShowEvolution(false)}
+        />
+      )}
+
       {showPanel && character !== null && (
         <SecretPanel
-          petName={CHARACTER_NAMES[character]}
+          petName={petName}
           stats={petStore}
           customSpeech={customSpeech}
           showStats={showStats}
+          onChangeName={handleSaveName}
           onChangeSpeech={handleSaveSpeech}
           onToggleStats={handleToggleStats}
           onClose={() => setShowPanel(false)}
@@ -912,7 +1082,7 @@ export function GoonMascot({ walkAwayCount, onPress }: Props) {
 
             {/* Info row */}
             <View style={styles.info}>
-              <Text style={styles.charName}>{CHARACTER_NAMES[character]}</Text>
+              <Text style={styles.charName}>{petName}</Text>
               <Text style={styles.stageName}>{STAGE_LABELS[stage]}</Text>
               {nextAt !== null ? (
                 <Text style={styles.sub}>
