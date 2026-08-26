@@ -12,65 +12,69 @@ import { Tabs, router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS } from '@/constants/Colors';
+import { useThemeStore } from '@/stores/useThemeStore';
+import { THEMES } from '@/constants/Themes';
 
 type FeatherName = React.ComponentProps<typeof Feather>['name'];
 
-const TABS: {
-  name: string;
-  title: string;
-  icon: FeatherName;
-  color: string;
-  pillBg: string;
-  hidden?: boolean;
-}[] = [
-  {
-    name:   'blocklist',
-    title:  'Protect',
-    icon:   'shield',
-    color:  COLORS.purple,
-    pillBg: COLORS.purpleDim,
-  },
-  {
-    name:   'index',
-    title:  'Today',
-    icon:   'home',
-    color:  COLORS.green,
-    pillBg: COLORS.greenDim,
-  },
-  {
-    name:   'calm',
-    title:  'Calm',
-    icon:   'wind',
-    color:  COLORS.warning,
-    pillBg: COLORS.warningDim,
-  },
-  {
-    name:   'profile',
-    title:  'Me',
-    icon:   'user',
-    color:  COLORS.cyan,
-    pillBg: COLORS.cyanDim,
-  },
-  // Arcade lives inside Calm — hidden from tab bar
-  {
-    name:   'arcade',
-    title:  'Arcade',
-    icon:   'zap',
-    color:  COLORS.arcade,
-    pillBg: COLORS.arcadeDim,
-    hidden: true,
-  },
-];
-
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
+  const { themeId } = useThemeStore();
+  const colors = THEMES[themeId];
+
+  // Tab definitions use live theme colors — updates whenever theme changes
+  const TABS: {
+    name: string;
+    title: string;
+    icon: FeatherName;
+    color: string;
+    pillBg: string;
+    hidden?: boolean;
+  }[] = [
+    {
+      name:   'blocklist',
+      title:  'Protect',
+      icon:   'shield',
+      color:  colors.protect,
+      pillBg: colors.protect + '22',
+    },
+    {
+      name:   'index',
+      title:  'Today',
+      icon:   'home',
+      color:  colors.accent,
+      pillBg: colors.accentDim,
+    },
+    {
+      name:   'calm',
+      title:  'Calm',
+      icon:   'wind',
+      color:  colors.calm,
+      pillBg: colors.warningDim,
+    },
+    {
+      name:   'profile',
+      title:  'Me',
+      icon:   'user',
+      color:  colors.me,
+      pillBg: colors.me + '22',
+    },
+    // Arcade lives inside Calm — hidden from tab bar
+    {
+      name:   'arcade',
+      title:  'Arcade',
+      icon:   'zap',
+      color:  colors.arcade,
+      pillBg: colors.arcade + '22',
+      hidden: true,
+    },
+  ];
 
   return (
     <Tabs
       screenOptions={{
         headerShown: true,
-        headerStyle: { backgroundColor: COLORS.background },
+        headerStyle: { backgroundColor: colors.background },
         headerShadowVisible: false,
         headerRight: () => (
           <Pressable
@@ -78,18 +82,16 @@ export default function TabsLayout() {
             style={{ paddingHorizontal: 16, paddingVertical: 8 }}
             hitSlop={8}
           >
-            <Feather name="help-circle" size={22} color={COLORS.textMuted} />
+            <Feather name="help-circle" size={22} color={colors.textMuted} />
           </Pressable>
         ),
         tabBarStyle: {
-          backgroundColor: COLORS.background,
-          borderTopColor: COLORS.border,
+          backgroundColor: colors.background,
+          borderTopColor: colors.border,
           borderTopWidth: 1,
           height: 60 + insets.bottom,
           paddingBottom: insets.bottom + 4,
         },
-        // Inactive tabs keep their own color (slightly muted via opacity)
-        // — handled per-tab below so each stays distinct
         tabBarInactiveTintColor: 'transparent',
       }}
     >

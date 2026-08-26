@@ -916,13 +916,35 @@ export function GoonMascot({ walkAwayCount, onPress }: Props) {
               <Text style={styles.stageName}>{STAGE_LABELS[stage]}</Text>
               {nextAt !== null ? (
                 <Text style={styles.sub}>
-                  {nextAt - walkAwayCount} walk-aways to evolve · hold to customize
+                  {nextAt - walkAwayCount} walk-aways to evolve
                 </Text>
               ) : (
                 <Text style={[styles.sub, { color: accentColor }]}>
-                  Max power · hold to customize
+                  Max power
                 </Text>
               )}
+            </View>
+
+            {/* Character switcher */}
+            <View style={styles.switcherRow}>
+              {([0, 1, 2] as CharacterId[]).map((id) => {
+                const active = id === character;
+                const btnAccent = CHAR_COLORS[id][stage][1];
+                return (
+                  <Pressable
+                    key={id}
+                    onPress={() => pickCharacter(id)}
+                    style={[
+                      styles.switcherBtn,
+                      active && { borderColor: btnAccent, backgroundColor: btnAccent + '18' },
+                    ]}
+                  >
+                    <Text style={[styles.switcherText, active && { color: btnAccent }]}>
+                      {CHARACTER_NAMES[id]}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
 
             {/* Stat bars (when toggled on) */}
@@ -983,6 +1005,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: SPACING.sm,
     paddingVertical: SPACING.md,
+  },
+  switcherRow: {
+    flexDirection: 'row',
+    gap: SPACING.xs,
+  },
+  switcherBtn: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 5,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  switcherText: {
+    fontFamily: FONTS.bodyMedium,
+    fontSize: 11,
+    color: COLORS.textMuted,
   },
   bubble: {
     backgroundColor: COLORS.surface,
