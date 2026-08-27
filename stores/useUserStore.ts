@@ -252,6 +252,11 @@ interface UserState {
   // Shown on the home screen as encouragement, never as pressure.
   walkAwayCount: number;
 
+  // ── Total time reclaimed ────────────────────────────────────────────────────
+  // Rough estimate: each walk-away ≈ 20 min of reclaimed attention.
+  // Never resets — lifetime tally shown on home screen.
+  totalMinutesAvoided: number;
+
   // ── Onboarding goal ────────────────────────────────────────────────────────
   // What the user said they want more time for (set during onboarding).
   // Shown subtly on the gate screen as a reminder of their own intention.
@@ -549,6 +554,9 @@ const DEFAULT_STATE = {
 
   // Walk-away count — how many times the user played and chose NOT to unlock
   walkAwayCount: 0,
+
+  // Total minutes of phone-scroll time reclaimed (~20 min per walk-away)
+  totalMinutesAvoided: 0,
 
   // Onboarding goal — what they said they want more time for
   intentionGoal: '',
@@ -968,6 +976,7 @@ export const useUserStore = create<UserState>()(
           return {
             walkAwayCount: newCount,
             walkAwayActivity: updated,
+            totalMinutesAvoided: state.totalMinutesAvoided + 20,
             streakFreezeTokens: crossedMilestone
               ? state.streakFreezeTokens + 1
               : state.streakFreezeTokens,

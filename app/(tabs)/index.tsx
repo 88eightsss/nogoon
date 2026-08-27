@@ -227,7 +227,7 @@ const stripStyles = StyleSheet.create({
 
 export default function HomeScreen() {
   const { session } = useAuthStore();
-  const { name, walkAwayCount, loadFromSupabase } = useUserStore();
+  const { name, walkAwayCount, totalMinutesAvoided, streakFreezeTokens, loadFromSupabase } = useUserStore();
   const { blockingStatus, openSettings } = useAppBlocker();
   const { colors, struggling, setStruggling, cardStyle } = useTheme();
 
@@ -315,6 +315,27 @@ export default function HomeScreen() {
           <Text style={[styles.walkAwayLabel, { color: colors.textSecondary }]}>
             times you walked away
           </Text>
+
+          {/* Time reclaimed sub-stat */}
+          {totalMinutesAvoided >= 60 ? (
+            <Text style={[styles.timeReclaimed, { color: colors.textMuted }]}>
+              ~{Math.round(totalMinutesAvoided / 60)} hrs of attention reclaimed
+            </Text>
+          ) : totalMinutesAvoided > 0 ? (
+            <Text style={[styles.timeReclaimed, { color: colors.textMuted }]}>
+              ~{totalMinutesAvoided} min reclaimed
+            </Text>
+          ) : null}
+
+          {/* Streak freeze tokens */}
+          {streakFreezeTokens > 0 && (
+            <View style={[styles.freezePill, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Feather name="wind" size={12} color="#a5b4fc" />
+              <Text style={[styles.freezeText, { color: '#a5b4fc' }]}>
+                {streakFreezeTokens} streak freeze{streakFreezeTokens !== 1 ? 's' : ''}
+              </Text>
+            </View>
+          )}
 
           {showMilestone && (
             <MilestoneFlash
@@ -409,6 +430,26 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.body,
     fontSize: 14,
     letterSpacing: 0.2,
+  },
+  timeReclaimed: {
+    fontFamily: FONTS.body,
+    fontSize: 12,
+    letterSpacing: 0.2,
+    marginTop: 2,
+  },
+  freezePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 4,
+    marginTop: SPACING.xs,
+  },
+  freezeText: {
+    fontFamily: FONTS.bodyMedium,
+    fontSize: 12,
   },
   struggleBtn: {
     marginTop: SPACING.sm,

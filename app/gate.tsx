@@ -68,6 +68,9 @@ import { SPACING, RADIUS } from '@/constants/Spacing';
 import { ALL_GAMES, GATE_GAMES, pickRandomGame, getGameById, type GameId } from '@/constants/games';
 import { useThemeStore } from '@/stores/useThemeStore';
 import { useAdInterstitial } from '@/components/ads/AdInterstitial';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { GoonSprite, getGoonStage } from '@/components/home/GoonMascot';
+import { usePetStore, getPetMood, getPetSpeech, type CharacterId } from '@/stores/usePetStore';
 
 // ─── Rapid re-entry options ────────────────────────────────────────────────────
 // Single empathy question on rapid re-entry. No mocking, no multi-slide cycle.
@@ -109,6 +112,13 @@ const INTENT_OPTIONS: IntentOption[] = [
 
 // Low-stimulation games for stressed users. Excludes reflex/skill games (stack, typing, pixeldodge, etc.).
 const CALM_GAMES: GameId[] = ['breathing', 'grounding', 'colorsort', 'warp', 'intention', 'wordweave', 'memory'];
+
+// Accent color per companion character — matches CHAR_COLORS dominant hues
+const COMPANION_ACCENT: Record<CharacterId, string> = {
+  0: '#7c3aed', // purple
+  1: '#0277BD', // blue
+  2: '#2E7D32', // green
+};
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -186,6 +196,11 @@ export default function NoGoonScreen() {
   const { disabledGateGames } = useThemeStore();
 
   const C = COLORS;
+
+  // ── Companion ─────────────────────────────────────────────────────────────
+  const petStore = usePetStore();
+  const [gateCharacter, setGateCharacter] = useState<CharacterId | null>(null);
+  const [gatePetName,   setGatePetName]   = useState('Buddy');
 
   const isAppBlock = source === 'app';
   const displayDomain = isAppBlock
@@ -273,6 +288,19 @@ export default function NoGoonScreen() {
     incrementOpenCount(domain);
     recordDailyGateFire();
   // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Load companion character from AsyncStorage ───────────────────────────
+  useEffect(() => {
+    (async () => {
+      const stored = await AsyncStorage.getItem('@nogoon_goon_character');
+      if (stored !== null) {
+        const id = parseInt(stored, 10) as CharacterId;
+        setGateCharacter(id);
+        const petName = await AsyncStorage.getItem(`@nogoon_pet_name_${id}`);
+        setGatePetName(petName ?? 'Buddy');
+      }
+    })();
   }, []);
 
   // ── Calm phase — pulsing circle animation ────────────────────────────────
@@ -501,6 +529,13 @@ export default function NoGoonScreen() {
   // Friction buttons to show: 1 per rapid re-entry, max 10
   const frictionTotal = isRapidEntry ? Math.min(rapidEntryCount, 10) : 0;
 
+  // ── Companion derived values (used in rapid + calm phases) ───────────────
+  const gateStage  = getGoonStage(walkAwayCount);
+  const gateStats  = gateCharacter !== null ? petStore.stats[gateCharacter] : null;
+  const gateMood   = gateStats ? getPetMood(gateStats) : ('okay' as const);
+  const gateSpeech = getPetSpeech(gateMood, gatePetName);
+  const gateAccent = gateCharacter !== null ? COMPANION_ACCENT[gateCharacter] : '#7c3aed';
+
   // ══════════════════════════════════════════════════════════════════════════
   // RENDER: Focus session hard block — no game, no bypass
   // ══════════════════════════════════════════════════════════════════════════
@@ -685,6 +720,17 @@ export default function NoGoonScreen() {
               ? `You've opened ${displayDomain} ${rapidEntryCount} times in a short window.`
               : `Back again on ${displayDomain}.`}
           </Text>
+
+          {/* Companion — concerned look when user returns quickly */}
+          {gateCharacter !== null && (
+            <View style={styles.gateCompanionRow}>
+              <GoonSprite char={gateCharacter} stage={gateStage} size={0.35} />
+              <Text style={[styles.gateCompanionText, { color: C.textMuted, flex: 1 }]}>
+                {gatePetName} noticed you're back...
+              </Text>
+            </View>
+          )}
+
           <View style={styles.rapidOptions}>
             {RAPID_OPTIONS.map((opt) => (
               <Pressable
@@ -1094,6 +1140,18 @@ export default function NoGoonScreen() {
             </View>
           )}
         </View>
+
+        {/* Companion — encouraging presence during breathing pause */}
+        {gateCharacter !== null && (
+          <View style={styles.gateCompanionRow}>
+            <GoonSprite char={gateCharacter} stage={gateStage} size={0.4} />
+            <View style={[styles.gateCompanionBubble, { borderColor: gateAccent + '55' }]}>
+              <Text style={[styles.gateCompanionText, { color: C.textSecondary }]}>
+                {gateSpeech}
+              </Text>
+            </View>
+          </View>
+        )}
 
         {/* Pulsing circle + breath anchor */}
         <View style={styles.circleSection}>
@@ -1776,5 +1834,27 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.bodyBold,
     fontSize: 16,
     letterSpacing: 0.2,
+  },
+
+  // ── Companion ─────────────────────────────────────────────────────────────
+  gateCompanionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    marginVertical: SPACING.xs,
+  },
+  gateCompanionBubble: {
+    flex: 1,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+  },
+  gateCompanionText: {
+    fontFamily: FONTS.body,
+    fontSize: 13,
+    lineHeight: 18,
   },
 });
