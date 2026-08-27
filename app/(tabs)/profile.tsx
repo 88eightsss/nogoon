@@ -25,6 +25,11 @@ import { useThemeStore } from '@/stores/useThemeStore';
 import { THEMES, BORDERS, THEME_ORDER, BORDER_ORDER } from '@/constants/Themes';
 import { FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
+import { GoonSprite, getGoonStage } from '@/components/home/GoonMascot';
+import { type CharacterId } from '@/stores/usePetStore';
+
+// ─── Companion defaults ───────────────────────────────────────────────────────
+const DEFAULT_COMPANION_NAMES: Record<CharacterId, string> = { 0: 'Buddy', 1: 'Nova', 2: 'Rex' };
 
 // ─── Time saved calculation ───────────────────────────────────────────────────
 // Assumes each walk-away saves ~8 minutes of scrolling
@@ -189,7 +194,10 @@ const wdStyles = StyleSheet.create({
 
 export default function MeScreen() {
   const { colors, cardStyle } = useTheme();
-  const { themeId, borderId, setTheme, setBorder } = useThemeStore();
+  const {
+    themeId, borderId, setTheme, setBorder,
+    showIntentionCard, showStruggleToggle, showTimeReclaimed, toggleHomeSection,
+  } = useThemeStore();
 
   const {
     name, setName, walkAwayCount,
@@ -209,6 +217,13 @@ export default function MeScreen() {
   const [showWdPicker, setShowWdPicker] = useState(false);
   const [dayCount,    setDayCount]      = useState(1);
 
+  // ── Companion rename state ───────────────────────────────────────────────
+  const [companionNames,    setCompanionNames]    = useState<Record<CharacterId, string>>(DEFAULT_COMPANION_NAMES);
+  const [editingCompanion,  setEditingCompanion]  = useState<CharacterId | null>(null);
+  const [companionDraft,    setCompanionDraft]    = useState('');
+
+  const companionStage = getGoonStage(walkAwayCount);
+
   useEffect(() => {
     async function computeDay() {
       const startDate = await AsyncStorage.getItem('nogoon_start_date');
@@ -220,6 +235,25 @@ export default function MeScreen() {
     }
     computeDay();
   }, []);
+
+  // Load stored companion names on mount
+  useEffect(() => {
+    (async () => {
+      const names = { ...DEFAULT_COMPANION_NAMES };
+      for (const id of [0, 1, 2] as const) {
+        const stored = await AsyncStorage.getItem(`@nogoon_pet_name_${id}`);
+        if (stored) names[id] = stored;
+      }
+      setCompanionNames(names);
+    })();
+  }, []);
+
+  const saveCompanionName = async (id: CharacterId) => {
+    const name = companionDraft.trim() || DEFAULT_COMPANION_NAMES[id];
+    await AsyncStorage.setItem(`@nogoon_pet_name_${id}`, name);
+    setCompanionNames((prev) => ({ ...prev, [id]: name }));
+    setEditingCompanion(null);
+  };
 
   const saveName = () => {
     setName(nameDraft.trim());
@@ -303,6 +337,56 @@ export default function MeScreen() {
             <Text style={[statsStyles.num, { color: colors.accent }]}>{timeSaved}</Text>
             <Text style={[statsStyles.label, { color: colors.textMuted }]}>time saved</Text>
           </View>
+        </View>
+
+        {/* ── Companions ── */}
+        <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Companions</Text>
+
+        <View style={[ctrlStyles.board, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+          {([0, 1, 2] as const).map((id, idx) => (
+            <View
+              key={id}
+              style={[
+                ctrlStyles.row,
+                idx < 2 ? { borderBottomColor: colors.border } : { borderBottomWidth: 0 },
+              ]}
+            >
+              <GoonSprite char={id} stage={companionStage} size={0.4} />
+              {editingCompanion === id ? (
+                <TextInput
+                  style={[companionStyles.input, { color: colors.text, borderBottomColor: colors.cardBorder }]}
+                  value={companionDraft}
+                  onChangeText={setCompanionDraft}
+                  onBlur={() => saveCompanionName(id)}
+                  onSubmitEditing={() => saveCompanionName(id)}
+                  autoFocus
+                  returnKeyType="done"
+                  maxLength={20}
+                />
+              ) : (
+                <Text style={[ctrlStyles.label, { color: colors.text, flex: 1 }]}>
+                  {companionNames[id]}
+                </Text>
+              )}
+              <Pressable
+                hitSlop={12}
+                onPress={() => {
+                  if (editingCompanion === id) {
+                    saveCompanionName(id);
+                  } else {
+                    setCompanionDraft(companionNames[id]);
+                    setEditingCompanion(id);
+                  }
+                }}
+              >
+                <Feather
+                  name={editingCompanion === id ? 'check' : 'edit-2'}
+                  size={14}
+                  color={editingCompanion === id ? colors.accent : colors.textMuted}
+                />
+              </Pressable>
+            </View>
+          ))}
         </View>
 
         {/* ── Zone 3: Control board ── */}
@@ -395,6 +479,51 @@ export default function MeScreen() {
             <Text style={[ctrlStyles.label, { color: colors.text, flex: 1 }]}>Protection layers</Text>
             <Feather name="chevron-right" size={16} color={colors.textMuted} />
           </Pressable>
+        </View>
+
+        {/* ── Home Screen layout ── */}
+        <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Home Screen</Text>
+
+        <View style={[ctrlStyles.board, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+          <View style={[ctrlStyles.row, { borderBottomColor: colors.border }]}>
+            <Feather name="book-open" size={16} color={colors.accent} />
+            <View style={{ flex: 1 }}>
+              <Text style={[ctrlStyles.label, { color: colors.text }]}>Daily intention</Text>
+              <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>Intention card on home</Text>
+            </View>
+            <Switch
+              value={showIntentionCard}
+              onValueChange={() => toggleHomeSection('showIntentionCard')}
+              trackColor={{ false: colors.border, true: colors.accent }}
+              thumbColor="#fff"
+            />
+          </View>
+          <View style={[ctrlStyles.row, { borderBottomColor: colors.border }]}>
+            <Feather name="heart" size={16} color={colors.accent} />
+            <View style={{ flex: 1 }}>
+              <Text style={[ctrlStyles.label, { color: colors.text }]}>Struggle mode</Text>
+              <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>"Having a hard day?" button</Text>
+            </View>
+            <Switch
+              value={showStruggleToggle}
+              onValueChange={() => toggleHomeSection('showStruggleToggle')}
+              trackColor={{ false: colors.border, true: colors.accent }}
+              thumbColor="#fff"
+            />
+          </View>
+          <View style={[ctrlStyles.row, { borderBottomWidth: 0 }]}>
+            <Feather name="clock" size={16} color={colors.accent} />
+            <View style={{ flex: 1 }}>
+              <Text style={[ctrlStyles.label, { color: colors.text }]}>Time reclaimed</Text>
+              <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>Hours of attention saved</Text>
+            </View>
+            <Switch
+              value={showTimeReclaimed}
+              onValueChange={() => toggleHomeSection('showTimeReclaimed')}
+              trackColor={{ false: colors.border, true: colors.accent }}
+              thumbColor="#fff"
+            />
+          </View>
         </View>
 
         {/* ── Zone 4+5: Appearance (compact) ── */}
@@ -516,6 +645,16 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
     marginTop: SPACING.xs,
     marginBottom: -SPACING.xs,
+  },
+});
+
+const companionStyles = StyleSheet.create({
+  input: {
+    flex: 1,
+    fontFamily: FONTS.bodyBold,
+    fontSize: 15,
+    borderBottomWidth: 1,
+    paddingBottom: 2,
   },
 });
 

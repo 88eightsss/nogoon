@@ -18,6 +18,7 @@ import { useUserStore } from '@/stores/useUserStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useAppBlocker } from '@/hooks/useAppBlocker';
 import { useTheme } from '@/hooks/useTheme';
+import { useThemeStore } from '@/stores/useThemeStore';
 import { FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { router } from 'expo-router';
@@ -228,6 +229,7 @@ const stripStyles = StyleSheet.create({
 export default function HomeScreen() {
   const { session } = useAuthStore();
   const { name, walkAwayCount, totalMinutesAvoided = 0, streakFreezeTokens = 0, loadFromSupabase } = useUserStore();
+  const { showIntentionCard, showStruggleToggle, showTimeReclaimed } = useThemeStore();
   const { blockingStatus, openSettings } = useAppBlocker();
   const { colors, struggling, setStruggling, cardStyle } = useTheme();
 
@@ -317,15 +319,13 @@ export default function HomeScreen() {
           </Text>
 
           {/* Time reclaimed sub-stat */}
-          {totalMinutesAvoided >= 60 ? (
+          {showTimeReclaimed && totalMinutesAvoided > 0 && (
             <Text style={[styles.timeReclaimed, { color: colors.textMuted }]}>
-              ~{Math.round(totalMinutesAvoided / 60)} hrs of attention reclaimed
+              {totalMinutesAvoided >= 60
+                ? `~${Math.round(totalMinutesAvoided / 60)} hrs of attention reclaimed`
+                : `~${totalMinutesAvoided} min reclaimed`}
             </Text>
-          ) : totalMinutesAvoided > 0 ? (
-            <Text style={[styles.timeReclaimed, { color: colors.textMuted }]}>
-              ~{totalMinutesAvoided} min reclaimed
-            </Text>
-          ) : null}
+          )}
 
           {/* Streak freeze tokens */}
           {streakFreezeTokens > 0 && (
@@ -345,7 +345,7 @@ export default function HomeScreen() {
           )}
 
           {/* Struggling mode toggle */}
-          {!struggling ? (
+          {showStruggleToggle && (!struggling ? (
             <Pressable
               style={styles.struggleBtn}
               onPress={() => setStruggling(true)}
@@ -364,11 +364,11 @@ export default function HomeScreen() {
                 You're doing great — tap to reset
               </Text>
             </Pressable>
-          )}
+          ))}
         </View>
 
         {/* ── Today's intention ── */}
-        <IntentionCard />
+        {showIntentionCard && <IntentionCard />}
 
         <View style={{ height: SPACING.xl }} />
       </ScrollView>

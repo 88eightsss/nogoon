@@ -20,11 +20,17 @@ interface ThemeState {
   // Gate game opt-outs — IDs in this list won't be picked at intercept
   disabledGateGames: string[];
 
+  // Home screen layout — which sections are visible
+  showIntentionCard:  boolean;
+  showStruggleToggle: boolean;
+  showTimeReclaimed:  boolean;
+
   setTheme: (id: ThemeId) => void;
   setBorder: (id: BorderId) => void;
   setStruggling: (val: boolean) => void;
   checkResetStruggling: () => void;  // call on app open
   toggleGateGame: (id: string) => void;
+  toggleHomeSection: (key: 'showIntentionCard' | 'showStruggleToggle' | 'showTimeReclaimed') => void;
 }
 
 export const useThemeStore = create<ThemeState>()(
@@ -35,6 +41,9 @@ export const useThemeStore = create<ThemeState>()(
       strugglingMode:    false,
       strugglingDate:    '',
       disabledGateGames: [],
+      showIntentionCard:  true,
+      showStruggleToggle: true,
+      showTimeReclaimed:  true,
 
       setTheme:  (id) => set({ themeId: id }),
       setBorder: (id) => set({ borderId: id }),
@@ -60,16 +69,21 @@ export const useThemeStore = create<ThemeState>()(
           : [...disabledGateGames, id];
         set({ disabledGateGames: next });
       },
+
+      toggleHomeSection: (key) => set((s) => ({ [key]: !s[key] })),
     }),
     {
       name:    'nogoon-theme-store',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
-        themeId:           state.themeId,
-        borderId:          state.borderId,
-        strugglingMode:    state.strugglingMode,
-        strugglingDate:    state.strugglingDate,
-        disabledGateGames: state.disabledGateGames,
+        themeId:            state.themeId,
+        borderId:           state.borderId,
+        strugglingMode:     state.strugglingMode,
+        strugglingDate:     state.strugglingDate,
+        disabledGateGames:  state.disabledGateGames,
+        showIntentionCard:  state.showIntentionCard,
+        showStruggleToggle: state.showStruggleToggle,
+        showTimeReclaimed:  state.showTimeReclaimed,
       }),
     }
   )
