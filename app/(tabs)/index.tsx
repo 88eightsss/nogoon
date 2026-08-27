@@ -227,7 +227,7 @@ const stripStyles = StyleSheet.create({
 
 export default function HomeScreen() {
   const { session } = useAuthStore();
-  const { name, walkAwayCount, totalMinutesAvoided, streakFreezeTokens, loadFromSupabase } = useUserStore();
+  const { name, walkAwayCount, totalMinutesAvoided = 0, streakFreezeTokens = 0, loadFromSupabase } = useUserStore();
   const { blockingStatus, openSettings } = useAppBlocker();
   const { colors, struggling, setStruggling, cardStyle } = useTheme();
 

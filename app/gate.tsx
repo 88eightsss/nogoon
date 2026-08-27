@@ -1841,8 +1841,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.md,
-    paddingHorizontal: SPACING.md,
-    marginVertical: SPACING.xs,
+    width: '100%',
   },
   gateCompanionBubble: {
     flex: 1,

@@ -976,7 +976,7 @@ export const useUserStore = create<UserState>()(
           return {
             walkAwayCount: newCount,
             walkAwayActivity: updated,
-            totalMinutesAvoided: state.totalMinutesAvoided + 20,
+            totalMinutesAvoided: (state.totalMinutesAvoided ?? 0) + 20,
             streakFreezeTokens: crossedMilestone
               ? state.streakFreezeTokens + 1
               : state.streakFreezeTokens,
