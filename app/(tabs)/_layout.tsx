@@ -109,10 +109,11 @@ export default function TabsLayout() {
             tabBarItemStyle: tab.hidden ? { display: 'none' } : undefined,
             tabBarIcon: ({ focused, size }) => {
               if (isOnCalm) {
+                if (!focused) return null;
                 return (
                   <View style={{
                     width: 6, height: 6, borderRadius: 3,
-                    backgroundColor: focused ? tab.color : tab.color + '55',
+                    backgroundColor: tab.color,
                   }} />
                 );
               }
