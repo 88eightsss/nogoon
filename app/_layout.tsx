@@ -75,7 +75,7 @@ class ErrorBoundary extends React.Component<
     if (this.state.hasError) {
       return (
         <View style={errorStyles.container}>
-          <Text style={errorStyles.emoji}>😵</Text>
+          <Text style={[errorStyles.emoji, { fontFamily: undefined }]}>!</Text>
           <Text style={errorStyles.title}>Something went wrong</Text>
           <Text style={errorStyles.message}>
             The app hit an unexpected error. This has been logged.

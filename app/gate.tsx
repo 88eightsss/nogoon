@@ -74,10 +74,10 @@ import { useAdInterstitial } from '@/components/ads/AdInterstitial';
 // Research: shame → "screw it" thinking. Curiosity → pause + self-awareness.
 
 const RAPID_OPTIONS = [
-  { id: 'avoiding', label: 'Avoiding something',  emoji: '😶‍🌫️' },
-  { id: 'bored',    label: 'Bored',               emoji: '😑' },
-  { id: 'stressed', label: 'Stressed',            emoji: '😮‍💨' },
-  { id: 'habit',    label: 'Just habit',          emoji: '🔄' },
+  { id: 'avoiding', label: 'Avoiding something',  icon: 'eye-off'    },
+  { id: 'bored',    label: 'Bored',               icon: 'minus-circle'},
+  { id: 'stressed', label: 'Stressed',            icon: 'zap'        },
+  { id: 'habit',    label: 'Just habit',          icon: 'refresh-cw' },
 ] as const;
 
 // ─── Intent options ────────────────────────────────────────────────────────────
@@ -86,7 +86,7 @@ type IntentOption = {
   id: 'habit' | 'stress';
   label: string;
   sublabel: string;
-  emoji: string;
+  icon: string;
   action: 'random-game' | 'calm-game';
 };
 
@@ -95,14 +95,14 @@ const INTENT_OPTIONS: IntentOption[] = [
     id: 'habit',
     label: 'Habit or boredom',
     sublabel: "You don't really need it right now",
-    emoji: '👀',
+    icon: 'eye',
     action: 'random-game',
   },
   {
     id: 'stress',
     label: 'Feeling stressed',
     sublabel: "Something's got you on edge",
-    emoji: '😮‍💨',
+    icon: 'wind',
     action: 'calm-game',
   },
 ];
@@ -165,7 +165,7 @@ export default function NoGoonScreen() {
   const isCurfewTriggered = curfew === '1' || source === 'curfew';
 
   const {
-    isBricked, isColdTurkey, gameDuration, streak, walkAwayCount, intentionGoal, gameMode, noGames,
+    isBricked, isColdTurkey, gameDuration, streak, walkAwayCount, intentionGoal, gameMode, noGames, preferWaitingRoom,
     openCounts, openCountDate, incrementOpenCount, recordDailyGateFire,
     dailyIntention, intentionDate,
     nightlyCommitment, nightlyCommitmentSetAt,
@@ -474,7 +474,7 @@ export default function NoGoonScreen() {
     : intentionGoal
     ? `You wanted more time for: ${intentionGoal}`
     : streak > 1
-    ? `${streak}-day streak 🔥 — don't break it now`
+    ? `${streak}-day streak — don't break it now`
     : walkAwayCount > 0
     ? `You've walked away ${walkAwayCount} time${walkAwayCount === 1 ? '' : 's'} — you've got this`
     : null;
@@ -508,7 +508,7 @@ export default function NoGoonScreen() {
     return (
       <SafeAreaView style={[styles.safe, { backgroundColor: '#0b1217' }]}>
         <View style={[styles.calmContainer, { justifyContent: 'center' }]}>
-          <Text style={{ fontSize: 52, textAlign: 'center', marginBottom: SPACING.lg }}>🎯</Text>
+          <Feather name="crosshair" size={52} color={C.textMuted} style={{ marginBottom: SPACING.lg }} />
           <Text style={[styles.calmTitle, { color: C.textPrimary, textAlign: 'center' }]}>
             Focus session active
           </Text>
@@ -558,7 +558,7 @@ export default function NoGoonScreen() {
     return (
       <SafeAreaView style={[styles.safe, { backgroundColor: COLORS.background }]}>
         <View style={styles.curfewContainer}>
-          <Text style={styles.curfewMoon}>🌙</Text>
+          <Feather name="moon" size={72} color={COLORS.textMuted} />
           <Text style={styles.curfewTitle}>Digital Curfew Active</Text>
           <Text style={[styles.curfewSub, { color: COLORS.textMuted }]}>
             Your screen time window is closed.{'\n'}
@@ -588,7 +588,7 @@ export default function NoGoonScreen() {
     return (
       <SafeAreaView style={[styles.safe, { backgroundColor: '#0b1217' }]}>
         <View style={styles.checkinContainer}>
-          <Text style={[styles.sarcasmEmoji, { fontSize: 56 }]}>🛡️</Text>
+          <Feather name="shield" size={56} color={C.textMuted} />
           <Text style={[styles.checkinTitle, { color: C.textPrimary }]}>
             You just hit a block
           </Text>
@@ -698,7 +698,7 @@ export default function NoGoonScreen() {
                   setPhase(nextPhase);
                 }}
               >
-                <Text style={styles.rapidCardEmoji}>{opt.emoji}</Text>
+                <Feather name={opt.icon as any} size={22} color={C.textMuted} />
                 <Text style={[styles.rapidCardLabel, { color: C.textPrimary }]}>{opt.label}</Text>
               </Pressable>
             ))}
@@ -715,7 +715,7 @@ export default function NoGoonScreen() {
     return (
       <SafeAreaView style={[styles.safe, { backgroundColor: '#0b1217' }]}>
         <View style={styles.checkinContainer}>
-          <Text style={[styles.sarcasmEmoji, { fontSize: 56 }]}>🌿</Text>
+          <Feather name="feather" size={56} color={C.textMuted} />
           <Text style={[styles.checkinTitle, { color: C.textPrimary }]}>
             You paused.
           </Text>
@@ -753,7 +753,7 @@ export default function NoGoonScreen() {
     return (
       <SafeAreaView style={[styles.safe, { backgroundColor: '#0b1217' }]}>
         <ScrollView contentContainerStyle={styles.overrideContainer} keyboardShouldPersistTaps="handled">
-          <Text style={[styles.sarcasmEmoji, { fontSize: 48 }]}>✍️</Text>
+          <Feather name="edit-3" size={48} color={C.textMuted} />
           <Text style={[styles.checkinTitle, { color: C.textPrimary, textAlign: 'center' }]}>
             Type this to unlock
           </Text>
@@ -818,7 +818,7 @@ export default function NoGoonScreen() {
     return (
       <SafeAreaView style={[styles.safe, { backgroundColor: '#0b1217' }]}>
         <View style={styles.frictionContainer}>
-          <Text style={styles.frictionEmoji}>🔐</Text>
+          <Feather name="lock" size={56} color={C.textMuted} />
           <Text style={[styles.frictionTitle, { color: C.textPrimary }]}>
             One more moment.
           </Text>
@@ -877,7 +877,7 @@ export default function NoGoonScreen() {
     return (
       <SafeAreaView style={[styles.safe, { backgroundColor: '#0b1217' }]}>
         <View style={styles.checkinContainer}>
-          <Text style={[styles.sarcasmEmoji, { fontSize: 56 }]}>🔒</Text>
+          <Feather name="lock" size={56} color={C.textMuted} />
           <Text style={[styles.checkinTitle, { color: C.textPrimary }]}>
             10-minute breather
           </Text>
@@ -955,7 +955,7 @@ export default function NoGoonScreen() {
                     setPhase('context');
                   }}
                 >
-                  <Text style={styles.intentEmoji}>{meta.emoji}</Text>
+                  <Feather name={(meta.icon as any) ?? 'play'} size={28} color={C.textMuted} style={{ width: 36, textAlign: 'center' }} />
                   <Text style={[styles.intentCardLabel, { color: C.textPrimary }]}>
                     {meta.name}
                   </Text>
@@ -977,7 +977,7 @@ export default function NoGoonScreen() {
       <SafeAreaView style={[styles.safe, { backgroundColor: '#0b1217' }]}>
         <Pressable style={{ flex: 1 }} onPress={() => setPhase('playing')}>
           <Animated.View style={[styles.calmContainer, { opacity: contextFade }]}>
-            <Text style={styles.contextEmoji}>{meta?.emoji ?? '🎮'}</Text>
+            <Feather name={(meta?.icon as any) ?? 'play'} size={56} color={C.textMuted} />
             <Text style={[styles.contextGameName, { color: C.textPrimary }]}>
               {meta?.name ?? 'Mini-game'}
             </Text>
@@ -1032,7 +1032,7 @@ export default function NoGoonScreen() {
                 ]}
                 onPress={() => handleIntent(option)}
               >
-                <Text style={styles.intentEmoji}>{option.emoji}</Text>
+                <Feather name={option.icon as any} size={26} color={C.textMuted} style={{ width: 36, textAlign: 'center' }} />
                 <View style={styles.intentCardText}>
                   <Text style={[styles.intentCardLabel, { color: C.textPrimary }]}>
                     {option.label}
@@ -1087,8 +1087,9 @@ export default function NoGoonScreen() {
           )}
           {isWindDown && (
             <View style={[styles.openCountBadge, { backgroundColor: '#4ecdc4' + '18', borderColor: '#4ecdc4' + '44' }]}>
+              <Feather name="moon" size={11} color="#4ecdc4" />
               <Text style={[styles.openCountText, { color: '#4ecdc4' }]}>
-                🌙 wind-down mode
+                wind-down mode
               </Text>
             </View>
           )}
@@ -1230,7 +1231,21 @@ export default function NoGoonScreen() {
             style={[styles.calmContinueBtn, { borderColor: TEAL + '88', backgroundColor: TEAL + '18' }]}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setPhase(frictionTotal > 0 ? 'friction' : 'intent');
+              if (preferWaitingRoom) {
+                router.replace({
+                  pathname: '/waiting-room',
+                  params: {
+                    app: domain,
+                    pointsEarned: '0',
+                    gameName: 'Waiting Room',
+                    domain: displayDomain,
+                    isBricked: (isBricked || isColdTurkey) ? '1' : '0',
+                    isColdTurkey: isColdTurkey ? '1' : '0',
+                  },
+                });
+              } else {
+                setPhase(frictionTotal > 0 ? 'friction' : 'intent');
+              }
             }}
           >
             <Text style={[styles.calmContinueText, { color: TEAL }]}>I'm ready</Text>

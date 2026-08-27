@@ -313,6 +313,10 @@ interface UserState {
   // No-Games mode toggle
   setNoGames: (val: boolean) => void;
 
+  // Waiting Room mode — replaces games with the 5s truth-card pause
+  preferWaitingRoom: boolean;
+  setPreferWaitingRoom: (val: boolean) => void;
+
   // Open-count tracking
   incrementOpenCount: (domain: string) => void;
 
@@ -467,6 +471,7 @@ const DEFAULT_STATE = {
   // Default: skip picker, jump straight into a game
 
   noGames: false,
+  preferWaitingRoom: false,
 
   // Open-count tracking
   openCounts: {} as Record<string, number>,
@@ -706,6 +711,7 @@ export const useUserStore = create<UserState>()(
       setGameMode: (mode) => set({ gameMode: mode }),
 
       setNoGames: (val) => set({ noGames: val }),
+      setPreferWaitingRoom: (val) => set({ preferWaitingRoom: val }),
 
       // ── Open-count tracking ──────────────────────────────────────────────────
       incrementOpenCount: (domain) => {
@@ -1160,6 +1166,7 @@ export const useUserStore = create<UserState>()(
         blockedApps: state.blockedApps,
         gameMode: state.gameMode,
         noGames: state.noGames,
+        preferWaitingRoom: state.preferWaitingRoom,
         isBricked: state.isBricked,
         brickedEnabledAt: state.brickedEnabledAt,
         brickedDisableRequestedAt: state.brickedDisableRequestedAt,

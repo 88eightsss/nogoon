@@ -197,6 +197,7 @@ export default function MeScreen() {
     setWindDownEnabled, setWindDownHour,
     isBricked, enableBricked, requestDisableBricked,
     startFocusSession, focusSessionEnd,
+    preferWaitingRoom, setPreferWaitingRoom,
     resetStore,
   } = useUserStore();
 
@@ -366,6 +367,21 @@ export default function MeScreen() {
               value={isBricked}
               onValueChange={hardModeConfirm}
               trackColor={{ false: colors.border, true: colors.danger }}
+              thumbColor="#fff"
+            />
+          </View>
+
+          {/* Waiting Room mode */}
+          <View style={[ctrlStyles.row, { borderBottomColor: colors.border }]}>
+            <Feather name="clock" size={16} color={colors.accent} />
+            <View style={{ flex: 1 }}>
+              <Text style={[ctrlStyles.label, { color: colors.text }]}>Waiting Room</Text>
+              <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>5s pause instead of a game</Text>
+            </View>
+            <Switch
+              value={preferWaitingRoom}
+              onValueChange={setPreferWaitingRoom}
+              trackColor={{ false: colors.border, true: colors.accent }}
               thumbColor="#fff"
             />
           </View>

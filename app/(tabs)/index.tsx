@@ -45,7 +45,7 @@ function MilestoneFlash({ count, onDone }: { count: number; onDone: () => void }
   return (
     <Animated.View style={[milestoneStyles.wrap, { opacity, backgroundColor: colors.accentDim, borderColor: colors.cardBorder }]}>
       <Text style={[milestoneStyles.text, { color: colors.accent }]}>
-        {count} walk-aways ✦ keep going
+        {count} walk-aways — keep going
       </Text>
     </Animated.View>
   );
@@ -340,7 +340,7 @@ export default function HomeScreen() {
               onPress={() => setStruggling(false)}
             >
               <Text style={[styles.struggleTxtActive, { color: colors.accent }]}>
-                🤝 You're doing great — tap to reset
+                You're doing great — tap to reset
               </Text>
             </Pressable>
           )}
