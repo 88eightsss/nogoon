@@ -955,7 +955,7 @@ export default function NoGoonScreen() {
                     setPhase('context');
                   }}
                 >
-                  <Feather name={(meta.icon as any) ?? 'play'} size={28} color={C.textMuted} style={{ width: 36, textAlign: 'center' }} />
+                  <Feather name={((meta as any).icon) ?? 'play'} size={28} color={C.textMuted} style={{ width: 36, textAlign: 'center' }} />
                   <Text style={[styles.intentCardLabel, { color: C.textPrimary }]}>
                     {meta.name}
                   </Text>
@@ -977,7 +977,7 @@ export default function NoGoonScreen() {
       <SafeAreaView style={[styles.safe, { backgroundColor: '#0b1217' }]}>
         <Pressable style={{ flex: 1 }} onPress={() => setPhase('playing')}>
           <Animated.View style={[styles.calmContainer, { opacity: contextFade }]}>
-            <Feather name={(meta?.icon as any) ?? 'play'} size={56} color={C.textMuted} />
+            <Feather name={((meta as any)?.icon) ?? 'play'} size={56} color={C.textMuted} />
             <Text style={[styles.contextGameName, { color: C.textPrimary }]}>
               {meta?.name ?? 'Mini-game'}
             </Text>

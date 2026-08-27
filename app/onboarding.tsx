@@ -27,11 +27,21 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import * as IntentLauncher from 'expo-intent-launcher';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUserStore } from '@/stores/useUserStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useAppBlocker } from '@/hooks/useAppBlocker';
 import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
+import { GoonSprite, CHAR_COLORS } from '@/components/home/GoonMascot';
+import type { CharacterId } from '@/stores/usePetStore';
+
+const COMPANION_NAMES: Record<CharacterId, string> = { 0: 'Buddy', 1: 'Nova', 2: 'Rex' };
+const COMPANION_TAGS: Record<CharacterId, string> = {
+  0: 'Friendly · Grows with you',
+  1: 'Cosmic · Floats above it all',
+  2: 'Bold · Dragon energy',
+};
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -93,8 +103,11 @@ export default function OnboardingScreen() {
   const [name, setNameLocal]              = useState('');
   const [nameError, setNameError]         = useState('');
   const [nameSaved, setNameSaved]         = useState(false);
+  const [companionPicked, setCompanionPicked] = useState(false);
+  const [selectedChar, setSelectedChar]   = useState<CharacterId | null>(null);
+  const [companionName, setCompanionName] = useState('');
   const [sitesAdded, setSitesAdded]       = useState(false);
-  const [batteryExempt, setBatteryExempt] = useState(false); // tracks battery optimization grant
+  const [batteryExempt, setBatteryExempt] = useState(false);
   const [selectedDomains, setSelectedDomains] = useState<Set<string>>(
     () => new Set(SITE_SUGGESTIONS.map((s) => s.domain))
   );
@@ -161,9 +174,94 @@ export default function OnboardingScreen() {
     setSitesAdded(true);
   };
 
+  // ── Companion picker — save choice to AsyncStorage ────────────────────────
+
+  const handlePickCompanion = async () => {
+    if (selectedChar === null) return;
+    const nameToSave = companionName.trim() || COMPANION_NAMES[selectedChar];
+    await AsyncStorage.setItem('@nogoon_goon_character', String(selectedChar));
+    await AsyncStorage.setItem(`@nogoon_pet_name_${selectedChar}`, nameToSave);
+    setCompanionPicked(true);
+  };
+
   // ── Name input step ────────────────────────────────────────────────────────
 
   if (step === SLIDES.length) {
+    // ── Companion selection (shown after name saved, before setup) ──────────
+    if (nameSaved && !companionPicked) {
+      return (
+        <SafeAreaView style={styles.safe}>
+          <ScrollView
+            style={styles.flex}
+            contentContainerStyle={styles.companionScreen}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            <Text style={styles.companionTitle}>Choose your{'\n'}companion</Text>
+            <Text style={styles.companionSub}>
+              They grow as you walk away from distractions. You can have all three — but pick your starter.
+            </Text>
+
+            <View style={styles.companionRow}>
+              {([0, 1, 2] as CharacterId[]).map((id) => {
+                const active = id === selectedChar;
+                const accent = CHAR_COLORS[id][2][1];
+                return (
+                  <Pressable
+                    key={id}
+                    style={[
+                      styles.companionCard,
+                      active && { borderColor: accent, backgroundColor: accent + '12' },
+                    ]}
+                    onPress={() => {
+                      setSelectedChar(id);
+                      if (!companionName || companionName === COMPANION_NAMES[selectedChar ?? id]) {
+                        setCompanionName(COMPANION_NAMES[id]);
+                      }
+                    }}
+                  >
+                    <GoonSprite char={id} stage={2} size={0.9} />
+                    <Text style={[styles.companionCardName, active && { color: accent }]}>
+                      {COMPANION_NAMES[id]}
+                    </Text>
+                    <Text style={styles.companionCardTag}>{COMPANION_TAGS[id]}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {selectedChar !== null && (
+              <>
+                <Text style={styles.companionNameLabel}>Give them a nickname (optional)</Text>
+                <TextInput
+                  style={styles.companionNameInput}
+                  value={companionName}
+                  onChangeText={setCompanionName}
+                  placeholder={COMPANION_NAMES[selectedChar]}
+                  placeholderTextColor={COLORS.textMuted}
+                  maxLength={20}
+                  returnKeyType="done"
+                />
+              </>
+            )}
+
+            <Pressable
+              style={[styles.finishButton, selectedChar === null && { opacity: 0.4 }]}
+              onPress={handlePickCompanion}
+              disabled={selectedChar === null}
+            >
+              <Text style={styles.finishButtonText}>
+                {selectedChar !== null
+                  ? `Meet ${companionName || COMPANION_NAMES[selectedChar]} →`
+                  : 'Pick a companion →'}
+              </Text>
+            </Pressable>
+
+          </ScrollView>
+        </SafeAreaView>
+      );
+    }
+
     // ── Setup step (shown after name is saved) ──────────────────────────────
     if (nameSaved && step === SLIDES.length) {
       return (
@@ -535,6 +633,81 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.bodyBold,
     fontSize: 16,
     color: COLORS.background,
+  },
+
+  // ── Companion screen ──
+  companionScreen: {
+    flexGrow: 1,
+    alignItems: 'center',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.xl,
+    gap: SPACING.lg,
+  },
+  companionTitle: {
+    fontFamily: FONTS.display,
+    fontSize: 34,
+    color: COLORS.textPrimary,
+    textAlign: 'center',
+    lineHeight: 42,
+    letterSpacing: -0.5,
+  },
+  companionSub: {
+    fontFamily: FONTS.body,
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginTop: -SPACING.sm,
+  },
+  companionRow: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    width: '100%',
+  },
+  companionCard: {
+    flex: 1,
+    alignItems: 'center',
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
+    borderWidth: 2,
+    borderColor: COLORS.cardBorder,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.xs,
+    gap: SPACING.xs,
+  },
+  companionCardName: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 13,
+    color: COLORS.textPrimary,
+  },
+  companionCardTag: {
+    fontFamily: FONTS.body,
+    fontSize: 10,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    lineHeight: 14,
+  },
+  companionNameLabel: {
+    fontFamily: FONTS.mono,
+    fontSize: 11,
+    color: COLORS.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    alignSelf: 'flex-start',
+    marginBottom: -SPACING.sm,
+  },
+  companionNameInput: {
+    width: '100%',
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    fontFamily: FONTS.body,
+    fontSize: 16,
+    color: COLORS.textPrimary,
+    textAlign: 'center',
   },
 
   // ── Name screen ──

@@ -1,8 +1,7 @@
 // ─── Pet Stat Store ────────────────────────────────────────────────────────────
 //
-// Zustand store tracking the mascot's hunger, happiness, and energy.
-// All three decay/fill over real time — syncDecay() is called on app open
-// and computes elapsed hours since last sync.
+// Per-character hunger, happiness, and energy — each companion evolves
+// independently. Feeding, petting, and playing only affect the active character.
 //
 // Hunger mechanics:
 //   • Decays 10 pts/hour when not fed
@@ -16,18 +15,18 @@
 //   • Drains 10 pts per play session
 //   • Refills 20 pts/hour (resting)
 //   • Low energy limits game sessions naturally (soft cap, not hard block)
-//
-// Stats are shown only when the user toggles the hidden panel.
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+export type CharacterId = 0 | 1 | 2;
+
 // ── Decay/restore constants ────────────────────────────────────────────────────
 
-const HUNGER_DECAY_PER_HOUR     = 10;   // empty in ~10 hours
-const HAPPINESS_DECAY_PER_HOUR  = 4;    // empty in ~25 hours
-const ENERGY_FILL_PER_HOUR      = 20;   // full in ~5 hours rest
+const HUNGER_DECAY_PER_HOUR     = 10;
+const HAPPINESS_DECAY_PER_HOUR  = 4;
+const ENERGY_FILL_PER_HOUR      = 20;
 
 const FEED_HUNGER_RESTORE       = 35;
 const FEED_HAPPINESS_BONUS      = 5;
@@ -41,31 +40,36 @@ export interface PetStats {
   hunger:     number;  // 0–100  (100 = perfectly fed)
   happiness:  number;  // 0–100
   energy:     number;  // 0–100
+  lastSyncAt: number;  // unix ms
 }
 
-interface PetState extends PetStats {
-  lastSyncAt: number; // unix ms
+type CharStats = Record<CharacterId, PetStats>;
 
-  /** Must be called on app foreground to apply time-based decay/fill. */
-  syncDecay: () => void;
+const DEFAULT_STATS: PetStats = { hunger: 70, happiness: 80, energy: 100, lastSyncAt: Date.now() };
 
-  /**
-   * Feed the pet. Returns false if hunger is already full or no tokens
-   * (caller is responsible for spending a feed token before calling this).
-   */
-  feedPet: () => boolean;
+const DEFAULT_CHAR_STATS: CharStats = {
+  0: { ...DEFAULT_STATS },
+  1: { ...DEFAULT_STATS },
+  2: { ...DEFAULT_STATS },
+};
+
+interface PetState {
+  stats: CharStats;
+
+  /** Apply time-based decay for a specific character. */
+  syncDecay: (charId: CharacterId) => void;
+
+  /** Feed the pet (caller already spent feed token). Returns false if full. */
+  feedPet: (charId: CharacterId) => boolean;
 
   /** Tap/groom the pet — boosts happiness. */
-  petPet: () => void;
+  petPet: (charId: CharacterId) => void;
 
-  /**
-   * Play with the pet — boosts happiness, costs energy.
-   * Returns false if energy < PLAY_ENERGY_COST.
-   */
-  playWithPet: () => boolean;
+  /** Play with the pet — boosts happiness, costs energy. Returns false if low energy. */
+  playWithPet: (charId: CharacterId) => boolean;
 
-  /** Direct stat setter (for debugging / admin resets). */
-  resetPet: () => void;
+  /** Debug/admin reset for a specific character. */
+  resetPet: (charId: CharacterId) => void;
 }
 
 // ── Store ─────────────────────────────────────────────────────────────────────
@@ -73,69 +77,87 @@ interface PetState extends PetStats {
 export const usePetStore = create<PetState>()(
   persist(
     (set, get) => ({
-      hunger:     70,
-      happiness:  80,
-      energy:     100,
-      lastSyncAt: Date.now(),
+      stats: DEFAULT_CHAR_STATS,
 
-      syncDecay: () => {
-        const { lastSyncAt, hunger, happiness, energy } = get();
-        const now          = Date.now();
-        const hoursElapsed = (now - lastSyncAt) / 3_600_000;
-
-        // Skip if less than ~36 seconds — avoids micro-drift on rapid re-renders
+      syncDecay: (charId) => {
+        const char = get().stats[charId];
+        const now = Date.now();
+        const hoursElapsed = (now - char.lastSyncAt) / 3_600_000;
         if (hoursElapsed < 0.01) return;
 
-        set({
-          hunger:     clamp(hunger    - HUNGER_DECAY_PER_HOUR    * hoursElapsed, 0, 100),
-          happiness:  clamp(happiness - HAPPINESS_DECAY_PER_HOUR * hoursElapsed, 0, 100),
-          energy:     clamp(energy    + ENERGY_FILL_PER_HOUR     * hoursElapsed, 0, 100),
-          lastSyncAt: now,
-        });
+        set((s) => ({
+          stats: {
+            ...s.stats,
+            [charId]: {
+              hunger:     clamp(char.hunger    - HUNGER_DECAY_PER_HOUR    * hoursElapsed, 0, 100),
+              happiness:  clamp(char.happiness - HAPPINESS_DECAY_PER_HOUR * hoursElapsed, 0, 100),
+              energy:     clamp(char.energy    + ENERGY_FILL_PER_HOUR     * hoursElapsed, 0, 100),
+              lastSyncAt: now,
+            },
+          },
+        }));
       },
 
-      feedPet: () => {
-        get().syncDecay();
-        const { hunger } = get();
-        if (hunger >= 100) return false;
+      feedPet: (charId) => {
+        get().syncDecay(charId);
+        const char = get().stats[charId];
+        if (char.hunger >= 100) return false;
         set((s) => ({
-          hunger:    clamp(s.hunger    + FEED_HUNGER_RESTORE,   0, 100),
-          happiness: clamp(s.happiness + FEED_HAPPINESS_BONUS,  0, 100),
+          stats: {
+            ...s.stats,
+            [charId]: {
+              ...s.stats[charId],
+              hunger:    clamp(s.stats[charId].hunger    + FEED_HUNGER_RESTORE,  0, 100),
+              happiness: clamp(s.stats[charId].happiness + FEED_HAPPINESS_BONUS, 0, 100),
+            },
+          },
         }));
         return true;
       },
 
-      petPet: () => {
-        get().syncDecay();
+      petPet: (charId) => {
+        get().syncDecay(charId);
         set((s) => ({
-          happiness: clamp(s.happiness + PET_HAPPINESS_RESTORE, 0, 100),
+          stats: {
+            ...s.stats,
+            [charId]: {
+              ...s.stats[charId],
+              happiness: clamp(s.stats[charId].happiness + PET_HAPPINESS_RESTORE, 0, 100),
+            },
+          },
         }));
       },
 
-      playWithPet: () => {
-        get().syncDecay();
-        const { energy } = get();
-        if (energy < PLAY_ENERGY_COST) return false;
+      playWithPet: (charId) => {
+        get().syncDecay(charId);
+        const char = get().stats[charId];
+        if (char.energy < PLAY_ENERGY_COST) return false;
         set((s) => ({
-          energy:    clamp(s.energy    - PLAY_ENERGY_COST,       0, 100),
-          happiness: clamp(s.happiness + PLAY_HAPPINESS_RESTORE, 0, 100),
+          stats: {
+            ...s.stats,
+            [charId]: {
+              ...s.stats[charId],
+              energy:    clamp(s.stats[charId].energy    - PLAY_ENERGY_COST,       0, 100),
+              happiness: clamp(s.stats[charId].happiness + PLAY_HAPPINESS_RESTORE, 0, 100),
+            },
+          },
         }));
         return true;
       },
 
-      resetPet: () => {
-        set({ hunger: 70, happiness: 80, energy: 100, lastSyncAt: Date.now() });
+      resetPet: (charId) => {
+        set((s) => ({
+          stats: {
+            ...s.stats,
+            [charId]: { hunger: 70, happiness: 80, energy: 100, lastSyncAt: Date.now() },
+          },
+        }));
       },
     }),
     {
-      name: 'nogoon-pet',
+      name: 'nogoon-pet-v2',
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: (s) => ({
-        hunger:     s.hunger,
-        happiness:  s.happiness,
-        energy:     s.energy,
-        lastSyncAt: s.lastSyncAt,
-      }),
+      partialize: (s) => ({ stats: s.stats }),
     },
   ),
 );
@@ -147,7 +169,7 @@ function clamp(v: number, min: number, max: number): number {
 }
 
 /** Derive a mood label from stats. */
-export function getPetMood(stats: PetStats): string {
+export function getPetMood(stats: Pick<PetStats, 'hunger' | 'happiness' | 'energy'>): string {
   if (stats.hunger < 20)     return 'starving';
   if (stats.happiness < 20)  return 'sad';
   if (stats.energy < 20)     return 'tired';

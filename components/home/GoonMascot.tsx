@@ -29,7 +29,7 @@ import Svg, { Rect } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
-import { usePetStore, getPetMood, getPetSpeech } from '@/stores/usePetStore';
+import { usePetStore, getPetMood, getPetSpeech, type CharacterId } from '@/stores/usePetStore';
 import { getFeedTokens, spendFeedToken, getMinutesAway, MINS_PER_TOKEN } from '@/services/feedTokens';
 import { notifyHungerWarning } from '@/utils/notifications';
 
@@ -58,8 +58,7 @@ const NEXT_AT: Record<GoonStage, number | null> = {
 };
 
 // ─── Character types ──────────────────────────────────────────────────────────
-
-export type CharacterId = 0 | 1 | 2;
+// CharacterId is defined in usePetStore and re-exported from there.
 
 const CHARACTER_NAMES: Record<CharacterId, string> = {
   0: 'Buddy',
@@ -76,8 +75,12 @@ const CHARACTER_TAGLINES: Record<CharacterId, string> = {
 const STORAGE_KEY        = '@nogoon_goon_character';
 const CUSTOM_SPEECH_KEY  = '@nogoon_pet_speech';
 const SHOW_STATS_KEY     = '@nogoon_show_stats';
-const PET_NAME_KEY       = '@nogoon_pet_name';
 const LAST_STAGE_KEY     = '@nogoon_last_stage';
+
+/** Per-character name key — each companion has its own nickname slot. */
+function petNameKey(charId: CharacterId) {
+  return `@nogoon_pet_name_${charId}`;
+}
 
 // ─── Pixel grid ───────────────────────────────────────────────────────────────
 // 10×12 grid, 8px/cell. Pixel values:
@@ -88,7 +91,7 @@ type Pixel = 0 | 1 | 2 | 3 | 4;
 
 // ─── Color palettes per character ────────────────────────────────────────────
 
-const CHAR_COLORS: Record<CharacterId, Record<GoonStage, Record<number, string>>> = {
+export const CHAR_COLORS: Record<CharacterId, Record<GoonStage, Record<number, string>>> = {
   // Buddy — slate → blue → green → purple → orange
   0: {
     0: { 1: '#94a3b8', 2: '#334155', 3: '#e2e8f0', 4: '#f8fafc' },
@@ -344,7 +347,7 @@ const GRIDS: Record<CharacterId, Record<GoonStage, Pixel[][]>> = {
 
 // ─── Sprite renderer ──────────────────────────────────────────────────────────
 
-function GoonSprite({
+export function GoonSprite({
   char, stage, size = 1,
 }: { char: CharacterId; stage: GoonStage; size?: number }) {
   const grid   = GRIDS[char][stage];
@@ -857,11 +860,11 @@ export function GoonMascot({ walkAwayCount, onPress }: Props) {
       AsyncStorage.getItem(STORAGE_KEY),
       AsyncStorage.getItem(CUSTOM_SPEECH_KEY),
       AsyncStorage.getItem(SHOW_STATS_KEY),
-      AsyncStorage.getItem(PET_NAME_KEY),
-    ]).then(([charVal, speechVal, statsVal, nameVal]) => {
+    ]).then(async ([charVal, speechVal, statsVal]) => {
       if (charVal !== null) {
         const charId = Number(charVal) as CharacterId;
         setCharacter(charId);
+        const nameVal = await AsyncStorage.getItem(petNameKey(charId));
         setPetName(nameVal || CHARACTER_NAMES[charId]);
       } else {
         setShowPicker(true);
@@ -872,22 +875,25 @@ export function GoonMascot({ walkAwayCount, onPress }: Props) {
     });
   }, []);
 
-  // ── Sync pet decay on mount ───────────────────────────────────────────────
+  // ── Sync pet decay on mount (all 3 companions) ───────────────────────────
   useEffect(() => {
-    petStore.syncDecay();
+    petStore.syncDecay(0);
+    petStore.syncDecay(1);
+    petStore.syncDecay(2);
   }, []);
 
   // ── Watch hunger for warning ──────────────────────────────────────────────
   const hungerWarnedRef = useRef(false);
+  const charHunger = character !== null ? petStore.stats[character].hunger : 100;
   useEffect(() => {
-    if (petStore.hunger < 20 && !hungerWarnedRef.current && character !== null) {
+    if (charHunger < 20 && !hungerWarnedRef.current && character !== null) {
       hungerWarnedRef.current = true;
       notifyHungerWarning(petName || CHARACTER_NAMES[character]).catch(() => {});
     }
-    if (petStore.hunger >= 30) {
+    if (charHunger >= 30) {
       hungerWarnedRef.current = false;
     }
-  }, [petStore.hunger, character]);
+  }, [charHunger, character]);
 
   // ── Poll feed tokens + accumulation timer (every 30s) ────────────────────
   useEffect(() => {
@@ -922,19 +928,21 @@ export function GoonMascot({ walkAwayCount, onPress }: Props) {
   const pickCharacter = useCallback((id: CharacterId) => {
     setCharacter(id);
     setShowPicker(false);
-    const defaultName = CHARACTER_NAMES[id];
-    setPetName(defaultName);
     AsyncStorage.setItem(STORAGE_KEY, String(id));
-    // Don't wipe a custom name — only reset if they had no name yet
-    AsyncStorage.getItem(PET_NAME_KEY).then((saved) => {
-      if (!saved) AsyncStorage.setItem(PET_NAME_KEY, defaultName);
+    // Load this companion's saved name (each companion has its own slot)
+    AsyncStorage.getItem(petNameKey(id)).then((saved) => {
+      const name = saved || CHARACTER_NAMES[id];
+      setPetName(name);
+      if (!saved) AsyncStorage.setItem(petNameKey(id), name);
     });
   }, []);
 
   const handleSaveName = useCallback((val: string) => {
     setPetName(val);
-    AsyncStorage.setItem(PET_NAME_KEY, val);
-  }, []);
+    if (character !== null) {
+      AsyncStorage.setItem(petNameKey(character), val);
+    }
+  }, [character]);
 
   const handleSaveSpeech = useCallback((val: string) => {
     setCustomSpeech(val);
@@ -960,7 +968,7 @@ export function GoonMascot({ walkAwayCount, onPress }: Props) {
       showSpeech('No meals yet. Stay off your phone to earn some!');
       return;
     }
-    const fed = petStore.feedPet();
+    const fed = character !== null ? petStore.feedPet(character) : false;
     if (!fed) {
       // Refund token — pet was already full
       const current = await getFeedTokens();
@@ -1014,7 +1022,8 @@ export function GoonMascot({ walkAwayCount, onPress }: Props) {
   const stage       = getGoonStage(walkAwayCount);
   const nextAt      = NEXT_AT[stage];
   const accentColor = character !== null ? CHAR_COLORS[character][stage][3] : COLORS.indigoBright;
-  const mood        = getPetMood(petStore);
+  const charStats   = character !== null ? petStore.stats[character] : { hunger: 70, happiness: 80, energy: 100 };
+  const mood        = getPetMood(charStats);
   const autoSpeech  = character !== null
     ? getPetSpeech(mood, petName || CHARACTER_NAMES[character])
     : '';
@@ -1035,7 +1044,7 @@ export function GoonMascot({ walkAwayCount, onPress }: Props) {
       {showPanel && character !== null && (
         <SecretPanel
           petName={petName}
-          stats={petStore}
+          stats={charStats}
           customSpeech={customSpeech}
           showStats={showStats}
           onChangeName={handleSaveName}
@@ -1120,9 +1129,9 @@ export function GoonMascot({ walkAwayCount, onPress }: Props) {
             {/* Stat bars (when toggled on) */}
             {showStats && (
               <View style={styles.statsWrap}>
-                <StatBar label="Hunger"    value={petStore.hunger}    color={accentColor} />
-                <StatBar label="Happiness" value={petStore.happiness} color={COLORS.cyan} />
-                <StatBar label="Energy"    value={petStore.energy}    color="#94a3b8" />
+                <StatBar label="Hunger"    value={charStats.hunger}    color={accentColor} />
+                <StatBar label="Happiness" value={charStats.happiness} color={COLORS.cyan} />
+                <StatBar label="Energy"    value={charStats.energy}    color="#94a3b8" />
               </View>
             )}
 
@@ -1146,7 +1155,7 @@ export function GoonMascot({ walkAwayCount, onPress }: Props) {
               <Pressable
                 style={styles.petBtn}
                 onPress={() => {
-                  petStore.petPet();
+                  if (character !== null) petStore.petPet(character);
                   triggerWave();
                   showSpeech('Thanks for the love!');
                 }}

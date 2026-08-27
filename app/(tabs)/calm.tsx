@@ -14,9 +14,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import type { Href } from 'expo-router';
-import { COLORS, FONTS } from '@/constants/Colors';
+import { FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { TYPE } from '@/constants/Typography';
+import { useTheme } from '@/hooks/useTheme';
 import { useUserStore } from '@/stores/useUserStore';
 
 type Tool = {
@@ -30,78 +31,80 @@ type Tool = {
 
 const TOOLS: Tool[] = [
   {
-    id:       'breathe',
-    icon:     'wind',
+    id:        'breathe',
+    icon:      'wind',
     iconColor: '#4d8bff',
-    title:    'Breathe',
-    subtitle: 'Box breathing · calms the nervous system in 2 min',
-    route:    '/breathe',
+    title:     'Breathe',
+    subtitle:  'Box breathing · calms the nervous system in 2 min',
+    route:     '/breathe',
   },
   {
-    id:       'arcade',
-    icon:     'zap',
-    iconColor: COLORS.arcade,
-    title:    'Games',
-    subtitle: 'Play something calm · redirect the urge without spiking it',
-    route:    { pathname: '/(tabs)/arcade', params: { category: 'calm' } },
+    id:        'arcade',
+    icon:      'zap',
+    iconColor: '#6D28D9',
+    title:     'Games',
+    subtitle:  'Play something calm · redirect the urge without spiking it',
+    route:     { pathname: '/(tabs)/arcade', params: { category: 'calm' } },
   },
   {
-    id:       'waitingroom',
-    icon:     'clock',
-    iconColor: COLORS.cyan,
-    title:    'Waiting Room',
-    subtitle: 'Sit with the urge · watch it pass on its own',
-    route:    '/waiting-room',
+    id:        'waitingroom',
+    icon:      'clock',
+    iconColor: '#0277BD',
+    title:     'Waiting Room',
+    subtitle:  'Sit with the urge · watch it pass on its own',
+    route:     '/waiting-room',
   },
   {
-    id:       'ground',
-    icon:     'anchor',
-    iconColor: COLORS.green,
-    title:    'Ground Yourself',
-    subtitle: '5-4-3-2-1 · anchor to the present moment',
-    route:    { pathname: '/breathe', params: { mode: 'grounding' } },
+    id:        'ground',
+    icon:      'anchor',
+    iconColor: '#2E7D32',
+    title:     'Ground Yourself',
+    subtitle:  '5-4-3-2-1 · anchor to the present moment',
+    route:     { pathname: '/breathe', params: { mode: 'grounding' } },
   },
   {
-    id:       'bubbles',
-    icon:     'feather',
+    id:        'bubbles',
+    icon:      'feather',
     iconColor: '#0ea5e9',
-    title:    'Brain Bubbles',
-    subtitle: 'Write it out · get the noise out of your head',
-    route:    '/bubbles',
+    title:     'Brain Bubbles',
+    subtitle:  'Write it out · get the noise out of your head',
+    route:     '/bubbles',
   },
   {
-    id:       'insights',
-    icon:     'bar-chart-2',
-    iconColor: COLORS.cyan,
-    title:    'Insights',
-    subtitle: 'See your patterns over time',
-    route:    '/insights',
+    id:        'insights',
+    icon:      'bar-chart-2',
+    iconColor: '#0277BD',
+    title:     'Insights',
+    subtitle:  'See your patterns over time',
+    route:     '/insights',
   },
 ];
 
 function ToolRow({ tool }: { tool: Tool }) {
+  const { colors } = useTheme();
   return (
     <Pressable
-      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+      style={({ pressed }) => [styles.row, pressed && { backgroundColor: colors.surfaceHigh }]}
       onPress={() => router.push(tool.route)}
-      android_ripple={{ color: COLORS.border }}
+      android_ripple={{ color: colors.border }}
     >
       <View style={[styles.iconWrap, { backgroundColor: tool.iconColor + '18' }]}>
         <Feather name={tool.icon} size={20} color={tool.iconColor} />
       </View>
       <View style={styles.rowText}>
-        <Text style={styles.rowTitle}>{tool.title}</Text>
-        <Text style={styles.rowSub}>{tool.subtitle}</Text>
+        <Text style={[styles.rowTitle, { color: colors.text }]}>{tool.title}</Text>
+        <Text style={[styles.rowSub, { color: colors.textSecondary }]}>{tool.subtitle}</Text>
       </View>
-      <Feather name="chevron-right" size={18} color={COLORS.textMuted} />
+      <Feather name="chevron-right" size={18} color={colors.textMuted} />
     </Pressable>
   );
 }
 
 function NightlyCommitmentCard() {
-  const nightlyCommitment    = useUserStore(s => s.nightlyCommitment);
+  const { colors } = useTheme();
+  const nightlyCommitment      = useUserStore(s => s.nightlyCommitment);
   const nightlyCommitmentSetAt = useUserStore(s => s.nightlyCommitmentSetAt);
-  const setNightlyCommitment = useUserStore(s => s.setNightlyCommitment);
+  const setNightlyCommitment   = useUserStore(s => s.setNightlyCommitment);
   const clearNightlyCommitment = useUserStore(s => s.clearNightlyCommitment);
 
   const [editing, setEditing] = useState(false);
@@ -109,7 +112,6 @@ function NightlyCommitmentCard() {
 
   const hasCurrent = nightlyCommitment.trim().length > 0;
 
-  // Format "set X hours ago" label
   const setAgoLabel = () => {
     if (!nightlyCommitmentSetAt) return '';
     const mins = Math.round((Date.now() - nightlyCommitmentSetAt) / 60000);
@@ -120,9 +122,7 @@ function NightlyCommitmentCard() {
 
   function handleSave() {
     const text = draft.trim();
-    if (text.length > 0) {
-      setNightlyCommitment(text);
-    }
+    if (text.length > 0) setNightlyCommitment(text);
     setEditing(false);
     setDraft('');
   }
@@ -133,15 +133,15 @@ function NightlyCommitmentCard() {
   }
 
   return (
-    <View style={styles.nightlyCard}>
+    <View style={[styles.nightlyCard, { backgroundColor: colors.surface, borderColor: '#7c3aed30' }]}>
       {/* Header row */}
       <View style={styles.nightlyHeader}>
         <View style={[styles.iconWrap, { backgroundColor: '#7c3aed18' }]}>
           <Feather name="moon" size={20} color="#7c3aed" />
         </View>
         <View style={styles.rowText}>
-          <Text style={styles.rowTitle}>Tonight's rule</Text>
-          <Text style={styles.rowSub}>
+          <Text style={[styles.rowTitle, { color: colors.text }]}>Tonight's rule</Text>
+          <Text style={[styles.rowSub, { color: colors.textSecondary }]}>
             {hasCurrent
               ? `Set ${setAgoLabel()} · shown when you open blocked apps tomorrow`
               : 'Set a limit for yourself tonight · it shows up on the gate tomorrow'}
@@ -155,11 +155,11 @@ function NightlyCommitmentCard() {
           <Text style={styles.currentText}>"{nightlyCommitment}"</Text>
           <View style={styles.currentActions}>
             <Pressable onPress={handleEdit} style={styles.textBtn}>
-              <Text style={styles.textBtnLabel}>Edit</Text>
+              <Text style={[styles.textBtnLabel, { color: colors.textSecondary }]}>Edit</Text>
             </Pressable>
-            <Text style={styles.textBtnSep}>·</Text>
+            <Text style={[styles.textBtnSep, { color: colors.textMuted }]}>·</Text>
             <Pressable onPress={clearNightlyCommitment} style={styles.textBtn}>
-              <Text style={[styles.textBtnLabel, { color: COLORS.danger }]}>Clear</Text>
+              <Text style={[styles.textBtnLabel, { color: colors.danger }]}>Clear</Text>
             </Pressable>
           </View>
         </View>
@@ -169,9 +169,13 @@ function NightlyCommitmentCard() {
       {(!hasCurrent || editing) && (
         <View style={styles.inputRow}>
           <TextInput
-            style={styles.input}
+            style={[styles.input, {
+              backgroundColor: colors.surfaceHigh,
+              borderColor: colors.border,
+              color: colors.text,
+            }]}
             placeholder="e.g. No doomscrolling after 10pm"
-            placeholderTextColor={COLORS.textMuted}
+            placeholderTextColor={colors.textMuted}
             value={draft}
             onChangeText={setDraft}
             returnKeyType="done"
@@ -194,14 +198,16 @@ function NightlyCommitmentCard() {
 }
 
 export default function CalmScreen() {
+  const { colors } = useTheme();
+
   return (
-    <SafeAreaView style={styles.root} edges={['bottom']}>
+    <SafeAreaView style={[styles.root, { backgroundColor: colors.background }]} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>For when you're struggling</Text>
-          <Text style={styles.headerSub}>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>For when you're struggling</Text>
+          <Text style={[styles.headerSub, { color: colors.textSecondary }]}>
             These tools work. Pick one and give it 2 minutes.
           </Text>
         </View>
@@ -210,19 +216,19 @@ export default function CalmScreen() {
         <NightlyCommitmentCard />
 
         {/* Tools */}
-        <View style={[styles.card, { marginTop: SPACING.md }]}>
+        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, marginTop: SPACING.md }]}>
           {TOOLS.map((tool, i) => (
             <View key={tool.id}>
               <ToolRow tool={tool} />
-              {i < TOOLS.length - 1 && <View style={styles.divider} />}
+              {i < TOOLS.length - 1 && <View style={[styles.divider, { backgroundColor: colors.border }]} />}
             </View>
           ))}
         </View>
 
         {/* Reminder */}
         <View style={styles.reminder}>
-          <Feather name="info" size={14} color={COLORS.textMuted} />
-          <Text style={styles.reminderText}>
+          <Feather name="info" size={14} color={colors.textMuted} />
+          <Text style={[styles.reminderText, { color: colors.textMuted }]}>
             Urges peak at about 90 seconds then fade. You don't have to fight them — just wait.
           </Text>
         </View>
@@ -235,7 +241,6 @@ export default function CalmScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: COLORS.background,
   },
   scroll: {
     padding: SPACING.md,
@@ -247,20 +252,16 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     ...TYPE.heading,
-    color: COLORS.textPrimary,
     marginBottom: 4,
   },
   headerSub: {
     ...TYPE.body,
-    color: COLORS.textSecondary,
   },
 
   // ── Nightly card ────────────────────────────────────────────────────────────
   nightlyCard: {
-    backgroundColor: COLORS.surface,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: '#7c3aed30',
     padding: SPACING.md,
     gap: SPACING.sm,
   },
@@ -293,12 +294,10 @@ const styles = StyleSheet.create({
   textBtnLabel: {
     fontFamily: FONTS.body,
     fontSize: 12,
-    color: COLORS.textSecondary,
   },
   textBtnSep: {
     fontFamily: FONTS.body,
     fontSize: 12,
-    color: COLORS.textMuted,
   },
   inputRow: {
     flexDirection: 'row',
@@ -307,15 +306,12 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    backgroundColor: COLORS.surfaceHigh,
     borderRadius: RADIUS.sm,
     borderWidth: 1,
-    borderColor: COLORS.border,
     paddingHorizontal: SPACING.sm,
     paddingVertical: 10,
     fontFamily: FONTS.body,
     fontSize: 14,
-    color: COLORS.textPrimary,
   },
   saveBtn: {
     backgroundColor: '#7c3aed',
@@ -334,10 +330,8 @@ const styles = StyleSheet.create({
 
   // ── Tools card ──────────────────────────────────────────────────────────────
   card: {
-    backgroundColor: COLORS.surface,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.border,
     overflow: 'hidden',
   },
   row: {
@@ -345,9 +339,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: SPACING.md,
     gap: SPACING.md,
-  },
-  rowPressed: {
-    backgroundColor: COLORS.surfaceHigh,
   },
   iconWrap: {
     width: 44,
@@ -362,18 +353,15 @@ const styles = StyleSheet.create({
   rowTitle: {
     fontFamily: FONTS.bodyBold,
     fontSize: 15,
-    color: COLORS.textPrimary,
     marginBottom: 2,
   },
   rowSub: {
     fontFamily: FONTS.body,
     fontSize: 12,
-    color: COLORS.textSecondary,
     lineHeight: 16,
   },
   divider: {
     height: 1,
-    backgroundColor: COLORS.border,
     marginLeft: 44 + SPACING.md * 2,
   },
   reminder: {
@@ -387,7 +375,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: FONTS.body,
     fontSize: 12,
-    color: COLORS.textMuted,
     lineHeight: 18,
   },
 });

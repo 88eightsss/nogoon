@@ -8,7 +8,7 @@
 //
 // Arcade lives inside Calm — hidden from tab bar.
 
-import { Tabs, router } from 'expo-router';
+import { Tabs, router, usePathname } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,6 +21,8 @@ export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const { themeId } = useThemeStore();
   const colors = THEMES[themeId];
+  const pathname = usePathname();
+  const isOnCalm = pathname === '/calm';
 
   // Tab definitions use live theme colors — updates whenever theme changes
   const TABS: {
@@ -89,9 +91,10 @@ export default function TabsLayout() {
           backgroundColor: colors.background,
           borderTopColor: colors.border,
           borderTopWidth: 1,
-          height: 60 + insets.bottom,
+          height: isOnCalm ? 44 + insets.bottom : 60 + insets.bottom,
           paddingBottom: insets.bottom + 4,
         },
+        tabBarShowLabel: !isOnCalm,
         tabBarInactiveTintColor: 'transparent',
       }}
     >
@@ -104,20 +107,30 @@ export default function TabsLayout() {
             tabBarActiveTintColor: tab.color,
             headerTintColor: tab.color,     // Page header accent matches tab color
             tabBarItemStyle: tab.hidden ? { display: 'none' } : undefined,
-            tabBarIcon: ({ focused, size }) => (
-              <View style={focused ? {
-                backgroundColor: tab.pillBg,
-                borderRadius: 20,
-                paddingHorizontal: 12,
-                paddingVertical: 3,
-              } : undefined}>
-                <Feather
-                  name={tab.icon}
-                  size={size - 1}
-                  color={focused ? tab.color : tab.color + 'AA'} // inactive = 67% opacity
-                />
-              </View>
-            ),
+            tabBarIcon: ({ focused, size }) => {
+              if (isOnCalm) {
+                return (
+                  <View style={{
+                    width: 6, height: 6, borderRadius: 3,
+                    backgroundColor: focused ? tab.color : tab.color + '55',
+                  }} />
+                );
+              }
+              return (
+                <View style={focused ? {
+                  backgroundColor: tab.pillBg,
+                  borderRadius: 20,
+                  paddingHorizontal: 12,
+                  paddingVertical: 3,
+                } : undefined}>
+                  <Feather
+                    name={tab.icon}
+                    size={size - 1}
+                    color={focused ? tab.color : tab.color + 'AA'}
+                  />
+                </View>
+              );
+            },
           }}
         />
       ))}
