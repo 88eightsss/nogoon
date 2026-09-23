@@ -13,7 +13,7 @@
 //   10 blocks, very thin final block:         40 pts
 //   Stopped by miss (≥5 stacks completed):    45 pts
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -25,7 +25,8 @@ import {
   AppState,
   type AppStateStatus,
 } from 'react-native';
-import { COLORS, FONTS } from '@/constants/Colors';
+import { FONTS } from '@/constants/Colors';
+import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -62,6 +63,8 @@ interface Props {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function StackGame({ onComplete }: Props) {
+  const COLORS = useThemedColors();
+  const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   const [phase, setPhase]       = useState<'ready' | 'playing' | 'done'>('ready');
   const [stacks, setStacks]     = useState<Block[]>([]);
   const [current, setCurrent]   = useState<Block | null>(null);
@@ -314,7 +317,7 @@ export function StackGame({ onComplete }: Props) {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: COLORS.background,

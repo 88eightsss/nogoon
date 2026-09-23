@@ -23,7 +23,7 @@
 //    onComplete(score) — called when all steps are done (always 35 pts)
 // ═══════════════════════════════════════════════════════════════════════════
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -38,7 +38,8 @@ import {
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Feather } from '@expo/vector-icons';
-import { COLORS, FONTS } from '@/constants/Colors';
+import { FONTS } from '@/constants/Colors';
+import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { ProceedButton } from '@/components/ui/ProceedButton';
 
@@ -48,7 +49,7 @@ interface GroundingExerciseProps {
 
 // ─── The 5 senses, with how many observations to log for each ─────────────────
 
-const SENSES = [
+const getSenses = (COLORS: ArcadeColors) => [
   {
     count: 5,
     sense: 'SEE',
@@ -101,6 +102,9 @@ const SCORE = 35;
 // ─── Main component ────────────────────────────────────────────────────────────
 
 export function GroundingExercise({ onComplete }: GroundingExerciseProps) {
+  const COLORS = useThemedColors();
+  const SENSES = useMemo(() => getSenses(COLORS), [COLORS]);
+  const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   const [senseIndex,  setSenseIndex]  = useState(0);
   // Logged observations per sense (parallel array to SENSES)
   const [logged, setLogged] = useState<string[][]>(SENSES.map(() => []));
@@ -342,7 +346,7 @@ export function GroundingExercise({ onComplete }: GroundingExerciseProps) {
 
 // ─── Styles ────────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: COLORS.background,

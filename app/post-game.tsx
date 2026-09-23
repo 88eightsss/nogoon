@@ -28,6 +28,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Feather } from '@expo/vector-icons';
 import { useUserStore } from '@/stores/useUserStore';
+import { PositiveNewsCard } from '@/components/PositiveNewsCard';
 import { useAppBlocker } from '@/hooks/useAppBlocker';
 import { AdBanner } from '@/components/ads/AdBanner';
 import { AdRewarded } from '@/components/ads/AdRewarded';
@@ -279,6 +280,7 @@ export default function PostGameScreen() {
   const [nowWhatLabel, setNowWhatLabel]     = useState('');
   const [celebrationCount, setCelebrationCount] = useState(0);
   const [reflectionDone, setReflectionDone] = useState(false);
+  const [showNews, setShowNews] = useState(false);
 
   const COMMITMENT_OPTIONS = [
     { id: 'read',     label: 'Read / write / create', emoji: '📖' },
@@ -441,8 +443,17 @@ export default function PostGameScreen() {
   }
 
   if (celebrating) {
+    // Positive news reward phase — shown after reflection (or skip)
+    if (showNews) {
+      return (
+        <SafeAreaView style={styles.safe}>
+          <PositiveNewsCard onDone={() => router.dismissAll()} />
+        </SafeAreaView>
+      );
+    }
+
     if (reflectionDone) {
-      // Brief flash after reflection tap, then dismiss
+      // Fallback flash (showNews and reflectionDone are normally set together)
       return (
         <SafeAreaView style={styles.safe}>
           <View style={styles.celebrationContainer}>
@@ -476,7 +487,7 @@ export default function PostGameScreen() {
                     addUrgeEntry(opt.id, domainDisplay); // timestamped urge journal entry
                     Haptics.selectionAsync();
                     setReflectionDone(true);
-                    setTimeout(() => router.dismissAll(), 700);
+                    setShowNews(true);
                   }}
                 >
                   <Text style={styles.reflectionEmoji}>{opt.emoji}</Text>
@@ -487,7 +498,7 @@ export default function PostGameScreen() {
             <Pressable
               onPress={() => {
                 setReflectionDone(true);
-                setTimeout(() => router.dismissAll(), 300);
+                setShowNews(true);
               }}
               style={styles.reflectionSkip}
             >

@@ -3,7 +3,7 @@
 // Tap to flap. Fly through pipe gaps. One hit = game over.
 // Pass 10 pipes to win (100 pts). Die before = 50 pts.
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,8 @@ import {
   TouchableWithoutFeedback,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { COLORS, FONTS } from '@/constants/Colors';
+import { FONTS } from '@/constants/Colors';
+import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -45,6 +46,8 @@ interface Props {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function FlappyBird({ onComplete }: Props) {
+  const COLORS = useThemedColors();
+  const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   const [phase, setPhase]    = useState<'ready' | 'playing' | 'done'>('ready');
   const [displayScore, setDisplayScore] = useState(0);
   const [renderTick, setRenderTick] = useState(0);
@@ -321,7 +324,7 @@ export function FlappyBird({ onComplete }: Props) {
 const PIPE_COLOR      = '#73BF2E';
 const PIPE_DARK       = '#558a22';
 
-const styles = StyleSheet.create({
+const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.background },
 
   center: {

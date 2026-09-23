@@ -9,12 +9,18 @@
 //
 // Border usage in card style:
 //   const cardStyle = useCardStyle();
+//
+// Color resolution: each theme is a Dark/Grey/Light triad (see
+// constants/Themes.ts) and `themeBrightness` (0–100) is a continuous dial
+// across them, resolved by resolveThemePalette(). This replaced the old
+// single-palette-plus-lightness-shift approach, which only ever nudged
+// background/surface/border and left text/accent untouched — producing a
+// "weird shade" rather than a real Dark/Grey/Light look.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useMemo } from 'react';
-import { THEMES, BORDERS, ThemePalette, BorderConfig } from '@/constants/Themes';
+import { BORDERS, ThemePalette, BorderConfig, resolveThemePalette } from '@/constants/Themes';
 import { useThemeStore } from '@/stores/useThemeStore';
-import { RADIUS } from '@/constants/Spacing';
 
 export type ThemeHook = {
   colors:       ThemePalette;
@@ -25,6 +31,7 @@ export type ThemeHook = {
   cardStyle: {
     borderWidth:    number;
     borderRadius:   number;
+    borderStyle?:   'dashed' | 'dotted';
     shadowColor?:   string;
     shadowOpacity?: number;
     shadowRadius?:  number;
@@ -33,17 +40,18 @@ export type ThemeHook = {
 };
 
 export function useTheme(): ThemeHook {
-  const { themeId, borderId, strugglingMode, setStruggling } = useThemeStore();
+  const { themeId, borderId, strugglingMode, setStruggling, themeBrightness } = useThemeStore();
 
   return useMemo(() => {
-    const colors = THEMES[themeId];
+    const colors = resolveThemePalette(themeId, themeBrightness);
     const border = BORDERS[borderId];
 
-    const radius = border.radius === -1 ? RADIUS.lg : border.radius;
+    const radius = border.radius; // each style now owns a real radius value directly
 
     const cardStyle: ThemeHook['cardStyle'] = {
       borderWidth:  border.width,
       borderRadius: radius,
+      ...(border.lineStyle && { borderStyle: border.lineStyle }),
       ...(border.glow && {
         shadowColor:   colors.accent,
         shadowOpacity: 0.65,
@@ -59,5 +67,5 @@ export function useTheme(): ThemeHook {
       setStruggling,
       cardStyle,
     };
-  }, [themeId, borderId, strugglingMode, setStruggling]);
+  }, [themeId, borderId, strugglingMode, setStruggling, themeBrightness]);
 }

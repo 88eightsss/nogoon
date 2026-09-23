@@ -14,7 +14,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { NativeModules, Platform } from 'react-native';
-import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '@/lib/supabase';
 import { maybeNotifyStreak, maybeNotifyWalkAway, scheduleDailySummary } from '@/utils/notifications';
 
@@ -252,11 +252,6 @@ interface UserState {
   // Shown on the home screen as encouragement, never as pressure.
   walkAwayCount: number;
 
-  // ── Total time reclaimed ────────────────────────────────────────────────────
-  // Rough estimate: each walk-away ≈ 20 min of reclaimed attention.
-  // Never resets — lifetime tally shown on home screen.
-  totalMinutesAvoided: number;
-
   // ── Onboarding goal ────────────────────────────────────────────────────────
   // What the user said they want more time for (set during onboarding).
   // Shown subtly on the gate screen as a reminder of their own intention.
@@ -420,6 +415,18 @@ interface UserState {
   hasSeenGateIntro: boolean;
   markGateIntroSeen: () => void;
 
+  // ── Page intro guides ──────────────────────────────────────────────────────
+  // First-time explainer shown once per tab (keyed by page id: 'home',
+  // 'blocklist', 'arcade', 'calm', 'profile'). Renders via <PageGuide />.
+  seenPageGuides: Record<string, boolean>;
+  markPageGuideSeen: (page: string) => void;
+
+  // Transient (not persisted) — set when the header's "?" button asks a
+  // page's already-seen guide to show itself again. Cleared once shown.
+  guideReopenRequest: string | null;
+  requestGuideReopen: (page: string) => void;
+  clearGuideReopenRequest: () => void;
+
   // The point cost to permanently remove a site from the blocklist.
   // Pro users get this for free. Free users pay REMOVE_COST points.
   REMOVE_COST: number;
@@ -434,21 +441,12 @@ interface UserState {
   resetStore: () => void;
 }
 
-// ─── SecureStore adapter for Zustand persist ──────────────────────────────────
-// Zustand's persist middleware needs a storage backend.
-// We use expo-secure-store so the saved data is encrypted on the device.
-const secureStorage = createJSONStorage(() => ({
-  getItem: async (key: string) => {
-    const value = await SecureStore.getItemAsync(key);
-    return value ?? null;
-  },
-  setItem: async (key: string, value: string) => {
-    await SecureStore.setItemAsync(key, value);
-  },
-  removeItem: async (key: string) => {
-    await SecureStore.deleteItemAsync(key);
-  },
-}));
+// ─── AsyncStorage adapter for Zustand persist ─────────────────────────────────
+// User store state (streaks, walk-away counts, activity maps) is app usage data,
+// not sensitive credentials — AsyncStorage is appropriate and has no size limit.
+// SecureStore has a hard 2048-byte per-key limit on Android which the user store
+// exceeds as daily activity data accumulates, causing silent write failures.
+const secureStorage = createJSONStorage(() => AsyncStorage);
 
 // ─── Default state ────────────────────────────────────────────────────────────
 // Extracted so resetStore() can return to exactly this state.
@@ -458,6 +456,17 @@ const secureStorage = createJSONStorage(() => ({
 // a site intentionally is fine — we just want one small pause before they do.
 // Pro users always pay 0 — this is checked in the UI, not here.
 const REMOVE_COST = 25;
+
+// ── Time reclaimed ──────────────────────────────────────────────────────────
+// Rough estimate: each walk-away ≈ 20 min of reclaimed attention. Always
+// derived from walkAwayCount rather than stored separately — a separately
+// incremented counter drifted for anyone who had walk-aways before that
+// field existed, so two screens could show two different "time saved"
+// numbers for the same person. Deriving it removes that class of bug.
+export const MINUTES_PER_WALK_AWAY = 20;
+export function getMinutesSaved(walkAwayCount: number): number {
+  return walkAwayCount * MINUTES_PER_WALK_AWAY;
+}
 
 const DEFAULT_STATE = {
   name: '',
@@ -555,9 +564,6 @@ const DEFAULT_STATE = {
   // Walk-away count — how many times the user played and chose NOT to unlock
   walkAwayCount: 0,
 
-  // Total minutes of phone-scroll time reclaimed (~20 min per walk-away)
-  totalMinutesAvoided: 0,
-
   // Onboarding goal — what they said they want more time for
   intentionGoal: '',
 
@@ -572,6 +578,10 @@ const DEFAULT_STATE = {
 
   // First-gate intro
   hasSeenGateIntro: false,
+
+  // Page intro guides — first-time explainer per tab
+  seenPageGuides: {} as Record<string, boolean>,
+  guideReopenRequest: null as string | null,
 };
 
 // ─── The store ────────────────────────────────────────────────────────────────
@@ -976,7 +986,6 @@ export const useUserStore = create<UserState>()(
           return {
             walkAwayCount: newCount,
             walkAwayActivity: updated,
-            totalMinutesAvoided: (state.totalMinutesAvoided ?? 0) + 20,
             streakFreezeTokens: crossedMilestone
               ? state.streakFreezeTokens + 1
               : state.streakFreezeTokens,
@@ -1059,6 +1068,14 @@ export const useUserStore = create<UserState>()(
 
       // ── First-gate intro ──────────────────────────────────────────────────
       markGateIntroSeen: () => set({ hasSeenGateIntro: true }),
+
+      markPageGuideSeen: (page) =>
+        set((state) => ({
+          seenPageGuides: { ...state.seenPageGuides, [page]: true },
+        })),
+
+      requestGuideReopen: (page) => set({ guideReopenRequest: page }),
+      clearGuideReopenRequest: () => set({ guideReopenRequest: null }),
 
       // Expose the constant so UI can read it without a separate import
       REMOVE_COST,
@@ -1223,6 +1240,7 @@ export const useUserStore = create<UserState>()(
         dailyWalkAwayGoal: state.dailyWalkAwayGoal,
         hasSeenGateIntro: state.hasSeenGateIntro,
         hasSeenTutorial: state.hasSeenTutorial,
+        seenPageGuides: state.seenPageGuides,
       }),
       // After SecureStore rehydration, push focusSessionEnd to SharedPreferences
       // so the Kotlin Accessibility Service sees it immediately on the next app open.

@@ -26,7 +26,8 @@ import {
   Animated,
   PanResponder,
 } from 'react-native';
-import { COLORS, FONTS } from '@/constants/Colors';
+import { FONTS } from '@/constants/Colors';
+import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import * as Haptics from 'expo-haptics';
 
@@ -159,6 +160,8 @@ interface Props {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function WordWeave({ onComplete }: Props) {
+  const COLORS = useThemedColors();
+  const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   const [phase, setPhase] = useState<'ready' | 'playing' | 'done'>('ready');
 
   // Generate a fresh random grid on each game — guaranteed ≥5 valid words.
@@ -543,7 +546,7 @@ export function WordWeave({ onComplete }: Props) {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: COLORS.background,

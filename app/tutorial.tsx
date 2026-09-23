@@ -12,7 +12,7 @@
 // Completion: markTutorialSeen() persisted via useUserStore.
 // ═══════════════════════════════════════════════════════════════════════════
 
-import React, { useRef, useEffect, useCallback, useState } from 'react';
+import React, { useRef, useEffect, useCallback, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -27,20 +27,20 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, type Href } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { COLORS, FONTS } from '@/constants/Colors';
+import { FONTS } from '@/constants/Colors';
+import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { useUserStore } from '@/stores/useUserStore';
 
 const { width: SCREEN_W } = Dimensions.get('window');
-const C = COLORS;
 
 // ─── Step definitions ─────────────────────────────────────────────────────────
 
 type Step = {
   id: string;
   emoji: string;
-  accentColor: string;
-  accentDim: string;
+  colorKey: keyof ArcadeColors;
+  dimKey: keyof ArcadeColors;
   title: string;
   subtitle: string;
   body: string;
@@ -52,6 +52,7 @@ type Step = {
 // Each is a lightweight React component drawing a stylised mockup with Views.
 
 const BlocklistIllustration: React.FC<{ accent: string; dim: string }> = ({ accent, dim }) => {
+  const COLORS = useThemedColors();
   const pulse = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.loop(
@@ -73,10 +74,10 @@ const BlocklistIllustration: React.FC<{ accent: string; dim: string }> = ({ acce
       </Animated.View>
       <View style={ill.list}>
         {rows.map((r, i) => (
-          <View key={i} style={[ill.row, { backgroundColor: C.surface, borderColor: C.cardBorder }]}>
+          <View key={i} style={[ill.row, { backgroundColor: COLORS.surface, borderColor: COLORS.cardBorder }]}>
             <View style={[ill.dot, { backgroundColor: accent }]} />
-            <Text style={[ill.rowText, { color: C.textSecondary }]}>{r}</Text>
-            <Feather name="x" size={14} color={C.textMuted} />
+            <Text style={[ill.rowText, { color: COLORS.textSecondary }]}>{r}</Text>
+            <Feather name="x" size={14} color={COLORS.textMuted} />
           </View>
         ))}
       </View>
@@ -85,6 +86,7 @@ const BlocklistIllustration: React.FC<{ accent: string; dim: string }> = ({ acce
 };
 
 const GateIllustration: React.FC<{ accent: string; dim: string }> = ({ accent, dim }) => {
+  const COLORS = useThemedColors();
   const scale = useRef(new Animated.Value(1)).current;
   const dot1 = useRef(new Animated.Value(0.3)).current;
   const dot2 = useRef(new Animated.Value(0.3)).current;
@@ -115,7 +117,7 @@ const GateIllustration: React.FC<{ accent: string; dim: string }> = ({ accent, d
       <Animated.View style={[ill.breathCircle, { backgroundColor: dim, borderColor: accent, transform: [{ scale }] }]}>
         <Feather name="wind" size={32} color={accent} />
       </Animated.View>
-      <Text style={[ill.gateLabel, { color: C.textMuted }]}>breathe</Text>
+      <Text style={[ill.gateLabel, { color: COLORS.textMuted }]}>breathe</Text>
       <View style={ill.dotsRow}>
         {[dot1, dot2, dot3].map((d, i) => (
           <Animated.View key={i} style={[ill.progressDot, { backgroundColor: accent, opacity: d }]} />
@@ -177,6 +179,7 @@ const ArcadeIllustration: React.FC<{ accent: string; dim: string }> = ({ accent,
 };
 
 const WalkAwayIllustration: React.FC<{ accent: string; dim: string }> = ({ accent, dim }) => {
+  const COLORS = useThemedColors();
   const scale = useRef(new Animated.Value(1)).current;
   const confettiAnims = Array.from({ length: 6 }, () => ({
     y: useRef(new Animated.Value(0)).current,
@@ -216,7 +219,7 @@ const WalkAwayIllustration: React.FC<{ accent: string; dim: string }> = ({ accen
     });
   }, [scale]);
 
-  const confettiColors = [accent, C.green, C.cyan, C.purple, '#6D28D9', C.warning];
+  const confettiColors = [accent, COLORS.green, COLORS.cyan, COLORS.purple, '#6D28D9', COLORS.warning];
 
   return (
     <View style={ill.container}>
@@ -242,11 +245,11 @@ const WalkAwayIllustration: React.FC<{ accent: string; dim: string }> = ({ accen
       <View style={ill.statRow}>
         <View style={[ill.statChip, { backgroundColor: dim }]}>
           <Text style={[ill.statNum, { color: accent }]}>47</Text>
-          <Text style={[ill.statLabel, { color: C.textMuted }]}>walk-aways</Text>
+          <Text style={[ill.statLabel, { color: COLORS.textMuted }]}>walk-aways</Text>
         </View>
         <View style={[ill.statChip, { backgroundColor: dim }]}>
           <Text style={[ill.statNum, { color: accent }]}>12</Text>
-          <Text style={[ill.statLabel, { color: C.textMuted }]}>day streak</Text>
+          <Text style={[ill.statLabel, { color: COLORS.textMuted }]}>day streak</Text>
         </View>
       </View>
     </View>
@@ -254,25 +257,30 @@ const WalkAwayIllustration: React.FC<{ accent: string; dim: string }> = ({ accen
 };
 
 const FocusIllustration: React.FC<{ accent: string; dim: string }> = ({ accent, dim }) => {
+  const COLORS = useThemedColors();
   const progress = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
-        Animated.timing(progress, { toValue: 1, duration: 3000, useNativeDriver: false }),
-        Animated.timing(progress, { toValue: 0, duration: 500, useNativeDriver: false }),
+        Animated.timing(progress, { toValue: 1, duration: 3000, useNativeDriver: true }),
+        Animated.timing(progress, { toValue: 0, duration: 500, useNativeDriver: true }),
       ])
     ).start();
   }, [progress]);
-  const barWidth = progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
 
   return (
     <View style={ill.container}>
-      <View style={[ill.focusCard, { backgroundColor: C.surface, borderColor: C.cardBorder }]}>
+      <View style={[ill.focusCard, { backgroundColor: COLORS.surface, borderColor: COLORS.cardBorder }]}>
         <Feather name="clock" size={28} color={accent} />
-        <Text style={[ill.focusTime, { color: C.textPrimary }]}>45:00</Text>
-        <Text style={[ill.focusLabel, { color: C.textMuted }]}>Focus Session</Text>
+        <Text style={[ill.focusTime, { color: COLORS.textPrimary }]}>45:00</Text>
+        <Text style={[ill.focusLabel, { color: COLORS.textMuted }]}>Focus Session</Text>
         <View style={ill.progressTrack}>
-          <Animated.View style={[ill.progressFill, { width: barWidth, backgroundColor: accent }]} />
+          <Animated.View
+            style={[
+              ill.progressFill,
+              { transform: [{ scaleX: progress }], transformOrigin: 'left', backgroundColor: accent },
+            ]}
+          />
         </View>
         <View style={[ill.focusBadge, { backgroundColor: dim, borderColor: accent }]}>
           <Text style={[ill.focusBadgeText, { color: accent }]}>Blocking paused</Text>
@@ -283,6 +291,7 @@ const FocusIllustration: React.FC<{ accent: string; dim: string }> = ({ accent, 
 };
 
 const VpnIllustration: React.FC<{ accent: string; dim: string }> = ({ accent, dim }) => {
+  const COLORS = useThemedColors();
   const flash = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.loop(
@@ -306,13 +315,13 @@ const VpnIllustration: React.FC<{ accent: string; dim: string }> = ({ accent, di
           key={i}
           style={[
             ill.layerRow,
-            { backgroundColor: C.surface, borderColor: C.cardBorder, opacity: flash.interpolate({ inputRange: [0.4, 1], outputRange: [0.6 + i * 0.15, 1] }) },
+            { backgroundColor: COLORS.surface, borderColor: COLORS.cardBorder, opacity: flash.interpolate({ inputRange: [0.4, 1], outputRange: [0.6 + i * 0.15, 1] }) },
           ]}
         >
           <View style={[ill.layerIcon, { backgroundColor: dim }]}>
             <Feather name={l.icon} size={16} color={accent} />
           </View>
-          <Text style={[ill.layerLabel, { color: C.textSecondary }]}>{l.label}</Text>
+          <Text style={[ill.layerLabel, { color: COLORS.textSecondary }]}>{l.label}</Text>
           <View style={[ill.onBadge, { backgroundColor: dim }]}>
             <Text style={[ill.onText, { color: accent }]}>ON</Text>
           </View>
@@ -323,6 +332,7 @@ const VpnIllustration: React.FC<{ accent: string; dim: string }> = ({ accent, di
 };
 
 const IntentionIllustration: React.FC<{ accent: string; dim: string }> = ({ accent, dim }) => {
+  const COLORS = useThemedColors();
   const fade = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.loop(
@@ -337,9 +347,9 @@ const IntentionIllustration: React.FC<{ accent: string; dim: string }> = ({ acce
 
   return (
     <View style={ill.container}>
-      <View style={[ill.intentionCard, { backgroundColor: C.surface, borderColor: accent + '60' }]}>
-        <Text style={[ill.intentionTime, { color: C.textMuted }]}>Today's intention</Text>
-        <Animated.Text style={[ill.intentionGoal, { color: C.textPrimary, opacity: fade }]}>
+      <View style={[ill.intentionCard, { backgroundColor: COLORS.surface, borderColor: accent + '60' }]}>
+        <Text style={[ill.intentionTime, { color: COLORS.textMuted }]}>Today's intention</Text>
+        <Animated.Text style={[ill.intentionGoal, { color: COLORS.textPrimary, opacity: fade }]}>
           "Finish the design doc."
         </Animated.Text>
         <View style={[ill.intentionTag, { backgroundColor: dim }]}>
@@ -352,18 +362,19 @@ const IntentionIllustration: React.FC<{ accent: string; dim: string }> = ({ acce
 };
 
 const InsightsIllustration: React.FC<{ accent: string; dim: string }> = ({ accent, dim }) => {
+  const COLORS = useThemedColors();
   const bars = [5, 3, 8, 2, 11, 7, 9];
   const anims = bars.map(() => useRef(new Animated.Value(0)).current);
 
   useEffect(() => {
     Animated.stagger(
       120,
-      anims.map((a, i) =>
+      anims.map((a) =>
         Animated.loop(
           Animated.sequence([
-            Animated.timing(a, { toValue: bars[i], duration: 800, useNativeDriver: false }),
+            Animated.timing(a, { toValue: 1, duration: 800, useNativeDriver: true }),
             Animated.delay(1500),
-            Animated.timing(a, { toValue: 0, duration: 400, useNativeDriver: false }),
+            Animated.timing(a, { toValue: 0, duration: 400, useNativeDriver: true }),
             Animated.delay(200),
           ])
         )
@@ -377,20 +388,28 @@ const InsightsIllustration: React.FC<{ accent: string; dim: string }> = ({ accen
   return (
     <View style={ill.container}>
       <View style={ill.chartWrap}>
-        {bars.map((_, i) => (
-          <View key={i} style={ill.barCol}>
-            <Animated.View
-              style={[
-                ill.bar,
-                {
-                  backgroundColor: accent,
-                  height: anims[i].interpolate({ inputRange: [0, 11], outputRange: [4, maxH] }),
-                },
-              ]}
-            />
-            <Text style={[ill.barLabel, { color: C.textMuted }]}>{dayLabels[i]}</Text>
-          </View>
-        ))}
+        {bars.map((barValue, i) => {
+          // Same visual mapping as before (0 -> 4px, 11 -> maxH), now driven by a
+          // static target height + a 0-1 native-driven scaleY instead of animating
+          // `height` directly (height can't run on the native thread).
+          const barHeight = 4 + (barValue / 11) * (maxH - 4);
+          return (
+            <View key={i} style={ill.barCol}>
+              <Animated.View
+                style={[
+                  ill.bar,
+                  {
+                    backgroundColor: accent,
+                    height: barHeight,
+                    transform: [{ scaleY: anims[i] }],
+                    transformOrigin: 'bottom',
+                  },
+                ]}
+              />
+              <Text style={[ill.barLabel, { color: COLORS.textMuted }]}>{dayLabels[i]}</Text>
+            </View>
+          );
+        })}
       </View>
       <View style={[ill.insightChip, { backgroundColor: dim, borderColor: accent + '40' }]}>
         <Text style={[ill.insightText, { color: accent }]}>Peak urge: 9–10 PM</Text>
@@ -400,6 +419,7 @@ const InsightsIllustration: React.FC<{ accent: string; dim: string }> = ({ accen
 };
 
 const WindDownIllustration: React.FC<{ accent: string; dim: string }> = ({ accent, dim }) => {
+  const COLORS = useThemedColors();
   const moonGlow = useRef(new Animated.Value(0.6)).current;
   useEffect(() => {
     Animated.loop(
@@ -415,14 +435,14 @@ const WindDownIllustration: React.FC<{ accent: string; dim: string }> = ({ accen
       <Animated.View style={[ill.moonCircle, { backgroundColor: dim, borderColor: accent, opacity: moonGlow }]}>
         <Text style={{ fontSize: 36 }}>🌙</Text>
       </Animated.View>
-      <View style={[ill.scheduleCard, { backgroundColor: C.surface, borderColor: C.cardBorder }]}>
+      <View style={[ill.scheduleCard, { backgroundColor: COLORS.surface, borderColor: COLORS.cardBorder }]}>
         <View style={ill.scheduleRow}>
           <Feather name="clock" size={14} color={accent} />
-          <Text style={[ill.scheduleText, { color: C.textSecondary }]}>Starts at 9:00 PM</Text>
+          <Text style={[ill.scheduleText, { color: COLORS.textSecondary }]}>Starts at 9:00 PM</Text>
         </View>
         <View style={ill.scheduleRow}>
-          <Feather name="sun" size={14} color={C.textMuted} />
-          <Text style={[ill.scheduleText, { color: C.textMuted }]}>Ends at 8:00 AM</Text>
+          <Feather name="sun" size={14} color={COLORS.textMuted} />
+          <Text style={[ill.scheduleText, { color: COLORS.textMuted }]}>Ends at 8:00 AM</Text>
         </View>
         <View style={[ill.scheduleTag, { backgroundColor: dim }]}>
           <Text style={[ill.scheduleTagText, { color: accent }]}>Every day</Text>
@@ -452,7 +472,7 @@ const LootIllustration: React.FC<{ accent: string; dim: string }> = ({ accent, d
     ).start();
   }, [bounce, sparkle]);
 
-  const items = ['🎨', '🌟', '🏆', '⚡'];
+  const items = ['🎮', '📔', '🧩']; // Arcade, Journal, Organizer
 
   return (
     <View style={ill.container}>
@@ -487,10 +507,10 @@ const STEPS: Step[] = [
   {
     id: 'blocklist',
     emoji: '🛡️',
-    accentColor: C.purple,
-    accentDim: C.purpleDim,
+    colorKey: 'purple' as const,
+    dimKey: 'purpleDim' as const,
     title: 'Block what pulls you in',
-    subtitle: 'Step 1 of 9',
+    subtitle: 'Step 1 of 10',
     body: 'Add any app or website to your blocklist. The moment you open one, NoGoon steps in before the habit loop fires.\n\nTap the + on the Block tab to add your first site.',
     cta: { label: 'Open Blocklist', route: '/(tabs)/blocklist' },
     Illustration: BlocklistIllustration,
@@ -498,41 +518,52 @@ const STEPS: Step[] = [
   {
     id: 'gate',
     emoji: '🌬️',
-    accentColor: C.indigoBright,
-    accentDim: C.indigoDim,
+    colorKey: 'indigoBright' as const,
+    dimKey: 'indigoDim' as const,
     title: 'The intercept screen',
-    subtitle: 'Step 2 of 9',
+    subtitle: 'Step 2 of 10',
     body: 'When you open a blocked app, you get a 3-second breathing pause. A calm moment before the craving hits full force.\n\nMost urges peak and pass in under 90 seconds — the pause is the product.',
     Illustration: GateIllustration,
   },
   {
     id: 'arcade',
     emoji: '🎮',
-    accentColor: C.arcade,
-    accentDim: C.arcadeDim,
+    colorKey: 'arcade' as const,
+    dimKey: 'arcadeDim' as const,
     title: 'Play a game instead',
-    subtitle: 'Step 3 of 9',
-    body: 'After the pause, you\'re offered a quick game — 2048, Snake, WordWeave, BallSort, and 11 more. They redirect the dopamine hit.\n\nYou choose whether to unlock the app or walk away when the game ends.',
+    subtitle: 'Step 3 of 10',
+    body: 'After the pause, you\'re offered a quick game — 2048, Snake, WordWeave, and 16 more. They redirect the dopamine hit.\n\nYou choose whether to unlock the app or walk away when the game ends.',
     cta: { label: 'Browse the Arcade', route: '/(tabs)/arcade' },
     Illustration: ArcadeIllustration,
   },
   {
     id: 'walkaway',
     emoji: '🚶',
-    accentColor: C.green,
-    accentDim: C.greenDim,
+    colorKey: 'green' as const,
+    dimKey: 'greenDim' as const,
     title: 'Walk Away wins every time',
-    subtitle: 'Step 4 of 9',
+    subtitle: 'Step 4 of 10',
     body: 'Walk Away is always the primary button after a game. Each walk-away earns XP, builds your streak, and goes in your lifetime total.\n\nThe walk-away count is the only metric that matters — it\'s how many times the app actually worked.',
     Illustration: WalkAwayIllustration,
   },
   {
+    id: 'unlocks',
+    emoji: '🎁',
+    colorKey: 'arcade' as const,
+    dimKey: 'arcadeDim' as const,
+    title: 'Unlock more as you go',
+    subtitle: 'Step 5 of 10',
+    body: 'Keep walking away and NoGoon opens up: the full Arcade (all 19 games), Journal, and Organizer mode for your Home screen all unlock at walk-away milestones.\n\nAnything you see locked isn\'t gone for good — it\'s waiting for you to earn it.',
+    cta: { label: "See what's locked", route: '/(tabs)/arcade' },
+    Illustration: LootIllustration,
+  },
+  {
     id: 'focus',
     emoji: '⏱️',
-    accentColor: C.cyan,
-    accentDim: C.cyanDim,
+    colorKey: 'cyan' as const,
+    dimKey: 'cyanDim' as const,
     title: 'Focus Session',
-    subtitle: 'Step 5 of 9',
+    subtitle: 'Step 6 of 10',
     body: 'Need to work without interruption? Start a Focus Session to pause blocking for a set time. It expires automatically — no willpower required to end it.\n\nFind it on the Home screen or via the Quick Settings tile.',
     cta: { label: 'Go to Home', route: '/' },
     Illustration: FocusIllustration,
@@ -540,10 +571,10 @@ const STEPS: Step[] = [
   {
     id: 'protection',
     emoji: '🔐',
-    accentColor: C.purple,
-    accentDim: C.purpleDim,
+    colorKey: 'purple' as const,
+    dimKey: 'purpleDim' as const,
     title: 'Three layers of protection',
-    subtitle: 'Step 6 of 9',
+    subtitle: 'Step 7 of 10',
     body: 'NoGoon has three independent blocking layers: the Accessibility Service (app-level), a VPN DNS filter (network-level), and a Notification Listener (push-level).\n\nEnable all three on the Protection screen for airtight coverage.',
     cta: { label: 'Protection Settings', route: '/protection' },
     Illustration: VpnIllustration,
@@ -551,10 +582,10 @@ const STEPS: Step[] = [
   {
     id: 'intention',
     emoji: '🎯',
-    accentColor: C.indigoBright,
-    accentDim: C.indigoDim,
+    colorKey: 'indigoBright' as const,
+    dimKey: 'indigoDim' as const,
     title: 'Daily Intention',
-    subtitle: 'Step 7 of 9',
+    subtitle: 'Step 8 of 10',
     body: 'Set a short intention each morning — what you\'re protecting your focus for. It shows up quietly on the gate screen as a reminder of your own words.\n\nNot a rule. Just a nudge from past-you to present-you.',
     cta: { label: 'Set Today\'s Intention', route: '/' },
     Illustration: IntentionIllustration,
@@ -562,10 +593,10 @@ const STEPS: Step[] = [
   {
     id: 'insights',
     emoji: '📊',
-    accentColor: C.cyan,
-    accentDim: C.cyanDim,
+    colorKey: 'cyan' as const,
+    dimKey: 'cyanDim' as const,
     title: 'Track your patterns',
-    subtitle: 'Step 8 of 9',
+    subtitle: 'Step 9 of 10',
     body: 'The Insights screen shows your daily walk-aways for the past week, your peak distraction hour, and how you felt after each intercept.\n\nSpots emerge quickly — most people find a 2-hour window that accounts for most of their scrolling.',
     cta: { label: 'View Insights', route: '/insights' },
     Illustration: InsightsIllustration,
@@ -573,10 +604,10 @@ const STEPS: Step[] = [
   {
     id: 'winddown',
     emoji: '🌙',
-    accentColor: C.indigo,
-    accentDim: 'rgba(27,94,32,0.15)',
+    colorKey: 'indigo' as const,
+    dimKey: 'indigoDim' as const,
     title: 'Wind-down Mode',
-    subtitle: 'Step 9 of 9',
+    subtitle: 'Step 10 of 10',
     body: 'Schedule automatic quiet hours. After your cutoff, NoGoon ramps up friction on every blocked site — harder games, longer pauses, fewer escape routes.\n\nSet it once on your Profile and stop negotiating with yourself at night.',
     cta: { label: 'Open Profile', route: '/(tabs)/profile' },
     Illustration: WindDownIllustration,
@@ -586,6 +617,8 @@ const STEPS: Step[] = [
 // ─── Tutorial screen ──────────────────────────────────────────────────────────
 
 export default function TutorialScreen() {
+  const COLORS = useThemedColors();
+  const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   const markTutorialSeen = useUserStore((s) => s.markTutorialSeen);
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatRef = useRef<FlatList>(null);
@@ -636,7 +669,7 @@ export default function TutorialScreen() {
       <View style={styles.header}>
         {currentIndex > 0 ? (
           <Pressable style={styles.navBtn} onPress={handleBack} hitSlop={8}>
-            <Feather name="arrow-left" size={20} color={C.textMuted} />
+            <Feather name="arrow-left" size={20} color={COLORS.textMuted} />
           </Pressable>
         ) : (
           <View style={styles.navBtn} />
@@ -665,13 +698,13 @@ export default function TutorialScreen() {
       {/* Main content area */}
       <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
         {/* Illustration */}
-        <View style={[styles.illuWrap, { backgroundColor: step.accentDim, borderColor: step.accentColor + '30' }]}>
-          <step.Illustration accent={step.accentColor} dim={step.accentDim} />
+        <View style={[styles.illuWrap, { backgroundColor: COLORS[step.dimKey], borderColor: COLORS[step.colorKey] + '30' }]}>
+          <step.Illustration accent={COLORS[step.colorKey]} dim={COLORS[step.dimKey]} />
         </View>
 
         {/* Step badge */}
-        <View style={[styles.stepBadge, { backgroundColor: step.accentDim, borderColor: step.accentColor + '50' }]}>
-          <Text style={[styles.stepBadgeText, { color: step.accentColor }]}>
+        <View style={[styles.stepBadge, { backgroundColor: COLORS[step.dimKey], borderColor: COLORS[step.colorKey] + '50' }]}>
+          <Text style={[styles.stepBadgeText, { color: COLORS[step.colorKey] }]}>
             {step.emoji}  {step.subtitle}
           </Text>
         </View>
@@ -685,11 +718,11 @@ export default function TutorialScreen() {
         {/* CTA */}
         {step.cta && (
           <Pressable
-            style={[styles.ctaBtn, { borderColor: step.accentColor + '60', backgroundColor: step.accentDim }]}
+            style={[styles.ctaBtn, { borderColor: COLORS[step.colorKey] + '60', backgroundColor: COLORS[step.dimKey] }]}
             onPress={() => handleCta(step.cta!.route)}
           >
-            <Text style={[styles.ctaText, { color: step.accentColor }]}>{step.cta.label}</Text>
-            <Feather name="arrow-right" size={14} color={step.accentColor} />
+            <Text style={[styles.ctaText, { color: COLORS[step.colorKey] }]}>{step.cta.label}</Text>
+            <Feather name="arrow-right" size={14} color={COLORS[step.colorKey]} />
           </Pressable>
         )}
       </Animated.View>
@@ -702,8 +735,8 @@ export default function TutorialScreen() {
               style={[
                 styles.dot,
                 i === currentIndex
-                  ? { backgroundColor: step.accentColor, width: 20 }
-                  : { backgroundColor: C.border, width: 8 },
+                  ? { backgroundColor: COLORS[step.colorKey], width: 20 }
+                  : { backgroundColor: COLORS.border, width: 8 },
               ]}
             />
           </Pressable>
@@ -713,7 +746,7 @@ export default function TutorialScreen() {
       {/* Next / Finish button */}
       <View style={styles.footer}>
         <Pressable
-          style={[styles.nextBtn, { backgroundColor: step.accentColor }]}
+          style={[styles.nextBtn, { backgroundColor: COLORS[step.colorKey] }]}
           onPress={handleNext}
         >
           <Text style={styles.nextText}>{isLast ? 'Start using NoGoon' : 'Next'}</Text>
@@ -828,7 +861,7 @@ const ill = StyleSheet.create({
     borderRadius: 3,
     overflow: 'hidden',
   } as ViewStyle,
-  progressFill: { height: 6, borderRadius: 3 } as ViewStyle,
+  progressFill: { width: '100%', height: 6, borderRadius: 3 } as ViewStyle,
   focusBadge: {
     paddingHorizontal: SPACING.md,
     paddingVertical: 4,
@@ -943,10 +976,10 @@ const ill = StyleSheet.create({
 
 // ─── Screen styles ────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: C.background,
+    backgroundColor: COLORS.background,
   },
 
   header: {
@@ -956,7 +989,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: C.border,
+    borderBottomColor: COLORS.border,
   },
 
   navBtn: {
@@ -969,13 +1002,13 @@ const styles = StyleSheet.create({
   headerLabel: {
     fontFamily: FONTS.bodyMedium,
     fontSize: 15,
-    color: C.textSecondary,
+    color: COLORS.textSecondary,
   },
 
   skipText: {
     fontFamily: FONTS.body,
     fontSize: 14,
-    color: C.textMuted,
+    color: COLORS.textMuted,
   },
 
   content: {
@@ -1013,7 +1046,7 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.display,
     fontSize: 26,
     letterSpacing: -0.3,
-    color: C.textPrimary,
+    color: COLORS.textPrimary,
     lineHeight: 32,
   },
 
@@ -1021,7 +1054,7 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.body,
     fontSize: 15,
     lineHeight: 24,
-    color: C.textSecondary,
+    color: COLORS.textSecondary,
   },
 
   ctaBtn: {

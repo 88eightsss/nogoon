@@ -12,9 +12,10 @@ import { ScrollView, View, Text, StyleSheet, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { useUserStore } from '@/stores/useUserStore';
+import { useUserStore, getMinutesSaved } from '@/stores/useUserStore';
 import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
+import { useTheme } from '@/hooks/useTheme';
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -50,6 +51,7 @@ export default function InsightsScreen() {
     gamesPlayed,
     weeklyActivity,
     streak,
+    longestStreak,
     urgeJournal,
     commitmentLog,
     dailyWalkAways,
@@ -61,8 +63,8 @@ export default function InsightsScreen() {
   const allActiveDays = Object.keys(dailyWalkAways).filter(d => (dailyWalkAways[d] ?? 0) > 0).sort();
   const firstActiveDay  = allActiveDays[0] ?? null;
   const activeDayCount  = allActiveDays.length;
-  // Time saved: ~20 min per walk-away (average scrolling session avoided)
-  const minutesSaved    = walkAwayCount * 20;
+  // Time saved: derived, not stored — see getMinutesSaved in useUserStore
+  const minutesSaved    = getMinutesSaved(walkAwayCount);
   const hoursSaved      = Math.floor(minutesSaved / 60);
   const remMinutes      = minutesSaved % 60;
   const timeSavedLabel  = hoursSaved > 0
@@ -105,7 +107,21 @@ export default function InsightsScreen() {
   }
   const commitmentEntries = Object.entries(commitmentCounts).sort((a, b) => b[1] - a[1]);
 
-  const C = COLORS;
+  const { colors } = useTheme();
+  // Merge: theme-sensitive fields from useTheme, fixed semantic accent colors from COLORS
+  const C = {
+    ...COLORS,
+    background:    colors.background,
+    surface:       colors.surface,
+    surfaceHigh:   colors.surfaceHigh,
+    textPrimary:   colors.text,
+    textSecondary: colors.textSecondary,
+    textMuted:     colors.textMuted,
+    cardBorder:    colors.cardBorder,
+    border:        colors.border,
+    green:         colors.accent,
+    indigoBright:  colors.accent,
+  };
 
   // Walk-away chart
   const maxWalkAway    = Math.max(...walkAwayActivity, 1);
@@ -142,7 +158,7 @@ export default function InsightsScreen() {
   const maxHourCount    = Math.max(...HEATMAP_HOURS.map(h => hourlyOpenCounts[h] ?? 0), 1);
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
         {/* ── Header ──────────────────────────────────────────────────── */}
@@ -156,14 +172,14 @@ export default function InsightsScreen() {
 
         {/* ── All-time summary ──────────────────────────────────────────── */}
         <View style={styles.summaryRow}>
-          <SummaryCard num={walkAwayCount}   label={'total\nwalk-aways'}  color={C.green}   />
           <SummaryCard num={gamesPlayed}     label={'games\nplayed'}      color={C.purple}  />
           <SummaryCard num={totalThisWeek}   label={'walk-aways\nthis week'} color={C.cyan} />
+          <SummaryCard num={longestStreak}   label={'longest\nstreak'}    color={C.warning} />
         </View>
 
         {/* ── Since you started ─────────────────────────────────────────── */}
         {walkAwayCount > 0 && (
-          <View style={[styles.card, { borderColor: C.green + '44' }]}>
+          <View style={[styles.card, { borderColor: C.green + '44', backgroundColor: C.surface }]}>
             <Text style={[styles.cardTitle, { color: C.textPrimary }]}>Since you started</Text>
             <View style={styles.sinceGrid}>
               <SinceStat
@@ -217,7 +233,7 @@ export default function InsightsScreen() {
         )}
 
         {/* ── Walk-away bar chart ───────────────────────────────────────── */}
-        <View style={[styles.card, { borderColor: C.cardBorder }]}>
+        <View style={[styles.card, { borderColor: C.cardBorder, backgroundColor: C.surface }]}>
           <View style={styles.cardHeader}>
             <Text style={[styles.cardTitle, { color: C.textPrimary }]}>Walk-aways this week</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -253,7 +269,7 @@ export default function InsightsScreen() {
         </View>
 
         {/* ── Feeling breakdown ─────────────────────────────────────────── */}
-        <View style={[styles.card, { borderColor: C.cardBorder }]}>
+        <View style={[styles.card, { borderColor: C.cardBorder, backgroundColor: C.surface }]}>
           <View style={styles.cardHeader}>
             <Text style={[styles.cardTitle, { color: C.textPrimary }]}>What triggers you</Text>
             <Text style={[styles.cardSub, { color: C.textMuted }]}>
@@ -289,7 +305,7 @@ export default function InsightsScreen() {
         </View>
 
         {/* ── Peak hour heatmap ─────────────────────────────────────────── */}
-        <View style={[styles.card, { borderColor: C.cardBorder }]}>
+        <View style={[styles.card, { borderColor: C.cardBorder, backgroundColor: C.surface }]}>
           <View style={styles.cardHeader}>
             <Text style={[styles.cardTitle, { color: C.textPrimary }]}>When urges hit hardest</Text>
             {peakHour >= 0 && (
@@ -334,7 +350,7 @@ export default function InsightsScreen() {
 
         {/* ── Streak callout ────────────────────────────────────────────── */}
         {streak >= 3 && (
-          <View style={[styles.card, { borderColor: C.green + '44' }]}>
+          <View style={[styles.card, { borderColor: C.green + '44', backgroundColor: C.surface }]}>
             <View style={styles.streakRow}>
               <Text style={{ fontSize: 28 }}>🔥</Text>
               <View style={{ flex: 1 }}>
@@ -353,7 +369,7 @@ export default function InsightsScreen() {
 
         {/* ── What pulls you in (urge tag analysis) ─────────────────────── */}
         {tagEntries.length > 0 && (
-          <View style={[styles.card, { borderColor: C.cardBorder }]}>
+          <View style={[styles.card, { borderColor: C.cardBorder, backgroundColor: C.surface }]}>
             <View style={styles.cardHeader}>
               <Text style={[styles.cardTitle, { color: C.textPrimary }]}>What pulls you in</Text>
               <Text style={[styles.cardSub, { color: C.textMuted }]}>{recentUrges.length} tagged</Text>
@@ -394,7 +410,7 @@ export default function InsightsScreen() {
 
         {/* ── Urge journal (last 5 entries) ─────────────────────────────── */}
         {urgeJournal.length > 0 && (
-          <View style={styles.card}>
+          <View style={[styles.card, { backgroundColor: C.surface, borderColor: C.cardBorder }]}>
             <Text style={[styles.cardTitle, { color: C.textPrimary, marginBottom: SPACING.sm }]}>
               Recent Urges
             </Text>
@@ -440,7 +456,7 @@ export default function InsightsScreen() {
 
         {/* ── What you chose instead (commitments, last 7 days) ─────────── */}
         {commitmentEntries.length > 0 && (
-          <View style={styles.card}>
+          <View style={[styles.card, { backgroundColor: C.surface, borderColor: C.cardBorder }]}>
             <Text style={[styles.cardTitle, { color: C.textPrimary, marginBottom: SPACING.sm }]}>
               What you chose instead
             </Text>
@@ -479,7 +495,7 @@ export default function InsightsScreen() {
 
         {/* ── Follow-through rate ───────────────────────────────────── */}
         {ftEntries.length > 0 && (
-          <View style={[styles.card, { borderColor: C.cardBorder }]}>
+          <View style={[styles.card, { borderColor: C.cardBorder, backgroundColor: C.surface }]}>
             <View style={styles.cardHeader}>
               <Text style={[styles.cardTitle, { color: C.textPrimary }]}>Follow-through rate</Text>
               <Text style={[styles.cardSub, { color: C.textMuted }]}>{followThroughLog.length} checked</Text>
@@ -523,10 +539,11 @@ export default function InsightsScreen() {
 
 // ─── Sub-components ────────────────────────────────────────────────────────────
 function SummaryCard({ num, label, color }: { num: number; label: string; color: string }) {
+  const { colors } = useTheme();
   return (
-    <View style={[styles.summaryCard, { borderColor: color + '44' }]}>
+    <View style={[styles.summaryCard, { borderColor: color + '44', backgroundColor: colors.surface }]}>
       <Text style={[styles.summaryNum, { color }]}>{num}</Text>
-      <Text style={[styles.summaryLabel, { color: COLORS.textMuted }]}>{label}</Text>
+      <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>{label}</Text>
     </View>
   );
 }
@@ -537,11 +554,12 @@ function SinceStat({ icon, color, value, label }: {
   value: string;
   label: string;
 }) {
+  const { colors } = useTheme();
   return (
-    <View style={styles.sinceStat}>
+    <View style={[styles.sinceStat, { backgroundColor: colors.surfaceHigh }]}>
       <Feather name={icon} size={14} color={color} />
       <Text style={[styles.sinceValue, { color }]}>{value}</Text>
-      <Text style={[styles.sinceLabel, { color: COLORS.textMuted }]}>{label}</Text>
+      <Text style={[styles.sinceLabel, { color: colors.textMuted }]}>{label}</Text>
     </View>
   );
 }
@@ -582,7 +600,6 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    backgroundColor: COLORS.surface,
     padding: SPACING.md,
     alignItems: 'center',
     gap: 4,
@@ -603,7 +620,6 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    backgroundColor: COLORS.surface,
     padding: SPACING.lg,
     gap: SPACING.md,
   },
@@ -703,7 +719,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 3,
     paddingVertical: SPACING.sm,
-    backgroundColor: COLORS.background,
     borderRadius: RADIUS.md,
   },
   sinceValue: {

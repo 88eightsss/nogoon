@@ -8,6 +8,7 @@
 //   openAccessibilitySettings()               — opens Android's Accessibility Settings screen
 //   isBatteryOptimized()                      — returns true if battery optimization is still on (bad)
 //   openBatteryOptimizationSettings()         — opens the battery exemption dialog
+//   openOemAutostartSettings()                — opens the OEM-specific autostart/battery manager screen
 //   setTemporaryUnlock(domain, expiry)        — unlocks a domain until the given timestamp
 //   clearTemporaryUnlock(domain)              — removes a temporary unlock
 //   isBlockingPaused()                        — returns QS-tile pausedUntil timestamp (0 = not paused)
@@ -30,6 +31,7 @@ import android.app.Activity
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -105,6 +107,10 @@ class AppBlockerModule(reactContext: ReactApplicationContext) :
         installCrashNotifier(reactContext)
         // Register for VPN consent dialog result
         reactContext.addActivityEventListener(activityEventListener)
+        // Make sure the protection watchdog is scheduled. Idempotent (KEEP
+        // policy) — this just confirms the periodic background check is
+        // running, it doesn't reset its timer on every app launch.
+        ProtectionWatchdogWorker.schedule(reactContext.applicationContext)
     }
 
     override fun getName(): String = NAME
@@ -335,6 +341,84 @@ class AppBlockerModule(reactContext: ReactApplicationContext) :
             promise.resolve(true)
         } catch (e: Exception) {
             promise.reject("OPEN_BATTERY_SETTINGS_ERROR", e.message ?: "Unknown error", e)
+        }
+    }
+
+    // ── openOemAutostartSettings ──────────────────────────────────────────────
+    // Many OEM Android skins (MIUI, ColorOS, FuntouchOS/OriginOS, One UI, and
+    // others) run their OWN battery/autostart manager on top of stock Android's
+    // Doze exemption — a user can grant us REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+    // and the OEM layer can still silently kill the Accessibility Service.
+    // There is no public API to query or request this state, so the best we
+    // can do is deep-link straight to the manufacturer's settings screen and
+    // let the user enable "Autostart" / "No restrictions" themselves.
+    //
+    // We try each known ComponentName for this device's manufacturer, and
+    // fall back to this app's generic App Info screen if every deep link
+    // fails (an OEM can change or remove these screens between OS versions).
+    // Resolves true when a manufacturer-specific screen opened, false when we
+    // had to fall back to the generic App Info screen — JS uses this to show
+    // an honest "opened general settings instead" note rather than implying
+    // the specific autostart toggle was found.
+
+    @ReactMethod
+    fun openOemAutostartSettings(promise: Promise) {
+        val manufacturer = Build.MANUFACTURER.lowercase()
+        val componentCandidates: List<ComponentName> = when {
+            manufacturer.contains("xiaomi") -> listOf(
+                ComponentName("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity"),
+                ComponentName("com.miui.securitycenter", "com.miui.powercenter.PowerSettings")
+            )
+            manufacturer.contains("oppo") -> listOf(
+                ComponentName("com.coloros.safecenter", "com.coloros.safecenter.permission.startup.StartupAppListActivity"),
+                ComponentName("com.coloros.safecenter", "com.coloros.safecenter.startupapp.StartupAppListActivity"),
+                ComponentName("com.oppo.safe", "com.oppo.safe.permission.startup.StartupAppListActivity")
+            )
+            manufacturer.contains("realme") -> listOf(
+                ComponentName("com.coloros.safecenter", "com.coloros.safecenter.permission.startup.StartupAppListActivity"),
+                ComponentName("com.coloros.safecenter", "com.coloros.safecenter.startupapp.StartupAppListActivity")
+            )
+            manufacturer.contains("oneplus") -> listOf(
+                ComponentName("com.oneplus.security", "com.oneplus.security.chainlaunch.view.ChainLaunchAppListActivity"),
+                ComponentName("com.coloros.safecenter", "com.coloros.safecenter.permission.startup.StartupAppListActivity")
+            )
+            manufacturer.contains("vivo") -> listOf(
+                ComponentName("com.iqoo.secure", "com.iqoo.secure.ui.phoneoptimize.AddWhiteListActivity"),
+                ComponentName("com.vivo.permissionmanager", "com.vivo.permissionmanager.activity.BgStartUpManagerActivity"),
+                ComponentName("com.iqoo.secure", "com.iqoo.secure.ui.phoneoptimize.BgStartUpManager")
+            )
+            manufacturer.contains("samsung") -> listOf(
+                ComponentName("com.samsung.android.lool", "com.samsung.android.sm.ui.battery.BatteryActivity"),
+                ComponentName("com.samsung.android.sm", "com.samsung.android.sm.ui.battery.BatteryActivity")
+            )
+            else -> emptyList()
+        }
+
+        for (component in componentCandidates) {
+            try {
+                val intent = Intent().apply {
+                    setComponent(component)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                reactApplicationContext.startActivity(intent)
+                promise.resolve(true)
+                return
+            } catch (e: Exception) {
+                // This screen doesn't exist on this device/OS version — try the next one
+            }
+        }
+
+        // Fallback: this app's generic App Info screen (always exists)
+        try {
+            val packageName = reactApplicationContext.packageName
+            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = Uri.parse("package:$packageName")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            reactApplicationContext.startActivity(intent)
+            promise.resolve(false)
+        } catch (e: Exception) {
+            promise.reject("OPEN_OEM_SETTINGS_ERROR", e.message ?: "Unknown error", e)
         }
     }
 

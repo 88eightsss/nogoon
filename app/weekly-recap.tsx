@@ -24,19 +24,18 @@ import { router } from 'expo-router';
 import { useUserStore } from '@/stores/useUserStore';
 import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
+import { useTheme } from '@/hooks/useTheme';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
-// Returns the date string "YYYY-MM-DD" for n days ago (0 = today).
 function dateKey(daysAgo: number): string {
   const d = new Date();
   d.setDate(d.getDate() - daysAgo);
   return d.toISOString().split('T')[0];
 }
 
-// Returns day-of-week label for a date key.
 function dayLabel(key: string): string {
   const d = new Date(key + 'T12:00:00');
   return DAY_LABELS[d.getDay()];
@@ -45,28 +44,27 @@ function dayLabel(key: string): string {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function WeeklyRecapScreen() {
+  const { colors } = useTheme();
   const {
-    walkAwayActivity,   // [number × 7] last-7-days walk-aways, index 0 = 6 days ago, index 6 = today
-    dailyWalkAways,     // Record<YYYY-MM-DD, number>
-    reflectionCounts,   // Record<tag, number>
-    walkAwayCount,      // lifetime total
+    walkAwayActivity,
+    dailyWalkAways,
+    reflectionCounts,
+    walkAwayCount,
     streak,
     name,
   } = useUserStore();
 
-  // ── Build 7-day data ───────────────────────────────────────────────────────
-  // walkAwayActivity[6] = today, walkAwayActivity[0] = 6 days ago
   const days = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => {
-      const daysAgo = 6 - i;           // i=0 → 6 days ago, i=6 → today
+      const daysAgo = 6 - i;
       const key = dateKey(daysAgo);
       const count = dailyWalkAways[key] ?? walkAwayActivity[i] ?? 0;
       return { key, label: dayLabel(key), count, daysAgo };
     });
   }, [dailyWalkAways, walkAwayActivity]);
 
-  const weekTotal = useMemo(() => days.reduce((s, d) => s + d.count, 0), [days]);
-  const maxDay    = useMemo(() => Math.max(...days.map((d) => d.count), 1), [days]);
+  const weekTotal   = useMemo(() => days.reduce((s, d) => s + d.count, 0), [days]);
+  const maxDay      = useMemo(() => Math.max(...days.map((d) => d.count), 1), [days]);
   const consistency = useMemo(() => {
     const activeDays = days.filter((d) => d.count > 0).length;
     return Math.round((activeDays / 7) * 100);
@@ -83,11 +81,9 @@ export default function WeeklyRecapScreen() {
     return entries.sort((a, b) => b[1] - a[1])[0][0];
   }, [reflectionCounts]);
 
-  // ── Share ──────────────────────────────────────────────────────────────────
-
   const handleShare = async () => {
     const lines = [
-      `📊 My NoGoon Week`,
+      `My NoGoon Week`,
       ``,
       `Walk-aways: ${weekTotal} this week`,
       `Consistency: ${consistency}% of days`,
@@ -96,22 +92,18 @@ export default function WeeklyRecapScreen() {
       `Lifetime total: ${walkAwayCount} walk-aways`,
       streak > 0 ? `Current streak: ${streak} days` : '',
       ``,
-      `🛡️ Built the discipline muscle with @NoGoon`,
+      `Built the discipline muscle with NoGoon`,
     ].filter(Boolean).join('\n');
 
     try {
       await Share.share({ message: lines });
-    } catch (_) {
-      // share sheet cancelled — ignore
-    }
+    } catch (_) { /* cancelled */ }
   };
-
-  // ── Render ─────────────────────────────────────────────────────────────────
 
   const todayKey = dateKey(0);
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
@@ -119,27 +111,27 @@ export default function WeeklyRecapScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Pressable style={styles.backBtn} onPress={() => router.back()}>
-            <Feather name="arrow-left" size={20} color={COLORS.textSecondary} />
+          <Pressable style={styles.navBtn} onPress={() => router.back()}>
+            <Feather name="arrow-left" size={20} color={colors.textSecondary} />
           </Pressable>
-          <Text style={styles.headerTitle}>Weekly Recap</Text>
-          <Pressable style={styles.shareBtn} onPress={handleShare}>
-            <Feather name="share-2" size={18} color={COLORS.green} />
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Weekly Recap</Text>
+          <Pressable style={styles.navBtn} onPress={handleShare}>
+            <Feather name="share-2" size={18} color={colors.accent} />
           </Pressable>
         </View>
 
-        {/* Hero stat */}
-        <View style={styles.heroCard}>
-          <Text style={styles.heroNum}>{weekTotal}</Text>
-          <Text style={styles.heroLabel}>walk-aways this week</Text>
+        {/* Hero */}
+        <View style={[styles.heroCard, { backgroundColor: colors.surface, borderColor: colors.accent + '44' }]}>
+          <Text style={[styles.heroNum, { color: colors.accent }]}>{weekTotal}</Text>
+          <Text style={[styles.heroLabel, { color: colors.textSecondary }]}>walk-aways this week</Text>
           {name ? (
-            <Text style={styles.heroName}>Keep going, {name} 🙌</Text>
+            <Text style={[styles.heroName, { color: colors.textMuted }]}>Keep going, {name}</Text>
           ) : null}
         </View>
 
         {/* Bar chart */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Daily Breakdown</Text>
+        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+          <Text style={[styles.cardTitle, { color: colors.textMuted }]}>Daily Breakdown</Text>
           <View style={styles.barChart}>
             {days.map((d) => {
               const isToday = d.key === todayKey;
@@ -147,16 +139,20 @@ export default function WeeklyRecapScreen() {
               return (
                 <View key={d.key} style={styles.barCol}>
                   {d.count > 0 && (
-                    <Text style={styles.barCount}>{d.count}</Text>
+                    <Text style={[styles.barCount, { color: colors.textMuted }]}>{d.count}</Text>
                   )}
                   <View
                     style={[
                       styles.bar,
-                      { height: barH, backgroundColor: isToday ? COLORS.green : COLORS.green + '55' },
-                      d.count === 0 && styles.barEmpty,
+                      {
+                        height: barH,
+                        backgroundColor: d.count === 0
+                          ? colors.border
+                          : isToday ? colors.accent : colors.accent + '55',
+                      },
                     ]}
                   />
-                  <Text style={[styles.barLabel, isToday && { color: COLORS.green }]}>
+                  <Text style={[styles.barLabel, { color: isToday ? colors.accent : colors.textMuted }]}>
                     {d.label}
                   </Text>
                 </View>
@@ -167,29 +163,27 @@ export default function WeeklyRecapScreen() {
 
         {/* Stats row */}
         <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <Text style={styles.statNum}>{consistency}%</Text>
-            <Text style={styles.statLabel}>consistency</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statNum}>{bestDay ? bestDay.count : 0}</Text>
-            <Text style={styles.statLabel}>best day</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statNum}>{streak}</Text>
-            <Text style={styles.statLabel}>day streak</Text>
-          </View>
+          {[
+            { num: `${consistency}%`, label: 'consistency' },
+            { num: bestDay ? String(bestDay.count) : '0', label: 'best day' },
+            { num: String(streak), label: 'day streak' },
+          ].map(({ num, label }) => (
+            <View key={label} style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+              <Text style={[styles.statNum, { color: colors.text }]}>{num}</Text>
+              <Text style={[styles.statLabel, { color: colors.textMuted }]}>{label}</Text>
+            </View>
+          ))}
         </View>
 
-        {/* Urge insights */}
+        {/* Top trigger */}
         {topTag && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Top Trigger</Text>
+          <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+            <Text style={[styles.cardTitle, { color: colors.textMuted }]}>Top Trigger</Text>
             <View style={styles.tagRow}>
-              <View style={styles.tagPill}>
-                <Text style={styles.tagText}>{topTag}</Text>
+              <View style={[styles.tagPill, { backgroundColor: COLORS.warning + '22', borderColor: COLORS.warning + '55' }]}>
+                <Text style={[styles.tagText, { color: COLORS.warning }]}>{topTag}</Text>
               </View>
-              <Text style={[styles.cardBody, { flex: 1 }]}>
+              <Text style={[styles.cardBody, { flex: 1, color: colors.textSecondary }]}>
                 Your most common feeling when you hit a blocked app.
               </Text>
             </View>
@@ -197,28 +191,31 @@ export default function WeeklyRecapScreen() {
         )}
 
         {/* Lifetime */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>All Time</Text>
-          <Text style={styles.lifetimeNum}>{walkAwayCount}</Text>
-          <Text style={styles.cardBody}>total walk-aways since you started</Text>
+        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+          <Text style={[styles.cardTitle, { color: colors.textMuted }]}>All Time</Text>
+          <Text style={[styles.lifetimeNum, { color: COLORS.cyan }]}>{walkAwayCount}</Text>
+          <Text style={[styles.cardBody, { color: colors.textSecondary }]}>
+            total walk-aways since you started
+          </Text>
         </View>
 
         {/* Share CTA */}
-        <Pressable style={styles.shareBlock} onPress={handleShare}>
-          <Feather name="share-2" size={18} color={COLORS.background} />
-          <Text style={styles.shareBlockText}>Share Your Week</Text>
+        <Pressable style={[styles.shareBlock, { backgroundColor: colors.accent }]} onPress={handleShare}>
+          <Feather name="share-2" size={18} color={colors.background} />
+          <Text style={[styles.shareBlockText, { color: colors.background }]}>Share Your Week</Text>
         </Pressable>
 
+        <View style={{ height: SPACING.xl }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+// ─── Styles (layout only — no colors) ────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.background },
-  scroll: { flex: 1 },
+  safe:    { flex: 1 },
+  scroll:  { flex: 1 },
   content: {
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.md,
@@ -226,33 +223,24 @@ const styles = StyleSheet.create({
     gap: SPACING.lg,
   },
 
-  // ── Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: SPACING.xs,
   },
-  backBtn: {
+  navBtn: {
     width: 40, height: 40,
     alignItems: 'center', justifyContent: 'center',
   },
   headerTitle: {
     fontFamily: FONTS.bodyBold,
     fontSize: 17,
-    color: COLORS.textPrimary,
-  },
-  shareBtn: {
-    width: 40, height: 40,
-    alignItems: 'center', justifyContent: 'center',
   },
 
-  // ── Hero
   heroCard: {
-    backgroundColor: COLORS.surface,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: COLORS.green + '44',
     padding: SPACING.xl,
     alignItems: 'center',
     gap: SPACING.xs,
@@ -260,45 +248,36 @@ const styles = StyleSheet.create({
   heroNum: {
     fontFamily: FONTS.display,
     fontSize: 64,
-    color: COLORS.green,
     lineHeight: 68,
   },
   heroLabel: {
     fontFamily: FONTS.body,
     fontSize: 16,
-    color: COLORS.textSecondary,
   },
   heroName: {
     fontFamily: FONTS.bodyBold,
     fontSize: 14,
-    color: COLORS.textMuted,
     marginTop: SPACING.xs,
   },
 
-  // ── Cards
   card: {
-    backgroundColor: COLORS.surface,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.cardBorder,
     padding: SPACING.lg,
     gap: SPACING.md,
   },
   cardTitle: {
     fontFamily: FONTS.bodyBold,
     fontSize: 13,
-    color: COLORS.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
   },
   cardBody: {
     fontFamily: FONTS.body,
     fontSize: 14,
-    color: COLORS.textSecondary,
     lineHeight: 20,
   },
 
-  // ── Bar chart
   barChart: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -315,34 +294,25 @@ const styles = StyleSheet.create({
   barCount: {
     fontFamily: FONTS.mono,
     fontSize: 10,
-    color: COLORS.textMuted,
   },
   bar: {
     width: '100%',
     borderRadius: 4,
     minHeight: 4,
   },
-  barEmpty: {
-    backgroundColor: COLORS.cardBorder,
-    opacity: 0.5,
-  },
   barLabel: {
     fontFamily: FONTS.mono,
     fontSize: 11,
-    color: COLORS.textMuted,
   },
 
-  // ── Stats row
   statsRow: {
     flexDirection: 'row',
     gap: SPACING.sm,
   },
   statCard: {
     flex: 1,
-    backgroundColor: COLORS.surface,
     borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.cardBorder,
     padding: SPACING.md,
     alignItems: 'center',
     gap: 4,
@@ -350,50 +320,40 @@ const styles = StyleSheet.create({
   statNum: {
     fontFamily: FONTS.bodyBold,
     fontSize: 26,
-    color: COLORS.textPrimary,
   },
   statLabel: {
     fontFamily: FONTS.mono,
     fontSize: 10,
-    color: COLORS.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
 
-  // ── Tag
   tagRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.md,
   },
   tagPill: {
-    backgroundColor: COLORS.warning + '22',
     borderRadius: RADIUS.sm,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.xs,
     borderWidth: 1,
-    borderColor: COLORS.warning + '55',
   },
   tagText: {
     fontFamily: FONTS.bodyBold,
     fontSize: 14,
-    color: COLORS.warning,
   },
 
-  // ── Lifetime
   lifetimeNum: {
     fontFamily: FONTS.display,
     fontSize: 48,
-    color: COLORS.cyan,
   },
 
-  // ── Share CTA
   shareBlock: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: SPACING.sm,
-    backgroundColor: COLORS.green,
     borderRadius: RADIUS.md,
     paddingVertical: SPACING.lg,
     marginTop: SPACING.xs,
@@ -401,6 +361,5 @@ const styles = StyleSheet.create({
   shareBlockText: {
     fontFamily: FONTS.bodyBold,
     fontSize: 16,
-    color: COLORS.background,
   },
 });

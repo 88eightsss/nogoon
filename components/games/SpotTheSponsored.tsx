@@ -19,7 +19,7 @@
 //   SNEAKY    — No label, just a suspiciously promotional post
 //   ASTERISK  — "Not sponsored*" with disclosure buried in fine print
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -32,7 +32,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { Feather } from '@expo/vector-icons';
-import { COLORS, FONTS } from '@/constants/Colors';
+import { FONTS } from '@/constants/Colors';
+import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { ProceedButton } from '@/components/ui/ProceedButton';
 import { fetchAdForPlacement, trackAdEvent, type AdCampaign } from '@/services/ads';
@@ -282,6 +283,8 @@ function FeedPostCard({
   revealed,
   disabled,
   onCtaPress,
+  styles,
+  COLORS,
 }: {
   post: FeedPost;
   flagged: boolean;
@@ -289,6 +292,8 @@ function FeedPostCard({
   revealed: boolean;
   disabled: boolean;
   onCtaPress?: () => void;
+  styles: ReturnType<typeof makeStyles>;
+  COLORS: ArcadeColors;
 }) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
@@ -456,6 +461,8 @@ interface Props {
 }
 
 export function SpotTheSponsored({ onComplete }: Props) {
+  const COLORS = useThemedColors();
+  const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   const [phase,   setPhase]   = useState<Phase>('intro');
   const [flagged, setFlagged] = useState<Set<string>>(new Set());
   const [timeLeft, setTimeLeft] = useState(GAME_DURATION);
@@ -650,6 +657,8 @@ export function SpotTheSponsored({ onComplete }: Props) {
               revealed
               disabled
               onCtaPress={post.isSponsored ? handleCtaPress : undefined}
+              styles={styles}
+              COLORS={COLORS}
             />
           ))}
 
@@ -701,6 +710,8 @@ export function SpotTheSponsored({ onComplete }: Props) {
             onToggle={toggleFlag}
             revealed={false}
             disabled={false}
+            styles={styles}
+            COLORS={COLORS}
           />
         ))}
         <View style={{ height: SPACING.xxl }} />
@@ -711,7 +722,7 @@ export function SpotTheSponsored({ onComplete }: Props) {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: COLORS.background,

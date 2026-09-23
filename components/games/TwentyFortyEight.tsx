@@ -8,7 +8,7 @@
 // WIN:      Tile reaches 2048 → onComplete(score) after 1.5 s.
 // LOSE:     No valid moves → onComplete(score).
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -18,7 +18,8 @@ import {
   Pressable,
   Animated,
 } from 'react-native';
-import { COLORS, FONTS } from '@/constants/Colors';
+import { FONTS } from '@/constants/Colors';
+import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
@@ -193,6 +194,8 @@ interface Props { onComplete: (score: number) => void; }
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function TwentyFortyEight({ onComplete }: Props) {
+  const COLORS = useThemedColors();
+  const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   const [tiles, setTiles] = useState<Tile[]>(() => {
     const t1 = addRandom([]);
     if (!t1) return [];
@@ -418,7 +421,7 @@ export function TwentyFortyEight({ onComplete }: Props) {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   container: {
     flex: 1,
     alignItems: 'center',

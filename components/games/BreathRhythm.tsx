@@ -10,7 +10,7 @@
 //
 // SCORING: flat 80 pts on completion (same as BreathingGame)
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -21,7 +21,8 @@ import {
   AppState,
   type AppStateStatus,
 } from 'react-native';
-import { COLORS, FONTS } from '@/constants/Colors';
+import { FONTS } from '@/constants/Colors';
+import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 
 // ─── Breath phases ────────────────────────────────────────────────────────────
@@ -54,6 +55,8 @@ interface Props {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function BreathRhythm({ onComplete }: Props) {
+  const COLORS = useThemedColors();
+  const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   const [phase, setPhase]         = useState<'ready' | 'breathing' | 'done'>('ready');
   const [stepIdx, setStepIdx]     = useState(0);
   const [cycle, setCycle]         = useState(0);
@@ -240,7 +243,7 @@ const ORB_SIZE  = 140;
 const RING1_SIZE = 210;
 const RING2_SIZE = 280;
 
-const styles = StyleSheet.create({
+const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: COLORS.background,

@@ -16,7 +16,8 @@ import * as Haptics from 'expo-haptics';
 import { Feather } from '@expo/vector-icons';
 import { BreathRhythm }     from '@/components/games/BreathRhythm';
 import { GroundingExercise } from '@/components/games/GroundingExercise';
-import { COLORS, FONTS } from '@/constants/Colors';
+import { FONTS } from '@/constants/Colors';
+import { useThemedColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 
 type Phase = 'pick' | 'breathing' | 'grounding' | 'done';
@@ -27,14 +28,14 @@ const OPTIONS = [
     emoji:   '🫧',
     title:   'Breathing',
     sub:     'Follow the circle · 2 minutes',
-    color:   '#4ecdc4',
+    color:   '#4ecdc4', // teal accent, matches breathing exercise
   },
   {
     id:      'grounding' as const,
     emoji:   '🌿',
     title:   'Grounding',
     sub:     'Type what you notice · anchors you here',
-    color:   COLORS.green,
+    color:   '#2E7D32', // forest green accent, matches grounding exercise
   },
 ];
 
@@ -45,7 +46,7 @@ export default function BreatheScreen() {
     mode === 'breathing' ? 'breathing' :
     'pick'
   );
-  const C = COLORS;
+  const C = useThemedColors();
 
   // ── Done ───────────────────────────────────────────────────────────────────
   if (phase === 'done') {

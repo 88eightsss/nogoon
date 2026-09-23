@@ -45,6 +45,11 @@ export async function fetchAdForPlacement(
   try {
     const now = new Date().toISOString();
 
+    // Fetch every currently-active campaign for this placement (not just the
+    // newest one) and pick randomly among them. With more than one active
+    // campaign this means replaying a game surfaces different sponsors
+    // instead of always the same one -- keeps the sponsored round from
+    // going stale.
     const { data, error } = await supabase
       .from('ad_campaigns')
       .select(
@@ -55,17 +60,16 @@ export async function fetchAdForPlacement(
       .eq('placement', placement)
       .eq('status', 'active')
       .lte('active_from', now)
-      .or(`active_until.is.null,active_until.gte.${now}`)
-      .order('active_from', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .or(`active_until.is.null,active_until.gte.${now}`);
 
     if (error) {
       console.warn('[ads] fetch failed:', error.message);
       return null;
     }
+    if (!data || data.length === 0) return null;
 
-    return data as AdCampaign | null;
+    const pick = data[Math.floor(Math.random() * data.length)];
+    return pick as unknown as AdCampaign;
   } catch (err) {
     console.warn('[ads] fetch threw:', err);
     return null;

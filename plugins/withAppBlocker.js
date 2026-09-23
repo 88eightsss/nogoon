@@ -24,6 +24,21 @@ function withAppBlockerManifest(config) {
     const application = manifest.application?.[0];
     if (!application) return cfg;
 
+    // ── AdMob App ID (react-native-google-mobile-ads has no config plugin) ─
+    if (!application['meta-data']) application['meta-data'] = [];
+    const admobMetaName = 'com.google.android.gms.ads.APPLICATION_ID';
+    const admobExists = application['meta-data'].some(
+      (m) => m.$?.['android:name'] === admobMetaName
+    );
+    if (!admobExists) {
+      application['meta-data'].push({
+        $: {
+          'android:name':  admobMetaName,
+          'android:value': 'ca-app-pub-3940256099942544~3347511713',
+        },
+      });
+    }
+
     // ── Add battery optimization permission ────────────────────────────────
     // This allows us to request that Android stop killing our Accessibility
     // Service in the background. Without this, blocking stops working when
@@ -63,10 +78,16 @@ function withAppBlockerManifest(config) {
     if (!alreadyAdded) {
       application.service.push({
         $: {
-          'android:name':       serviceName,
-          'android:permission': 'android.permission.BIND_ACCESSIBILITY_SERVICE',
-          'android:exported':   'true',
-          'android:enabled':    'true',
+          'android:name':                 serviceName,
+          'android:permission':           'android.permission.BIND_ACCESSIBILITY_SERVICE',
+          'android:exported':             'true',
+          'android:enabled':              'true',
+          // Android 14+ (API 34) requires a declared foregroundServiceType for any
+          // service that calls startForeground() — NoGoonAccessibilityService does,
+          // to show a persistent "protection active" notification. "specialUse" is
+          // the correct type for an accessibility-service-turned-foreground-service;
+          // it requires the PROPERTY_SPECIAL_USE_FGS_SUBTYPE justification below.
+          'android:foregroundServiceType': 'specialUse',
         },
         'intent-filter': [
           {
@@ -80,6 +101,14 @@ function withAppBlockerManifest(config) {
             $: {
               'android:name':     'android.accessibilityservice',
               'android:resource': '@xml/accessibility_service_config',
+            },
+          },
+        ],
+        property: [
+          {
+            $: {
+              'android:name':  'android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE',
+              'android:value': "Persistent indicator that NoGoon's app/content blocking is actively running",
             },
           },
         ],
@@ -223,6 +252,7 @@ function withAppBlockerFiles(config) {
         'DnsPacketParser.kt',
         'NoGoonNotificationListener.kt',
         'NoGoonWidget.kt',
+        'ProtectionWatchdogWorker.kt',
       ];
 
       const srcDir = path.join(projectRoot, 'android-src');
@@ -287,7 +317,20 @@ function withAppBlockerFiles(config) {
       const appBuildGradle = path.join(platformRoot, 'app', 'build.gradle');
       if (fs.existsSync(appBuildGradle)) {
         let gradle = fs.readFileSync(appBuildGradle, 'utf8');
+
+        const depsToAdd = [];
         if (!gradle.includes('glance-appwidget')) {
+          depsToAdd.push('    implementation("androidx.glance:glance-appwidget:1.0.0")');
+          depsToAdd.push('    implementation("androidx.glance:glance-material3:1.0.0")');
+        }
+        // WorkManager backs ProtectionWatchdogWorker — the periodic background
+        // check that catches the Accessibility Service silently dying even
+        // when the app hasn't been opened in days.
+        if (!gradle.includes('androidx.work:work-runtime-ktx')) {
+          depsToAdd.push('    implementation("androidx.work:work-runtime-ktx:2.9.1")');
+        }
+
+        if (depsToAdd.length > 0) {
           const depsMatch = gradle.match(/\ndependencies\s*\{/);
           if (depsMatch) {
             let depth = 1;
@@ -301,17 +344,16 @@ function withAppBlockerFiles(config) {
             const closePos = i - 1;
             gradle =
               gradle.substring(0, closePos) +
-              '    implementation("androidx.glance:glance-appwidget:1.0.0")\n' +
-              '    implementation("androidx.glance:glance-material3:1.0.0")\n' +
+              depsToAdd.join('\n') + '\n' +
               gradle.substring(closePos);
             fs.writeFileSync(appBuildGradle, gradle, 'utf8');
-            console.log('[withAppBlocker] Patched app/build.gradle with Glance deps ✓');
+            console.log('[withAppBlocker] Patched app/build.gradle with dependencies ✓');
           } else {
             console.warn('[withAppBlocker] Could not find dependencies block in app/build.gradle');
           }
         }
       } else {
-        console.warn('[withAppBlocker] app/build.gradle not found — Glance deps not added');
+        console.warn('[withAppBlocker] app/build.gradle not found — dependencies not added');
       }
 
       // ── Patch MainApplication.kt ──
@@ -391,8 +433,72 @@ function withAppBlockerFiles(config) {
   ]);
 }
 
+// ─── Step 3: Patch react-native-google-mobile-ads build.gradle ───────────────
+// AGP 8+ requires compileSdkVersion to be declared literally inside the
+// android {} block. react-native-google-mobile-ads v13 sets it only via the
+// io.invertase.gradle.build plugin extension, which AGP 8 no longer accepts.
+
+function withGoogleMobileAdsCompileSdk(config) {
+  return withDangerousMod(config, [
+    'android',
+    async (cfg) => {
+      const projectRoot = cfg.modRequest.projectRoot;
+      const buildGradlePath = path.join(
+        projectRoot,
+        'node_modules',
+        'react-native-google-mobile-ads',
+        'android',
+        'build.gradle'
+      );
+
+      if (!fs.existsSync(buildGradlePath)) {
+        console.warn('[withAppBlocker] react-native-google-mobile-ads build.gradle not found — skipping compileSdk patch');
+        return cfg;
+      }
+
+      let gradle = fs.readFileSync(buildGradlePath, 'utf8');
+
+      // Only patch if compileSdk directive is not already present as a standalone AGP statement
+      // AGP 8.3+ requires `compileSdk N` (not compileSdkVersion) declared directly in android {}
+      if (!/^\s*compileSdk\s+\d/m.test(gradle)) {
+        // Read the compileSdk value from the library's own package.json
+        let compileSdkValue = 34; // safe default for SDK 54
+        try {
+          const rngmaPackage = JSON.parse(
+            fs.readFileSync(
+              path.join(projectRoot, 'node_modules', 'react-native-google-mobile-ads', 'package.json'),
+              'utf8'
+            )
+          );
+          compileSdkValue = rngmaPackage?.sdkVersions?.android?.compileSdk ?? 34;
+        } catch (_) {}
+
+        // Insert `compileSdk N` as the first statement inside the android {} block.
+        // The block starts with "android {" — we target this specific occurrence by anchoring
+        // to the newline that follows (the block is always at the top-level of the file).
+        const androidBlockRx = /^android\s*\{/m;
+        if (androidBlockRx.test(gradle)) {
+          gradle = gradle.replace(
+            androidBlockRx,
+            `android {\n  compileSdk ${compileSdkValue}`
+          );
+          fs.writeFileSync(buildGradlePath, gradle, 'utf8');
+          console.log(`[withAppBlocker] Patched react-native-google-mobile-ads build.gradle: compileSdk ${compileSdkValue} ✓`);
+        } else {
+          console.warn('[withAppBlocker] Could not find top-level android {} block to patch compileSdk');
+        }
+      } else {
+        console.log('[withAppBlocker] react-native-google-mobile-ads compileSdk already present, skipping patch.');
+      }
+
+      return cfg;
+    },
+  ]);
+}
+
 module.exports = function withAppBlocker(config) {
   config = withAppBlockerManifest(config);
   config = withAppBlockerFiles(config);
+  config = withGoogleMobileAdsCompileSdk(config);
   return config;
 };

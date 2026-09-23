@@ -15,7 +15,7 @@
 //
 // DURATION: Passed in as prop (30s default, 60s or 90s for Pro users who set it)
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -28,7 +28,8 @@ import {
   Platform,
   Pressable,
 } from 'react-native';
-import { COLORS, FONTS } from '@/constants/Colors';
+import { FONTS } from '@/constants/Colors';
+import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { ProceedButton } from '@/components/ui/ProceedButton';
 
@@ -60,6 +61,8 @@ interface Props {
 }
 
 export function TypingChallenge({ onComplete, duration = 30 }: Props) {
+  const COLORS = useThemedColors();
+  const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   // Pick a random phrase once per session
   const [phrase] = useState(() => PHRASES[Math.floor(Math.random() * PHRASES.length)]);
   const [input, setInput]       = useState('');
@@ -84,7 +87,7 @@ export function TypingChallenge({ onComplete, duration = 30 }: Props) {
     Animated.timing(timerBarWidth, {
       toValue: 0,
       duration: duration * 1000,
-      useNativeDriver: false,
+      useNativeDriver: true,
     }).start();
 
     timerRef.current = setInterval(() => {
@@ -210,10 +213,8 @@ export function TypingChallenge({ onComplete, duration = 30 }: Props) {
             style={[
               styles.timerFill,
               {
-                width: timerBarWidth.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: ['0%', '100%'],
-                }) as any,
+                transform: [{ scaleX: timerBarWidth }],
+                transformOrigin: 'left',
                 backgroundColor: timeLeft < 10 ? COLORS.danger : COLORS.green,
               },
             ]}
@@ -268,7 +269,7 @@ export function TypingChallenge({ onComplete, duration = 30 }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.background },
   kav:  { flex: 1 },
 
@@ -276,8 +277,10 @@ const styles = StyleSheet.create({
     height: 4,
     backgroundColor: COLORS.border,
     width: '100%',
+    overflow: 'hidden',
   },
   timerFill: {
+    width: '100%',
     height: '100%',
     borderRadius: 2,
   },

@@ -19,6 +19,7 @@ import { SPACING, RADIUS } from '@/constants/Spacing';
 import { TYPE } from '@/constants/Typography';
 import { useTheme } from '@/hooks/useTheme';
 import { useUserStore } from '@/stores/useUserStore';
+import { PageGuide } from '@/components/PageGuide';
 
 type Tool = {
   id: string;
@@ -37,14 +38,6 @@ const TOOLS: Tool[] = [
     title:     'Breathe',
     subtitle:  'Box breathing · calms the nervous system in 2 min',
     route:     '/breathe',
-  },
-  {
-    id:        'arcade',
-    icon:      'zap',
-    iconColor: '#6D28D9',
-    title:     'Games',
-    subtitle:  'Play something calm · redirect the urge without spiking it',
-    route:     { pathname: '/(tabs)/arcade', params: { category: 'calm' } },
   },
   {
     id:        'waitingroom',
@@ -201,6 +194,7 @@ export default function CalmScreen() {
   const { colors } = useTheme();
 
   return (
+    <>
     <SafeAreaView style={[styles.root, { backgroundColor: colors.background }]} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
@@ -235,6 +229,19 @@ export default function CalmScreen() {
 
       </ScrollView>
     </SafeAreaView>
+    <PageGuide
+      page="calm"
+      icon="wind"
+      accent={colors.calm}
+      title="Calm"
+      subtitle="Recovery tools for when you're struggling — no stats, no scores, just things that help."
+      points={[
+        { icon: 'wind',      title: 'Grounding tools',   body: 'Breathing and quick exercises that calm the urge in under 2 minutes.' },
+        { icon: 'clock',     title: 'Waiting Room',      body: "Sit with the urge and watch it pass on its own, without doing anything else." },
+        { icon: 'moon',      title: "Tonight's rule",    body: 'Set a nightly commitment that shows up if you hit a block later.' },
+      ]}
+    />
+    </>
   );
 }
 

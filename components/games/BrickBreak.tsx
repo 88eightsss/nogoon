@@ -3,8 +3,16 @@
 // Slide finger to move paddle. Ball bounces; break all bricks to win.
 // Miss ball 3 times = game over. Clear board = win (100 pts).
 // Lives > 0 when done = 50 pts.
+//
+// Paddle tracking uses pageX (absolute screen coords) instead of locationX.
+// locationX is relative to whichever child view the touch is currently over
+// (bricks, ball, paddle are all separate sibling Views stacked inside the
+// board) — on Android that basis can jump between children mid-drag, which
+// is what made the paddle miss/glitch on touch. pageX is always relative to
+// the screen, so it stays correct regardless of which sibling is under the
+// finger.
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,7 +23,8 @@ import {
   LayoutChangeEvent,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { COLORS, FONTS } from '@/constants/Colors';
+import { FONTS } from '@/constants/Colors';
+import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 
 // ─── Layout constants (actual px computed from measured width) ─────────────────
@@ -35,7 +44,7 @@ const TICK_MS     = 32;  // ~30fps — halves React re-render frequency vs 16ms
 interface BrickState { alive: boolean; color: string }
 interface Vec2 { x: number; y: number }
 
-const BRICK_COLORS = [
+const makeBrickColors = (COLORS: ArcadeColors) => [
   COLORS.danger,
   '#f97316',
   COLORS.warning,
@@ -50,6 +59,9 @@ interface Props { onComplete: (score: number) => void }
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function BrickBreak({ onComplete }: Props) {
+  const COLORS = useThemedColors();
+  const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
+  const BRICK_COLORS = useMemo(() => makeBrickColors(COLORS), [COLORS]);
   const [phase, setPhase] = useState<'ready' | 'playing' | 'done'>('ready');
   const [lives, setLives] = useState(MAX_LIVES);
   const [bricksLeft, setBricksLeft] = useState(BRICK_ROWS * BRICK_COLS);
@@ -58,6 +70,8 @@ export function BrickBreak({ onComplete }: Props) {
   // Measured board size
   const boardW = useRef(300);
   const boardH = useRef(480);
+  const boardRef   = useRef<View>(null);
+  const boardPageX = useRef(0);   // board's absolute (screen) left edge
 
   // Game state (mutable refs — don't cause re-renders in the tight loop)
   const paddleX  = useRef(0);           // left edge of paddle
@@ -91,7 +105,7 @@ export function BrickBreak({ onComplete }: Props) {
         color: BRICK_COLORS[r],
       }))
     );
-  }, []);
+  }, [BRICK_COLORS]);
 
   // ── Physics tick ────────────────────────────────────────────────────────────
 
@@ -227,12 +241,12 @@ export function BrickBreak({ onComplete }: Props) {
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder:  () => true,
       onPanResponderGrant: (evt) => {
-        const localX = evt.nativeEvent.locationX;
+        const localX = evt.nativeEvent.pageX - boardPageX.current;
         paddleX.current = Math.max(0, Math.min(boardW.current - PADDLE_W, localX - PADDLE_W / 2));
         forceRenderRef.current();
       },
       onPanResponderMove: (evt) => {
-        const localX = evt.nativeEvent.locationX;
+        const localX = evt.nativeEvent.pageX - boardPageX.current;
         paddleX.current = Math.max(0, Math.min(boardW.current - PADDLE_W, localX - PADDLE_W / 2));
         forceRenderRef.current();
       },
@@ -242,6 +256,11 @@ export function BrickBreak({ onComplete }: Props) {
   const onBoardLayout = (e: LayoutChangeEvent) => {
     boardW.current = e.nativeEvent.layout.width;
     boardH.current = e.nativeEvent.layout.height;
+    // Re-measure the board's absolute screen position whenever layout
+    // changes (rotation, keyboard, etc.) so pageX math above stays correct.
+    boardRef.current?.measure((_x, _y, _width, _height, pageX) => {
+      boardPageX.current = pageX;
+    });
   };
 
   // ── Render helpers ──────────────────────────────────────────────────────────
@@ -289,6 +308,7 @@ export function BrickBreak({ onComplete }: Props) {
 
         {/* Board */}
         <View
+          ref={boardRef}
           style={styles.board}
           onLayout={onBoardLayout}
           {...panResponder.panHandlers}
@@ -355,7 +375,7 @@ export function BrickBreak({ onComplete }: Props) {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.background },
 
   center: {

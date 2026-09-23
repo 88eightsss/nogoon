@@ -13,7 +13,7 @@
 //
 // PHASES: 'ready' → 'playing' → 'solved'
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -22,7 +22,8 @@ import {
   Pressable,
   Animated,
 } from 'react-native';
-import { COLORS, FONTS } from '@/constants/Colors';
+import { FONTS } from '@/constants/Colors';
+import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 
 // ─── Tile colors ──────────────────────────────────────────────────────────────
@@ -89,6 +90,8 @@ interface Props {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function ColorSort({ onComplete }: Props) {
+  const COLORS = useThemedColors();
+  const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   const [phase, setPhase]       = useState<'ready' | 'playing' | 'solved'>('ready');
   const [board, setBoard]       = useState<number[]>(() => makeBoard());
   const [selected, setSelected] = useState<number | null>(null);
@@ -248,7 +251,7 @@ export function ColorSort({ onComplete }: Props) {
 const TILE_SIZE = 64;
 const TILE_GAP  = 10;
 
-const styles = StyleSheet.create({
+const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: COLORS.background,

@@ -4,7 +4,7 @@
 // Avoid blocks raining from above.
 // Survive 30 seconds = win (100 pts). Die before = 50 pts.
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,8 @@ import {
   SafeAreaView,
   Animated,
 } from 'react-native';
-import { COLORS, FONTS } from '@/constants/Colors';
+import { FONTS } from '@/constants/Colors';
+import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 
 // ─── Game constants ────────────────────────────────────────────────────────────
@@ -48,6 +49,8 @@ interface Props {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function PixelDodge({ onComplete }: Props) {
+  const COLORS = useThemedColors();
+  const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   const [phase, setPhase] = useState<'ready' | 'playing' | 'dead' | 'win'>('ready');
   const [playerCol, setPlayerCol] = useState(Math.floor(COLS / 2));
   const [blocks, setBlocks]       = useState<Block[]>([]);
@@ -227,7 +230,7 @@ export function PixelDodge({ onComplete }: Props) {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.background },
 
   center: {

@@ -65,7 +65,7 @@ import { PACKAGE_TO_NAME } from '@/hooks/useAppBlocker';
 import { useUserStore } from '@/stores/useUserStore';
 import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
-import { ALL_GAMES, GATE_GAMES, pickRandomGame, getGameById, type GameId } from '@/constants/games';
+import { ALL_GAMES, GATE_GAMES, CALM_GAMES as CALM_CATEGORY_GAMES, pickRandomGame, getGameById, type GameId } from '@/constants/games';
 import { useThemeStore } from '@/stores/useThemeStore';
 import { useAdInterstitial } from '@/components/ads/AdInterstitial';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -193,7 +193,7 @@ export default function NoGoonScreen() {
     logFollowThrough,
   } = useUserStore();
   const { maybeShowInterstitial } = useAdInterstitial();
-  const { disabledGateGames } = useThemeStore();
+  const { disabledGateGames, enabledCalmGateGames } = useThemeStore();
 
   const C = COLORS;
 
@@ -420,11 +420,11 @@ export default function NoGoonScreen() {
       if (gameMode === 'choose') {
         setPhase('pick');
       } else {
-        setSelectedGame(pickRandomGame(disabledGateGames));
+        setSelectedGame(pickRandomGame(disabledGateGames, enabledCalmGateGames));
         setPhase('context');
       }
     },
-    [gameMode, isWindDown, noGames, disabledGateGames]
+    [gameMode, isWindDown, noGames, disabledGateGames, enabledCalmGateGames]
   );
 
   // ── Friction phase — countdown per button, re-runs when frictionStep changes ──
@@ -495,10 +495,17 @@ export default function NoGoonScreen() {
       : null;
 
   // Scroll trigger gets its own context line — more specific than the generic streak/goal copy.
+  const currentHour = new Date().getHours();
+  const isLateNight = isWindDown || currentHour >= 22 || currentHour < 4;
+
   const contextLine = source === 'scroll'
     ? `You've been scrolling ${displayDomain} for 90 seconds straight.`
     : todayIntention
     ? `Today you wanted to: ${todayIntention}`
+    : isLateNight
+    ? currentHour >= 22 || currentHour < 4
+      ? `It's late — your brain is tired. Walk away and rest.`
+      : `Wind-down is on. Protect your sleep.`
     : intentionGoal
     ? `You wanted more time for: ${intentionGoal}`
     : streak > 1
@@ -975,7 +982,7 @@ export default function NoGoonScreen() {
   // RENDER: Pick — game chooser (when gameMode === 'choose')
   // ══════════════════════════════════════════════════════════════════════════
   if (phase === 'pick') {
-    const pool = [...GATE_GAMES];
+    const pool = [...GATE_GAMES, ...CALM_CATEGORY_GAMES.filter((g) => enabledCalmGateGames.includes(g.id))];
 
     return (
       <SafeAreaView style={[styles.safe, { backgroundColor: '#0b1217' }]}>

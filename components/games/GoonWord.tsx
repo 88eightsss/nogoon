@@ -1,6 +1,8 @@
-// ─── GoonWord — Wordle clone, target word GOON ────────────────────────────────
+// ─── GoonWord — classic Wordle ─────────────────────────────────────────────────
 //
-// Exact Wordle design: 6 rows × 4 tiles, all visible at once.
+// Exact Wordle design: 6 rows × 4 tiles, all visible at once. A fresh secret
+// word is picked at random from the dictionary each game (not always GOON —
+// same idea as real Wordle's own title never being the answer).
 // Green = right letter, right place.
 // Yellow = right letter, wrong place.
 // Gray = not in word.
@@ -15,7 +17,6 @@ import * as Haptics from 'expo-haptics';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const TARGET     = 'GOON';
 const WORD_LEN   = 4;
 const MAX_ROWS   = 6;
 const TILE_SIZE  = 62;
@@ -109,16 +110,27 @@ const VALID_WORDS = new Set([
   'ZEST','ZONE','ZOOM',
 ]);
 
+// ─── Pick a secret word ─────────────────────────────────────────────────────
+// A fresh target chosen at random from the dictionary each game (GOON is
+// one of the possible answers, same odds as any other word — it just isn't
+// guaranteed).
+
+const WORD_POOL = Array.from(VALID_WORDS);
+
+function pickTarget(): string {
+  return WORD_POOL[Math.floor(Math.random() * WORD_POOL.length)];
+}
+
 // ─── Evaluate guess ───────────────────────────────────────────────────────────
 
-function evaluate(guess: string): GuessResult {
+function evaluate(guess: string, target: string): GuessResult {
   const result: GuessResult = Array.from({ length: WORD_LEN }, (_, i) => ({
     letter: guess[i],
     state: 'absent' as TileState,
   }));
-  const remaining: (string | null)[] = TARGET.split('');
+  const remaining: (string | null)[] = target.split('');
   for (let i = 0; i < WORD_LEN; i++) {
-    if (guess[i] === TARGET[i]) {
+    if (guess[i] === target[i]) {
       result[i].state = 'correct';
       remaining[i] = null;
     }
@@ -236,6 +248,9 @@ const keyStyles = StyleSheet.create({
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function GoonWord({ onComplete }: { onComplete: (won: boolean) => void }) {
+  // Picked once per game — the secret word this round.
+  const [target] = useState(() => pickTarget());
+
   const [guesses, setGuesses]   = useState<GuessResult[]>([]);
   const [current, setCurrent]   = useState('');
   const [toast,   setToast]     = useState('');
@@ -297,7 +312,7 @@ export default function GoonWord({ onComplete }: { onComplete: (won: boolean) =>
       return;
     }
 
-    const result = evaluate(current);
+    const result = evaluate(current, target);
     const row = guesses.length;
     const newGuesses = [...guesses, result];
     setGuesses(newGuesses);
@@ -312,12 +327,12 @@ export default function GoonWord({ onComplete }: { onComplete: (won: boolean) =>
         setGameOver(true);
         setTimeout(() => onComplete(true), 1500);
       } else if (newGuesses.length >= MAX_ROWS) {
-        showToast(TARGET);
+        showToast(target);
         setGameOver(true);
         setTimeout(() => onComplete(false), 2000);
       }
     });
-  }, [current, guesses, onComplete]);
+  }, [current, guesses, target, onComplete]);
 
   const pressKey = useCallback((key: string) => {
     if (gameOver) return;
@@ -353,9 +368,8 @@ export default function GoonWord({ onComplete }: { onComplete: (won: boolean) =>
       {/* Grid */}
       <View style={styles.grid}>
         {Array.from({ length: MAX_ROWS }, (_, row) => {
-          const guess   = guesses[row];
-          const isCur   = row === guesses.length && !gameOver;
-          const isEmpty = !guess && !isCur;
+          const guess = guesses[row];
+          const isCur = row === guesses.length && !gameOver;
 
           return (
             <Animated.View

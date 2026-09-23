@@ -8,34 +8,36 @@
 //   Zone 5: Border picker (5 styles)
 //   Zone 6: Account (sign out, help, privacy)
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   View, Text, Pressable, ScrollView, StyleSheet,
-  Alert, Switch, TextInput, Modal,
+  Alert, Switch, TextInput, Modal, PanResponder,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useUserStore } from '@/stores/useUserStore';
+import * as Haptics from 'expo-haptics';
+import { useUserStore, getMinutesSaved } from '@/stores/useUserStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useAppBlocker } from '@/hooks/useAppBlocker';
 import { useTheme } from '@/hooks/useTheme';
 import { useThemeStore } from '@/stores/useThemeStore';
-import { THEMES, BORDERS, THEME_ORDER, BORDER_ORDER } from '@/constants/Themes';
+import { THEMES, BORDERS, THEME_ORDER, BORDER_ORDER, ThemePalette, brightnessLabel } from '@/constants/Themes';
 import { FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { GoonSprite, getGoonStage } from '@/components/home/GoonMascot';
 import { type CharacterId } from '@/stores/usePetStore';
+import { useUnlockedFeatures, lockHint, useProgressStore } from '@/stores/useProgressStore';
+import { PageGuide } from '@/components/PageGuide';
 
 // ─── Companion defaults ───────────────────────────────────────────────────────
 const DEFAULT_COMPANION_NAMES: Record<CharacterId, string> = { 0: 'Buddy', 1: 'Nova', 2: 'Rex' };
 
 // ─── Time saved calculation ───────────────────────────────────────────────────
-// Assumes each walk-away saves ~8 minutes of scrolling
+// Formats getMinutesSaved(walkAwayCount) — ~20 min per walk-away, see useUserStore.
 
-function getTimeSaved(walkAways: number): string {
-  const minutes = walkAways * 8;
+function getTimeSaved(minutes: number): string {
   if (minutes < 60) return `${minutes}m`;
   const hours = Math.floor(minutes / 60);
   const mins  = minutes % 60;
@@ -52,14 +54,18 @@ function ThemeDot({ themeId, selected, onSelect }: {
   selected: boolean;
   onSelect: () => void;
 }) {
-  const palette = THEMES[themeId];
+  const triad = THEMES[themeId];
+  // Preview swatch uses the theme's native-mode accent — its "home" look —
+  // rather than a brightness-resolved color, so the dot always reads as
+  // that theme's own identity regardless of the current dial position.
+  const previewAccent = triad[triad.nativeMode].accent;
   const { colors } = useTheme();
   return (
     <Pressable onPress={onSelect} style={dotStyles.wrap} hitSlop={6}>
       <View
         style={[
           dotStyles.dot,
-          { backgroundColor: palette.accent },
+          { backgroundColor: previewAccent },
           selected && {
             borderWidth: 2.5,
             borderColor: colors.text,
@@ -80,7 +86,34 @@ function BorderDot({ borderId, selected, onSelect }: {
 }) {
   const config = BORDERS[borderId];
   const { colors } = useTheme();
-  const radius = config.radius === -1 ? 6 : 0;
+  // Real radius values now range 0 (Sharp) to RADIUS.xl (Soft) -- scale that
+  // onto the 26px dot (half-size 13) proportionally so the preview still shows
+  // relative roundness rather than clamping everything >=13px into one circle.
+  const radius = Math.round((config.radius / RADIUS.xl) * 13);
+
+  // 'None' has zero border width by definition — a ring preview would be
+  // invisible (or, worse, get clamped up to look identical to 'Soft'). Give it
+  // its own solid-fill look instead so it reads as its own option at a glance.
+  if (borderId === 'none') {
+    return (
+      <Pressable onPress={onSelect} style={dotStyles.wrap} hitSlop={6}>
+        <View
+          style={[
+            dotStyles.dot,
+            {
+              backgroundColor: selected ? colors.accent : colors.textSecondary,
+              borderRadius: 6,
+            },
+          ]}
+        />
+      </Pressable>
+    );
+  }
+
+  // Widths (1.5 / 2 / 4) are amplified for the preview — at real size the gap
+  // between them reads as noise at 22px; scaled up it's an actual difference
+  // you can see without tapping through each one.
+  const previewWidth = Math.max(config.width * 1.7, 2.5);
 
   return (
     <Pressable onPress={onSelect} style={dotStyles.wrap} hitSlop={6}>
@@ -88,16 +121,19 @@ function BorderDot({ borderId, selected, onSelect }: {
         style={[
           dotStyles.dot,
           {
-            backgroundColor: selected ? colors.accent : 'transparent',
+            backgroundColor: selected ? colors.accentDim : 'transparent',
             borderRadius: radius,
-            borderWidth: Math.max(config.width, 1.5),
-            borderColor: selected ? colors.accent : colors.textMuted,
+            borderWidth: previewWidth,
+            borderColor: selected ? colors.accent : colors.textSecondary,
+            ...(config.lineStyle && { borderStyle: config.lineStyle }),
           },
-          config.glow && selected && {
+          // Glow gets a persistent (if faint) halo even unselected, so it
+          // doesn't sit there looking identical to Soft until you tap it.
+          config.glow && {
             shadowColor: colors.accent,
-            shadowOpacity: 0.7,
-            shadowRadius: 6,
-            elevation: 6,
+            shadowOpacity: selected ? 0.7 : 0.35,
+            shadowRadius: selected ? 6 : 3,
+            elevation: selected ? 6 : 3,
           },
         ]}
       />
@@ -112,9 +148,148 @@ const dotStyles = StyleSheet.create({
     padding: SPACING.xs,
   },
   dot: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+  },
+});
+
+const homeModeStyles = StyleSheet.create({
+  segment: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  segmentBtn: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 6,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+  },
+  segmentText: {
+    fontFamily: FONTS.bodyMedium,
+    fontSize: 12,
+  },
+});
+
+// ─── Brightness slider ────────────────────────────────────────────────────────
+
+const THUMB_SIZE = 20;
+
+function BrightnessSlider({ value, onChange, colors }: {
+  value: number;
+  onChange: (v: number) => void;
+  colors: ThemePalette;
+}) {
+  const trackWidth = useRef(0);
+  const startValue = useRef(value);
+  const [trackW, setTrackW] = useState(0);
+  const clamp = (v: number) => Math.max(0, Math.min(100, Math.round(v)));
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder:  () => true,
+      onPanResponderGrant: (e) => {
+        const w = trackWidth.current;
+        if (w <= 0) return;
+        // Map tap position into 0-100, accounting for thumb radius padding
+        const usableW = w - THUMB_SIZE;
+        const x = Math.max(0, Math.min(e.nativeEvent.locationX - THUMB_SIZE / 2, usableW));
+        const v = clamp((x / usableW) * 100);
+        startValue.current = v;
+        onChange(v);
+      },
+      onPanResponderMove: (_, gs) => {
+        const w = trackWidth.current;
+        if (w <= 0) return;
+        const usableW = w - THUMB_SIZE;
+        const v = clamp(startValue.current + (gs.dx / usableW) * 100);
+        onChange(v);
+      },
+    })
+  ).current;
+
+  // Pixel-based thumb position — stays fully within track at value=0 and value=100
+  const usableW  = trackW - THUMB_SIZE;
+  const thumbLeft = trackW > 0 ? (value / 100) * usableW : 0;
+  const fillWidth = thumbLeft + THUMB_SIZE / 2;
+
+  return (
+    <View style={brightStyles.container}>
+      <Feather name="moon" size={14} color={value < 40 ? colors.accent : colors.textMuted} />
+      <View
+        style={brightStyles.trackWrap}
+        onLayout={(e) => {
+          const w = e.nativeEvent.layout.width;
+          trackWidth.current = w;
+          setTrackW(w);
+        }}
+        {...panResponder.panHandlers}
+      >
+        {/* Track fill — grows from left edge to center of thumb */}
+        <View style={[brightStyles.trackBg, { backgroundColor: colors.border }]}>
+          <View style={[brightStyles.trackFill, { width: fillWidth, backgroundColor: colors.accent }]} />
+        </View>
+        {/* Center tick — marks the Grey anchor at the midpoint of the dial */}
+        <View
+          pointerEvents="none"
+          style={[brightStyles.tick, { backgroundColor: colors.textMuted }]}
+        />
+        {/* Thumb — pixel-positioned, no overflow */}
+        <View
+          style={[
+            brightStyles.thumb,
+            {
+              left: thumbLeft,
+              backgroundColor: colors.accent,
+              borderColor: colors.surface,
+            },
+          ]}
+        />
+      </View>
+      <Feather name="sun" size={14} color={value > 60 ? colors.accent : colors.textMuted} />
+    </View>
+  );
+}
+
+const brightStyles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md + 2,
+  },
+  trackWrap: {
+    flex: 1,
+    height: THUMB_SIZE + 8,
+    justifyContent: 'center',
+  },
+  trackBg: {
+    height: 4,
+    borderRadius: 2,
+  },
+  trackFill: {
+    height: 4,
+    borderRadius: 2,
+  },
+  tick: {
+    position: 'absolute',
+    left: '50%',
+    marginLeft: -1,
+    width: 2,
+    height: 10,
+    borderRadius: 1,
+    top: (THUMB_SIZE + 8) / 2 - 5,
+    opacity: 0.6,
+  },
+  thumb: {
+    position: 'absolute',
+    width: THUMB_SIZE,
+    height: THUMB_SIZE,
+    borderRadius: THUMB_SIZE / 2,
+    borderWidth: 2.5,
+    top: (THUMB_SIZE + 8) / 2 - THUMB_SIZE / 2,
   },
 });
 
@@ -197,6 +372,8 @@ export default function MeScreen() {
   const {
     themeId, borderId, setTheme, setBorder,
     showIntentionCard, showStruggleToggle, showTimeReclaimed, toggleHomeSection,
+    themeBrightness, setThemeBrightness,
+    homeMode, setHomeMode,
   } = useThemeStore();
 
   const {
@@ -211,6 +388,8 @@ export default function MeScreen() {
 
   const { signOut } = useAuthStore();
   const { blockingStatus, openSettings } = useAppBlocker();
+  const { unlocked } = useUnlockedFeatures();
+  const { forceUnlockAll, setForceUnlockAll } = useProgressStore();
 
   const [editingName, setEditingName]   = useState(false);
   const [nameDraft,   setNameDraft]     = useState(name);
@@ -231,6 +410,12 @@ export default function MeScreen() {
         const start = new Date(startDate).getTime();
         const days  = Math.floor((Date.now() - start) / 86_400_000) + 1;
         setDayCount(days);
+      } else {
+        // First time anything has read this key (e.g. user opened Me before
+        // ever landing on the home screen) — set it now so Day count starts
+        // counting immediately instead of silently staying stuck at 1.
+        await AsyncStorage.setItem('nogoon_start_date', new Date().toISOString().split('T')[0]);
+        setDayCount(1);
       }
     }
     computeDay();
@@ -295,9 +480,10 @@ export default function MeScreen() {
     return `${d}:00 ${s}`;
   };
 
-  const timeSaved = getTimeSaved(walkAwayCount);
+  const timeSaved = getTimeSaved(getMinutesSaved(walkAwayCount));
 
   return (
+    <>
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
       <ScrollView
         style={styles.scroll}
@@ -486,44 +672,113 @@ export default function MeScreen() {
 
         <View style={[ctrlStyles.board, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
           <View style={[ctrlStyles.row, { borderBottomColor: colors.border }]}>
-            <Feather name="book-open" size={16} color={colors.accent} />
+            <Feather name="layout" size={16} color={colors.accent} />
             <View style={{ flex: 1 }}>
-              <Text style={[ctrlStyles.label, { color: colors.text }]}>Daily intention</Text>
-              <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>Intention card on home</Text>
+              <Text style={[ctrlStyles.label, { color: colors.text }]}>Layout</Text>
+              <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>
+                {homeMode === 'organizer' ? 'Customizable widget grid' : 'Companion front and center'}
+              </Text>
             </View>
-            <Switch
-              value={showIntentionCard}
-              onValueChange={() => toggleHomeSection('showIntentionCard')}
-              trackColor={{ false: colors.border, true: colors.accent }}
-              thumbColor="#fff"
-            />
-          </View>
-          <View style={[ctrlStyles.row, { borderBottomColor: colors.border }]}>
-            <Feather name="heart" size={16} color={colors.accent} />
-            <View style={{ flex: 1 }}>
-              <Text style={[ctrlStyles.label, { color: colors.text }]}>Struggle mode</Text>
-              <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>"Having a hard day?" button</Text>
+            <View style={homeModeStyles.segment}>
+              {(['companion', 'organizer'] as const).map((mode) => {
+                const selected = homeMode === mode;
+                const modeLocked = mode === 'organizer' && !unlocked.has('organizerMode');
+                return (
+                  <Pressable
+                    key={mode}
+                    onPress={() => {
+                      if (selected) return;
+                      if (modeLocked) {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        Alert.alert('Still locked', lockHint('organizerMode'));
+                        return;
+                      }
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setHomeMode(mode);
+                    }}
+                    style={[
+                      homeModeStyles.segmentBtn,
+                      {
+                        backgroundColor: selected ? colors.accent : 'transparent',
+                        borderColor: selected ? colors.accent : colors.border,
+                        opacity: modeLocked ? 0.5 : 1,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        homeModeStyles.segmentText,
+                        { color: selected ? '#fff' : colors.textSecondary },
+                      ]}
+                    >
+                      {mode === 'companion' ? 'Companion' : modeLocked ? 'Organizer 🔒' : 'Organizer'}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
-            <Switch
-              value={showStruggleToggle}
-              onValueChange={() => toggleHomeSection('showStruggleToggle')}
-              trackColor={{ false: colors.border, true: colors.accent }}
-              thumbColor="#fff"
-            />
           </View>
-          <View style={[ctrlStyles.row, { borderBottomWidth: 0 }]}>
-            <Feather name="clock" size={16} color={colors.accent} />
-            <View style={{ flex: 1 }}>
-              <Text style={[ctrlStyles.label, { color: colors.text }]}>Time reclaimed</Text>
-              <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>Hours of attention saved</Text>
-            </View>
-            <Switch
-              value={showTimeReclaimed}
-              onValueChange={() => toggleHomeSection('showTimeReclaimed')}
-              trackColor={{ false: colors.border, true: colors.accent }}
-              thumbColor="#fff"
-            />
-          </View>
+
+          {homeMode === 'organizer' ? (
+            <Pressable
+              style={[ctrlStyles.row, { borderBottomWidth: 0 }]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push('/layout-picker' as any);
+              }}
+            >
+              <Feather name="grid" size={16} color={colors.accent} />
+              <View style={{ flex: 1 }}>
+                <Text style={[ctrlStyles.label, { color: colors.text }]}>Change template</Text>
+                <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>
+                  Or long-press the home screen to edit bubbles directly
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={16} color={colors.textMuted} />
+            </Pressable>
+          ) : (
+            <>
+              <View style={[ctrlStyles.row, { borderBottomColor: colors.border }]}>
+                <Feather name="book-open" size={16} color={colors.accent} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[ctrlStyles.label, { color: colors.text }]}>Daily intention</Text>
+                  <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>Intention card on home</Text>
+                </View>
+                <Switch
+                  value={showIntentionCard}
+                  onValueChange={() => toggleHomeSection('showIntentionCard')}
+                  trackColor={{ false: colors.border, true: colors.accent }}
+                  thumbColor="#fff"
+                />
+              </View>
+              <View style={[ctrlStyles.row, { borderBottomColor: colors.border }]}>
+                <Feather name="heart" size={16} color={colors.accent} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[ctrlStyles.label, { color: colors.text }]}>Struggle mode</Text>
+                  <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>"Having a hard day?" button</Text>
+                </View>
+                <Switch
+                  value={showStruggleToggle}
+                  onValueChange={() => toggleHomeSection('showStruggleToggle')}
+                  trackColor={{ false: colors.border, true: colors.accent }}
+                  thumbColor="#fff"
+                />
+              </View>
+              <View style={[ctrlStyles.row, { borderBottomWidth: 0 }]}>
+                <Feather name="clock" size={16} color={colors.accent} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[ctrlStyles.label, { color: colors.text }]}>Time reclaimed</Text>
+                  <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>Hours of attention saved</Text>
+                </View>
+                <Switch
+                  value={showTimeReclaimed}
+                  onValueChange={() => toggleHomeSection('showTimeReclaimed')}
+                  trackColor={{ false: colors.border, true: colors.accent }}
+                  thumbColor="#fff"
+                />
+              </View>
+            </>
+          )}
         </View>
 
         {/* ── Zone 4+5: Appearance (compact) ── */}
@@ -539,7 +794,7 @@ export default function MeScreen() {
               ))}
             </View>
           </View>
-          <View style={[ctrlStyles.row, { borderBottomWidth: 0 }]}>
+          <View style={[ctrlStyles.row, { borderBottomColor: colors.border }]}>
             <Feather name="square" size={16} color={colors.accent} />
             <Text style={[ctrlStyles.label, { color: colors.text, flex: 1 }]}>Borders</Text>
             <View style={appearStyles.dots}>
@@ -548,6 +803,80 @@ export default function MeScreen() {
               ))}
             </View>
           </View>
+          {/* Brightness slider — no ctrlStyles.row, custom layout */}
+          <View style={{ borderTopWidth: 0 }}>
+            <View style={{
+              flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+              paddingHorizontal: SPACING.lg, paddingTop: SPACING.md,
+            }}>
+              <Text style={[ctrlStyles.label, { color: colors.text }]}>Brightness</Text>
+              <Text style={[ctrlStyles.label, { color: colors.textMuted, fontSize: 12.5 }]}>
+                {brightnessLabel(themeBrightness)}
+              </Text>
+            </View>
+            <BrightnessSlider
+              value={themeBrightness}
+              onChange={setThemeBrightness}
+              colors={colors}
+            />
+          </View>
+        </View>
+
+        {/* ── Stats & Insights ── */}
+        <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Stats</Text>
+
+        <View style={[ctrlStyles.board, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+          <Pressable
+            style={[ctrlStyles.row, { borderBottomColor: colors.border }]}
+            onPress={() => {
+              if (!unlocked.has('insights')) {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                Alert.alert('Still locked', lockHint('insights'));
+                return;
+              }
+              router.push('/insights');
+            }}
+          >
+            <Feather name="bar-chart-2" size={16} color={unlocked.has('insights') ? colors.accent : colors.textMuted} />
+            <View style={{ flex: 1, opacity: unlocked.has('insights') ? 1 : 0.5 }}>
+              <Text style={[ctrlStyles.label, { color: colors.text }]}>Insights</Text>
+              <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>
+                {unlocked.has('insights') ? 'Triggers, patterns, peak hours' : lockHint('insights')}
+              </Text>
+            </View>
+            <Feather name={unlocked.has('insights') ? 'chevron-right' : 'lock'} size={16} color={colors.textMuted} />
+          </Pressable>
+          <Pressable
+            style={[ctrlStyles.row, { borderBottomColor: colors.border }]}
+            onPress={() => router.push('/weekly-recap')}
+          >
+            <Feather name="calendar" size={16} color={colors.accent} />
+            <View style={{ flex: 1 }}>
+              <Text style={[ctrlStyles.label, { color: colors.text }]}>Weekly Recap</Text>
+              <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>Your last 7 days at a glance</Text>
+            </View>
+            <Feather name="chevron-right" size={16} color={colors.textMuted} />
+          </Pressable>
+          <Pressable
+            style={[ctrlStyles.row, { borderBottomWidth: 0 }]}
+            onPress={() => {
+              if (!unlocked.has('journal')) {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                Alert.alert('Still locked', lockHint('journal'));
+                return;
+              }
+              router.push('/journal' as any);
+            }}
+          >
+            <Feather name="book-open" size={16} color={unlocked.has('journal') ? colors.accent : colors.textMuted} />
+            <View style={{ flex: 1, opacity: unlocked.has('journal') ? 1 : 0.5 }}>
+              <Text style={[ctrlStyles.label, { color: colors.text }]}>Impulse Journal</Text>
+              <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>
+                {unlocked.has('journal') ? 'What you wrote during intercepts' : lockHint('journal')}
+              </Text>
+            </View>
+            <Feather name={unlocked.has('journal') ? 'chevron-right' : 'lock'} size={16} color={colors.textMuted} />
+          </Pressable>
         </View>
 
         {/* ── Zone 6: Account ── */}
@@ -556,10 +885,18 @@ export default function MeScreen() {
         <View style={[ctrlStyles.board, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
           <Pressable
             style={[ctrlStyles.row, { borderBottomColor: colors.border }]}
-            onPress={() => router.push('/help')}
+            onPress={() => router.push('/tutorial')}
+          >
+            <Feather name="map" size={16} color={colors.textMuted} />
+            <Text style={[ctrlStyles.label, { color: colors.text, flex: 1 }]}>Interactive tour</Text>
+            <Feather name="chevron-right" size={16} color={colors.textMuted} />
+          </Pressable>
+          <Pressable
+            style={[ctrlStyles.row, { borderBottomColor: colors.border }]}
+            onPress={() => router.push('/tips')}
           >
             <Feather name="help-circle" size={16} color={colors.textMuted} />
-            <Text style={[ctrlStyles.label, { color: colors.text, flex: 1 }]}>Help & guide</Text>
+            <Text style={[ctrlStyles.label, { color: colors.text, flex: 1 }]}>Tips & feature guide</Text>
             <Feather name="chevron-right" size={16} color={colors.textMuted} />
           </Pressable>
           <Pressable
@@ -570,6 +907,22 @@ export default function MeScreen() {
             <Text style={[ctrlStyles.label, { color: colors.text, flex: 1 }]}>Privacy policy</Text>
             <Feather name="chevron-right" size={16} color={colors.textMuted} />
           </Pressable>
+          <View style={[ctrlStyles.row, { borderBottomColor: colors.border }]}>
+            <Feather name="unlock" size={16} color={colors.accent} />
+            <View style={{ flex: 1 }}>
+              <Text style={[ctrlStyles.label, { color: colors.text }]}>Unlock everything now</Text>
+              <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>Skip the walk-away milestones</Text>
+            </View>
+            <Switch
+              value={forceUnlockAll}
+              onValueChange={(val) => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setForceUnlockAll(val);
+              }}
+              trackColor={{ false: colors.border, true: colors.accent }}
+              thumbColor="#fff"
+            />
+          </View>
           <Pressable
             style={[ctrlStyles.row, { borderBottomWidth: 0 }]}
             onPress={signOutConfirm}
@@ -599,6 +952,19 @@ export default function MeScreen() {
         </View>
       </Modal>
     </SafeAreaView>
+    <PageGuide
+      page="profile"
+      icon="user"
+      accent={colors.me}
+      title="Me"
+      subtitle="Your progress, your controls, your look — all in one place."
+      points={[
+        { icon: 'trending-up', title: 'Stats',           body: 'Walk-aways and time saved, tracked over time.' },
+        { icon: 'sliders',     title: 'Control board',   body: 'Wind-down hours, hard mode, and focus sessions live here.' },
+        { icon: 'droplet',     title: 'Look & feel',     body: 'Pick a theme and border style — it applies across the whole app.' },
+      ]}
+    />
+    </>
   );
 }
 

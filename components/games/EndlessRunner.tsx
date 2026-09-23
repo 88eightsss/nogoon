@@ -1,9 +1,10 @@
 // ─── Goon Run — classic endless runner ───────────────────────────────────────
 //
-// Tap to jump (double-jump allowed). Dodge obstacles. Survive 20s to win.
-// One hit = game over.
+// Tap to jump (double-jump allowed). Dodge obstacles — genuinely endless,
+// like the real thing: there's no finish line, the pace keeps ramping up
+// the longer you survive, and one hit ends the run.
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,91 +14,31 @@ import {
   LayoutChangeEvent,
   TouchableWithoutFeedback,
 } from 'react-native';
-import Svg, { Rect } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
-import { COLORS, FONTS } from '@/constants/Colors';
+import { FONTS } from '@/constants/Colors';
+import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
-
-// ─── Pixel Goon sprite ────────────────────────────────────────────────────────
-// Two stride frames for a running animation.
-
-const G_CELL = 3;
-
-const G_COLORS: Record<number, string> = {
-  1: '#166534',  // body — dark green
-  2: '#4ade80',  // eyes — bright green
-  3: '#86efac',  // accent — light green
-};
-
-// Frame A — left leg back, right leg forward
-const GRID_A: number[][] = [
-  [0,0,0,1,1,1,1,0,0,0],
-  [0,0,1,1,1,1,1,1,0,0],
-  [0,1,1,2,1,1,2,1,1,0],
-  [0,1,1,2,1,1,2,1,1,0],
-  [0,1,1,1,1,1,1,1,1,0],
-  [1,1,1,1,3,3,1,1,1,1],
-  [0,0,1,1,1,1,1,1,0,0],
-  [0,0,0,1,1,1,1,0,0,0],
-  [0,0,0,1,0,0,1,1,0,0],
-  [0,0,0,1,0,0,0,1,0,0],
-  [0,0,0,0,0,0,0,1,0,0],
-  [0,0,0,0,0,0,0,0,0,0],
-];
-
-// Frame B — right leg back, left leg forward
-const GRID_B: number[][] = [
-  [0,0,0,1,1,1,1,0,0,0],
-  [0,0,1,1,1,1,1,1,0,0],
-  [0,1,1,2,1,1,2,1,1,0],
-  [0,1,1,2,1,1,2,1,1,0],
-  [0,1,1,1,1,1,1,1,1,0],
-  [1,1,1,1,3,3,1,1,1,1],
-  [0,0,1,1,1,1,1,1,0,0],
-  [0,0,0,1,1,1,1,0,0,0],
-  [0,0,1,1,0,0,1,0,0,0],
-  [0,0,1,0,0,0,1,0,0,0],
-  [0,0,1,0,0,0,0,0,0,0],
-  [0,0,0,0,0,0,0,0,0,0],
-];
-
-function GoonSprite({ frame }: { frame: 0 | 1 }) {
-  const grid = frame === 0 ? GRID_A : GRID_B;
-  const w = 10 * G_CELL;
-  const h = 12 * G_CELL;
-  return (
-    <Svg width={w} height={h}>
-      {grid.map((row, r) =>
-        row.map((val, c) => {
-          if (!val) return null;
-          return (
-            <Rect
-              key={`${r}-${c}`}
-              x={c * G_CELL}
-              y={r * G_CELL}
-              width={G_CELL - 0.5}
-              height={G_CELL - 0.5}
-              fill={G_COLORS[val]}
-            />
-          );
-        })
-      )}
-    </Svg>
-  );
-}
+import { GoonSprite } from '@/components/home/GoonMascot';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const TICK_MS      = 32;    // ~30fps
 const CHAR_X       = 60;    // fixed horizontal position
-const CHAR_W       = 30;    // 10 × G_CELL
-const CHAR_H       = 36;    // 12 × G_CELL
-const GROUND_PAD   = 48;
+const CHAR_W       = 30;    // Rex sprite bounding box (10 * CELL(8) * 0.375)
+const CHAR_H       = 36;    // (12 * CELL(8) * 0.375)
+// Ground sits at a fraction of the board's height rather than a fixed pixel
+// margin from the bottom — a fixed 48px margin left the whole running lane
+// hugging the bottom edge on a tall board, with most of the screen empty
+// sky above. This centers it: room to jump above, a visible floor below.
+const GROUND_FRACTION = 0.6;
 const JUMP_VEL     = -20;   // snappier jump
 const GRAVITY      = 1.5;   // snappier gravity
 const BASE_SPEED   = 5;
-const SPEED_RAMP   = 0.0015;
-const WIN_TICKS    = 600;   // ~20 seconds at 30fps
+const SPEED_RAMP   = 0.004;
+// Capped well under the shortest obstacle width (14px) so a long run can
+// never move obstacles fast enough to tunnel past the character's hitbox
+// between ticks — genuinely endless without ever becoming uncollidable.
+const MAX_SPEED    = 13;
 
 // Obstacle sizes — cactus-style, two heights
 const OBS_TYPES = [
@@ -117,9 +58,18 @@ interface Props {
   onComplete: (score: number) => void;
 }
 
+// No finish line — score is just how long you survived, on the same 0-100
+// scale every other arcade game reports (roughly full marks by ~19s, same
+// as the old fixed-length round, but the run itself keeps going past that).
+function scoreForTicks(ticks: number): number {
+  return Math.min(100, Math.round(ticks / 6));
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function EndlessRunner({ onComplete }: Props) {
+  const COLORS = useThemedColors();
+  const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   const [phase, setPhase]         = useState<'ready' | 'playing' | 'done'>('ready');
   const [displayTick, setDisplayTick] = useState(0);
   const [renderTick, setRenderTick]   = useState(0);
@@ -144,7 +94,7 @@ export function EndlessRunner({ onComplete }: Props) {
   const runTickRef   = useRef<() => void>(() => {});
   const clearTick    = () => { if (tickTimer.current) clearInterval(tickTimer.current); };
 
-  const groundY = () => boardH.current - GROUND_PAD;
+  const groundY = () => boardH.current * GROUND_FRACTION;
 
   const resetState = useCallback(() => {
     charY.current         = groundY() - CHAR_H;
@@ -197,7 +147,7 @@ export function EndlessRunner({ onComplete }: Props) {
     }
 
     // Speed ramp
-    speed.current += SPEED_RAMP;
+    speed.current = Math.min(MAX_SPEED, speed.current + SPEED_RAMP);
     const sp = speed.current;
 
     // Move + cull obstacles
@@ -236,22 +186,14 @@ export function EndlessRunner({ onComplete }: Props) {
         clearTick();
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         const final = tickCount.current;
-        setTimeout(() => onComplete(final >= WIN_TICKS ? 100 : Math.round((final / WIN_TICKS) * 60)), 900);
+        setTimeout(() => onComplete(scoreForTicks(final)), 900);
         return;
       }
     }
 
-    // Score
+    // Score — no finish line, you just run until you hit something
     tickCount.current += 1;
     if (tickCount.current % 10 === 0) setDisplayTick(tickCount.current);
-
-    if (tickCount.current >= WIN_TICKS) {
-      doneRef.current = true;
-      setPhase('done');
-      clearTick();
-      setTimeout(() => onComplete(100), 900);
-      return;
-    }
 
     setRenderTick((t) => t + 1);
   }, [onComplete]);
@@ -270,7 +212,7 @@ export function EndlessRunner({ onComplete }: Props) {
   const onBoardLayout = (e: LayoutChangeEvent) => {
     boardW.current = e.nativeEvent.layout.width;
     boardH.current = e.nativeEvent.layout.height;
-    charY.current  = boardH.current - GROUND_PAD - CHAR_H;
+    charY.current  = groundY() - CHAR_H;
   };
 
   // ── Ready screen ──────────────────────────────────────────────────────────
@@ -279,30 +221,14 @@ export function EndlessRunner({ onComplete }: Props) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.center}>
-          <Svg width={10 * G_CELL * 3} height={12 * G_CELL * 3}>
-            {GRID_A.map((row, r) =>
-              row.map((val, c) => {
-                if (!val) return null;
-                return (
-                  <Rect
-                    key={`${r}-${c}`}
-                    x={c * G_CELL * 3}
-                    y={r * G_CELL * 3}
-                    width={G_CELL * 3 - 1}
-                    height={G_CELL * 3 - 1}
-                    fill={G_COLORS[val]}
-                  />
-                );
-              })
-            )}
-          </Svg>
+          <GoonSprite char={2} stage={4} size={1.125} />
           <Text style={styles.title}>Goon Run</Text>
           <View style={styles.ruleCard}>
             <Text style={styles.rule}>
               <Text style={{ fontFamily: FONTS.bodyBold, color: '#4ade80' }}>Tap</Text> to jump.{' '}
               <Text style={{ fontFamily: FONTS.bodyBold, color: '#86efac' }}>Tap again</Text> to double-jump.{'\n\n'}
               Dodge the obstacles.{'\n'}
-              Survive <Text style={{ fontFamily: FONTS.bodyBold, color: '#4ade80' }}>20s</Text> to win.
+              No finish line — run as far as you can. It picks up speed the longer you last.
             </Text>
           </View>
           <Pressable style={styles.startBtn} onPress={startGame}>
@@ -315,20 +241,17 @@ export function EndlessRunner({ onComplete }: Props) {
 
   // ── Playing / Done ────────────────────────────────────────────────────────
 
-  const gY = boardH.current - GROUND_PAD;
-  const pct = Math.min(1, tickCount.current / WIN_TICKS);
+  const gY = groundY();
+  const elapsedSec = (tickCount.current * TICK_MS / 1000).toFixed(1);
 
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.playContainer}>
 
-        {/* Score bar */}
+        {/* Score bar — no finish line, just a running clock */}
         <View style={styles.scoreRow}>
-          <Text style={styles.scoreLabel}>DISTANCE</Text>
-          <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: `${pct * 100}%` }]} />
-          </View>
-          <Text style={styles.scoreValue}>{Math.round(pct * 100)}%</Text>
+          <Text style={styles.scoreLabel}>TIME</Text>
+          <Text style={styles.scoreValue}>{elapsedSec}s</Text>
         </View>
 
         {/* Board */}
@@ -339,8 +262,13 @@ export function EndlessRunner({ onComplete }: Props) {
             <View style={[styles.groundLine, { top: gY }]} />
 
             {/* Goon character */}
-            <View style={[styles.character, { left: CHAR_X, top: charY.current }]}>
-              <GoonSprite frame={spriteFrame} />
+            <View
+              style={[
+                styles.character,
+                { left: CHAR_X, top: charY.current + (spriteFrame === 0 ? 0 : -2) },
+              ]}
+            >
+              <GoonSprite char={2} stage={4} size={0.375} />
             </View>
 
             {/* Obstacles */}
@@ -363,7 +291,7 @@ export function EndlessRunner({ onComplete }: Props) {
             {phase === 'done' && (
               <View style={styles.overlay}>
                 <Text style={styles.overlayText}>
-                  {tickCount.current >= WIN_TICKS ? '🏁 Made it!' : `${Math.round((tickCount.current / WIN_TICKS) * 100)}%`}
+                  {elapsedSec}s
                 </Text>
               </View>
             )}
@@ -380,7 +308,7 @@ export function EndlessRunner({ onComplete }: Props) {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.background },
 
   center: {
@@ -439,18 +367,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: COLORS.textMuted,
     letterSpacing: 1.5,
-  },
-  progressTrack: {
-    flex: 1,
-    height: 4,
-    backgroundColor: '#1a3a1a',
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#4ade80',
-    borderRadius: 2,
   },
   scoreValue: {
     fontFamily: FONTS.bodyBold,

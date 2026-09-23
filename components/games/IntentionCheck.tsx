@@ -24,7 +24,7 @@
 //    onComplete(score) — called when the user finishes (always 25 pts)
 // ═══════════════════════════════════════════════════════════════════════════
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -35,7 +35,8 @@ import {
   ScrollView,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { COLORS, FONTS } from '@/constants/Colors';
+import { FONTS } from '@/constants/Colors';
+import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { ProceedButton } from '@/components/ui/ProceedButton';
 
@@ -55,42 +56,42 @@ const FEELING_OPTIONS = [
     label: 'Bored',
     emoji: '😐',
     reframe: "Boredom is uncomfortable — but it's also where creativity lives. What's one thing you've been putting off?",
-    color: COLORS.textSecondary,
+    colorKey: 'textSecondary' as const,
   },
   {
     id: 'anxious',
     label: 'Anxious',
     emoji: '😟',
     reframe: "Scrolling numbs anxiety for about 90 seconds, then it comes back stronger. The feed won't fix what's worrying you.",
-    color: COLORS.warning,
+    colorKey: 'warning' as const,
   },
   {
     id: 'lonely',
     label: 'Lonely',
     emoji: '🥺',
     reframe: "Social media gives the feeling of connection without the substance of it. Is there someone you could actually message or call?",
-    color: COLORS.purple,
+    colorKey: 'purple' as const,
   },
   {
     id: 'procrastinating',
     label: 'Avoiding something',
     emoji: '😅',
     reframe: "The task isn't going anywhere. Five minutes of scrolling usually turns into forty. What's the smallest possible next step?",
-    color: COLORS.cyan,
+    colorKey: 'cyan' as const,
   },
   {
     id: 'need',
     label: 'I genuinely need it',
     emoji: '✅',
     reframe: "Fair enough. If there's a real reason, go ahead. You made it conscious — that's what matters.",
-    color: COLORS.green,
+    colorKey: 'green' as const,
   },
   {
     id: 'habit',
     label: 'Just habit — I don\'t even know why',
     emoji: '🔄',
     reframe: "That's the most honest answer. Automatic behavior is the hardest to break — and you just interrupted it. That's the whole point.",
-    color: COLORS.indigoBright,
+    colorKey: 'indigoBright' as const,
   },
 ] as const;
 
@@ -100,6 +101,8 @@ type Step = 'feeling' | 'reframe' | 'done';
 // ─── Main component ────────────────────────────────────────────────────────────
 
 export function IntentionCheck({ onComplete }: IntentionCheckProps) {
+  const COLORS = useThemedColors();
+  const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   const [step, setStep]               = useState<Step>('feeling');
   const [selectedFeel, setSelectedFeel] = useState<typeof FEELING_OPTIONS[number] | null>(null);
 
@@ -150,12 +153,12 @@ export function IntentionCheck({ onComplete }: IntentionCheckProps) {
                   key={option.id}
                   style={[
                     styles.optionCard,
-                    { borderColor: option.color + '55' },
+                    { borderColor: COLORS[option.colorKey] + '55' },
                   ]}
                   onPress={() => handleSelectFeeling(option)}
                 >
                   <Text style={styles.optionEmoji}>{option.emoji}</Text>
-                  <Text style={[styles.optionLabel, { color: option.color }]}>
+                  <Text style={[styles.optionLabel, { color: COLORS[option.colorKey] }]}>
                     {option.label}
                   </Text>
                 </Pressable>
@@ -180,9 +183,9 @@ export function IntentionCheck({ onComplete }: IntentionCheckProps) {
         <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
           <View style={styles.reframeContainer}>
             {/* Their answer reflected back */}
-            <View style={[styles.answerChip, { borderColor: selectedFeel.color + '55' }]}>
+            <View style={[styles.answerChip, { borderColor: COLORS[selectedFeel.colorKey] + '55' }]}>
               <Text style={styles.answerEmoji}>{selectedFeel.emoji}</Text>
-              <Text style={[styles.answerLabel, { color: selectedFeel.color }]}>
+              <Text style={[styles.answerLabel, { color: COLORS[selectedFeel.colorKey] }]}>
                 {selectedFeel.label}
               </Text>
             </View>
@@ -197,10 +200,10 @@ export function IntentionCheck({ onComplete }: IntentionCheckProps) {
             </Text>
 
             <Pressable
-              style={[styles.continueButton, { backgroundColor: selectedFeel.color + '22', borderColor: selectedFeel.color + '55' }]}
+              style={[styles.continueButton, { backgroundColor: COLORS[selectedFeel.colorKey] + '22', borderColor: COLORS[selectedFeel.colorKey] + '55' }]}
               onPress={handleContinueFromReframe}
             >
-              <Text style={[styles.continueButtonText, { color: selectedFeel.color }]}>
+              <Text style={[styles.continueButtonText, { color: COLORS[selectedFeel.colorKey] }]}>
                 Got it
               </Text>
             </Pressable>
@@ -236,7 +239,7 @@ export function IntentionCheck({ onComplete }: IntentionCheckProps) {
 
 // ─── Styles ────────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: COLORS.background,

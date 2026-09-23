@@ -20,7 +20,7 @@
 //  so they work offline and are fully customizable.
 // ═══════════════════════════════════════════════════════════════════════════
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -32,7 +32,8 @@ import {
   Linking,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { COLORS, FONTS } from '@/constants/Colors';
+import { FONTS } from '@/constants/Colors';
+import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { ProceedButton } from '@/components/ui/ProceedButton';
 import { fetchAdForPlacement, trackAdEvent, type AdCampaign } from '@/services/ads';
@@ -203,9 +204,11 @@ interface AdCardProps {
   onPress: (position: number) => void;
   result: 'correct' | 'wrong' | 'revealed' | null; // feedback state
   answered: boolean;
+  styles: ReturnType<typeof makeStyles>;
+  COLORS: ArcadeColors;
 }
 
-function AdCard({ ad, position, onPress, result, answered }: AdCardProps) {
+function AdCard({ ad, position, onPress, result, answered, styles, COLORS }: AdCardProps) {
   const scale = useRef(new Animated.Value(1)).current;
 
   const handlePressIn = () => {
@@ -242,6 +245,14 @@ function AdCard({ ad, position, onPress, result, answered }: AdCardProps) {
           { transform: [{ scale }] },
         ]}
       >
+        {/* The one they missed -- render this first so it's the first thing the
+            eye hits, not a faint border they have to go looking for. */}
+        {result === 'revealed' && (
+          <View style={styles.revealedBadge}>
+            <Text style={styles.revealedBadgeText}>✓ MISSED THIS ONE</Text>
+          </View>
+        )}
+
         {/* Optional badge */}
         {ad.badgeText && (
           <View style={styles.adBadge}>
@@ -298,6 +309,8 @@ interface Props {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function OddOneOut({ onComplete }: Props) {
+  const COLORS = useThemedColors();
+  const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   const [gamePhase, setGamePhase] = useState<'intro' | 'playing' | 'complete'>('intro');
   const [roundIndex, setRoundIndex] = useState(0);
   const [score, setScore] = useState(0);
@@ -560,6 +573,8 @@ export function OddOneOut({ onComplete }: Props) {
               onPress={handleTap}
               result={getCardResult(pos)}
               answered={answered}
+              styles={styles}
+              COLORS={COLORS}
             />
           ))}
         </View>
@@ -622,7 +637,7 @@ export function OddOneOut({ onComplete }: Props) {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -798,7 +813,25 @@ const styles = StyleSheet.create({
   },
 
   adCardRevealed: {
-    backgroundColor: COLORS.green + '10',
+    backgroundColor: COLORS.green + '22',
+    borderWidth: 2.5,
+  },
+
+  revealedBadge: {
+    alignSelf: 'stretch',
+    backgroundColor: COLORS.green,
+    borderRadius: RADIUS.xs,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    alignItems: 'center',
+  },
+
+  revealedBadgeText: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 8,
+    color: '#fff',
+    letterSpacing: 0.2,
+    textAlign: 'center',
   },
 
   adBadge: {

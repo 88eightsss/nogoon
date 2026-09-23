@@ -1,13 +1,21 @@
 // ─── Onboarding Screen ────────────────────────────────────────────────────────
 //
-// Shown once, right after a user creates their account.
-// Four steps walk the user through NoGoon:
-//   1–3. Slides explaining what NoGoon does
-//   4.   Name input (personalises the experience)
-//   5.   Setup step — add blocked sites + enable accessibility
+// Shown once, right after a user creates their account. Walks the user
+// through NoGoon in order:
+//   1–4. Slides — what NoGoon does, the pause/game/choice loop, the four-tab
+//        layout, and a heads-up that a phone setting comes next. No emoji —
+//        Feather icons only (see SLIDES below).
+//   5.   Name input (personalises the experience)
+//   6.   Companion pick
+//   7.   Setup step — add blocked sites, enable Accessibility Access
+//        (step-by-step instructions), and the battery-optimization exemption
 //
 // After completing, completeOnboarding() is called on the store,
 // which sets hasOnboarded = true so this screen never shows again.
+//
+// Per-tab first-visit explainers (Today/Protect/Arcade/Calm/Me) are a
+// separate, later mechanism — see components/PageGuide.tsx — shown once each
+// the first time a new user actually lands on that tab.
 
 import { useState, useRef, useEffect } from 'react';
 import {
@@ -26,7 +34,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import * as IntentLauncher from 'expo-intent-launcher';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUserStore } from '@/stores/useUserStore';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -45,28 +52,44 @@ const COMPANION_TAGS: Record<CharacterId, string> = {
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-// ─── Slide content ────────────────────────────────────────────────────────────
+type FeatherName = React.ComponentProps<typeof Feather>['name'];
 
-const SLIDES = [
+// ─── Slide content ────────────────────────────────────────────────────────────
+//
+// No emoji here on purpose — icons are Feather glyphs so the opening screen
+// reads the same on every device/font, and colors always come from the
+// slide's own `color` so nothing needs a second lookup at render time.
+// Covers, in order: what NoGoon actually does, the pause-game-choice loop it
+// replaces doomscrolling with, how the app's four tabs are laid out, and a
+// heads-up about the one phone setting that has to be turned on next (the
+// full step-by-step for that lives on the setup screen right after this).
+
+const SLIDES: { icon: FeatherName; title: string; body: string; color: string }[] = [
   {
-    emoji: '🛡️',
-    title: 'NoGoon guards\nyour attention',
-    body: 'When you try to open a flagged site, NoGoon intercepts it before the habit loop fires.',
+    icon: 'shield',
+    title: 'NoGoon blocks the\napps that pull you in',
+    body: "When you open something on your blocklist, NoGoon steps in before the scroll starts — no willpower required, it just happens automatically.",
     color: COLORS.green,
   },
   {
-    emoji: '🎮',
-    title: 'Play a game\ninstead',
-    body: "A quick 30-second game reroutes your brain's craving. Most people find they don't want the site anymore after.",
+    icon: 'refresh-cw',
+    title: 'A pause, a game,\nthen your choice',
+    body: "A short game interrupts the urge. Most people walk away afterward — but if you still want in, a brief wait unlocks it. No points needed, no judgment either way.",
     color: COLORS.purple,
   },
   {
-    emoji: '🔥',
-    title: 'Build a streak,\nearn rewards',
-    body: 'Every time you walk away, your streak grows. If you still need the site, a short pause unlocks it — no points needed.',
+    icon: 'grid',
+    title: 'Everything lives\nin four tabs',
+    body: "Protect sets what's blocked. Today shows your streak and daily snapshot. Calm holds grounding tools and games. Me is your stats, theme, and settings.",
     color: COLORS.cyan,
   },
-] as const;
+  {
+    icon: 'settings',
+    title: 'One setting\nturns it all on',
+    body: "Next you'll flip on Accessibility Access in your phone's Settings app — that's what lets NoGoon actually see and block app opens. Takes about 30 seconds, and we'll walk you through every tap.",
+    color: COLORS.arcade,
+  },
+];
 
 // Suggested sites shown as toggleable chips during setup — all pre-selected
 const SITE_SUGGESTIONS = [
@@ -86,7 +109,10 @@ const SITE_SUGGESTIONS = [
 export default function OnboardingScreen() {
   const { setName, completeOnboarding, addSite } = useUserStore();
   const { user } = useAuthStore();
-  const { openSettings, serviceEnabled, checkServiceStatus } = useAppBlocker();
+  const {
+    openSettings, serviceEnabled, checkServiceStatus, checkBatteryOptimized, openBatterySettings,
+    isKnownOemOffender, openOemAutostartSettings, requestNotificationPermission,
+  } = useAppBlocker();
 
   // ── Poll for accessibility service status ──────────────────────────────────
   // When the user taps "Enable" they're sent to Android Settings. When they
@@ -94,10 +120,25 @@ export default function OnboardingScreen() {
   // We poll every 1.5s AND listen to AppState so we check immediately on return.
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') checkServiceStatus();
+      if (state === 'active') {
+        checkServiceStatus();
+        checkBatteryOptimized().then((stillOptimized) => setBatteryExempt(!stillOptimized));
+      }
     });
+    // Also check once on mount, in case the user already exempted NoGoon
+    // before reaching this screen (e.g. re-running onboarding after a reinstall).
+    checkBatteryOptimized().then((stillOptimized) => setBatteryExempt(!stillOptimized));
     return () => subscription.remove();
-  }, [checkServiceStatus]);
+  }, [checkServiceStatus, checkBatteryOptimized]);
+
+  // Once the Accessibility Service is confirmed on, ask for POST_NOTIFICATIONS
+  // (Android 13+) so the persistent "protection active" notification the
+  // service starts is actually visible to the user, not silently suppressed.
+  useEffect(() => {
+    if (serviceEnabled) {
+      requestNotificationPermission();
+    }
+  }, [serviceEnabled, requestNotificationPermission]);
 
   const [step, setStep]                   = useState(0);
   const [name, setNameLocal]              = useState('');
@@ -395,24 +436,41 @@ export default function OnboardingScreen() {
                 ) : (
                   <Pressable
                     style={styles.setupEnableButton}
-                    onPress={async () => {
-                      try {
-                        await IntentLauncher.startActivityAsync(
-                          'android.settings.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS',
-                          { data: 'package:com.nogoon.app' }
-                        );
-                        // Mark as done — user saw and responded to the dialog
-                        setBatteryExempt(true);
-                      } catch {
-                        // Device doesn't support the intent — silently skip
-                        setBatteryExempt(true);
-                      }
+                    onPress={() => {
+                      // Opens the real exemption dialog (native module, with an
+                      // expo-intent-launcher fallback baked into the hook).
+                      // We don't assume success here — the AppState listener
+                      // above re-checks checkBatteryOptimized() the moment the
+                      // user comes back, so the checkmark only appears once
+                      // Android confirms the exemption actually took.
+                      openBatterySettings();
                     }}
                   >
                     <Text style={styles.setupEnableButtonText}>Enable</Text>
                   </Pressable>
                 )}
               </View>
+
+              {/* Row 4 — OEM autostart/battery manager. Only shown on manufacturers
+                  known to run a second, separate killer on top of Android's own —
+                  no checkmark here since there's no way to verify the setting. */}
+              {isKnownOemOffender && (
+                <>
+                  <View style={styles.setupDivider} />
+                  <View style={styles.setupRow}>
+                    <View style={styles.setupRowLeft}>
+                      <Feather name="alert-triangle" size={20} color={COLORS.textSecondary} />
+                      <View style={styles.setupRowText}>
+                        <Text style={styles.setupRowTitle}>Check your phone's battery manager</Text>
+                        <Text style={styles.setupRowSub}>Your device brand has its own, separate from Android's. Also try locking NoGoon in your recent apps.</Text>
+                      </View>
+                    </View>
+                    <Pressable style={styles.setupEnableButton} onPress={openOemAutostartSettings}>
+                      <Text style={styles.setupEnableButtonText}>Open</Text>
+                    </Pressable>
+                  </View>
+                </>
+              )}
 
             </View>
 
@@ -494,7 +552,9 @@ export default function OnboardingScreen() {
           >
             {SLIDES.map((slide, i) => (
               <View key={i} style={styles.slide}>
-                <Text style={styles.slideEmoji}>{slide.emoji}</Text>
+                <View style={[styles.slideIconWrap, { backgroundColor: slide.color + '1c' }]}>
+                  <Feather name={slide.icon} size={40} color={slide.color} />
+                </View>
                 <Text style={[styles.slideTitle, { color: slide.color }]}>
                   {slide.title}
                 </Text>
@@ -565,8 +625,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: SPACING.xl,
   },
-  slideEmoji: {
-    fontSize: 72,
+  slideIconWrap: {
+    width: 88,
+    height: 88,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: SPACING.xl,
   },
   slideTitle: {

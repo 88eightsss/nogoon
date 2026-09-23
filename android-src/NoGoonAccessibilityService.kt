@@ -39,11 +39,17 @@
 package com.nogoon.app
 
 import android.accessibilityservice.AccessibilityService
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.app.Service
+import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.net.Uri
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -51,6 +57,7 @@ import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import androidx.core.app.NotificationCompat
 
 class NoGoonAccessibilityService : AccessibilityService() {
 
@@ -109,6 +116,15 @@ class NoGoonAccessibilityService : AccessibilityService() {
         // Set by JS when a focus session is active — ms timestamp when it ends (0 = none)
         // Focus sessions override the QS tile pause so the hard-lock can't be bypassed.
         private const val KEY_FOCUS_SESSION_END = "focusSessionEnd"
+
+        // ── Persistent "protection active" notification ─────────────────────────
+        // A low-priority, silent, ongoing notification shown for as long as this
+        // service is connected. It exists purely so the user can SEE that blocking
+        // is running (and so Android is less likely to silently kill the service —
+        // a foreground service is much lower priority for the OS to reclaim under
+        // memory pressure than a plain background accessibility service).
+        private const val PROTECTION_NOTIFICATION_CHANNEL = "nogoon_protection_active"
+        private const val PROTECTION_NOTIFICATION_ID       = 4242
     }
 
     // SharedPreferences cached at class level — initialized once in onServiceConnected.
@@ -205,6 +221,65 @@ class NoGoonAccessibilityService : AccessibilityService() {
         prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
         // Remove accumulated stale keys from prior sessions
         pruneExpiredKeys()
+        // Show the persistent "protection active" notification and mark this
+        // service as a foreground service (see PROTECTION_NOTIFICATION_ID above).
+        startProtectionForeground()
+    }
+
+    override fun onUnbind(intent: Intent?): Boolean {
+        // The system unbinds an accessibility service when the user disables it
+        // in Settings (or a crash tears the connection down). Either way, drop
+        // the foreground state and clear the notification along with it.
+        try {
+            stopForeground(Service.STOP_FOREGROUND_REMOVE)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to stop foreground on unbind", e)
+        }
+        return super.onUnbind(intent)
+    }
+
+    // ── Persistent "protection active" notification ──────────────────────────
+    // Low-priority (IMPORTANCE_LOW / PRIORITY_LOW), silent, ongoing — it should
+    // never make noise or vibrate, it's purely a visible "NoGoon is running"
+    // indicator that also lets Android treat this as a foreground service.
+    // Tapping it opens the app; it cannot be swiped away while protection runs.
+    private fun startProtectionForeground() {
+        try {
+            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val channel = NotificationChannel(
+                    PROTECTION_NOTIFICATION_CHANNEL,
+                    "Protection status",
+                    NotificationManager.IMPORTANCE_LOW
+                ).apply {
+                    description = "Shows when NoGoon's app blocker is actively running"
+                    setShowBadge(false)
+                }
+                nm.createNotificationChannel(channel)
+            }
+
+            val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
+            val pendingFlags = PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            val pending = PendingIntent.getActivity(this, 0, launchIntent, pendingFlags)
+
+            val notification = NotificationCompat.Builder(this, PROTECTION_NOTIFICATION_CHANNEL)
+                .setSmallIcon(R.drawable.notification_icon)
+                .setContentTitle("NoGoon protection is active")
+                .setContentText("Blocking is running in the background.")
+                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setOngoing(true)
+                .setSilent(true)
+                .setContentIntent(pending)
+                .build()
+
+            startForeground(PROTECTION_NOTIFICATION_ID, notification)
+        } catch (e: Exception) {
+            // Never let a notification/foreground-service failure take the
+            // accessibility service down with it — blocking must keep working
+            // even if the OS refuses the foreground promotion for some reason.
+            Log.e(TAG, "Failed to start protection foreground notification", e)
+        }
     }
 
     // ── Main event handler ────────────────────────────────────────────────────

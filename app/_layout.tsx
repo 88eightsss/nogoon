@@ -279,16 +279,8 @@ export default function RootLayout() {
             }}
           />
 
-          {/* Setup guide — re-enable Accessibility Service from home screen */}
-          <Stack.Screen
-            name="setup-guide"
-            options={{
-              presentation: 'modal',
-              animation: 'slide_from_bottom',
-            }}
-          />
-
-          {/* Ad Wall — "what the internet looks like without NoGoon" */}
+          {/* Ad Wall — "what the internet looks like without NoGoon" — kept
+              dormant for when the paywall comes back; not currently linked */}
           <Stack.Screen
             name="ad-wall"
             options={{

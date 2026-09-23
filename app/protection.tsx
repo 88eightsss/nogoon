@@ -1,8 +1,10 @@
 // ─── Protection Layers Screen ─────────────────────────────────────────────────
 //
-// Three layers of protection, each independent, each with an explanation
+// Three blocking layers, each independent, each with an explanation
 // of exactly what it does and why. Users can enable/disable any layer
 // individually. The more layers enabled, the harder the app is to access.
+// Plus one reliability check (below) that isn't a blocking layer itself but
+// keeps Layer 1 alive.
 //
 // Layer 1 — App Blocker (Accessibility Service)
 //   Already existed. Watches for app switches and throws up the gate screen.
@@ -17,6 +19,16 @@
 //   Silences notifications from blocked apps — the backdoor that triggers
 //   cravings even when you're not actively trying to open the app.
 //   Requires: Notification Access (user grants once in Settings).
+//
+// Battery Exemption (not a blocking layer, but shown here for the same
+//   reason as the three above: it's invisible until it's the reason
+//   blocking silently stopped working). Android — and on top of that,
+//   several phone makers' own battery managers — can force-stop the
+//   Accessibility Service that Layer 1 depends on to save power. This
+//   checks + requests the standard Android exemption. It used to only be
+//   requested once during onboarding, with no verification that it actually
+//   took — this screen now checks the real OS state via
+//   checkBatteryOptimized() so the status shown is never just optimistic.
 
 import { useEffect, useState, useCallback } from 'react';
 import {
@@ -139,6 +151,8 @@ function formatRelative(ts: number): string {
 export default function ProtectionScreen() {
   const {
     serviceEnabled, openSettings: openAccessibility, checkServiceStatus,
+    checkBatteryOptimized, openBatterySettings,
+    isKnownOemOffender, openOemAutostartSettings, requestNotificationPermission,
   } = useAppBlocker();
 
   const {
@@ -152,6 +166,18 @@ export default function ProtectionScreen() {
   } = useNotificationListener();
 
   const [domainLog, setDomainLog] = useState<DomainLogEntry[]>([]);
+
+  // Battery exemption — separate from Accessibility permission. Starts
+  // "checking" (rather than assuming false) so the card doesn't flash
+  // "Not exempted" for a frame before the real native check resolves.
+  const [batteryExempt, setBatteryExempt] = useState(false);
+  const [batteryChecking, setBatteryChecking] = useState(true);
+
+  const fetchBatteryStatus = useCallback(async () => {
+    const stillOptimized = await checkBatteryOptimized();
+    setBatteryExempt(!stillOptimized);
+    setBatteryChecking(false);
+  }, [checkBatteryOptimized]);
 
   const fetchDomainLog = useCallback(async () => {
     if (!hasNative) return;
@@ -171,17 +197,28 @@ export default function ProtectionScreen() {
       if (state === 'active') {
         checkServiceStatus();
         fetchDomainLog();
+        fetchBatteryStatus();
       }
     });
     return () => sub.remove();
-  }, [checkServiceStatus, fetchDomainLog]);
+  }, [checkServiceStatus, fetchDomainLog, fetchBatteryStatus]);
 
-  // Fetch domain log whenever screen comes into focus
+  // Fetch domain log + battery status whenever screen comes into focus
   useFocusEffect(useCallback(() => {
     fetchDomainLog();
-  }, [fetchDomainLog]));
+    fetchBatteryStatus();
+  }, [fetchDomainLog, fetchBatteryStatus]));
 
-  const activeCount = [serviceEnabled, vpnActive, notifGranted && notifEnabled]
+  // Once the Accessibility Service is on, it starts a persistent "protection
+  // active" foreground notification — ask for POST_NOTIFICATIONS (Android 13+)
+  // so that notification is actually visible instead of silently suppressed.
+  useEffect(() => {
+    if (serviceEnabled) {
+      requestNotificationPermission();
+    }
+  }, [serviceEnabled, requestNotificationPermission]);
+
+  const activeCount = [serviceEnabled, vpnActive, notifGranted && notifEnabled, batteryExempt]
     .filter(Boolean).length;
 
   return (
@@ -204,12 +241,12 @@ export default function ProtectionScreen() {
         <View style={styles.summary}>
           <View style={styles.summaryLeft}>
             <Text style={styles.summaryCount}>
-              {activeCount}/3
+              {activeCount}/4
             </Text>
-            <Text style={styles.summaryLabel}>layers active</Text>
+            <Text style={styles.summaryLabel}>checks active</Text>
           </View>
           <View style={styles.summaryBars}>
-            {[0, 1, 2].map((i) => (
+            {[0, 1, 2, 3].map((i) => (
               <View
                 key={i}
                 style={[
@@ -290,6 +327,58 @@ export default function ProtectionScreen() {
           cautionLabel={notifGranted ? undefined : 'Permission required'}
           cautionDetail={notifGranted ? undefined : "Go to Special App Access → Notification Access → toggle NoGoon on."}
         />
+
+        {/* Battery Exemption — reliability check, not a blocking layer */}
+        <LayerCard
+          number={4}
+          icon="🔋"
+          title="Battery Exemption"
+          subtitle="Keeps the App Blocker alive"
+          description="Android's battery saver can quietly force-stop background services — including the Accessibility Service Layer 1 depends on — to save power. This is a separate permission from Accessibility and has to be granted on its own."
+          statusLabel={batteryExempt ? 'Exempted' : 'Not exempted'}
+          isActive={batteryExempt}
+          isLoading={batteryChecking}
+          actionLabel={batteryExempt ? 'Manage in Settings' : 'Exempt NoGoon'}
+          onAction={openBatterySettings}
+          locked={!batteryExempt}
+          cautionLabel={batteryExempt ? undefined : 'Recommended for reliable blocking'}
+          cautionDetail={
+            batteryExempt
+              ? undefined
+              : "Tap above, then allow NoGoon to run in the background. Some phones (Samsung, Xiaomi, Oppo, Vivo) have a second, separate battery manager in their own Settings app on top of this one — worth checking there too."
+          }
+        />
+
+        {/* OEM autostart / battery manager — shown only for manufacturers known to
+            run their own killer on top of stock Android. Status is intentionally
+            NOT shown as a checkmark: there's no API to verify this setting, so
+            claiming a verified state here would repeat the exact "optimistic
+            checkmark" mistake already fixed for Battery Exemption above. */}
+        {isKnownOemOffender && (
+          <View style={styles.oemCard}>
+            <View style={styles.oemHeader}>
+              <Feather name="alert-triangle" size={14} color={COLORS.textSecondary} />
+              <Text style={styles.oemTitle}>Device-specific battery manager</Text>
+            </View>
+            <Text style={styles.oemBody}>
+              Your phone's manufacturer runs its own autostart/battery manager on top of
+              Android's — Battery Exemption above doesn't cover it. There's no way for
+              NoGoon to check this setting for you, so this can't be shown as a checkmark
+              like the layers above. Open it and make sure NoGoon is allowed to run in
+              the background / auto-start.
+            </Text>
+            <Text style={styles.oemBody}>
+              One more thing worth doing on these phones: open your recent apps
+              (the square/multitasking button), find NoGoon's card, and lock it —
+              usually a long-press on the card. That alone stops a lot of these
+              manufacturers from killing it, even before you touch the setting above.
+            </Text>
+            <Pressable style={styles.oemButton} onPress={openOemAutostartSettings}>
+              <Text style={styles.oemButtonText}>Open Autostart Settings</Text>
+              <Feather name="external-link" size={14} color={COLORS.background} />
+            </Pressable>
+          </View>
+        )}
 
         {/* VPN Domain Log */}
         {domainLog.length > 0 && (
@@ -555,6 +644,46 @@ const styles = StyleSheet.create({
   },
 
   // ── Domain Log ──
+  oemCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+    gap: SPACING.sm,
+  },
+  oemHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+  },
+  oemTitle: {
+    fontFamily: FONTS.bodyMedium,
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    letterSpacing: 0.3,
+  },
+  oemBody: {
+    fontFamily: FONTS.body,
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    lineHeight: 19,
+  },
+  oemButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xs,
+    backgroundColor: COLORS.indigo,
+    borderRadius: RADIUS.md,
+    paddingVertical: SPACING.sm,
+  },
+  oemButtonText: {
+    fontFamily: FONTS.bodyMedium,
+    fontSize: 13,
+    color: COLORS.background,
+  },
   domainLogCard: {
     backgroundColor: COLORS.surface,
     borderRadius: RADIUS.lg,

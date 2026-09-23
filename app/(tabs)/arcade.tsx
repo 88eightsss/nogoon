@@ -4,7 +4,7 @@
 //  13 exclusive games, all free.
 // ═══════════════════════════════════════════════════════════════════════════
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,10 +14,12 @@ import {
   Animated,
   Modal,
   Switch,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 
 // ── Standard games ──────────────────────────────────────────────────────────
 import { GroundingExercise } from '@/components/games/GroundingExercise';
@@ -45,16 +47,21 @@ import { FlappyBird }       from '@/components/games/FlappyBird';
 import { Minesweeper }      from '@/components/games/Minesweeper';
 import GoonWord             from '@/components/games/GoonWord';
 
-import { COLORS, FONTS } from '@/constants/Colors';
+import { FONTS } from '@/constants/Colors';
+import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
+import { useTheme } from '@/hooks/useTheme';
+import { PageGuide } from '@/components/PageGuide';
 import { SPACING, RADIUS } from '@/constants/Spacing';
-import { ALL_GAMES, GATE_GAMES, getGamesByCategory, type GameCategory, type GameMeta, type GameId } from '@/constants/games';
+import { ALL_GAMES, GATE_GAMES, CALM_GAMES, getGamesByCategory, type GameCategory, type GameMeta, type GameId } from '@/constants/games';
 import { AdBanner } from '@/components/ads/AdBanner';
 import { useThemeStore } from '@/stores/useThemeStore';
+import { useUnlockedFeatures, lockHint } from '@/stores/useProgressStore';
 
 // ─── Post-game screen ─────────────────────────────────────────────────────────
 
-function ArcadePostGame({ gameName, onBack, onPlayAgain }: {
+function ArcadePostGame({ gameName, onBack, onPlayAgain, styles, COLORS }: {
   gameName: string; onBack: () => void; onPlayAgain: () => void;
+  styles: ReturnType<typeof makeStyles>; COLORS: ArcadeColors;
 }) {
   return (
     <SafeAreaView style={styles.safe}>
@@ -83,10 +90,11 @@ function ArcadePostGame({ gameName, onBack, onPlayAgain }: {
 
 // ─── Game info modal ──────────────────────────────────────────────────────────
 
-function GameInfoModal({ game, onClose, onPlay }: {
+function GameInfoModal({ game, onClose, onPlay, styles, COLORS }: {
   game: GameMeta;
   onClose: () => void;
   onPlay: (id: GameId) => void;
+  styles: ReturnType<typeof makeStyles>; COLORS: ArcadeColors;
 }) {
   return (
     <Modal transparent animationType="fade" onRequestClose={onClose}>
@@ -106,7 +114,11 @@ function GameInfoModal({ game, onClose, onPlay }: {
           <Text style={styles.modalHowTo}>{game.howToPlay}</Text>
           <Pressable
             style={[styles.modalPlayBtn, { backgroundColor: game.color }]}
-            onPress={() => { onClose(); onPlay(game.id as GameId); }}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              onClose();
+              onPlay(game.id as GameId);
+            }}
           >
             <Feather name="play" size={18} color={COLORS.background} />
             <Text style={styles.modalPlayText}>Play Now</Text>
@@ -119,17 +131,28 @@ function GameInfoModal({ game, onClose, onPlay }: {
 
 // ─── Game card ────────────────────────────────────────────────────────────────
 
-function ArcadeGameCard({ game, onPlay, onInfo }: {
+function ArcadeGameCard({ game, onPlay, onInfo, locked, lockMessage, styles }: {
   game: GameMeta;
   onPlay: (id: GameId) => void;
   onInfo: (game: GameMeta) => void;
+  locked?: boolean;
+  lockMessage?: string;
+  styles: ReturnType<typeof makeStyles>;
 }) {
   const scale = useRef(new Animated.Value(1)).current;
   return (
     <Pressable
-      onPressIn={() => Animated.timing(scale, { toValue: 0.96, duration: 70, useNativeDriver: true }).start()}
-      onPressOut={() => Animated.spring(scale, { toValue: 1, damping: 12, useNativeDriver: true }).start()}
-      onPress={() => onPlay(game.id as GameId)}
+      onPressIn={() => { if (!locked) Animated.timing(scale, { toValue: 0.96, duration: 70, useNativeDriver: true }).start(); }}
+      onPressOut={() => { if (!locked) Animated.spring(scale, { toValue: 1, damping: 12, useNativeDriver: true }).start(); }}
+      onPress={() => {
+        if (locked) {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          Alert.alert('Still locked', lockMessage ?? 'Keep walking away to unlock this.');
+          return;
+        }
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        onPlay(game.id as GameId);
+      }}
       style={styles.cardPressable}
     >
       <Animated.View
@@ -137,28 +160,36 @@ function ArcadeGameCard({ game, onPlay, onInfo }: {
           styles.gameCard,
           { borderColor: game.color + '40' },
           { transform: [{ scale }] },
+          locked && styles.gameCardLocked,
         ]}
       >
-        <Text style={styles.gameEmoji}>{game.emoji}</Text>
+        <Text style={styles.gameEmoji}>{locked ? '🔒' : game.emoji}</Text>
         <View style={styles.gameInfo}>
           <View style={styles.gameNameRow}>
             <Text style={styles.gameName}>{game.name}</Text>
-            {game.category === 'awareness' && (
+            {game.category === 'awareness' && !locked && (
               <View style={[styles.experienceBadge, { backgroundColor: game.color + '22', borderColor: game.color + '55' }]}>
                 <Text style={[styles.experienceBadgeText, { color: game.color }]}>Awareness</Text>
               </View>
             )}
+            {locked && (
+              <View style={styles.lockedBadge}>
+                <Text style={styles.lockedBadgeText}>{lockMessage}</Text>
+              </View>
+            )}
           </View>
           <Text style={styles.gameDescription}>{game.description}</Text>
-          <Text style={[styles.gameTagline, { color: game.color }]}>{game.tagline}</Text>
+          {!locked && <Text style={[styles.gameTagline, { color: game.color }]}>{game.tagline}</Text>}
         </View>
-        <Pressable
-          onPress={(e) => { e.stopPropagation(); onInfo(game); }}
-          hitSlop={10}
-          style={styles.infoBtn}
-        >
-          <Feather name="info" size={20} color={game.color + 'aa'} />
-        </Pressable>
+        {!locked && (
+          <Pressable
+            onPress={(e) => { e.stopPropagation(); onInfo(game); }}
+            hitSlop={10}
+            style={styles.infoBtn}
+          >
+            <Feather name="info" size={20} color={game.color + 'aa'} />
+          </Pressable>
+        )}
       </Animated.View>
     </Pressable>
   );
@@ -167,8 +198,13 @@ function ArcadeGameCard({ game, onPlay, onInfo }: {
 // ─── Main Arcade Screen ───────────────────────────────────────────────────────
 
 export default function ArcadeScreen() {
+  const COLORS = useThemedColors();
+  const { colors: liveColors } = useTheme();
+  const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   const { game: gameParam, category: categoryParam } = useLocalSearchParams<{ game?: string; category?: string }>();
-  const { disabledGateGames, toggleGateGame } = useThemeStore();
+  const { disabledGateGames, toggleGateGame, enabledCalmGateGames, toggleCalmGateGame } = useThemeStore();
+  const { unlocked } = useUnlockedFeatures();
+  const fullArcadeUnlocked = unlocked.has('fullArcade');
 
   const [showAll, setShowAll]           = useState(false);
   const calmOnly = categoryParam === 'calm' && !showAll;
@@ -194,7 +230,7 @@ export default function ArcadeScreen() {
     } else {
       navigation.setOptions({ headerTintColor: COLORS.arcade, title: 'Arcade' });
     }
-  }, [activeGame, navigation]);
+  }, [activeGame, navigation, COLORS]);
 
   const handleGameComplete = (_score: number) => {
     const game = ALL_GAMES.find((g) => g.id === activeGame) ?? null;
@@ -252,6 +288,8 @@ export default function ArcadeScreen() {
         gameName={finishedGame.name}
         onBack={handleBack}
         onPlayAgain={handlePlayAgain}
+        styles={styles}
+        COLORS={COLORS}
       />
     );
   }
@@ -259,6 +297,7 @@ export default function ArcadeScreen() {
   // ── Game list ─────────────────────────────────────────────────────────────
 
   return (
+    <>
     <SafeAreaView style={styles.safe}>
       <ScrollView
         style={styles.scroll}
@@ -312,12 +351,58 @@ export default function ArcadeScreen() {
         ).map(({ key, label }) => {
           const games = getGamesByCategory(key);
           if (games.length === 0) return null;
+          const sectionLocked = key !== 'calm' && !fullArcadeUnlocked;
           return (
             <React.Fragment key={key}>
               <Text style={styles.sectionLabel}>{label}  ·  {games.length}</Text>
               {games.map((game) => (
-                <ArcadeGameCard key={game.id} game={game} onPlay={handlePlay} onInfo={setInfoGame} />
+                <ArcadeGameCard
+                  key={game.id}
+                  game={game}
+                  onPlay={handlePlay}
+                  onInfo={setInfoGame}
+                  locked={sectionLocked}
+                  lockMessage={sectionLocked ? lockHint('fullArcade') : undefined}
+                  styles={styles}
+                />
               ))}
+
+              {/* Calm games don't interrupt blockers by default — they're meant
+                  for unhurried practice, not a race to get back in. This lets
+                  someone opt a specific one in if they'd rather it show up
+                  there too. Off unless you turn it on. */}
+              {key === 'calm' && !calmOnly && (
+                <View style={styles.gateToggleCard}>
+                  <Text style={styles.gateToggleHint}>
+                    Calm games sit out of blocker intercepts by default. Flip one on
+                    here if you'd like it to be able to pop up there too.
+                  </Text>
+                  {CALM_GAMES.map((game, idx) => {
+                    const enabled = enabledCalmGateGames.includes(game.id);
+                    const isLast  = idx === CALM_GAMES.length - 1;
+                    return (
+                      <View
+                        key={game.id}
+                        style={[
+                          styles.gateToggleRow,
+                          !isLast && styles.gateToggleDivider,
+                        ]}
+                      >
+                        <Text style={styles.gateToggleEmoji}>{game.emoji}</Text>
+                        <Text style={[styles.gateToggleName, !enabled && styles.gateToggleNameOff]}>
+                          {game.name}
+                        </Text>
+                        <Switch
+                          value={enabled}
+                          onValueChange={() => toggleCalmGateGame(game.id)}
+                          trackColor={{ false: COLORS.surface, true: COLORS.green + '66' }}
+                          thumbColor={enabled ? COLORS.green : COLORS.textMuted}
+                        />
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
             </React.Fragment>
           );
         })}
@@ -328,6 +413,8 @@ export default function ArcadeScreen() {
             game={infoGame}
             onClose={() => setInfoGame(null)}
             onPlay={handlePlay}
+            styles={styles}
+            COLORS={COLORS}
           />
         )}
 
@@ -376,12 +463,25 @@ export default function ArcadeScreen() {
         <View style={{ height: SPACING.xxl }} />
       </ScrollView>
     </SafeAreaView>
+    <PageGuide
+      page="arcade"
+      icon="zap"
+      accent={liveColors.arcade}
+      title="Arcade"
+      subtitle="Mini-games you earn, not games that earn your time back from you."
+      points={[
+        { icon: 'lock',       title: 'Unlocks with streaks',  body: 'New games open up as your walk-away streak grows.' },
+        { icon: 'wind',       title: 'Calm games',            body: 'Lower-stimulation picks when you just need a distraction, not a challenge.' },
+        { icon: 'shield-off', title: 'No pressure',           body: 'No points to chase here — just something to do instead of scrolling.' },
+      ]}
+    />
+    </>
   );
 }
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   safe:   { flex: 1, backgroundColor: COLORS.background },
   scroll: { flex: 1 },
 
@@ -456,6 +556,23 @@ const styles = StyleSheet.create({
     padding:         SPACING.md,
     gap:             SPACING.md,
     position:        'relative',
+  },
+  gameCardLocked: {
+    opacity: 0.55,
+  },
+  lockedBadge: {
+    paddingHorizontal: 7,
+    paddingVertical:   2,
+    borderRadius:       6,
+    borderWidth:         1,
+    borderColor:  COLORS.textMuted + '55',
+    backgroundColor: COLORS.textMuted + '18',
+  },
+  lockedBadgeText: {
+    fontFamily:    FONTS.bodyMedium,
+    fontSize:      10,
+    letterSpacing: 0.3,
+    color:         COLORS.textMuted,
   },
 
   gameEmoji:       { fontSize: 36, width: 46, textAlign: 'center' },

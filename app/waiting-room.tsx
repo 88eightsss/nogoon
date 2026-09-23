@@ -122,7 +122,7 @@ export default function WaitingRoomScreen() {
     Animated.timing(progressAnim, {
       toValue: 1,
       duration: COUNTDOWN * 1000,
-      useNativeDriver: false,
+      useNativeDriver: true,
     }).start();
 
     const interval = setInterval(() => {
@@ -160,11 +160,6 @@ export default function WaitingRoomScreen() {
     router.replace('/(tabs)');
   };
 
-  const progressWidth = progressAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0%', '100%'],
-  });
-
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
@@ -172,7 +167,10 @@ export default function WaitingRoomScreen() {
         {/* Top — loading bar */}
         <View style={styles.progressTrack}>
           <Animated.View
-            style={[styles.progressFill, { width: progressWidth }]}
+            style={[
+              styles.progressFill,
+              { transform: [{ scaleX: progressAnim }], transformOrigin: 'left' },
+            ]}
           />
         </View>
 
@@ -248,6 +246,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   progressFill: {
+    width: '100%',
     height: '100%',
     backgroundColor: COLORS.green,
     borderRadius: 2,

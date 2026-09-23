@@ -115,11 +115,11 @@ export const ALL_GAMES: readonly GameMeta[] = [
   {
     id: 'minesweeper',
     name: 'Grid Trap',
-    description: 'Navigate a 10×10 grid hiding 12 Goons 💩. Logic, not luck.',
-    emoji: '💩',
+    description: 'Navigate a 10×10 grid hiding 12 Goons 👹. Logic, not luck.',
+    emoji: '👹',
     color: '#4ade80',
     tagline: 'Dodge the Goons · clear your brain',
-    howToPlay: 'Tap a cell to reveal it. Numbers show how many Goons 💩 lurk in the 8 surrounding cells. Long-press to mark a suspected Goon with your brain 🧠. Clear every safe cell without stepping on a Goon to win. First tap is always safe.',
+    howToPlay: 'Tap a cell to reveal it. Numbers show how many Goons 👹 lurk in the 8 surrounding cells. Long-press to mark a suspected Goon with your brain 🧠. Clear every safe cell without stepping on a Goon to win. First tap is always safe.',
     category: 'puzzle',
   },
 
@@ -142,7 +142,7 @@ export const ALL_GAMES: readonly GameMeta[] = [
     emoji: '🐍',
     color: '#4ade80',
     tagline: 'Classic · never gets old',
-    howToPlay: 'Use the D-pad to steer your snake. Eat the pellets to grow longer and earn points. Don\'t hit the walls or your own tail — either ends the game instantly. Eat 10 pellets to win.',
+    howToPlay: 'Drag the joystick to steer your snake. Eat the pellets to grow longer and earn points. Don\'t hit the walls or your own tail — either ends the game instantly. Eat 10 pellets to win.',
     category: 'reflex',
   },
   {
@@ -158,11 +158,11 @@ export const ALL_GAMES: readonly GameMeta[] = [
   {
     id: 'runner',
     name: 'Goon Run',
-    description: 'The NoGoon pixel mascot runs through an obstacle field. Tap to jump.',
+    description: 'Endless runner — Rex sprints through an obstacle field that keeps getting faster. Tap to jump.',
     emoji: '🏃',
     color: '#4ade80',
-    tagline: 'Pixel Goon · survive 20s to win',
-    howToPlay: 'Tap anywhere to jump. Obstacles come in three shapes and get faster over time. One hit ends the run — no second chances. Survive 20 seconds to win. The NoGoon mascot runs for you.',
+    tagline: 'Endless · speeds up the longer you last',
+    howToPlay: 'Tap anywhere to jump. There\'s no finish line — obstacles come in three shapes and the pace keeps ramping up the longer you survive. One hit ends the run, and your score is how long you lasted.',
     category: 'reflex',
   },
   {
@@ -204,11 +204,11 @@ export const ALL_GAMES: readonly GameMeta[] = [
   {
     id: 'goon',
     name: 'Goon',
-    description: 'Wordle clone. An opener word is pre-filled — you have 8 guesses to reach GOON.',
+    description: 'Classic Wordle. A fresh secret word every round — 6 guesses to find it.',
     emoji: '🟩',
     color: '#16a34a',
-    tagline: '8 guesses · opener pre-filled',
-    howToPlay: 'The board starts with a random opener word already played. Use its clues to reach GOON in 7 more guesses. Green = right letter, right spot. Yellow = right letter, wrong spot. Gray = not in the word. All guesses must be valid 4-letter words.',
+    tagline: '6 guesses · a new word every round',
+    howToPlay: 'Guess the secret 4-letter word in 6 tries. Green = right letter, right spot. Yellow = right letter, wrong spot. Gray = not in the word. Every guess must be a real word.',
     category: 'puzzle',
   },
 
@@ -243,9 +243,15 @@ export type GameId =
   | 'stack' | 'typing'
   | 'oddone' | 'spotsponsored';
 
-/** Games available on the gate intercept (exclude awareness games — they
- *  need context to be meaningful; show them in arcade only). */
-export const GATE_GAMES = ALL_GAMES.filter((g) => g.category !== 'awareness');
+/** Games available on the gate intercept by default (exclude awareness —
+ *  they need context to be meaningful, arcade only — and exclude calm,
+ *  which is opt-in; see CALM_GAMES / enabledCalmGateGames below). */
+export const GATE_GAMES = ALL_GAMES.filter((g) => g.category !== 'awareness' && g.category !== 'calm');
+
+/** Calm games — breathing, grounding, reflection. Kept out of the gate pool
+ *  by default (they're meant for unhurried standalone practice), but a user
+ *  can opt individual ones in via toggleCalmGateGame / enabledCalmGateGames. */
+export const CALM_GAMES = ALL_GAMES.filter((g) => g.category === 'calm');
 
 /** Games grouped by category — for arcade.tsx section rendering. */
 export function getGamesByCategory(cat: GameCategory): readonly GameMeta[] {
@@ -257,13 +263,19 @@ export function getGameById(id: string): GameMeta | undefined {
   return ALL_GAMES.find((g) => g.id === id);
 }
 
-/** Pick a random game ID from the gate pool (non-awareness games).
- *  Pass `disabledIds` to exclude specific games. If all are disabled,
- *  falls back to the full pool so the gate always has something to show. */
-export function pickRandomGame(disabledIds: string[] = []): GameId {
-  const pool = disabledIds.length > 0
+/** Pick a random game ID from the gate pool (puzzle/reflex/skill by default,
+ *  plus any calm games the user has explicitly opted in).
+ *  Pass `disabledIds` to exclude specific non-calm games. If everything ends
+ *  up excluded, falls back to the full default pool so the gate always has
+ *  something to show. */
+export function pickRandomGame(disabledIds: string[] = [], enabledCalmIds: string[] = []): GameId {
+  const base = disabledIds.length > 0
     ? GATE_GAMES.filter((g) => !disabledIds.includes(g.id))
     : GATE_GAMES;
+  const optedInCalm = enabledCalmIds.length > 0
+    ? CALM_GAMES.filter((g) => enabledCalmIds.includes(g.id))
+    : [];
+  const pool = [...base, ...optedInCalm];
   const active = pool.length > 0 ? pool : GATE_GAMES;
   return active[Math.floor(Math.random() * active.length)].id as GameId;
 }

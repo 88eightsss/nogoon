@@ -112,7 +112,7 @@ export function PatternMemory({ onComplete }: PatternMemoryProps) {
         toValue: 0,
         duration: GAME_DURATION_S * 1000,
         easing: Easing.linear,
-        useNativeDriver: false,
+        useNativeDriver: true,
       }).start();
     }
   }, [round]);
@@ -321,10 +321,8 @@ export function PatternMemory({ onComplete }: PatternMemoryProps) {
           style={[
             styles.timerFill,
             {
-              width: timerBarWidth.interpolate({
-                inputRange: [0, 1],
-                outputRange: ['0%', '100%'],
-              }),
+              transform: [{ scaleX: timerBarWidth }],
+              transformOrigin: 'left',
               backgroundColor: timerColor,
             },
           ]}
@@ -566,6 +564,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   timerFill: {
+    width: '100%',
     height: '100%',
     borderRadius: 1,
   },

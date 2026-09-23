@@ -1,74 +1,93 @@
 // ─── Tab Bar Layout ────────────────────────────────────────────────────────────
 //
-// 4-tab navigation — each tab maps to a user intent:
+// 5-tab navigation — each tab maps to a user intent:
 //   Protect  → all blocking configuration (purple)
 //   Today    → daily status + focus CTA (green)
-//   Calm     → recovery tools when struggling (amber)
+//   Calm     → recovery tools when struggling (amber) — breathing, grounding,
+//              waiting room. No games here anymore; Arcade is its own tab so
+//              "I want a distraction" and "I'm struggling" aren't the same button.
+//   Arcade   → all games, browsable any time (violet)
 //   Me       → stats, insights, settings (cyan)
 //
-// Arcade lives inside Calm — hidden from tab bar.
+// Active-tab indicator: a small color bar above the icon, a pill background
+// behind the icon, and a bold/colored label — three redundant signals so the
+// current tab reads at a glance without having to study it. Bar shape and
+// icon visibility stay identical across all tabs (previously Calm collapsed
+// the bar and hid the other icons entirely, which made it hard to tell the
+// other tabs were still there and tappable).
+//
+// Header "?" button — each tab reopens ITS OWN <PageGuide/> (a short,
+// page-specific explainer) rather than a single combined help screen. The
+// guide auto-shows once per install already; tapping "?" just re-requests
+// it via useUserStore.requestGuideReopen(page), keyed by the same page id
+// each screen's <PageGuide page="..."/> uses.
 
-import { Tabs, router, usePathname } from 'expo-router';
+import { Tabs } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { Pressable, View } from 'react-native';
+import { Pressable, View, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeStore } from '@/stores/useThemeStore';
-import { THEMES } from '@/constants/Themes';
+import { useUserStore } from '@/stores/useUserStore';
+import { resolveThemePalette } from '@/constants/Themes';
+import { FONTS } from '@/constants/Colors';
 
 type FeatherName = React.ComponentProps<typeof Feather>['name'];
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
-  const { themeId } = useThemeStore();
-  const colors = THEMES[themeId];
-  const pathname = usePathname();
-  const isOnCalm = pathname === '/calm';
+  const { themeId, themeBrightness } = useThemeStore();
+  const colors = resolveThemePalette(themeId, themeBrightness);
+  const requestGuideReopen = useUserStore((s) => s.requestGuideReopen);
 
-  // Tab definitions use live theme colors — updates whenever theme changes
+  // Tab definitions use live theme colors — updates whenever theme changes.
+  // guidePage must match the `page` prop each tab's own <PageGuide/> uses.
   const TABS: {
     name: string;
     title: string;
     icon: FeatherName;
     color: string;
     pillBg: string;
-    hidden?: boolean;
+    guidePage: string;
   }[] = [
     {
-      name:   'blocklist',
-      title:  'Protect',
-      icon:   'shield',
-      color:  colors.protect,
-      pillBg: colors.protect + '22',
+      name:      'blocklist',
+      title:     'Protect',
+      icon:      'shield',
+      color:     colors.protect,
+      pillBg:    colors.protect + '22',
+      guidePage: 'blocklist',
     },
     {
-      name:   'index',
-      title:  'Today',
-      icon:   'home',
-      color:  colors.accent,
-      pillBg: colors.accentDim,
+      name:      'index',
+      title:     'Today',
+      icon:      'home',
+      color:     colors.accent,
+      pillBg:    colors.accentDim,
+      guidePage: 'home',
     },
     {
-      name:   'calm',
-      title:  'Calm',
-      icon:   'wind',
-      color:  colors.calm,
-      pillBg: colors.warningDim,
+      name:      'calm',
+      title:     'Calm',
+      icon:      'wind',
+      color:     colors.calm,
+      pillBg:    colors.warningDim,
+      guidePage: 'calm',
     },
     {
-      name:   'profile',
-      title:  'Me',
-      icon:   'user',
-      color:  colors.me,
-      pillBg: colors.me + '22',
+      name:      'arcade',
+      title:     'Arcade',
+      icon:      'zap',
+      color:     colors.arcade,
+      pillBg:    colors.arcade + '22',
+      guidePage: 'arcade',
     },
-    // Arcade lives inside Calm — hidden from tab bar
     {
-      name:   'arcade',
-      title:  'Arcade',
-      icon:   'zap',
-      color:  colors.arcade,
-      pillBg: colors.arcade + '22',
-      hidden: true,
+      name:      'profile',
+      title:     'Me',
+      icon:      'user',
+      color:     colors.me,
+      pillBg:    colors.me + '22',
+      guidePage: 'profile',
     },
   ];
 
@@ -78,24 +97,15 @@ export default function TabsLayout() {
         headerShown: true,
         headerStyle: { backgroundColor: colors.background },
         headerShadowVisible: false,
-        headerRight: () => (
-          <Pressable
-            onPress={() => router.push('/help')}
-            style={{ paddingHorizontal: 16, paddingVertical: 8 }}
-            hitSlop={8}
-          >
-            <Feather name="help-circle" size={22} color={colors.textMuted} />
-          </Pressable>
-        ),
         tabBarStyle: {
           backgroundColor: colors.background,
           borderTopColor: colors.border,
           borderTopWidth: 1,
-          height: isOnCalm ? 44 + insets.bottom : 60 + insets.bottom,
+          height: 60 + insets.bottom,
+          paddingTop: 6,
           paddingBottom: insets.bottom + 4,
         },
-        tabBarShowLabel: !isOnCalm,
-        tabBarInactiveTintColor: 'transparent',
+        tabBarShowLabel: true,
       }}
     >
       {TABS.map((tab) => (
@@ -104,34 +114,60 @@ export default function TabsLayout() {
           name={tab.name}
           options={{
             title: tab.title,
-            tabBarActiveTintColor: tab.color,
             headerTintColor: tab.color,     // Page header accent matches tab color
-            tabBarItemStyle: tab.hidden ? { display: 'none' } : undefined,
-            tabBarIcon: ({ focused, size }) => {
-              if (isOnCalm) {
-                if (!focused) return null;
-                return (
-                  <View style={{
-                    width: 6, height: 6, borderRadius: 3,
+            headerRight: () => (
+              <Pressable
+                onPress={() => requestGuideReopen(tab.guidePage)}
+                style={{ paddingHorizontal: 16, paddingVertical: 8 }}
+                hitSlop={8}
+              >
+                <Feather name="help-circle" size={22} color={colors.textMuted} />
+              </Pressable>
+            ),
+            tabBarIcon: ({ focused, size }) => (
+              <View style={{ alignItems: 'center' }}>
+                <View
+                  style={{
+                    width: 16,
+                    height: 3,
+                    borderRadius: 2,
+                    marginBottom: 4,
                     backgroundColor: tab.color,
-                  }} />
-                );
-              }
-              return (
-                <View style={focused ? {
-                  backgroundColor: tab.pillBg,
-                  borderRadius: 20,
-                  paddingHorizontal: 12,
-                  paddingVertical: 3,
-                } : undefined}>
+                    opacity: focused ? 1 : 0,
+                  }}
+                />
+                <View
+                  style={
+                    focused
+                      ? {
+                          backgroundColor: tab.pillBg,
+                          borderRadius: 20,
+                          paddingHorizontal: 12,
+                          paddingVertical: 3,
+                        }
+                      : undefined
+                  }
+                >
                   <Feather
                     name={tab.icon}
                     size={size - 1}
-                    color={focused ? tab.color : tab.color + 'AA'}
+                    color={focused ? tab.color : colors.textMuted}
                   />
                 </View>
-              );
-            },
+              </View>
+            ),
+            tabBarLabel: ({ focused }) => (
+              <Text
+                style={{
+                  fontFamily:  focused ? FONTS.bodyBold : FONTS.body,
+                  fontSize:    10.5,
+                  marginTop:   2,
+                  color:       focused ? tab.color : colors.textMuted,
+                }}
+              >
+                {tab.title}
+              </Text>
+            ),
           }}
         />
       ))}

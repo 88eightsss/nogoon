@@ -303,6 +303,52 @@ export function useAppBlocker() {
     }
   }, [hasNativeModule]);
 
+  // ── OEM autostart / battery manager (MIUI, ColorOS, FuntouchOS, One UI...) ──
+  // Stock Android's battery exemption (above) isn't enough on many phones —
+  // the manufacturer runs its own autostart/battery manager that can still
+  // kill background services. There's no API to check that state, so this
+  // just deep-links to the right screen for known manufacturers and lets the
+  // user flip it on themselves.
+
+  const oemManufacturer = (Platform.OS === 'android' ? Platform.constants?.Manufacturer : '') || '';
+
+  // Manufacturers we have a known deep link for — used to decide whether to
+  // even show an "Open autostart settings" affordance in the UI.
+  const isKnownOemOffender = isAndroid && /xiaomi|redmi|poco|oppo|realme|oneplus|vivo|iqoo|samsung/i.test(
+    oemManufacturer
+  );
+
+  const openOemAutostartSettings = useCallback(async (): Promise<boolean> => {
+    if (!hasNativeModule) return false;
+    try {
+      // Resolves true if a manufacturer-specific screen opened, false if we
+      // only managed to open the generic App Info screen as a fallback.
+      return await AppBlocker.openOemAutostartSettings();
+    } catch (e) {
+      console.warn('openOemAutostartSettings failed:', e);
+      return false;
+    }
+  }, [hasNativeModule]);
+
+  // ── Notification permission (Android 13+) ───────────────────────────────────
+  // Without POST_NOTIFICATIONS granted, the persistent "protection active"
+  // foreground notification can't be shown to the user (the foreground
+  // service itself still runs either way). Best-effort — safe to call
+  // repeatedly, and a no-op on platforms/SDKs that don't need it.
+
+  const requestNotificationPermission = useCallback(async () => {
+    if (!isAndroid) return;
+    try {
+      const Notifications = await import('expo-notifications');
+      const { status } = await Notifications.getPermissionsAsync();
+      if (status !== 'granted') {
+        await Notifications.requestPermissionsAsync();
+      }
+    } catch (e) {
+      console.warn('requestNotificationPermission failed:', e);
+    }
+  }, []);
+
   // ── Grayscale / dopamine-reduction shortcut ────────────────────────────────
   // Opens Android Accessibility Settings → Color Correction so the user can
   // enable "Grayscale" mode. Programmatic toggle requires WRITE_SECURE_SETTINGS
@@ -394,6 +440,10 @@ export function useAppBlocker() {
     openSettings,          // () => void — opens Accessibility Settings
     checkBatteryOptimized, // () => Promise<boolean> — true if optimization is ON (bad)
     openBatterySettings,   // () => void — opens battery optimization settings
+    isKnownOemOffender,      // boolean — this manufacturer has its own autostart/battery manager
+    oemManufacturer,         // string — raw Platform.constants.Manufacturer value (for display/debug)
+    openOemAutostartSettings, // () => Promise<boolean> — true if OEM-specific screen opened
+    requestNotificationPermission, // () => Promise<void> — asks for POST_NOTIFICATIONS (Android 13+)
     openGrayscaleSettings, // () => void — opens Accessibility Settings → Color Correction
     grayscaleEnabled,      // boolean — whether dim overlay fires on gate launch
     setGrayscaleEnabled,   // (enabled: boolean) => Promise<void>

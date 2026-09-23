@@ -15,6 +15,8 @@ import { Feather } from '@expo/vector-icons';
 import { useUserStore } from '@/stores/useUserStore';
 import { useAppBlocker, BLOCKABLE_APPS } from '@/hooks/useAppBlocker';
 import { useTheme } from '@/hooks/useTheme';
+import { PageGuide } from '@/components/PageGuide';
+import { ProtectionBanner } from '@/components/ProtectionBanner';
 import { FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 
@@ -236,6 +238,7 @@ export default function ProtectScreen() {
   }, [blockedApps, setBlockedApps]);
 
   return (
+    <>
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -264,6 +267,9 @@ export default function ProtectScreen() {
               </Text>
             </Pressable>
           </View>
+
+          {/* Battery-exemption warning — catches the state the pill above can't see */}
+          <ProtectionBanner />
 
           {/* Section: Apps — shown first */}
           {BLOCKABLE_APPS.length > 0 && (
@@ -352,6 +358,19 @@ export default function ProtectScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
+    <PageGuide
+      page="blocklist"
+      icon="shield"
+      accent={colors.protect}
+      title="Protect"
+      subtitle="Choose what NoGoon steps in for — apps, sites, or both."
+      points={[
+        { icon: 'toggle-right', title: 'Per-app toggles',   body: 'Flip on the apps you actually struggle with.' },
+        { icon: 'package',      title: 'Quick blocks',      body: 'Pre-built packages so you can block a whole category in one tap.' },
+        { icon: 'plus-circle',  title: 'Add your own',      body: 'Type in any site or domain that isn\'t listed.' },
+      ]}
+    />
+    </>
   );
 }
 
