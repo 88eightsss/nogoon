@@ -32,6 +32,7 @@ import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUserStore } from '@/stores/useUserStore';
+import { getLocalDateKey } from '@/utils/date';
 import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 
@@ -49,7 +50,7 @@ export default function DeadReckoningScreen() {
   const [prevPred,   setPrevPred]   = useState<number | null>(null);
 
   // Count actual opens today
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalDateKey();
   const actualOpens = openCountDate === today
     ? Object.values(openCounts).reduce((sum, n) => sum + n, 0)
     : 0;

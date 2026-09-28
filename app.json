@@ -21,7 +21,7 @@
       "bundleIdentifier": "com.nogoon.app"
     },
     "android": {
-      "versionCode": 23,
+      "versionCode": 27,
       "package": "com.nogoon.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -56,6 +56,7 @@
       "eas": {
         "projectId": "80b5ee13-4dfd-462d-8bc3-51d022cd3e51"
       }
-    }
+    },
+    "owner": "88eightsss"
   }
 }

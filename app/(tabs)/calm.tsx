@@ -8,7 +8,7 @@
 // "Set tonight's rule" → stored in useUserStore.nightlyCommitment
 // and surfaced on the gate calm screen the following day.
 
-import { ScrollView, View, Text, Pressable, StyleSheet, TextInput } from 'react-native';
+import { ScrollView, View, Text, Pressable, StyleSheet, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -196,7 +196,11 @@ export default function CalmScreen() {
   return (
     <>
     <SafeAreaView style={[styles.root, { backgroundColor: colors.background }]} edges={['bottom']}>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
         {/* Header */}
         <View style={styles.header}>
@@ -228,6 +232,7 @@ export default function CalmScreen() {
         </View>
 
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
     <PageGuide
       page="calm"

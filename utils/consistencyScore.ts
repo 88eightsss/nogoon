@@ -1,3 +1,4 @@
+import { getLocalDateKey } from './date';
 // ─── 30-Day Consistency Score ─────────────────────────────────────────────────
 //
 // Unlike a streak (which resets catastrophically on one missed day), the
@@ -25,7 +26,7 @@ export function computeConsistencyScore(
   for (let i = 0; i < 30; i++) {
     const d = new Date(today);
     d.setDate(d.getDate() - i);
-    const key = d.toISOString().split('T')[0];
+    const key = getLocalDateKey(d);
     if ((dailyGateFires[key] ?? 0) > 0) {
       daysActive++;
       if ((dailyWalkAways[key] ?? 0) > 0) {

@@ -37,6 +37,7 @@ export type WidgetId =
   | 'waitingroom'
   | 'bubbles-tool'
   | 'shield'
+  | 'milestones'
   | 'spacer';
 
 export type WidgetMeta = {
@@ -60,6 +61,7 @@ export const WIDGET_CATALOG: WidgetMeta[] = [
   { id: 'waitingroom',  label: 'Waiting Room',  desc: 'Sit with the urge',                 color: '#0277BD', defaultSize: 'half'  },
   { id: 'bubbles-tool', label: 'Brain Bubbles', desc: 'Write out the noise',               color: '#0ea5e9', defaultSize: 'half'  },
   { id: 'shield',       label: 'Shield',        desc: 'Blocking status at a glance',       color: '#4caf50', defaultSize: 'full'  },
+  { id: 'milestones',   label: 'Milestones',    desc: 'Badges earned + current streak',    color: '#D97706', defaultSize: 'half'  },
   { id: 'spacer',       label: 'Spacer',        desc: 'Empty space for organization',      color: '#888888', defaultSize: 'small' },
 ];
 
@@ -157,14 +159,18 @@ export const TEMPLATES: Template[] = [
     name: 'Full House',
     desc: 'Everything unlocked — a starting point to customize',
     bubbles: [
-      b('companion',   'full'),
-      b('counter',     'half'),
-      b('streak',      'half'),
-      b('time-saved',  'half'),
-      b('bill',        'half'),
-      b('breathe',     'half'),
-      b('waitingroom', 'half'),
-      b('intention',   'full'),
+      b('companion',     'full'),
+      b('shield',        'full'),
+      b('counter',       'half'),
+      b('streak',        'half'),
+      b('time-saved',    'half'),
+      b('bill',          'half'),
+      b('milestones',    'full'),
+      b('breathe',       'half'),
+      b('games',         'half'),
+      b('waitingroom',   'half'),
+      b('bubbles-tool',  'half'),
+      b('intention',     'full'),
     ],
   },
 ];

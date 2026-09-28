@@ -279,6 +279,15 @@ export default function RootLayout() {
             }}
           />
 
+          {/* Personal milestones / achievement badges */}
+          <Stack.Screen
+            name="milestones"
+            options={{
+              presentation: 'modal',
+              animation: 'slide_from_bottom',
+            }}
+          />
+
           {/* Ad Wall — "what the internet looks like without NoGoon" — kept
               dormant for when the paywall comes back; not currently linked */}
           <Stack.Screen

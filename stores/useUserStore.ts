@@ -17,6 +17,7 @@ import { NativeModules, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '@/lib/supabase';
 import { maybeNotifyStreak, maybeNotifyWalkAway, scheduleDailySummary } from '@/utils/notifications';
+import { getLocalDateKey, getLocalMonthKey, localDateKeyDiffDays, parseLocalDateKey } from '@/utils/date';
 
 // Fire-and-forget helper: writes focusSessionEnd to SharedPreferences so the
 // Kotlin Accessibility Service can honour focus session hard-locks even when the
@@ -106,7 +107,7 @@ function getLast7Days(): string[] {
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(today);
     d.setDate(d.getDate() - (6 - i));
-    return d.toISOString().split('T')[0]; // e.g. "2025-01-15"
+    return getLocalDateKey(d); // e.g. "2025-01-15", device-local calendar day
   });
 }
 
@@ -263,12 +264,18 @@ interface UserState {
   hasSeenTutorial: boolean;
 
   // ── Impulse journal ────────────────────────────────────────────────────────
-  // User writes what triggered them before each game — builds self-awareness
+  // User writes what triggered them before each game — builds self-awareness.
+  // tag is optional: set when the entry was written alongside a mood pill on
+  // the post-walk-away screen (see MOOD_TAGS in constants/moods.ts), absent
+  // for a free entry written directly from the Journal tab. Local-only for
+  // now — journal_entries in Supabase doesn't have a tag column yet, so it's
+  // not included in the background sync below.
   journalEntries: Array<{
     id: string;
     text: string;
     domain: string;
     timestamp: number;
+    tag?: string;
   }>;
 
   // ── 30-day consistency tracking ────────────────────────────────────────────
@@ -276,12 +283,24 @@ interface UserState {
   // Used to compute the rolling 30-day consistency score.
   // Old entries (>30 days) are pruned on each write to cap storage.
   dailyGateFires: Record<string, number>;   // date → gate fire count
-  dailyWalkAways: Record<string, number>;   // date → walk-away count
+  dailyWalkAways: Record<string, number>;   // date → walk-away count (rolling 30 days — see above)
+
+  // Lifetime activity — separate from dailyWalkAways above on purpose. That
+  // map is pruned to 30 days for the consistency score; Insights' "first
+  // active day" / "total active days" used to be derived from it, which
+  // meant those "since you started" numbers silently reset their meaning
+  // every month once old keys got pruned. These two are never pruned.
+  firstActiveDate: string;   // 'YYYY-MM-DD', set once, first walk-away ever
+  totalActiveDays: number;   // lifetime count of distinct days with ≥1 walk-away
 
   // ── Urge journal (post-walk-away quick-tap) ────────────────────────────────
   // After walking away, user taps what was pulling them in (1 tap = 1 entry).
-  // Rolling last-10 visible on Insights. Different from reflectionCounts (which
-  // is a lifetime aggregate) — this keeps the full timestamped sequence.
+  // Insights shows a "last 30 days" trend from this, so it's pruned by AGE
+  // (see addUrgeEntry) rather than by a fixed entry count — a fixed count of
+  // 30 meant a daily user's window silently shrank to a few days' worth
+  // of data while still being labeled "last 30 days". Different from
+  // reflectionCounts (which is a lifetime aggregate) — this keeps the full
+  // timestamped sequence.
   urgeJournal: Array<{
     tag: string;      // e.g. 'Bored', 'Stressed', 'Procrastinating', 'Lonely', 'Habit'
     domain: string;
@@ -385,7 +404,7 @@ interface UserState {
   setIntentionGoal: (goal: string) => void;
 
   // Journal
-  addJournalEntry: (text: string, domain: string) => void;
+  addJournalEntry: (text: string, domain: string, tag?: string) => void;
   clearOldJournalEntries: () => void; // keeps last 90 entries
 
   // Urge journal
@@ -547,7 +566,7 @@ const DEFAULT_STATE = {
   hourlyOpenCounts: Array(24).fill(0) as number[],
 
   // Journal
-  journalEntries: [] as Array<{ id: string; text: string; domain: string; timestamp: number }>,
+  journalEntries: [] as Array<{ id: string; text: string; domain: string; timestamp: number; tag?: string }>,
 
   // Urge journal
   urgeJournal: [] as Array<{ tag: string; domain: string; timestamp: number }>,
@@ -559,6 +578,10 @@ const DEFAULT_STATE = {
   // 30-day consistency tracking
   dailyGateFires: {} as Record<string, number>,
   dailyWalkAways: {} as Record<string, number>,
+
+  // Lifetime activity (never pruned — see UserState comment)
+  firstActiveDate: '',
+  totalActiveDays: 0,
 
 
   // Walk-away count — how many times the user played and chose NOT to unlock
@@ -618,7 +641,7 @@ export const useUserStore = create<UserState>()(
       },
 
       incrementStreak: () => {
-        const today = new Date().toISOString().split('T')[0];
+        const today = getLocalDateKey();
         const { lastStreakDate } = get();
         // Guard: only count once per calendar day
         if (lastStreakDate === today) return;
@@ -733,7 +756,7 @@ export const useUserStore = create<UserState>()(
 
       // ── Open-count tracking ──────────────────────────────────────────────────
       incrementOpenCount: (domain) => {
-        const today = new Date().toISOString().split('T')[0];
+        const today = getLocalDateKey();
         const hour = new Date().getHours();
         const { openCounts, openCountDate, hourlyOpenCounts } = get();
         const counts = openCountDate === today ? { ...openCounts } : {};
@@ -745,7 +768,7 @@ export const useUserStore = create<UserState>()(
 
       // ── Daily intention ──────────────────────────────────────────────────────
       setDailyIntention: (text) => {
-        const today = new Date().toISOString().split('T')[0];
+        const today = getLocalDateKey();
         set({ dailyIntention: text, intentionDate: today });
       },
 
@@ -823,7 +846,7 @@ export const useUserStore = create<UserState>()(
 
       // Call on every app open — resets restores to 1 at the start of each month.
       refreshStreakRestores: () => {
-        const thisMonth = new Date().toISOString().slice(0, 7); // 'YYYY-MM'
+        const thisMonth = getLocalMonthKey(); // 'YYYY-MM', device-local
         const { streakRestoreMonth } = get();
         if (streakRestoreMonth !== thisMonth) {
           set({ streakRestoresLeft: 1, streakRestoreMonth: thisMonth });
@@ -838,17 +861,17 @@ export const useUserStore = create<UserState>()(
       checkStreakContinuity: () => {
         const { lastStreakDate, streak, streakFreezeTokens } = get();
         if (!lastStreakDate || streak === 0) return; // no streak to protect
-        const today = new Date().toISOString().split('T')[0];
+        const today = getLocalDateKey();
         if (lastStreakDate === today) return; // still the same calendar day
-        const last = new Date(lastStreakDate).getTime();
-        const now  = new Date(today).getTime();
-        const daysDiff = Math.round((now - last) / 86_400_000);
+        const daysDiff = localDateKeyDiffDays(today, lastStreakDate);
         if (daysDiff <= 1) return; // yesterday — streak still alive
         // Missed at least one day
         if (streakFreezeTokens > 0) {
           // Burn one freeze token, move lastStreakDate to yesterday so the next
           // walk-away today will re-increment the streak normally.
-          const yesterday = new Date(now - 86_400_000).toISOString().split('T')[0];
+          const yestDate = parseLocalDateKey(today);
+          yestDate.setDate(yestDate.getDate() - 1);
+          const yesterday = getLocalDateKey(yestDate);
           set({
             streakFreezeTokens: streakFreezeTokens - 1,
             lastStreakDate: yesterday,
@@ -942,8 +965,8 @@ export const useUserStore = create<UserState>()(
       // ── 30-day consistency tracking ──────────────────────────────────────────
       // Helper: prune entries older than 30 days
       recordDailyGateFire: () => {
-        const today = new Date().toISOString().split('T')[0];
-        const cutoff = new Date(Date.now() - 30 * 86_400_000).toISOString().split('T')[0];
+        const today = getLocalDateKey();
+        const cutoff = getLocalDateKey(new Date(Date.now() - 30 * 86_400_000));
         set((state) => {
           const updated = { ...state.dailyGateFires };
           updated[today] = (updated[today] ?? 0) + 1;
@@ -956,15 +979,36 @@ export const useUserStore = create<UserState>()(
       },
 
       recordDailyWalkAway: () => {
-        const today = new Date().toISOString().split('T')[0];
-        const cutoff = new Date(Date.now() - 30 * 86_400_000).toISOString().split('T')[0];
+        const today = getLocalDateKey();
+        const cutoff = getLocalDateKey(new Date(Date.now() - 30 * 86_400_000));
         set((state) => {
           const updated = { ...state.dailyWalkAways };
+          const wasAlreadyActiveToday = (updated[today] ?? 0) > 0;
           updated[today] = (updated[today] ?? 0) + 1;
           for (const key of Object.keys(updated)) {
             if (key < cutoff) delete updated[key];
           }
-          return { dailyWalkAways: updated };
+
+          // Lifetime activity tracking — independent of the 30-day-pruned
+          // map above (see UserState comment). Only touched on the first
+          // walk-away of a given local day.
+          let { firstActiveDate, totalActiveDays } = state;
+          if (!wasAlreadyActiveToday) {
+            totalActiveDays += 1;
+            if (!firstActiveDate) {
+              // First time these lifetime fields are populated for an
+              // existing user: backfill firstActiveDate from whatever's
+              // still in the rolling 30-day map rather than defaulting to
+              // "today", so a long-time user doesn't suddenly look brand
+              // new. totalActiveDays can't be recovered the same way (the
+              // pre-fix map never kept more than 30 keys), so it starts
+              // counting forward from here.
+              const existingKeys = Object.keys(updated).sort();
+              firstActiveDate = existingKeys[0] ?? today;
+            }
+          }
+
+          return { dailyWalkAways: updated, firstActiveDate, totalActiveDays };
         });
       },
 
@@ -994,7 +1038,7 @@ export const useUserStore = create<UserState>()(
         maybeNotifyWalkAway(newCount);
         // Reschedule the 8pm summary with the fresh daily count
         const { openCounts, openCountDate } = get();
-        const today = new Date().toISOString().split('T')[0];
+        const today = getLocalDateKey();
         const todayCounts = openCountDate === today ? openCounts : {};
         const topDomain = Object.entries(todayCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
         scheduleDailySummary(newTodayWalkAways, topDomain).catch(() => {});
@@ -1004,12 +1048,13 @@ export const useUserStore = create<UserState>()(
       setIntentionGoal: (goal) => set({ intentionGoal: goal }),
 
       // ── Impulse journal ──────────────────────────────────────────────────────
-      addJournalEntry: (text, domain) => {
+      addJournalEntry: (text, domain, tag) => {
         const entry = {
           id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
           text,
           domain,
           timestamp: Date.now(),
+          ...(tag ? { tag } : {}),
         };
         set((state) => ({
           journalEntries: [entry, ...state.journalEntries].slice(0, 90),
@@ -1036,12 +1081,17 @@ export const useUserStore = create<UserState>()(
 
       // ── Urge journal ─────────────────────────────────────────────────────────
       addUrgeEntry: (tag, domain) =>
-        set((state) => ({
-          urgeJournal: [
-            { tag, domain, timestamp: Date.now() },
-            ...state.urgeJournal,
-          ].slice(0, 30), // keep last 30
-        })),
+        set((state) => {
+          const cutoff = Date.now() - 90 * 86_400_000; // 90d: comfortably past the 30d window Insights reads
+          const pruned = state.urgeJournal.filter((e) => e.timestamp > cutoff);
+          return {
+            // Prune by age, not a fixed count — Insights' "last 30 days" trend
+            // needs entries older than 30 days to still be present to filter
+            // out live. A 500-entry safety cap guards against unbounded growth
+            // from an extremely heavy logger; ordinary use never approaches it.
+            urgeJournal: [{ tag, domain, timestamp: Date.now() }, ...pruned].slice(0, 500),
+          };
+        }),
 
       // ── Commitment device ─────────────────────────────────────────────────
       setCommitment: (text, domain) =>
@@ -1230,6 +1280,8 @@ export const useUserStore = create<UserState>()(
         commitmentLog: state.commitmentLog,
         dailyGateFires: state.dailyGateFires,
         dailyWalkAways: state.dailyWalkAways,
+        firstActiveDate: state.firstActiveDate,
+        totalActiveDays: state.totalActiveDays,
         walkAwayCount: state.walkAwayCount,
         triggerCounts: state.triggerCounts,
         reflectionCounts: state.reflectionCounts,

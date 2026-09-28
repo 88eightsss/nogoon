@@ -16,6 +16,7 @@ import { useUserStore, getMinutesSaved } from '@/stores/useUserStore';
 import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { useTheme } from '@/hooks/useTheme';
+import { getLocalDateKey } from '@/utils/date';
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -56,13 +57,18 @@ export default function InsightsScreen() {
     commitmentLog,
     dailyWalkAways,
     followThroughLog,
+    firstActiveDate,
+    totalActiveDays,
   } = useUserStore();
 
   // ── All-time stats ─────────────────────────────────────────────────────────
-  // First active day = oldest key in dailyWalkAways with a nonzero value
-  const allActiveDays = Object.keys(dailyWalkAways).filter(d => (dailyWalkAways[d] ?? 0) > 0).sort();
-  const firstActiveDay  = allActiveDays[0] ?? null;
-  const activeDayCount  = allActiveDays.length;
+  // firstActiveDate/totalActiveDays are lifetime counters maintained in the
+  // store (see recordDailyWalkAway) — NOT derived from dailyWalkAways, which
+  // is deliberately pruned to a rolling 30 days for the consistency score.
+  // Deriving "first active day" from that pruned map used to mean the number
+  // silently reset every month; these two don't.
+  const firstActiveDay  = firstActiveDate || null;
+  const activeDayCount  = totalActiveDays;
   // Time saved: derived, not stored — see getMinutesSaved in useUserStore
   const minutesSaved    = getMinutesSaved(walkAwayCount);
   const hoursSaved      = Math.floor(minutesSaved / 60);
@@ -130,7 +136,7 @@ export default function InsightsScreen() {
   // Week-over-week delta — compare this week vs last 7 days prior
   const MS_PER_DAY = 86_400_000;
   const lastWeekTotal = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(Date.now() - (7 + i) * MS_PER_DAY).toISOString().split('T')[0];
+    const d = getLocalDateKey(new Date(Date.now() - (7 + i) * MS_PER_DAY));
     return dailyWalkAways[d] ?? 0;
   }).reduce((a, b) => a + b, 0);
   const weekDelta = totalThisWeek - lastWeekTotal;

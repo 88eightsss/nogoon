@@ -11,9 +11,11 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import {
   ScrollView, View, Text, StyleSheet, Pressable,
   TextInput, Animated, Modal, FlatList, RefreshControl,
+  KeyboardAvoidingView, Platform, LayoutAnimation,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getLocalDateKey, localDateKeyDiffDays } from '@/utils/date';
 import { useUserStore, getMinutesSaved } from '@/stores/useUserStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { usePetStore } from '@/stores/usePetStore';
@@ -26,14 +28,29 @@ import { FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { GoonSprite, getGoonStage, type GoonStage } from '@/components/home/GoonMascot';
+import { GoonSprite, getGoonStage, usePetPokeGate, type GoonStage } from '@/components/home/GoonMascot';
 import { getPetMood, getPetSpeech } from '@/stores/usePetStore';
 import { WIDGET_CATALOG, type BubbleConfig, type BubbleSize, type WidgetId } from '@/constants/HomeLayout';
 import type { CharacterId } from '@/stores/usePetStore';
 
+// Reordering/resizing/removing a bubble can shift which bubbles end up
+// sharing a row with which further down the layout — rows are recomputed
+// from bin-packed widths on every render, not fixed grid slots. Animating
+// the transition turns "why did that other bubble also move?" into a
+// visible, readable reflow instead of an abrupt jump-cut. New Architecture
+// (this project has newArchEnabled) supports LayoutAnimation on Android
+// without the old UIManager opt-in.
+function animateLayoutChange() {
+  LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+}
+
 // ─── Milestone thresholds ─────────────────────────────────────────────────────
 const MILESTONES = [10, 25, 50, 100, 250, 500, 1000, 2500, 5000];
 const MILESTONE_KEY = 'goon_last_shown_milestone';
+// First-time discoverability nudge for edit mode — the only entry points are a
+// plain header icon and a 500ms long-press, neither of which is obvious on a
+// first visit. Shown once as a dismissible banner, then never again.
+const EDIT_HINT_KEY = 'nogoon_organizer_edit_hint_seen';
 
 // Companion celebrations at the big milestones
 const COMPANION_MILESTONES = new Set([50, 100, 250, 500, 1000, 2500, 5000]);
@@ -140,7 +157,7 @@ function IntentionWidget({ colors, cardBorderRadius }: { colors: any; cardBorder
 
   useEffect(() => {
     async function load() {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getLocalDateKey();
       const [saved, savedDate] = await Promise.all([
         AsyncStorage.getItem(INTENTION_KEY),
         AsyncStorage.getItem(INTENTION_DATE_KEY),
@@ -151,7 +168,7 @@ function IntentionWidget({ colors, cardBorderRadius }: { colors: any; cardBorder
   }, []);
 
   const save = useCallback(async () => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateKey();
     const val = draft.trim();
     setIntention(val);
     setEditing(false);
@@ -251,22 +268,26 @@ function CompanionWidget({
   const [pokeSpeech, setPokeSpeech] = useState<string | null>(null);
   const scale = useRef(new Animated.Value(1)).current;
   const pokeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pokeGate = usePetPokeGate();
 
   const handlePoke = () => {
-    // Pick a random poke speech that isn't the current one
-    const options = POKE_SPEECHES.filter((s) => s !== pokeSpeech);
-    const next = options[Math.floor(Math.random() * options.length)];
-    setPokeSpeech(next);
-
-    // Bounce animation
+    // Bounce animation plays every tap; the speech bubble only updates every
+    // Nth tap (shared gate with the main mascot) so it stays a treat, not noise.
     Animated.sequence([
       Animated.spring(scale, { toValue: 1.12, useNativeDriver: true, speed: 30, bounciness: 12 }),
       Animated.spring(scale, { toValue: 1,    useNativeDriver: true, speed: 20, bounciness: 6  }),
     ]).start();
 
-    // Reset speech after 3s
-    if (pokeTimer.current) clearTimeout(pokeTimer.current);
-    pokeTimer.current = setTimeout(() => setPokeSpeech(null), 3000);
+    if (pokeGate()) {
+      // Pick a random poke speech that isn't the current one
+      const options = POKE_SPEECHES.filter((s) => s !== pokeSpeech);
+      const next = options[Math.floor(Math.random() * options.length)];
+      setPokeSpeech(next);
+
+      // Reset speech after 3s
+      if (pokeTimer.current) clearTimeout(pokeTimer.current);
+      pokeTimer.current = setTimeout(() => setPokeSpeech(null), 3000);
+    }
   };
 
   return (
@@ -302,17 +323,20 @@ function CompanionHeroWidget({
   const [pokeSpeech, setPokeSpeech] = useState<string | null>(null);
   const scale = useRef(new Animated.Value(1)).current;
   const pokeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pokeGate = usePetPokeGate();
 
   const handlePoke = () => {
-    const options = POKE_SPEECHES.filter((s) => s !== pokeSpeech);
-    const next = options[Math.floor(Math.random() * options.length)];
-    setPokeSpeech(next);
     Animated.sequence([
       Animated.spring(scale, { toValue: 1.1, useNativeDriver: true, speed: 28, bounciness: 14 }),
       Animated.spring(scale, { toValue: 1,   useNativeDriver: true, speed: 18, bounciness: 6  }),
     ]).start();
-    if (pokeTimer.current) clearTimeout(pokeTimer.current);
-    pokeTimer.current = setTimeout(() => setPokeSpeech(null), 3000);
+    if (pokeGate()) {
+      const options = POKE_SPEECHES.filter((s) => s !== pokeSpeech);
+      const next = options[Math.floor(Math.random() * options.length)];
+      setPokeSpeech(next);
+      if (pokeTimer.current) clearTimeout(pokeTimer.current);
+      pokeTimer.current = setTimeout(() => setPokeSpeech(null), 3000);
+    }
   };
 
   const StatBar = ({ value, color }: { value: number; color: string }) => (
@@ -371,6 +395,7 @@ const heroStyles = StyleSheet.create({
 function WidgetContent({
   widgetId, colors, walkAwayCount, minutesSaved, streakFreezeTokens,
   blockingStatus, openSettings, gateCharacter, gateStage, gateCompanionName,
+  streak, longestStreak, consistencyPct,
 }: {
   widgetId: WidgetId;
   colors: any;
@@ -382,6 +407,9 @@ function WidgetContent({
   gateCharacter: CharacterId | null;
   gateStage: GoonStage;
   gateCompanionName: string;
+  streak: number;
+  longestStreak: number;
+  consistencyPct: number;
 }) {
   switch (widgetId) {
     case 'companion': {
@@ -431,7 +459,7 @@ function WidgetContent({
       return (
         <View>
           <Text style={[cStyles.tag, { color: '#0ea5e9AA' }]}>CONSISTENCY</Text>
-          <Text style={[cStyles.medNum, { color: '#0ea5e9' }]}>78%</Text>
+          <Text style={[cStyles.medNum, { color: '#0ea5e9' }]}>{consistencyPct}%</Text>
           {streakFreezeTokens > 0 && (
             <View style={cStyles.freezeRow}>
               <Feather name="wind" size={10} color="#a5b4fc" />
@@ -504,6 +532,21 @@ function WidgetContent({
         />
       );
 
+    case 'milestones': {
+      const earned = MILESTONE_THRESHOLDS.filter((m) => walkAwayCount >= m).length;
+      return (
+        <Pressable onPress={() => router.push('/milestones' as any)}>
+          <Text style={[cStyles.tag, { color: '#D97706AA' }]}>MILESTONES</Text>
+          <Text style={[cStyles.medNum, { color: '#D97706' }]}>
+            {earned}/{MILESTONE_THRESHOLDS.length}
+          </Text>
+          <Text style={[cStyles.sub, { color: colors.textMuted }]}>
+            {streak > 0 ? `${streak}-day streak` : longestStreak > 0 ? `best: ${longestStreak}-day streak` : 'badges earned'}
+          </Text>
+        </Pressable>
+      );
+    }
+
     case 'shield':
       if (blockingStatus === 'active') {
         return (
@@ -549,6 +592,9 @@ const cStyles = StyleSheet.create({
 });
 
 // ─── Widget color accent lookup ───────────────────────────────────────────────
+// Same thresholds as app/milestones.tsx and the home-screen mascot milestone flash.
+const MILESTONE_THRESHOLDS = [10, 25, 50, 100, 250, 500, 1000, 2500, 5000];
+
 const WIDGET_ACCENT: Record<WidgetId, string> = {
   companion:    '#7c6aed',
   counter:      '#7c6aed',
@@ -562,6 +608,7 @@ const WIDGET_ACCENT: Record<WidgetId, string> = {
   'bubbles-tool': '#0ea5e9',
   shield:       '#4caf50',
   'companion-hero': '#7c6aed',
+  milestones:       '#D97706',
   spacer:           '#888888',
 };
 
@@ -769,7 +816,7 @@ const pickerStyles = StyleSheet.create({
 // ─── Home screen ──────────────────────────────────────────────────────────────
 export function HomeOrganizer() {
   const { session } = useAuthStore();
-  const { name, walkAwayCount, streak, streakFreezeTokens = 0, loadFromSupabase } = useUserStore();
+  const { name, walkAwayCount, streak, longestStreak, streakFreezeTokens = 0, dailyWalkAways, loadFromSupabase } = useUserStore();
   const minutesSaved = getMinutesSaved(walkAwayCount);
   const { blockingStatus, openSettings } = useAppBlocker();
   const { colors, cardStyle } = useTheme();
@@ -791,6 +838,27 @@ export function HomeOrganizer() {
   const [showStreakMilestone, setShowStreakMilestone] = useState<number | null>(null);
   const [dayCount,      setDayCount]      = useState(1);
   const [refreshing,    setRefreshing]    = useState(false);
+  const [showEditHint,  setShowEditHint]  = useState(false);
+
+  useEffect(() => {
+    AsyncStorage.getItem(EDIT_HINT_KEY).then((seen) => {
+      if (seen !== 'true') setShowEditHint(true);
+    });
+  }, []);
+
+  const dismissEditHint = useCallback(() => {
+    setShowEditHint(false);
+    AsyncStorage.setItem(EDIT_HINT_KEY, 'true');
+  }, []);
+
+  const enterEditMode = useCallback(() => {
+    animateLayoutChange();
+    setEditMode(true);
+    setShowEditHint((seen) => {
+      if (seen) AsyncStorage.setItem(EDIT_HINT_KEY, 'true');
+      return false;
+    });
+  }, []);
 
   // Companion async state
   const [gateCharacter, setGateCharacter] = useState<CharacterId | null>(null);
@@ -842,10 +910,12 @@ export function HomeOrganizer() {
     async function computeDay() {
       const startDate = await AsyncStorage.getItem('nogoon_start_date');
       if (!startDate) {
-        await AsyncStorage.setItem('nogoon_start_date', new Date().toISOString().split('T')[0]);
+        await AsyncStorage.setItem('nogoon_start_date', getLocalDateKey());
         setDayCount(1);
       } else {
-        const days = Math.floor((Date.now() - new Date(startDate).getTime()) / 86_400_000) + 1;
+        // Local calendar-day diff — see utils/date.ts for why not ms math
+        // against new Date(startDate), which parses that string as UTC.
+        const days = localDateKeyDiffDays(getLocalDateKey(), startDate) + 1;
         setDayCount(days);
       }
     }
@@ -861,6 +931,23 @@ export function HomeOrganizer() {
   const hour     = new Date().getHours();
   const greeting = hour < 12 ? 'Morning' : hour < 18 ? 'Hey' : 'Evening';
 
+  // 30-day (or since-start, if the account is younger than that) consistency
+  // score — % of days with at least one walk-away. Mirrors weekly-recap.tsx's
+  // definition, just over a longer rolling window; previously this widget
+  // showed a hardcoded 78% regardless of the user's real data.
+  const consistencyPct = (() => {
+    const windowDays = Math.min(dayCount, 30);
+    if (windowDays <= 0) return 0;
+    let activeDays = 0;
+    for (let i = 0; i < windowDays; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const key = getLocalDateKey(d);
+      if ((dailyWalkAways[key] ?? 0) > 0) activeDays++;
+    }
+    return Math.round((activeDays / windowDays) * 100);
+  })();
+
   const contentProps = {
     walkAwayCount,
     minutesSaved,
@@ -870,6 +957,9 @@ export function HomeOrganizer() {
     gateCharacter,
     gateStage,
     gateCompanionName,
+    streak,
+    longestStreak,
+    consistencyPct,
   };
 
   // Build display rows using bin-packing: small=1/3, half=1/2, full=1
@@ -893,10 +983,15 @@ export function HomeOrganizer() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={[styles.content, { backgroundColor: colors.background }]}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -918,14 +1013,14 @@ export function HomeOrganizer() {
             {editMode ? (
               <Pressable
                 style={[styles.editDoneBtn, { backgroundColor: colors.accent }]}
-                onPress={() => setEditMode(false)}
+                onPress={() => { animateLayoutChange(); setEditMode(false); }}
               >
                 <Text style={styles.editDoneTxt}>Done</Text>
               </Pressable>
             ) : (
               <Pressable
                 style={[styles.helpBtn, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
-                onPress={() => setEditMode(true)}
+                onPress={enterEditMode}
                 hitSlop={8}
               >
                 <Feather name="layout" size={17} color={colors.textMuted} />
@@ -933,6 +1028,21 @@ export function HomeOrganizer() {
             )}
           </View>
         </View>
+
+        {/* First-time nudge — points at the two ways into edit mode, shown once */}
+        {!editMode && showEditHint && bubbles.length > 0 && (
+          <View style={[styles.editHintBanner, { backgroundColor: colors.accentDim, borderColor: colors.accent + '33' }]}>
+            <Pressable style={styles.editHintMain} onPress={enterEditMode}>
+              <Feather name="layout" size={16} color={colors.accent} />
+              <Text style={[styles.editHintText, { color: colors.text }]}>
+                Tap here, or long-press anywhere, to customize your bubbles
+              </Text>
+            </Pressable>
+            <Pressable hitSlop={10} onPress={dismissEditHint}>
+              <Feather name="x" size={14} color={colors.textMuted} />
+            </Pressable>
+          </View>
+        )}
 
         {/* Battery-exemption warning — this layout has no other blocking-status indicator */}
         <ProtectionBanner />
@@ -979,7 +1089,7 @@ export function HomeOrganizer() {
 
         {/* Bubble grid — long press anywhere to enter edit mode */}
         <Pressable
-          onLongPress={() => { if (!editMode) setEditMode(true); }}
+          onLongPress={() => { if (!editMode) enterEditMode(); }}
           delayLongPress={500}
           style={styles.grid}
         >
@@ -992,10 +1102,10 @@ export function HomeOrganizer() {
                     editMode={editMode}
                     isFirst={bubbles.indexOf(b) === 0}
                     isLast={bubbles.indexOf(b) === bubbles.length - 1}
-                    onRemove={() => removeBubble(b.id)}
-                    onResize={() => updateBubble(b.id, { size: nextSize(b.size) })}
-                    onMoveUp={() => moveBubble(b.id, 'up')}
-                    onMoveDown={() => moveBubble(b.id, 'down')}
+                    onRemove={() => { animateLayoutChange(); removeBubble(b.id); }}
+                    onResize={() => { animateLayoutChange(); updateBubble(b.id, { size: nextSize(b.size) }); }}
+                    onMoveUp={() => { animateLayoutChange(); moveBubble(b.id, 'up'); }}
+                    onMoveDown={() => { animateLayoutChange(); moveBubble(b.id, 'down'); }}
                     onSwap={() => setSwappingId(b.id)}
                     colors={colors}
                     borderRadius={bubbleBorderR}
@@ -1016,12 +1126,14 @@ export function HomeOrganizer() {
 
         <View style={{ height: SPACING.xl }} />
       </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Widget swap/add picker */}
       <WidgetPicker
         visible={swappingId !== null}
         onClose={() => setSwappingId(null)}
         onSelect={(widgetId) => {
+          animateLayoutChange();
           if (swappingId === '__add__') {
             addBubble(widgetId);
           } else if (swappingId) {
@@ -1087,6 +1199,29 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: SPACING.xs,
     paddingHorizontal: SPACING.xs,
+  },
+
+  editHintBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: SPACING.sm,
+    borderWidth: 1,
+    borderRadius: RADIUS.lg,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+  },
+  editHintMain: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    flex: 1,
+  },
+  editHintText: {
+    fontFamily: FONTS.body,
+    fontSize: 12,
+    lineHeight: 16,
+    flex: 1,
   },
 
   emptyState: {

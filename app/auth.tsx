@@ -21,6 +21,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
@@ -34,6 +36,7 @@ export default function AuthScreen() {
   const [name, setName]         = useState('');
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState<string | null>(null);
 
@@ -89,7 +92,10 @@ export default function AuthScreen() {
 
           {/* ── Logo / wordmark ── */}
           <View style={styles.logoArea}>
-            <Text style={styles.logoText}>GATE</Text>
+            <View style={styles.logoBadge}>
+              <Feather name="shield" size={34} color={COLORS.background} />
+            </View>
+            <Text style={styles.logoText}>NoGoon</Text>
             <Text style={styles.tagline}>Take back your attention.</Text>
           </View>
 
@@ -149,16 +155,40 @@ export default function AuthScreen() {
 
             <View style={styles.fieldGroup}>
               <Text style={styles.label}>Password</Text>
-              <TextInput
-                style={styles.input}
-                placeholder={mode === 'signup' ? 'At least 6 characters' : '••••••••'}
-                placeholderTextColor={COLORS.textMuted}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                returnKeyType="done"
-                onSubmitEditing={handleSubmit}
-              />
+              <View style={styles.passwordWrap}>
+                <TextInput
+                  style={styles.passwordInput}
+                  placeholder={mode === 'signup' ? 'At least 6 characters' : '••••••••'}
+                  placeholderTextColor={COLORS.textMuted}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  returnKeyType="done"
+                  onSubmitEditing={handleSubmit}
+                />
+                <Pressable
+                  style={styles.eyeBtn}
+                  onPress={() => setShowPassword((v) => !v)}
+                  hitSlop={10}
+                >
+                  <Feather
+                    name={showPassword ? 'eye-off' : 'eye'}
+                    size={19}
+                    color={COLORS.textMuted}
+                  />
+                </Pressable>
+              </View>
+              {mode === 'signin' && (
+                <Pressable
+                  style={styles.forgotLink}
+                  onPress={() => router.push('/forgot-password' as any)}
+                  hitSlop={8}
+                >
+                  <Text style={styles.forgotLinkText}>Forgot password?</Text>
+                </Pressable>
+              )}
             </View>
 
             {/* Error message */}
@@ -215,11 +245,20 @@ const styles = StyleSheet.create({
     paddingTop: SPACING.huge,
     paddingBottom: SPACING.xxxl,
   },
+  logoBadge: {
+    width: 72,
+    height: 72,
+    borderRadius: 24,
+    backgroundColor: COLORS.indigo,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SPACING.md,
+  },
   logoText: {
     fontFamily: FONTS.display,
-    fontSize: 56,
-    color: COLORS.green,
-    letterSpacing: 8,
+    fontSize: 36,
+    color: COLORS.indigo,
+    letterSpacing: 0.5,
   },
   tagline: {
     fontFamily: FONTS.body,
@@ -245,7 +284,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modeTabActive: {
-    backgroundColor: COLORS.green,
+    backgroundColor: COLORS.indigo,
   },
   modeTabText: {
     fontFamily: FONTS.bodyMedium,
@@ -281,6 +320,36 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.textPrimary,
   },
+  passwordWrap: {
+    position: 'relative',
+    justifyContent: 'center',
+  },
+  passwordInput: {
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
+    paddingHorizontal: SPACING.lg,
+    paddingRight: SPACING.xl + SPACING.lg,
+    paddingVertical: SPACING.md,
+    fontFamily: FONTS.body,
+    fontSize: 16,
+    color: COLORS.textPrimary,
+  },
+  eyeBtn: {
+    position: 'absolute',
+    right: SPACING.md,
+    padding: 4,
+  },
+  forgotLink: {
+    alignSelf: 'flex-end',
+    marginTop: SPACING.xs,
+  },
+  forgotLinkText: {
+    fontFamily: FONTS.bodyMedium,
+    fontSize: 13,
+    color: COLORS.indigoBright,
+  },
   errorBox: {
     backgroundColor: COLORS.danger + '18',
     borderRadius: RADIUS.sm,
@@ -294,7 +363,7 @@ const styles = StyleSheet.create({
     color: COLORS.danger,
   },
   submitButton: {
-    backgroundColor: COLORS.green,
+    backgroundColor: COLORS.indigo,
     borderRadius: RADIUS.md,
     paddingVertical: SPACING.lg,
     alignItems: 'center',

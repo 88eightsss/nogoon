@@ -3,7 +3,7 @@
 // Template picker modal — accessible from home edit mode ("Change template").
 // Shows 5 presets with mini bubble previews; applying one replaces the layout.
 
-import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet, Alert, LayoutAnimation } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -75,12 +75,35 @@ export default function LayoutPickerScreen() {
   const { colors, cardStyle } = useTheme();
   const { homeLayout, setHomeLayout } = useThemeStore();
 
-  function applyTemplate(template: Template) {
+  function doApply(template: Template) {
+    // Applying a template replaces the whole layout — animate the transition
+    // so the reflow reads as "I chose a new layout" rather than a jump-cut
+    // once we're back on the Organizer home screen underneath this modal.
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setHomeLayout({
       templateId: template.id,
       bubbles: template.bubbles.map((b) => ({ ...b, id: newBubbleId() })),
     });
     router.back();
+  }
+
+  function applyTemplate(template: Template) {
+    // Only confirm when there's actually something hand-built to lose — once
+    // the layout has been edited directly (add/remove/resize/reorder/swap),
+    // its templateId flips to 'custom'. Switching between two stock templates
+    // has nothing unique to lose, so that stays a single tap.
+    if (homeLayout?.templateId === 'custom') {
+      Alert.alert(
+        'Replace your layout?',
+        `You've customized your current layout. Switching to "${template.name}" will replace it — this can't be undone.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Replace', style: 'destructive', onPress: () => doApply(template) },
+        ],
+      );
+      return;
+    }
+    doApply(template);
   }
 
   return (

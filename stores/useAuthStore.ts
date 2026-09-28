@@ -36,6 +36,12 @@ interface AuthState {
 
   // Sign out, clear the session, AND wipe local user data
   signOut: () => Promise<void>;
+
+  // Forgot password: sends a 6-digit reset code to the given email
+  requestPasswordReset: (email: string) => Promise<AuthError | null>;
+
+  // Confirm password reset: verifies the emailed code, then sets the new password
+  confirmPasswordReset: (email: string, code: string, newPassword: string) => Promise<AuthError | null>;
 }
 
 // ─── Store ────────────────────────────────────────────────────────────────────
@@ -116,5 +122,30 @@ export const useAuthStore = create<AuthState>((set) => ({
 
     // 3. Clear the auth state — _layout.tsx will redirect to /auth
     set({ session: null, user: null });
+  },
+
+  // ── requestPasswordReset ──────────────────────────────────────────────────
+  // Sends a 6-digit recovery code to the user's email via Supabase Auth.
+  // The code is entered on the next screen along with the new password.
+
+  requestPasswordReset: async (email) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    return error ?? null;
+  },
+
+  // ── confirmPasswordReset ──────────────────────────────────────────────────
+  // Verifies the emailed code (which logs the user in via a recovery session),
+  // then immediately updates their password to the new one they chose.
+
+  confirmPasswordReset: async (email, code, newPassword) => {
+    const { error: verifyError } = await supabase.auth.verifyOtp({
+      email,
+      token: code,
+      type: 'recovery',
+    });
+    if (verifyError) return verifyError;
+
+    const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+    return updateError ?? null;
   },
 }));

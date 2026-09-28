@@ -1,34 +1,45 @@
 // ─── Impulse Journal Screen ───────────────────────────────────────────────────
 //
-// A read-only history of all impulse journal entries the user has written.
-//
-// These entries are created on the game screen — the user writes a short note
-// about why they're trying to access a blocked site before the game starts.
-// Over time, this builds self-awareness around trigger patterns.
+// A running history of impulse journal entries, and — as of this pass — the
+// only place that can actually create one. The store action (addJournalEntry)
+// and this display screen have existed for a while, but nothing in the app
+// ever called addJournalEntry: the old doc comment here said entries were
+// "created on the game screen," but no such call site existed anywhere in the
+// codebase, so the journal could never have a single entry in it. This adds
+// the missing write path directly on this screen (compose anytime, not just
+// mid-intercept) plus a small recap header, since a growing personal record
+// is the whole point of a journal people come back to.
 //
 // Each entry stores:
 //   id        — unique identifier
 //   text      — what the user wrote
-//   domain    — which site triggered the intercept (e.g. "tiktok.com")
+//   domain    — which site triggered the intercept ('' for a free entry
+//               written from this screen rather than during a block)
 //   timestamp — Unix ms timestamp of when it was created
 //
 // Route: /journal
 // Navigated to from: Profile screen → "Impulse Journal" settings row
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { useMemo, useState } from 'react';
 import {
   View,
   Text,
   Pressable,
   ScrollView,
   StyleSheet,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { COLORS, FONTS } from '@/constants/Colors';
+import { useTheme } from '@/hooks/useTheme';
+import { FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { useUserStore } from '@/stores/useUserStore';
+import { MOOD_TAGS } from '@/constants/moods';
 
 // ─── Time formatting helper ───────────────────────────────────────────────────
 //
@@ -63,81 +74,213 @@ function formatRelativeTime(timestamp: number): string {
 // ─── Main component ────────────────────────────────────────────────────────────
 
 export default function JournalScreen() {
-  // Pull all journal entries from the global store
-  const { journalEntries } = useUserStore();
+  const { colors, cardStyle } = useTheme();
+  const { journalEntries, addJournalEntry } = useUserStore();
 
+  const [composing, setComposing] = useState(false);
+  const [draft, setDraft]         = useState('');
+  const [draftTag, setDraftTag]   = useState<string | undefined>(undefined);
 
+  // ── Recap ──────────────────────────────────────────────────────────────────
+  // Small sense of "this is a record that's growing" — total count plus a
+  // rolling 7-day count. Deliberately not a bigger stats block; the Insights
+  // screen already owns lifetime numbers, this is just enough to make the
+  // list above feel like an accumulating journal rather than a flat log.
+  const entriesThisWeek = useMemo(() => {
+    const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    return journalEntries.filter((e) => e.timestamp > weekAgo).length;
+  }, [journalEntries]);
+
+  const startComposing = () => {
+    setDraft('');
+    setDraftTag(undefined);
+    setComposing(true);
+  };
+
+  const cancelComposing = () => {
+    setDraft('');
+    setDraftTag(undefined);
+    setComposing(false);
+  };
+
+  const saveEntry = () => {
+    const text = draft.trim();
+    if (!text) {
+      setComposing(false);
+      return;
+    }
+    // domain '' marks this as written directly here rather than during a
+    // blocked-site intercept — the entry card below hides the domain chip
+    // when there's no domain to show. The mood tag is optional either way.
+    addJournalEntry(text, '', draftTag);
+    setDraft('');
+    setDraftTag(undefined);
+    setComposing(false);
+  };
 
   // ─────────────────────────────────────────────────────────────────────────────
   //  RENDER
   // ─────────────────────────────────────────────────────────────────────────────
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
 
       {/* ── Header ── */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: colors.background }]}>
         <Pressable style={styles.backButton} onPress={() => router.back()}>
-          <Feather name="arrow-left" size={22} color={COLORS.textPrimary} />
+          <Feather name="arrow-left" size={22} color={colors.text} />
         </Pressable>
-        <Text style={styles.headerTitle}>Impulse Journal</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Impulse Journal</Text>
         {/* Spacer keeps title centered */}
         <View style={styles.headerSpacer} />
       </View>
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
 
-        {/* ── Privacy note ── */}
-        {/* Always shown at the top regardless of whether there are entries */}
-        <View style={styles.privacyNote}>
-          <Feather name="lock" size={14} color={COLORS.textMuted} />
-          <Text style={styles.privacyNoteText}>
-            These notes are private. Writing down how you feel in the moment
-            helps you understand your triggers.
-          </Text>
-        </View>
-
-        {/* ── Empty state ── */}
-        {journalEntries.length === 0 && (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyEmoji}>📝</Text>
-            <Text style={styles.emptyHeading}>No entries yet</Text>
-            <Text style={styles.emptySubtitle}>
-              Write a note before your next game session to start building
-              your journal.
-            </Text>
-          </View>
-        )}
-
-        {/* ── Entry cards ── */}
-        {/* Rendered as a plain map inside ScrollView — simpler than FlatList
-            for a screen that never has more than 90 entries (store trims at 90). */}
-        {journalEntries.map((entry) => (
-          <View key={entry.id} style={styles.entryCard}>
-
-            {/* Domain chip — shows which site triggered the intercept */}
-            <View style={styles.domainChip}>
-              <Feather name="globe" size={12} color={COLORS.cyan} />
-              <Text style={styles.domainText}>{entry.domain}</Text>
+          {/* ── Recap ── */}
+          {journalEntries.length > 0 && (
+            <View style={styles.recapRow}>
+              <Text style={[styles.recapText, { color: colors.textMuted }]}>
+                {journalEntries.length} {journalEntries.length === 1 ? 'entry' : 'entries'}
+                {entriesThisWeek > 0 ? ` · ${entriesThisWeek} this week` : ''}
+              </Text>
             </View>
+          )}
 
-            {/* The user's journal text */}
-            <Text style={styles.entryText}>{entry.text}</Text>
+          {/* ── Composer ── */}
+          {composing ? (
+            <View style={[styles.composerCard, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+              <TextInput
+                style={[styles.composerInput, { color: colors.text }]}
+                value={draft}
+                onChangeText={setDraft}
+                placeholder="What's on your mind?"
+                placeholderTextColor={colors.textMuted}
+                multiline
+                autoFocus
+              />
 
-            {/* Relative timestamp — bottom right of the card */}
-            <Text style={styles.entryTime}>
-              {formatRelativeTime(entry.timestamp)}
+              {/* Optional mood tag — same vocabulary as the post-walk-away
+                  reflection pills, tap again to clear. */}
+              <View style={styles.moodRow}>
+                {MOOD_TAGS.map((m) => {
+                  const selected = draftTag === m.id;
+                  return (
+                    <Pressable
+                      key={m.id}
+                      style={[
+                        styles.moodChip,
+                        {
+                          borderColor: selected ? colors.accent : colors.cardBorder,
+                          backgroundColor: selected ? colors.accentDim : colors.surfaceHigh,
+                        },
+                      ]}
+                      onPress={() => setDraftTag(selected ? undefined : m.id)}
+                    >
+                      <Text style={styles.moodChipEmoji}>{m.emoji}</Text>
+                      <Text style={[styles.moodChipText, { color: selected ? colors.accent : colors.textMuted }]}>
+                        {m.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              <View style={styles.composerActions}>
+                <Pressable style={styles.composerBtn} onPress={cancelComposing}>
+                  <Text style={[styles.composerBtnText, { color: colors.textMuted }]}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.composerBtn, styles.composerBtnPrimary, { backgroundColor: colors.accentDim }]}
+                  onPress={saveEntry}
+                >
+                  <Text style={[styles.composerBtnText, { color: colors.accent }]}>Save entry</Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : (
+            <Pressable
+              style={[styles.newEntryBtn, { borderColor: colors.cardBorder }]}
+              onPress={startComposing}
+            >
+              <Feather name="edit-3" size={15} color={colors.accent} />
+              <Text style={[styles.newEntryText, { color: colors.accent }]}>Write an entry</Text>
+            </Pressable>
+          )}
+
+          {/* ── Privacy note ── */}
+          <View style={[styles.privacyNote, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+            <Feather name="lock" size={14} color={colors.textMuted} />
+            <Text style={[styles.privacyNoteText, { color: colors.textMuted }]}>
+              These notes are private. Writing down how you feel in the moment
+              helps you understand your triggers.
             </Text>
-
           </View>
-        ))}
 
-        <View style={{ height: SPACING.xxl }} />
-      </ScrollView>
+          {/* ── Empty state ── */}
+          {journalEntries.length === 0 && !composing && (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyEmoji}>📝</Text>
+              <Text style={[styles.emptyHeading, { color: colors.text }]}>No entries yet</Text>
+              <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
+                Write whenever something's on your mind — before a game
+                session, after one, or any time in between.
+              </Text>
+            </View>
+          )}
+
+          {/* ── Entry cards ── */}
+          {/* Rendered as a plain map inside ScrollView — simpler than FlatList
+              for a screen that never has more than 90 entries (store trims at 90). */}
+          {journalEntries.map((entry) => (
+            <View key={entry.id} style={[styles.entryCard, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+
+              {/* Domain chip and mood tag — either, both, or neither can be
+                  present depending on how/where the entry was written. */}
+              {(!!entry.domain || !!entry.tag) && (
+                <View style={styles.chipRow}>
+                  {!!entry.domain && (
+                    <View style={[styles.domainChip, { backgroundColor: colors.accentDim, borderColor: colors.accent + '33' }]}>
+                      <Feather name="globe" size={12} color={colors.accent} />
+                      <Text style={[styles.domainText, { color: colors.accent }]}>{entry.domain}</Text>
+                    </View>
+                  )}
+                  {!!entry.tag && (() => {
+                    const mood = MOOD_TAGS.find((m) => m.id === entry.tag);
+                    if (!mood) return null;
+                    return (
+                      <View style={[styles.domainChip, { backgroundColor: colors.surfaceHigh, borderColor: colors.cardBorder }]}>
+                        <Text style={{ fontSize: 12 }}>{mood.emoji}</Text>
+                        <Text style={[styles.domainText, { color: colors.textSecondary }]}>{mood.label}</Text>
+                      </View>
+                    );
+                  })()}
+                </View>
+              )}
+
+              {/* The user's journal text */}
+              <Text style={[styles.entryText, { color: colors.text }]}>{entry.text}</Text>
+
+              {/* Relative timestamp — bottom right of the card */}
+              <Text style={[styles.entryTime, { color: colors.textMuted }]}>
+                {formatRelativeTime(entry.timestamp)}
+              </Text>
+
+            </View>
+          ))}
+
+          <View style={{ height: SPACING.xxl }} />
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -145,7 +288,8 @@ export default function JournalScreen() {
 // ─── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  safe:    { flex: 1, backgroundColor: COLORS.background },
+  safe:    { flex: 1 },
+  flex:    { flex: 1 },
   scroll:  { flex: 1 },
   content: { paddingHorizontal: SPACING.lg, paddingTop: SPACING.md, gap: SPACING.md },
 
@@ -156,7 +300,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.lg,
     paddingBottom: SPACING.md,
-    backgroundColor: COLORS.background,
   },
   backButton: {
     padding: SPACING.xs,
@@ -166,7 +309,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: FONTS.display,
     fontSize: 20,
-    color: COLORS.textPrimary,
     textAlign: 'center',
     letterSpacing: -0.3,
   },
@@ -175,23 +317,97 @@ const styles = StyleSheet.create({
     width: 22 + SPACING.xs * 2,
   },
 
+  // ── Recap ──
+  recapRow: {
+    paddingHorizontal: SPACING.xs,
+  },
+  recapText: {
+    fontFamily: FONTS.mono,
+    fontSize: 12,
+    letterSpacing: 0.2,
+  },
+
+  // ── New-entry button (collapsed composer) ──
+  newEntryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xs,
+    paddingVertical: SPACING.md,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+  },
+  newEntryText: {
+    fontFamily: FONTS.bodyMedium,
+    fontSize: 14,
+  },
+
+  // ── Composer (expanded) ──
+  composerCard: {
+    borderWidth: 1,
+    borderRadius: RADIUS.md,
+    padding: SPACING.lg,
+    gap: SPACING.sm,
+  },
+  composerInput: {
+    fontFamily: FONTS.body,
+    fontSize: 15,
+    lineHeight: 22,
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  // ── Mood tag picker (inside composer) ──
+  moodRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.xs,
+  },
+  moodChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1,
+    borderRadius: RADIUS.full,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 5,
+  },
+  moodChipEmoji: { fontSize: 13 },
+  moodChipText: {
+    fontFamily: FONTS.body,
+    fontSize: 12,
+  },
+
+  composerActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: SPACING.sm,
+  },
+  composerBtn: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.full,
+  },
+  composerBtnPrimary: {},
+  composerBtnText: {
+    fontFamily: FONTS.bodyMedium,
+    fontSize: 13,
+  },
+
   // ── Privacy note ──
-  // Subtle banner at the top — icon + small text, muted colors
+  // Subtle banner — icon + small text, muted colors
   privacyNote: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: SPACING.xs,
-    backgroundColor: COLORS.surface,
     borderRadius: RADIUS.sm,
     borderWidth: 1,
-    borderColor: COLORS.cardBorder,
     padding: SPACING.md,
   },
   privacyNoteText: {
     flex: 1,
     fontFamily: FONTS.body,
     fontSize: 13,
-    color: COLORS.textMuted,
     lineHeight: 19,
   },
 
@@ -209,47 +425,43 @@ const styles = StyleSheet.create({
   emptyHeading: {
     fontFamily: FONTS.display,
     fontSize: 22,
-    color: COLORS.textPrimary,
     letterSpacing: -0.3,
   },
   emptySubtitle: {
     fontFamily: FONTS.body,
     fontSize: 14,
-    color: COLORS.textSecondary,
     textAlign: 'center',
     lineHeight: 21,
     paddingHorizontal: SPACING.xxl,
   },
 
   // ── Entry cards ──
-  // Dark surface card with a subtle border — same pattern used across the app
   entryCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.cardBorder,
     padding: SPACING.lg,
     gap: SPACING.sm,
   },
 
-  // ── Domain chip ──
-  // Small pill at the top of each card showing the blocked site's domain
+  // ── Domain / mood chip row ──
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.xs,
+  },
+  // Small pill at the top of each card — blocked site domain, mood tag, or both
   domainChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.xs,
     alignSelf: 'flex-start',
-    backgroundColor: COLORS.cyanDim,
     borderRadius: RADIUS.full,
     borderWidth: 1,
-    borderColor: COLORS.cyan + '33',
     paddingHorizontal: SPACING.sm,
     paddingVertical: 3,
   },
   domainText: {
     fontFamily: FONTS.mono,
     fontSize: 11,
-    color: COLORS.cyan,
     letterSpacing: 0.3,
   },
 
@@ -257,7 +469,6 @@ const styles = StyleSheet.create({
   entryText: {
     fontFamily: FONTS.body,
     fontSize: 15,
-    color: COLORS.textPrimary,
     lineHeight: 22,
   },
 
@@ -266,7 +477,6 @@ const styles = StyleSheet.create({
   entryTime: {
     fontFamily: FONTS.mono,
     fontSize: 11,
-    color: COLORS.textMuted,
     textAlign: 'right',
     marginTop: SPACING.xs,
   },

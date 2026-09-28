@@ -20,6 +20,8 @@ import {
   StyleSheet,
   TextInput,
   Switch,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -82,6 +84,10 @@ export default function PartnerScreen() {
         <View style={styles.headerSpacer} />
       </View>
 
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
@@ -201,6 +207,7 @@ export default function PartnerScreen() {
 
         <View style={{ height: SPACING.xxl }} />
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

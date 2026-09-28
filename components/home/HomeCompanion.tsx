@@ -15,9 +15,11 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import {
   ScrollView, View, Text, StyleSheet, Pressable,
   TextInput, Animated, Modal, Alert,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getLocalDateKey, localDateKeyDiffDays } from '@/utils/date';
 import * as Haptics from 'expo-haptics';
 import { useUserStore, getMinutesSaved } from '@/stores/useUserStore';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -29,12 +31,13 @@ import { FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { GoonMascot } from '@/components/home/GoonMascot';
+import { GoonMascot, CHAR_COLORS, getGoonStage, STORAGE_KEY as MASCOT_STORAGE_KEY } from '@/components/home/GoonMascot';
 import { useUnlockedFeatures, lockHint, type FeatureId } from '@/stores/useProgressStore';
 
 // ─── Milestone thresholds ─────────────────────────────────────────────────────
 const MILESTONES = [10, 25, 50, 100, 250, 500, 1000, 2500, 5000];
 const MILESTONE_KEY = 'goon_last_shown_milestone';
+const WHATNOW_NUDGE_KEY = 'nogoon_whatnow_nudge_shown';
 
 // ─── Milestone flash ──────────────────────────────────────────────────────────
 
@@ -89,7 +92,7 @@ function IntentionCard() {
   // Load today's intention from AsyncStorage
   useEffect(() => {
     async function load() {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getLocalDateKey();
       const [saved, savedDate] = await Promise.all([
         AsyncStorage.getItem(INTENTION_KEY),
         AsyncStorage.getItem(INTENTION_DATE_KEY),
@@ -102,7 +105,7 @@ function IntentionCard() {
   }, []);
 
   const save = useCallback(async () => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateKey();
     const val = draft.trim();
     setIntention(val);
     setEditing(false);
@@ -312,6 +315,13 @@ function CompanionSheet({
       sub: 'What you wrote during intercepts', onPress: () => go('/journal'),
     });
   }
+  // Calm tools aren't gated behind a walk-away threshold like the rest of
+  // these — always offer them, so a genuine day-one user (0 walk-aways,
+  // nothing else unlocked yet) still gets more than a single suggestion here.
+  suggestions.push({
+    key: 'calm', icon: 'wind', title: 'Try a calming tool',
+    sub: 'Breathing, grounding, brain dump', onPress: () => go('/(tabs)/calm'),
+  });
   suggestions.push({
     key: 'me', icon: 'user', title: 'Rename your companion',
     sub: 'Or tweak theme and layout', onPress: () => go('/(tabs)/profile'),
@@ -414,28 +424,31 @@ function QuickAccessRow() {
     key: string;
     icon: keyof typeof Feather.glyphMap;
     label: string;
-    featureId: FeatureId;
+    featureId?: FeatureId;
     onPress: () => void;
   }[] = [
-    { key: 'insights',  icon: 'bar-chart-2', label: 'Insights',  featureId: 'insights',
+    { key: 'insights',   icon: 'bar-chart-2', label: 'Insights',   featureId: 'insights',
       onPress: () => router.push('/insights' as any) },
-    { key: 'journal',   icon: 'book-open',   label: 'Journal',   featureId: 'journal',
+    { key: 'journal',    icon: 'book-open',   label: 'Journal',    featureId: 'journal',
       onPress: () => router.push('/journal' as any) },
-    { key: 'organizer', icon: 'grid',        label: 'Organizer', featureId: 'organizerMode',
+    { key: 'organizer',  icon: 'grid',        label: 'Organizer',  featureId: 'organizerMode',
       onPress: () => setHomeMode('organizer') },
+    // Always available — personal progress, not gated like the deeper features above.
+    { key: 'milestones', icon: 'award',       label: 'Milestones',
+      onPress: () => router.push('/milestones' as any) },
   ];
 
   return (
     <View style={[quickAccessStyles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
       {items.map((item) => {
-        const isUnlocked = unlocked.has(item.featureId);
+        const isUnlocked = !item.featureId || unlocked.has(item.featureId);
         return (
           <Pressable
             key={item.key}
             style={quickAccessStyles.item}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              if (!isUnlocked) {
+              if (!isUnlocked && item.featureId) {
                 Alert.alert('Still locked', lockHint(item.featureId));
                 return;
               }
@@ -536,25 +549,65 @@ export function HomeCompanion() {
     async function computeDay() {
       const startDate = await AsyncStorage.getItem('nogoon_start_date');
       if (!startDate) {
-        const today = new Date().toISOString().split('T')[0];
+        const today = getLocalDateKey();
         await AsyncStorage.setItem('nogoon_start_date', today);
         setDayCount(1);
       } else {
-        const start = new Date(startDate).getTime();
-        const now   = new Date().getTime();
-        const days  = Math.floor((now - start) / 86_400_000) + 1;
+        // Local calendar-day diff — see utils/date.ts.
+        const days = localDateKeyDiffDays(getLocalDateKey(), startDate) + 1;
         setDayCount(days);
       }
     }
     computeDay();
   }, []);
 
+  // ── "What now?" glow — tinted a little with the current companion's color ──
+  const [mascotColor, setMascotColor] = useState<string | null>(null);
+  useEffect(() => {
+    AsyncStorage.getItem(MASCOT_STORAGE_KEY).then((v) => {
+      const charId = (v !== null ? Number(v) : 0) as 0 | 1 | 2;
+      const stage = getGoonStage(walkAwayCount);
+      setMascotColor(CHAR_COLORS[charId][stage][1]);
+    });
+  }, [walkAwayCount]);
+
+  const glowPulse = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(glowPulse, { toValue: 1, duration: 1800, useNativeDriver: true }),
+        Animated.timing(glowPulse, { toValue: 0, duration: 1800, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [glowPulse]);
+
+  // ── One-time "try this next" nudge toward What Now, shown right after the
+  //    interactive tutorial finishes (see app/(tabs)/index.tsx) ──
+  const hasSeenTutorial = useUserStore((s) => s.hasSeenTutorial);
+  const [showWhatNowNudge, setShowWhatNowNudge] = useState(false);
+  useEffect(() => {
+    if (!hasSeenTutorial) return;
+    AsyncStorage.getItem(WHATNOW_NUDGE_KEY).then((seen) => {
+      if (seen) return;
+      setShowWhatNowNudge(true);
+      AsyncStorage.setItem(WHATNOW_NUDGE_KEY, 'true');
+      setTimeout(() => setShowWhatNowNudge(false), 5000);
+    });
+  }, [hasSeenTutorial]);
+
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
       <ScrollView
         style={[styles.scroll, { backgroundColor: colors.background }]}
         contentContainerStyle={[styles.content, { backgroundColor: colors.background }]}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {/* ── Header ── */}
         <View style={styles.header}>
@@ -603,18 +656,38 @@ export function HomeCompanion() {
             times you walked away
           </Text>
 
-          <Pressable
-            style={[styles.suggestBtn, { borderColor: colors.cardBorder }]}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setShowSheet(true);
-            }}
-            hitSlop={8}
-          >
-            <Feather name="compass" size={13} color={colors.textMuted} />
-            <Text style={[styles.suggestBtnText, { color: colors.textMuted }]}>What now?</Text>
-            {newlyUnlocked.length > 0 && <View style={[styles.suggestDot, { backgroundColor: colors.accent }]} />}
-          </Pressable>
+          <View style={styles.suggestWrap}>
+            {showWhatNowNudge && (
+              <View style={[styles.nudgeBubble, { backgroundColor: colors.text }]}>
+                <Text style={[styles.nudgeText, { color: colors.background }]}>Try this next</Text>
+              </View>
+            )}
+            {mascotColor && (
+              <Animated.View
+                pointerEvents="none"
+                style={[
+                  styles.suggestGlow,
+                  {
+                    backgroundColor: mascotColor,
+                    opacity: glowPulse.interpolate({ inputRange: [0, 1], outputRange: [0.12, 0.30] }),
+                  },
+                ]}
+              />
+            )}
+            <Pressable
+              style={[styles.suggestBtn, { borderColor: mascotColor ?? colors.cardBorder }]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setShowSheet(true);
+                setShowWhatNowNudge(false);
+              }}
+              hitSlop={8}
+            >
+              <Feather name="compass" size={13} color={colors.textMuted} />
+              <Text style={[styles.suggestBtnText, { color: colors.textMuted }]}>What now?</Text>
+              {newlyUnlocked.length > 0 && <View style={[styles.suggestDot, { backgroundColor: colors.accent }]} />}
+            </Pressable>
+          </View>
 
           {/* Time reclaimed sub-stat */}
           {showTimeReclaimed && minutesSaved > 0 && (
@@ -678,6 +751,7 @@ export function HomeCompanion() {
 
         <View style={{ height: SPACING.xl }} />
       </ScrollView>
+      </KeyboardAvoidingView>
 
       {showSheet && (
         <CompanionSheet
@@ -744,11 +818,34 @@ const styles = StyleSheet.create({
     fontSize: 14,
     letterSpacing: 0.2,
   },
+  suggestWrap: {
+    marginTop: SPACING.sm,
+    alignItems: 'center',
+  },
+  suggestGlow: {
+    position: 'absolute',
+    top: -4,
+    left: -4,
+    right: -4,
+    bottom: -4,
+    borderRadius: RADIUS.full,
+  },
+  nudgeBubble: {
+    position: 'absolute',
+    top: -30,
+    paddingVertical: 4,
+    paddingHorizontal: SPACING.sm,
+    borderRadius: RADIUS.full,
+    zIndex: 2,
+  },
+  nudgeText: {
+    fontFamily: FONTS.bodyMedium,
+    fontSize: 11,
+  },
   suggestBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    marginTop: SPACING.sm,
     paddingVertical: 5,
     paddingHorizontal: SPACING.sm,
     borderRadius: RADIUS.full,

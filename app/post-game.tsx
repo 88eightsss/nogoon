@@ -22,6 +22,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -33,6 +34,7 @@ import { useAppBlocker } from '@/hooks/useAppBlocker';
 import { AdBanner } from '@/components/ads/AdBanner';
 import { AdRewarded } from '@/components/ads/AdRewarded';
 import { COLORS, FONTS } from '@/constants/Colors';
+import { MOOD_TAGS } from '@/constants/moods';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 
 // ─── Micro-learning cards ──────────────────────────────────────────────────────
@@ -250,6 +252,7 @@ export default function PostGameScreen() {
     logTrigger,
     logReflection,
     addUrgeEntry,
+    addJournalEntry,
     notifyPartner,
   } = useUserStore();
   // Hook to tell the Android native module about the 10-min unlock
@@ -281,6 +284,19 @@ export default function PostGameScreen() {
   const [celebrationCount, setCelebrationCount] = useState(0);
   const [reflectionDone, setReflectionDone] = useState(false);
   const [showNews, setShowNews] = useState(false);
+  // Optional note, offered right after a walk-away — this is the "in the
+  // moment" journal entry point the app was originally supposed to have.
+  // addJournalEntry existed with no call site anywhere before this; the tag
+  // pills above write to urgeJournal (structured), this writes to
+  // journalEntries (free text) — same moment, either or both.
+  const [addingNote, setAddingNote] = useState(false);
+  const [noteDraft, setNoteDraft] = useState('');
+  const continueToNews = (tag?: string) => {
+    const text = noteDraft.trim();
+    if (text) addJournalEntry(text, domainDisplay, tag);
+    setReflectionDone(true);
+    setShowNews(true);
+  };
 
   const COMMITMENT_OPTIONS = [
     { id: 'read',     label: 'Read / write / create', emoji: '📖' },
@@ -366,14 +382,7 @@ export default function PostGameScreen() {
   // ── Walk-away celebration + reflection screen ─────────────────────────────
   // Two phases: first show the walk-away count (celebrationCount), then
   // show a one-tap reflection question. No auto-dismiss — user controls pacing.
-  const REFLECTION_OPTIONS = [
-    { id: 'Bored',           emoji: '😴', label: 'Bored' },
-    { id: 'Stressed',        emoji: '😤', label: 'Stressed' },
-    { id: 'Procrastinating', emoji: '⏰', label: 'Avoiding' },
-    { id: 'Lonely',          emoji: '🫂', label: 'Lonely' },
-    { id: 'Habit',           emoji: '🔁', label: 'Just Habit' },
-    { id: 'Anxious',         emoji: '😰', label: 'Anxious' },
-  ] as const;
+  const REFLECTION_OPTIONS = MOOD_TAGS;
 
   // ── Commitment screen ────────────────────────────────────────────────────
   if (showCommitment) {
@@ -486,8 +495,7 @@ export default function PostGameScreen() {
                     logReflection(opt.id);
                     addUrgeEntry(opt.id, domainDisplay); // timestamped urge journal entry
                     Haptics.selectionAsync();
-                    setReflectionDone(true);
-                    setShowNews(true);
+                    continueToNews(opt.id); // also saves the note draft below, tagged with this mood
                   }}
                 >
                   <Text style={styles.reflectionEmoji}>{opt.emoji}</Text>
@@ -495,6 +503,32 @@ export default function PostGameScreen() {
                 </Pressable>
               ))}
             </View>
+
+            {/* Optional free-text note — same moment as the tag pills above,
+                either/both/neither. Collapsed by default so the fast "tap a
+                pill and move on" path (most people, most of the time) gets
+                zero added friction. */}
+            {addingNote ? (
+              <View style={styles.noteBox}>
+                <TextInput
+                  style={styles.noteInput}
+                  value={noteDraft}
+                  onChangeText={setNoteDraft}
+                  placeholder="What was pulling you in?"
+                  placeholderTextColor={COLORS.textMuted}
+                  multiline
+                  autoFocus
+                />
+                <Pressable style={styles.noteSaveBtn} onPress={() => continueToNews()}>
+                  <Text style={styles.noteSaveBtnText}>Save & continue</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <Pressable onPress={() => setAddingNote(true)} hitSlop={8}>
+                <Text style={[styles.reflectionSkipText, { color: COLORS.green }]}>+ Add a note</Text>
+              </Pressable>
+            )}
+
             <Pressable
               onPress={() => {
                 setReflectionDone(true);
@@ -918,6 +952,37 @@ const styles = StyleSheet.create({
   reflectionPillText: {
     fontFamily: FONTS.body,
     fontSize: 14,
+  },
+
+  // ── Optional post-walk-away note ──
+  noteBox: {
+    width: '100%',
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    gap: SPACING.sm,
+  },
+  noteInput: {
+    fontFamily: FONTS.body,
+    fontSize: 14,
+    lineHeight: 20,
+    color: COLORS.textPrimary,
+    minHeight: 60,
+    textAlignVertical: 'top',
+  },
+  noteSaveBtn: {
+    alignSelf: 'flex-end',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.full,
+    backgroundColor: COLORS.green + '22',
+  },
+  noteSaveBtnText: {
+    fontFamily: FONTS.bodyMedium,
+    fontSize: 13,
+    color: COLORS.green,
   },
 
   // ── Commitment cards ────────────────────────────────────────────────────

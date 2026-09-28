@@ -58,20 +58,22 @@ export default function TabsLayout() {
       guidePage: 'blocklist',
     },
     {
-      name:      'index',
-      title:     'Today',
-      icon:      'home',
-      color:     colors.accent,
-      pillBg:    colors.accentDim,
-      guidePage: 'home',
-    },
-    {
       name:      'calm',
       title:     'Calm',
       icon:      'wind',
       color:     colors.calm,
       pillBg:    colors.warningDim,
       guidePage: 'calm',
+    },
+    {
+      // Center tab (3rd of 5) — the home/status tab, given the middle slot
+      // since it's the one most people land on and return to most often.
+      name:      'index',
+      title:     'Today',
+      icon:      'home',
+      color:     colors.accent,
+      pillBg:    colors.accentDim,
+      guidePage: 'home',
     },
     {
       name:      'arcade',

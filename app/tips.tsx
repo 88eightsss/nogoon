@@ -65,7 +65,7 @@ const TIPS = [
   {
     icon: 'shield',
     title: 'Stack all three protection layers',
-    body: 'Accessibility Service, VPN DNS filter, and Notification Listener each close a different gap. Turn on all three on the Protection screen for the fewest ways around a block.',
+    body: 'Accessibility Service, VPN DNS filter, and Notification Listener each close a different gap. Turn on all three on the Coverage screen for the fewest ways around a block.',
   },
 ] as const;
 

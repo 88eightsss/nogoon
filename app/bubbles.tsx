@@ -13,6 +13,7 @@ import { useState, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, Pressable, TextInput,
   ScrollView, Modal, Alert, Animated,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -56,6 +57,10 @@ function WriteView({ bubble, onClose }: { bubble: Bubble; onClose: () => void })
   return (
     <View style={[writeStyles.bg, { backgroundColor: colors.background }]}>
       <SafeAreaView style={{ flex: 1 }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
         {/* header */}
         <View style={writeStyles.header}>
           <Pressable onPress={save} hitSlop={12} style={writeStyles.backBtn}>
@@ -94,6 +99,7 @@ function WriteView({ bubble, onClose }: { bubble: Bubble; onClose: () => void })
           multiline
           textAlignVertical="top"
         />
+      </KeyboardAvoidingView>
       </SafeAreaView>
     </View>
   );
@@ -467,6 +473,10 @@ export default function BubblesScreen() {
 
         {/* ── New bubble modal ── */}
         <Modal visible={showModal} transparent animationType="fade" onRequestClose={() => setShowModal(false)}>
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          >
           <Pressable
             style={[canvasStyles.modalOverlay, { backgroundColor: colors.overlay }]}
             onPress={() => setShowModal(false)}
@@ -478,6 +488,7 @@ export default function BubblesScreen() {
               />
             </Pressable>
           </Pressable>
+          </KeyboardAvoidingView>
         </Modal>
       </SafeAreaView>
     </GestureHandlerRootView>

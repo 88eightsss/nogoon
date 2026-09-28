@@ -67,7 +67,18 @@ class NoGoonAccessibilityService : AccessibilityService() {
         const val KEY_BLOCKLIST        = "blockedPackages"   // app package names
         const val KEY_DOMAIN_BLOCKLIST = "blockedDomains"   // website domains
         const val KEY_ENABLED          = "serviceActive"
-        const val COOLDOWN_MS               = 3_000L             // 3s between triggers for same target
+        // Was 3_000L. That window let a user back out of the gate (Recents /
+        // task switcher) and reopen the SAME blocked app a moment later while
+        // still "on cooldown" — the trigger for that genuine second attempt was
+        // silently swallowed, so the app opened with no gate at all. This cooldown
+        // exists to survive duplicate accessibility events firing for one single
+        // switch, and to survive the service being killed/restarted by the OS
+        // mid-launch (see the class-level doc comment) — neither of those needs
+        // more than ~1-1.5s in practice, while a human deliberately backing out to
+        // Recents and tapping back in realistically takes 1.5-2s+. Shortened so
+        // that real re-attempts still get gated, while still covering the
+        // millisecond-scale event races and restart window this was built for.
+        const val COOLDOWN_MS               = 1_500L             // 1.5s between triggers for same target
         const val URL_DEBOUNCE_MS           = 500L               // min ms between URL tree walks per browser
         private const val KEY_COOLDOWN_PREFIX     = "cooldown_"      // prefix for persisted cooldown keys
         private const val KEY_RAPID_LAST_MS_PREFIX = "rapid_last_ms_" // when gate last fired per target
@@ -82,6 +93,14 @@ class NoGoonAccessibilityService : AccessibilityService() {
         const val KEY_CURFEW_ENABLED = "curfew_enabled"
         const val KEY_CURFEW_START   = "curfew_start"   // e.g. "22:00"
         const val KEY_CURFEW_END     = "curfew_end"     // e.g. "07:00"
+
+        // ── Modes / Presets ────────────────────────────────────────────────────
+        // Written by AppBlockerModule.setModesConfig() whenever the user's Modes
+        // list or manually-selected "current" mode changes. See
+        // resolveActiveModeJson() / activeBlockedApps() / activeBlockedDomains()
+        // below for how this is resolved live, the same way curfew is above.
+        const val KEY_MODES_JSON     = "modes_config_json" // JSON array of modes
+        const val KEY_ACTIVE_MODE_ID = "active_mode_id"    // manually-selected fallback mode id
 
         // ── Unlock-time tracking ──────────────────────────────────────────────
         // When a user unlocks a blocked app and enters it, track how long they
@@ -295,8 +314,8 @@ class NoGoonAccessibilityService : AccessibilityService() {
         val isFocusSession = prefs.getLong(KEY_FOCUS_SESSION_END, 0L) > now
         if (!isFocusSession && prefs.getLong(KEY_PAUSED_UNTIL, 0L) > now) return
 
-        val hasBlockedApps    = prefs.getStringSet(KEY_BLOCKLIST, emptySet())?.isNotEmpty() ?: false
-        val hasBlockedDomains = prefs.getStringSet(KEY_DOMAIN_BLOCKLIST, emptySet())?.isNotEmpty() ?: false
+        val hasBlockedApps    = activeBlockedApps().isNotEmpty()
+        val hasBlockedDomains = activeBlockedDomains().isNotEmpty()
         // Curfew is checked independently — it can fire even when blocklists are empty.
         val curfewActive      = isWithinCurfew()
 
@@ -317,18 +336,26 @@ class NoGoonAccessibilityService : AccessibilityService() {
         if (!prefs.getBoolean(KEY_CURFEW_ENABLED, false)) return false
         val startStr = prefs.getString(KEY_CURFEW_START, "22:00") ?: "22:00"
         val endStr   = prefs.getString(KEY_CURFEW_END,   "07:00") ?: "07:00"
+        val cal = java.util.Calendar.getInstance()
+        val nowMins = cal.get(java.util.Calendar.HOUR_OF_DAY) * 60 + cal.get(java.util.Calendar.MINUTE)
+        return isWithinTimeWindow(startStr, endStr, nowMins)
+    }
 
+    // ── Shared time-window check ──────────────────────────────────────────────
+    // "HH:mm" start/end strings vs. minutes-since-midnight, handling windows
+    // that wrap past midnight (e.g. 22:00–07:00). Used by curfew above and by
+    // Modes schedule resolution below — kept as one function so both stay
+    // consistent instead of drifting into two slightly different copies.
+
+    private fun isWithinTimeWindow(startStr: String, endStr: String, nowMins: Int): Boolean {
         return try {
             val (startH, startM) = startStr.split(":").map { it.toInt() }
             val (endH,   endM)   = endStr.split(":").map   { it.toInt() }
-            val cal = java.util.Calendar.getInstance()
-            val nowH = cal.get(java.util.Calendar.HOUR_OF_DAY)
-            val nowM = cal.get(java.util.Calendar.MINUTE)
-            val nowMins   = nowH * 60 + nowM
             val startMins = startH * 60 + startM
             val endMins   = endH * 60 + endM
-
-            if (startMins < endMins) {
+            if (startMins == endMins) {
+                false // zero-length window never matches
+            } else if (startMins < endMins) {
                 // Same-day window (e.g. 09:00–17:00)
                 nowMins in startMins until endMins
             } else {
@@ -338,6 +365,99 @@ class NoGoonAccessibilityService : AccessibilityService() {
         } catch (_: Exception) {
             false
         }
+    }
+
+    // ── Modes / Presets resolution ────────────────────────────────────────────
+    // KEY_MODES_JSON holds a JSON array written by AppBlockerModule.setModesConfig():
+    //   [{ "id": "...", "apps": [...], "domains": [...],
+    //      "schedule": { "enabled": true, "days": [1,2,3,4,5], "start": "09:00", "end": "17:00" } }, ...]
+    //
+    // Exactly one mode is "active" at any moment:
+    //   1. The first mode (array order) whose schedule matches today + now wins.
+    //   2. Otherwise, the mode whose id matches KEY_ACTIVE_MODE_ID (the user's
+    //      manually-selected "current" mode) wins.
+    //   3. Otherwise null — the caller falls back to the legacy flat
+    //      blockedPackages/blockedDomains lists, i.e. today's behavior for
+    //      anyone who has never touched Modes.
+    //
+    // Deliberately NOT resolved here: BRICKED / Cold Turkey / curfew — those
+    // stay independent of whichever Mode is active (see useModesStore.ts on
+    // the JS side for why).
+
+    // Cache the resolved mode briefly — TYPE_VIEW_SCROLLED alone can fire
+    // hundreds of times a second, and this is called from the top of
+    // onAccessibilityEvent on every single event when Modes are configured.
+    // A schedule can only flip at whole-minute boundaries anyway, so
+    // re-parsing the JSON at most once per MODE_CACHE_MS is free of any real
+    // correctness cost while keeping the hot path cheap.
+    private var modeCacheAtMs: Long = 0L
+    private var modeCacheResult: org.json.JSONObject? = null
+    private val MODE_CACHE_MS = 2_000L
+
+    private fun resolveActiveModeJson(): org.json.JSONObject? {
+        val now = System.currentTimeMillis()
+        if (now - modeCacheAtMs < MODE_CACHE_MS) return modeCacheResult
+        modeCacheAtMs = now
+        modeCacheResult = computeActiveModeJson()
+        return modeCacheResult
+    }
+
+    private fun computeActiveModeJson(): org.json.JSONObject? {
+        val json = prefs.getString(KEY_MODES_JSON, null)
+        if (json.isNullOrBlank()) return null
+        val modes = try { org.json.JSONArray(json) } catch (_: Exception) { return null }
+        if (modes.length() == 0) return null
+
+        val cal = java.util.Calendar.getInstance()
+        // Calendar.DAY_OF_WEEK is 1=Sunday..7=Saturday; JS getDay() is 0=Sunday..6=Saturday.
+        val nowDow  = cal.get(java.util.Calendar.DAY_OF_WEEK) - 1
+        val nowMins = cal.get(java.util.Calendar.HOUR_OF_DAY) * 60 + cal.get(java.util.Calendar.MINUTE)
+
+        for (i in 0 until modes.length()) {
+            val mode = modes.optJSONObject(i) ?: continue
+            val schedule = mode.optJSONObject("schedule") ?: continue
+            if (!schedule.optBoolean("enabled", false)) continue
+            val days = schedule.optJSONArray("days")
+            val dayMatches = days == null || days.length() == 0 ||
+                (0 until days.length()).any { days.optInt(it, -1) == nowDow }
+            if (!dayMatches) continue
+            if (isWithinTimeWindow(schedule.optString("start", "00:00"), schedule.optString("end", "23:59"), nowMins)) {
+                return mode
+            }
+        }
+
+        val activeId = prefs.getString(KEY_ACTIVE_MODE_ID, null)
+        if (!activeId.isNullOrBlank()) {
+            for (i in 0 until modes.length()) {
+                val mode = modes.optJSONObject(i) ?: continue
+                if (mode.optString("id") == activeId) return mode
+            }
+        }
+        return null
+    }
+
+    private fun jsonArrayToStringSet(arr: org.json.JSONArray?): Set<String> {
+        if (arr == null) return emptySet()
+        val out = mutableSetOf<String>()
+        for (i in 0 until arr.length()) arr.optString(i)?.let { if (it.isNotBlank()) out.add(it) }
+        return out
+    }
+
+    // The two lookups every blocking check should go through instead of
+    // reading KEY_BLOCKLIST / KEY_DOMAIN_BLOCKLIST directly — resolves to the
+    // active Mode's lists when Modes are configured and one currently applies,
+    // otherwise falls back unchanged to the legacy flat lists.
+
+    private fun activeBlockedApps(): Set<String> {
+        val mode = resolveActiveModeJson()
+        if (mode != null) return jsonArrayToStringSet(mode.optJSONArray("apps"))
+        return prefs.getStringSet(KEY_BLOCKLIST, emptySet()) ?: emptySet()
+    }
+
+    private fun activeBlockedDomains(): Set<String> {
+        val mode = resolveActiveModeJson()
+        if (mode != null) return jsonArrayToStringSet(mode.optJSONArray("domains"))
+        return prefs.getStringSet(KEY_DOMAIN_BLOCKLIST, emptySet()) ?: emptySet()
     }
 
     // ── App blocking ──────────────────────────────────────────────────────────
@@ -401,7 +521,7 @@ class NoGoonAccessibilityService : AccessibilityService() {
         if (!isNewForeground) return   // in-app dialog/popup within blocked app
 
         // ── Regular blocklist enforcement ─────────────────────────────────────
-        val blockedSet = prefs.getStringSet(KEY_BLOCKLIST, emptySet()) ?: emptySet()
+        val blockedSet = activeBlockedApps()
         if (!blockedSet.contains(packageName)) return
 
         // ── Unlock-time tracking: record entry ────────────────────────────────
@@ -421,7 +541,7 @@ class NoGoonAccessibilityService : AccessibilityService() {
     // Used to catch already-open tabs on blocked domains.
 
     private fun checkBrowserUrlNow(packageName: String) {
-        val hasBlockedDomains = prefs.getStringSet(KEY_DOMAIN_BLOCKLIST, emptySet())?.isNotEmpty() ?: false
+        val hasBlockedDomains = activeBlockedDomains().isNotEmpty()
         if (!hasBlockedDomains) return
 
         val rootNode = rootInActiveWindow ?: return
@@ -437,7 +557,7 @@ class NoGoonAccessibilityService : AccessibilityService() {
         lastSeenUrl[packageName] = domain
         lastBrowserCheckMs[packageName] = System.currentTimeMillis()
 
-        val blockedDomains = prefs.getStringSet(KEY_DOMAIN_BLOCKLIST, emptySet()) ?: emptySet()
+        val blockedDomains = activeBlockedDomains()
         val isBlocked = blockedDomains.any { blocked ->
             domain == blocked || domain.endsWith(".$blocked")
         }
@@ -480,7 +600,7 @@ class NoGoonAccessibilityService : AccessibilityService() {
         lastSeenUrl[packageName] = domain
         if (prevDomain == domain) return
 
-        val blockedDomains = prefs.getStringSet(KEY_DOMAIN_BLOCKLIST, emptySet()) ?: emptySet()
+        val blockedDomains = activeBlockedDomains()
         val isBlocked = blockedDomains.any { blocked ->
             domain == blocked || domain.endsWith(".$blocked")
         }
@@ -514,7 +634,7 @@ class NoGoonAccessibilityService : AccessibilityService() {
         val target: String
         if (browserPackages.contains(packageName)) {
             val domain = lastSeenUrl[packageName] ?: return
-            val blockedDomains = prefs.getStringSet(KEY_DOMAIN_BLOCKLIST, emptySet()) ?: emptySet()
+            val blockedDomains = activeBlockedDomains()
             val isBlocked = blockedDomains.any { blocked ->
                 domain == blocked || domain.endsWith(".$blocked")
             }
@@ -522,7 +642,7 @@ class NoGoonAccessibilityService : AccessibilityService() {
             if (isTemporarilyUnlocked(domain)) return
             target = domain
         } else {
-            val blockedSet = prefs.getStringSet(KEY_BLOCKLIST, emptySet()) ?: emptySet()
+            val blockedSet = activeBlockedApps()
             if (!blockedSet.contains(packageName)) return
             if (isTemporarilyUnlocked(packageName)) return
             target = packageName

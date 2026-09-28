@@ -1,4 +1,4 @@
-// ─── Protection Layers Screen ─────────────────────────────────────────────────
+// ─── Coverage Screen (formerly "Protection Layers") ─────────────────────────
 //
 // Three blocking layers, each independent, each with an explanation
 // of exactly what it does and why. Users can enable/disable any layer
@@ -233,7 +233,7 @@ export default function ProtectionScreen() {
           <Pressable style={styles.backButton} onPress={() => router.back()}>
             <Feather name="arrow-left" size={20} color={COLORS.textSecondary} />
           </Pressable>
-          <Text style={styles.headerTitle}>Protection Layers</Text>
+          <Text style={styles.headerTitle}>Coverage</Text>
           <View style={styles.backButton} />
         </View>
 

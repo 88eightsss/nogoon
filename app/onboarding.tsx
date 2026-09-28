@@ -2,13 +2,17 @@
 //
 // Shown once, right after a user creates their account. Walks the user
 // through NoGoon in order:
-//   1–4. Slides — what NoGoon does, the pause/game/choice loop, the four-tab
+//   1–4. Slides — what NoGoon does, the pause/game/choice loop, the tab
 //        layout, and a heads-up that a phone setting comes next. No emoji —
 //        Feather icons only (see SLIDES below).
 //   5.   Name input (personalises the experience)
 //   6.   Companion pick
 //   7.   Setup step — add blocked sites, enable Accessibility Access
-//        (step-by-step instructions), and the battery-optimization exemption
+//        (step-by-step instructions), the battery-optimization exemption, and
+//        two optional rows (VPN filter, notification listener) for the other
+//        two of the "three layers of protection" — previously these were
+//        only ever mentioned in the separate auto-tutorial, with no link
+//        back to where to actually turn them on.
 //
 // After completing, completeOnboarding() is called on the store,
 // which sets hasOnboarded = true so this screen never shows again.
@@ -38,6 +42,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUserStore } from '@/stores/useUserStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useAppBlocker } from '@/hooks/useAppBlocker';
+import { useVpn } from '@/hooks/useVpn';
+import { useNotificationListener } from '@/hooks/useNotificationListener';
 import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { GoonSprite, CHAR_COLORS } from '@/components/home/GoonMascot';
@@ -60,7 +66,7 @@ type FeatherName = React.ComponentProps<typeof Feather>['name'];
 // reads the same on every device/font, and colors always come from the
 // slide's own `color` so nothing needs a second lookup at render time.
 // Covers, in order: what NoGoon actually does, the pause-game-choice loop it
-// replaces doomscrolling with, how the app's four tabs are laid out, and a
+// replaces doomscrolling with, how the app's five tabs are laid out, and a
 // heads-up about the one phone setting that has to be turned on next (the
 // full step-by-step for that lives on the setup screen right after this).
 
@@ -79,8 +85,8 @@ const SLIDES: { icon: FeatherName; title: string; body: string; color: string }[
   },
   {
     icon: 'grid',
-    title: 'Everything lives\nin four tabs',
-    body: "Protect sets what's blocked. Today shows your streak and daily snapshot. Calm holds grounding tools and games. Me is your stats, theme, and settings.",
+    title: 'Everything lives\nin five tabs',
+    body: "Protect sets what's blocked. Calm holds grounding tools. Today shows your streak and daily snapshot. Arcade is your full game library. Me is your stats, theme, and settings.",
     color: COLORS.cyan,
   },
   {
@@ -113,6 +119,18 @@ export default function OnboardingScreen() {
     openSettings, serviceEnabled, checkServiceStatus, checkBatteryOptimized, openBatterySettings,
     isKnownOemOffender, openOemAutostartSettings, requestNotificationPermission,
   } = useAppBlocker();
+  const { isActive: vpnActive, isLoading: vpnLoading, startVpn } = useVpn();
+  const {
+    isGranted: notifGranted, isFilterEnabled: notifEnabled, isLoading: notifLoading,
+    toggleFilter: toggleNotif, openSettings: openNotifSettings,
+  } = useNotificationListener();
+
+  // Once Notification Access is granted, turn the filter on automatically —
+  // matches the Protection/Coverage screen's own behavior, so a user who
+  // does this step here never has to flip the same switch again there.
+  useEffect(() => {
+    if (notifGranted && !notifEnabled) toggleNotif(true);
+  }, [notifGranted, notifEnabled, toggleNotif]);
 
   // ── Poll for accessibility service status ──────────────────────────────────
   // When the user taps "Enable" they're sent to Android Settings. When they
@@ -194,9 +212,15 @@ export default function OnboardingScreen() {
     setNameError('');
     setNameSaved(true);
 
-    // Save name to local store and mark onboarding complete
+    // Save name to local store. NOTE: completeOnboarding() is deliberately
+    // NOT called here — it flips hasOnboarded, which _layout.tsx watches to
+    // redirect straight to /(tabs). Calling it this early used to race the
+    // companion-picker and setup screens still to come, sometimes bouncing
+    // brand-new users into the main app before they ever saw the
+    // Accessibility Service setup instructions. It's called once, for real,
+    // when the setup screen's "Continue"/"Skip" buttons actually finish
+    // onboarding — see handleExitSetup below.
     setName(trimmed);
-    completeOnboarding();
 
     // Fire-and-forget Supabase profile name sync
     if (user) {
@@ -223,6 +247,16 @@ export default function OnboardingScreen() {
     await AsyncStorage.setItem('@nogoon_goon_character', String(selectedChar));
     await AsyncStorage.setItem(`@nogoon_pet_name_${selectedChar}`, nameToSave);
     setCompanionPicked(true);
+  };
+
+  // ── Actually finish onboarding ────────────────────────────────────────────
+  // The one place hasOnboarded flips to true — from the setup screen's
+  // "Continue" and "Skip for now" actions, once the user has been through
+  // (or deliberately skipped) the companion pick and the Accessibility
+  // Service instructions, not just the name step.
+  const handleExitSetup = () => {
+    completeOnboarding();
+    router.replace('/(tabs)');
   };
 
   // ── Name input step ────────────────────────────────────────────────────────
@@ -451,7 +485,61 @@ export default function OnboardingScreen() {
                 )}
               </View>
 
-              {/* Row 4 — OEM autostart/battery manager. Only shown on manufacturers
+              <View style={styles.setupDivider} />
+
+              {/* Row 4 — VPN filter (network-level layer). Optional: full
+                  protection works without it, but it catches things the
+                  Accessibility Service alone can miss (in-app browser tabs,
+                  background requests). Previously this only ever got
+                  mentioned in the separate auto-tutorial, several screens
+                  after onboarding, with no link back to actually enable it. */}
+              <View style={styles.setupRow}>
+                <View style={styles.setupRowLeft}>
+                  <Text style={styles.setupRowEmoji}>🌐</Text>
+                  <View style={styles.setupRowText}>
+                    <Text style={styles.setupRowTitle}>Network filter</Text>
+                    <Text style={styles.setupRowSub}>Optional — catches blocked sites at the network level too</Text>
+                  </View>
+                </View>
+                {vpnActive ? (
+                  <Feather name="check-circle" size={28} color={COLORS.green} />
+                ) : (
+                  <Pressable
+                    style={styles.setupEnableButton}
+                    onPress={startVpn}
+                    disabled={vpnLoading}
+                  >
+                    <Text style={styles.setupEnableButtonText}>{vpnLoading ? '…' : 'Enable'}</Text>
+                  </Pressable>
+                )}
+              </View>
+
+              <View style={styles.setupDivider} />
+
+              {/* Row 5 — Notification listener (push-level layer). Also optional —
+                  filters distracting notifications from blocked apps/sites. */}
+              <View style={styles.setupRow}>
+                <View style={styles.setupRowLeft}>
+                  <Text style={styles.setupRowEmoji}>🔕</Text>
+                  <View style={styles.setupRowText}>
+                    <Text style={styles.setupRowTitle}>Notification filter</Text>
+                    <Text style={styles.setupRowSub}>Optional — quiets notifications from blocked apps</Text>
+                  </View>
+                </View>
+                {notifGranted && notifEnabled ? (
+                  <Feather name="check-circle" size={28} color={COLORS.green} />
+                ) : (
+                  <Pressable
+                    style={styles.setupEnableButton}
+                    onPress={() => (notifGranted ? toggleNotif(true) : openNotifSettings())}
+                    disabled={notifLoading}
+                  >
+                    <Text style={styles.setupEnableButtonText}>{notifLoading ? '…' : 'Enable'}</Text>
+                  </Pressable>
+                )}
+              </View>
+
+              {/* Row 6 — OEM autostart/battery manager. Only shown on manufacturers
                   known to run a second, separate killer on top of Android's own —
                   no checkmark here since there's no way to verify the setting. */}
               {isKnownOemOffender && (
@@ -474,16 +562,18 @@ export default function OnboardingScreen() {
 
             </View>
 
-            {/* Continue button — moves into the main app */}
+            {/* Continue button — moves into the main app. This is where
+                onboarding actually completes (see handleExitSetup above). */}
             <Pressable
               style={styles.setupContinueButton}
-              onPress={() => router.replace('/(tabs)')}
+              onPress={handleExitSetup}
             >
               <Text style={styles.setupContinueText}>Continue to NoGoon →</Text>
             </Pressable>
 
-            {/* Skip link for users who want to configure later */}
-            <Pressable onPress={() => router.replace('/(tabs)')}>
+            {/* Skip link for users who want to configure later — still
+                counts as "done" so they land on the main app, not back here. */}
+            <Pressable onPress={handleExitSetup}>
               <Text style={styles.setupSkipText}>Skip for now</Text>
             </Pressable>
 

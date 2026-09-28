@@ -34,8 +34,12 @@ import {
   TextInput,
   ScrollView,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTheme } from '@/hooks/useTheme';
+import { getLocalDateKey } from '@/utils/date';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Feather } from '@expo/vector-icons';
@@ -195,7 +199,19 @@ export default function NoGoonScreen() {
   const { maybeShowInterstitial } = useAdInterstitial();
   const { disabledGateGames, enabledCalmGateGames } = useThemeStore();
 
-  const C = COLORS;
+  // Theme-reactive palette — matches whatever theme/accent the user picked on
+  // their home screen, instead of a fixed standalone palette. `textPrimary`,
+  // `green`, `indigo`/`indigoBright` are compatibility aliases onto the real
+  // ThemePalette fields (`text`, `success`, `accent`/`accentBright`) so the
+  // rest of this file's `C.xxx` references below don't all need renaming.
+  const { colors: themeColors } = useTheme();
+  const C = {
+    ...themeColors,
+    textPrimary:  themeColors.text,
+    green:        themeColors.success,
+    indigo:       themeColors.accent,
+    indigoBright: themeColors.accentBright,
+  };
 
   // ── Companion ─────────────────────────────────────────────────────────────
   const petStore = usePetStore();
@@ -477,14 +493,14 @@ export default function NoGoonScreen() {
 
   // ── Context line shown on calm screen ────────────────────────────────────
   // Priority: daily intention > intentionGoal > streak > walkAway > nothing
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalDateKey();
   const todayOpenCount = openCountDate === today ? (openCounts[domain] ?? 0) : 0;
   const todayIntention = intentionDate === today && dailyIntention ? dailyIntention : null;
 
   // Nightly pre-commitment: show if set on a *different* calendar day (i.e. set last night)
   // and not expired (within 36h — covers late risers)
   const nightlySetDate = nightlyCommitmentSetAt
-    ? new Date(nightlyCommitmentSetAt).toISOString().split('T')[0]
+    ? getLocalDateKey(new Date(nightlyCommitmentSetAt))
     : null;
   const hasYesterdayCommitment =
     nightlyCommitment.trim().length > 0 &&
@@ -548,7 +564,7 @@ export default function NoGoonScreen() {
   // ══════════════════════════════════════════════════════════════════════════
   if (isFocusSession) {
     return (
-      <SafeAreaView style={[styles.safe, { backgroundColor: '#0b1217' }]}>
+      <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]}>
         <View style={[styles.calmContainer, { justifyContent: 'center' }]}>
           <Feather name="crosshair" size={52} color={C.textMuted} style={{ marginBottom: SPACING.lg }} />
           <Text style={[styles.calmTitle, { color: C.textPrimary, textAlign: 'center' }]}>
@@ -558,9 +574,9 @@ export default function NoGoonScreen() {
             {focusMinutesLeft} minute{focusMinutesLeft !== 1 ? 's' : ''} remaining.{'\n'}
             You locked this time down. Honor it.
           </Text>
-          <View style={[styles.hardLockBanner, { backgroundColor: COLORS.indigoBright + '18', borderColor: COLORS.indigoBright + '44', marginTop: SPACING.xl }]}>
-            <Feather name="clock" size={14} color={COLORS.indigoBright} />
-            <Text style={[styles.hardLockText, { color: COLORS.indigoBright }]}>
+          <View style={[styles.hardLockBanner, { backgroundColor: C.indigoBright + '18', borderColor: C.indigoBright + '44', marginTop: SPACING.xl }]}>
+            <Feather name="clock" size={14} color={C.indigoBright} />
+            <Text style={[styles.hardLockText, { color: C.indigoBright }]}>
               No bypasses until {new Date(focusSessionEnd!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </Text>
           </View>
@@ -598,25 +614,25 @@ export default function NoGoonScreen() {
       new Date().setHours(endHour ?? 0, endMin ?? 0, 0, 0)
     ).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     return (
-      <SafeAreaView style={[styles.safe, { backgroundColor: COLORS.background }]}>
+      <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]}>
         <View style={styles.curfewContainer}>
-          <Feather name="moon" size={72} color={COLORS.textMuted} />
-          <Text style={styles.curfewTitle}>Digital Curfew Active</Text>
-          <Text style={[styles.curfewSub, { color: COLORS.textMuted }]}>
+          <Feather name="moon" size={72} color={C.textMuted} />
+          <Text style={[styles.curfewTitle, { color: C.textPrimary }]}>Digital Curfew Active</Text>
+          <Text style={[styles.curfewSub, { color: C.textMuted }]}>
             Your screen time window is closed.{'\n'}
             Come back at {endFormatted}.
           </Text>
-          <Text style={[styles.curfewDomain, { color: COLORS.textMuted }]}>
+          <Text style={[styles.curfewDomain, { color: C.textMuted }]}>
             {displayDomain}
           </Text>
           <Pressable
-            style={[styles.curfewBtn, { backgroundColor: COLORS.surface, borderColor: COLORS.border }]}
+            style={[styles.curfewBtn, { backgroundColor: C.surface, borderColor: C.border }]}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               router.dismissAll();
             }}
           >
-            <Text style={[styles.curfewBtnText, { color: COLORS.textSecondary }]}>Close</Text>
+            <Text style={[styles.curfewBtnText, { color: C.textSecondary }]}>Close</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -628,7 +644,7 @@ export default function NoGoonScreen() {
   // ══════════════════════════════════════════════════════════════════════════
   if (phase === 'intro') {
     return (
-      <SafeAreaView style={[styles.safe, { backgroundColor: '#0b1217' }]}>
+      <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]}>
         <View style={styles.checkinContainer}>
           <Feather name="shield" size={56} color={C.textMuted} />
           <Text style={[styles.checkinTitle, { color: C.textPrimary }]}>
@@ -640,7 +656,7 @@ export default function NoGoonScreen() {
             </Text>
           </View>
           <View style={[styles.checkinCard, { backgroundColor: C.surface, borderColor: C.cardBorder }]}>
-            <Text style={[styles.checkinCardLabel, { color: C.textMuted, fontFamily: FONTS.mono, fontSize: 11, letterSpacing: 0.4 }]}>
+            <Text style={[styles.checkinCardLabel, { color: C.textMuted, fontFamily: FONTS.mono, fontSize: 13, letterSpacing: 0.4 }]}>
               BLOCKED
             </Text>
             <Text style={[styles.checkinCardSub, { color: C.indigoBright, fontFamily: FONTS.bodyBold, fontSize: 17, marginTop: 4 }]}>
@@ -648,14 +664,14 @@ export default function NoGoonScreen() {
             </Text>
           </View>
           <Pressable
-            style={[styles.calmContinueBtn, { borderColor: '#4ecdc4' + '88', backgroundColor: '#4ecdc4' + '18', width: '100%', justifyContent: 'center' }]}
+            style={[styles.calmContinueBtn, { borderColor: C.indigoBright + '88', backgroundColor: C.indigoBright + '18', width: '100%', justifyContent: 'center' }]}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               markGateIntroSeen();
               setPhase('calm');
             }}
           >
-            <Text style={[styles.calmContinueText, { color: '#4ecdc4' }]}>Got it</Text>
+            <Text style={[styles.calmContinueText, { color: C.indigoBright }]}>Got it</Text>
             <Feather name="arrow-right" size={16} color="#4ecdc4" />
           </Pressable>
         </View>
@@ -669,13 +685,13 @@ export default function NoGoonScreen() {
   // ══════════════════════════════════════════════════════════════════════════
   if (phase === 'followthrough' && pendingFollowThroughCommitment) {
     return (
-      <SafeAreaView style={[styles.safe, { backgroundColor: '#0b1217' }]}>
+      <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]}>
         <View style={styles.checkinContainer}>
           <Text style={[styles.checkinTitle, { color: C.textPrimary }]}>
             Did you do it?
           </Text>
           <View style={[styles.checkinCard, { backgroundColor: C.surface, borderColor: C.cardBorder }]}>
-            <Text style={[styles.checkinCardLabel, { color: C.textMuted, fontFamily: FONTS.mono, fontSize: 11, letterSpacing: 0.4 }]}>
+            <Text style={[styles.checkinCardLabel, { color: C.textMuted, fontFamily: FONTS.mono, fontSize: 13, letterSpacing: 0.4 }]}>
               YOU SAID YOU'D
             </Text>
             <Text style={[styles.checkinCardSub, { color: C.textPrimary, fontFamily: FONTS.bodyBold, fontSize: 17, marginTop: 4 }]}>
@@ -766,7 +782,7 @@ export default function NoGoonScreen() {
   // ══════════════════════════════════════════════════════════════════════════
   if (phase === 'nogames') {
     return (
-      <SafeAreaView style={[styles.safe, { backgroundColor: '#0b1217' }]}>
+      <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]}>
         <View style={styles.checkinContainer}>
           <Feather name="feather" size={56} color={C.textMuted} />
           <Text style={[styles.checkinTitle, { color: C.textPrimary }]}>
@@ -778,7 +794,7 @@ export default function NoGoonScreen() {
             </Text>
           </View>
           <View style={[styles.checkinCard, { backgroundColor: C.surface, borderColor: C.cardBorder }]}>
-            <Text style={[styles.checkinCardLabel, { color: C.textMuted, fontFamily: FONTS.mono, fontSize: 11, letterSpacing: 0.4 }]}>
+            <Text style={[styles.checkinCardLabel, { color: C.textMuted, fontFamily: FONTS.mono, fontSize: 13, letterSpacing: 0.4 }]}>
               BLOCKED SITE
             </Text>
             <Text style={[styles.checkinCardSub, { color: C.textPrimary, fontFamily: FONTS.bodyBold, fontSize: 17, marginTop: 2 }]}>
@@ -804,7 +820,11 @@ export default function NoGoonScreen() {
   if (phase === 'override') {
     const isMatch = overrideText.trim().toLowerCase() === OVERRIDE_PHRASE.toLowerCase();
     return (
-      <SafeAreaView style={[styles.safe, { backgroundColor: '#0b1217' }]}>
+      <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]}>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
         <ScrollView contentContainerStyle={styles.overrideContainer} keyboardShouldPersistTaps="handled">
           <Feather name="edit-3" size={48} color={C.textMuted} />
           <Text style={[styles.checkinTitle, { color: C.textPrimary, textAlign: 'center' }]}>
@@ -858,6 +878,7 @@ export default function NoGoonScreen() {
             <Text style={[styles.exitText, { color: C.textMuted }]}>← Back</Text>
           </Pressable>
         </ScrollView>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     );
   }
@@ -869,7 +890,7 @@ export default function NoGoonScreen() {
   if (phase === 'friction') {
     const isLast = frictionStep + 1 >= frictionTotal;
     return (
-      <SafeAreaView style={[styles.safe, { backgroundColor: '#0b1217' }]}>
+      <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]}>
         <View style={styles.frictionContainer}>
           <Feather name="lock" size={56} color={C.textMuted} />
           <Text style={[styles.frictionTitle, { color: C.textPrimary }]}>
@@ -885,8 +906,8 @@ export default function NoGoonScreen() {
             style={[
               styles.frictionBtn,
               {
-                backgroundColor: frictionBtnReady ? '#4ecdc4' + '18' : C.surface,
-                borderColor:     frictionBtnReady ? '#4ecdc4' + '88' : C.cardBorder,
+                backgroundColor: frictionBtnReady ? C.indigoBright + '18' : C.surface,
+                borderColor:     frictionBtnReady ? C.indigoBright + '88' : C.cardBorder,
                 opacity:         frictionBtnReady ? 1 : 0.6,
               },
             ]}
@@ -902,7 +923,7 @@ export default function NoGoonScreen() {
             {frictionBtnReady ? (
               <>
                 <Feather name="check" size={18} color="#4ecdc4" />
-                <Text style={[styles.frictionBtnText, { color: '#4ecdc4' }]}>
+                <Text style={[styles.frictionBtnText, { color: C.indigoBright }]}>
                   {isLast ? 'Continue' : 'Next'}
                 </Text>
               </>
@@ -928,7 +949,7 @@ export default function NoGoonScreen() {
   // ══════════════════════════════════════════════════════════════════════════
   if (phase === 'lockout') {
     return (
-      <SafeAreaView style={[styles.safe, { backgroundColor: '#0b1217' }]}>
+      <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]}>
         <View style={styles.checkinContainer}>
           <Feather name="lock" size={56} color={C.textMuted} />
           <Text style={[styles.checkinTitle, { color: C.textPrimary }]}>
@@ -985,7 +1006,7 @@ export default function NoGoonScreen() {
     const pool = [...GATE_GAMES, ...CALM_CATEGORY_GAMES.filter((g) => enabledCalmGateGames.includes(g.id))];
 
     return (
-      <SafeAreaView style={[styles.safe, { backgroundColor: '#0b1217' }]}>
+      <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]}>
         <View style={[styles.intentContainer, { paddingTop: 48 }]}>
           <Text style={[styles.intentTitle, { color: C.textPrimary }]}>
             Pick a game
@@ -1027,7 +1048,7 @@ export default function NoGoonScreen() {
   if (phase === 'context' && selectedGame) {
     const meta = getGameById(selectedGame);
     return (
-      <SafeAreaView style={[styles.safe, { backgroundColor: '#0b1217' }]}>
+      <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]}>
         <Pressable style={{ flex: 1 }} onPress={() => setPhase('playing')}>
           <Animated.View style={[styles.calmContainer, { opacity: contextFade }]}>
             <Feather name={((meta as any)?.icon) ?? 'play'} size={56} color={C.textMuted} />
@@ -1053,7 +1074,7 @@ export default function NoGoonScreen() {
   // ══════════════════════════════════════════════════════════════════════════
   if (phase === 'intent') {
     return (
-      <SafeAreaView style={[styles.safe, { backgroundColor: '#0b1217' }]}>
+      <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]}>
         <Animated.View style={[styles.intentContainer, { opacity: contentOpacity }]}>
 
           {/* App context */}
@@ -1114,15 +1135,15 @@ export default function NoGoonScreen() {
   // ══════════════════════════════════════════════════════════════════════════
   // RENDER: Calm — initial 5-second pause
   // ══════════════════════════════════════════════════════════════════════════
-  const TEAL = '#4ecdc4';
+  const TEAL = C.indigoBright;
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: '#0b1217' }]}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]}>
       <Animated.View style={[styles.calmContainer, { opacity: contentOpacity }]}>
 
         {/* Domain — large and unmissable so addicted-brain registers it at a glance */}
         <View style={styles.calmDomainBlock}>
-          <Text style={[styles.calmDomainBig, { color: COLORS.indigoBright }]} numberOfLines={1} adjustsFontSizeToFit>
+          <Text style={[styles.calmDomainBig, { color: C.indigoBright }]} numberOfLines={1} adjustsFontSizeToFit>
             {displayDomain}
           </Text>
           <View style={styles.calmDomainSub}>
@@ -1139,9 +1160,9 @@ export default function NoGoonScreen() {
             </View>
           )}
           {isWindDown && (
-            <View style={[styles.openCountBadge, { backgroundColor: '#4ecdc4' + '18', borderColor: '#4ecdc4' + '44' }]}>
+            <View style={[styles.openCountBadge, { backgroundColor: C.indigoBright + '18', borderColor: C.indigoBright + '44' }]}>
               <Feather name="moon" size={11} color="#4ecdc4" />
-              <Text style={[styles.openCountText, { color: '#4ecdc4' }]}>
+              <Text style={[styles.openCountText, { color: C.indigoBright }]}>
                 wind-down mode
               </Text>
             </View>
@@ -1205,21 +1226,21 @@ export default function NoGoonScreen() {
             <Feather name="moon" size={12} color="#a78bfa" />
             <Text style={[styles.urgePatternText, { color: '#a78bfa' }]}>
               Last night you said:{' '}
-              <Text style={{ color: COLORS.textPrimary }}>{hasYesterdayCommitment}</Text>
+              <Text style={{ color: C.textPrimary }}>{hasYesterdayCommitment}</Text>
             </Text>
           </View>
         )}
 
         {/* Commitment reminder — "You said you were going to: Read / write / create" */}
         {activeCommitment && (
-          <View style={[styles.urgePatternRow, { backgroundColor: COLORS.green + '14', borderColor: COLORS.green + '33', borderWidth: 1 }]}>
-            <Feather name="check-circle" size={12} color={COLORS.green} />
-            <Text style={[styles.urgePatternText, { color: COLORS.green }]}>
+          <View style={[styles.urgePatternRow, { backgroundColor: C.green + '14', borderColor: C.green + '33', borderWidth: 1 }]}>
+            <Feather name="check-circle" size={12} color={C.green} />
+            <Text style={[styles.urgePatternText, { color: C.green }]}>
               You said you'd:{' '}
-              <Text style={{ color: COLORS.textPrimary }}>{activeCommitment}</Text>
+              <Text style={{ color: C.textPrimary }}>{activeCommitment}</Text>
             </Text>
             <Pressable onPress={clearCommitment} hitSlop={8}>
-              <Feather name="x" size={12} color={COLORS.textMuted} />
+              <Feather name="x" size={12} color={C.textMuted} />
             </Pressable>
           </View>
         )}
@@ -1425,7 +1446,7 @@ const styles = StyleSheet.create({
   },
   calmDomainSubText: {
     fontFamily: FONTS.mono,
-    fontSize: 11,
+    fontSize: 13,
     letterSpacing: 0.3,
   },
 
@@ -1442,7 +1463,7 @@ const styles = StyleSheet.create({
   },
   urgePatternText: {
     fontFamily: FONTS.mono,
-    fontSize: 11,
+    fontSize: 13,
     letterSpacing: 0.2,
   },
 
@@ -1466,7 +1487,7 @@ const styles = StyleSheet.create({
   },
   breathInstruction: {
     fontFamily: FONTS.body,
-    fontSize: 13,
+    fontSize: 14,
     textAlign: 'center',
     letterSpacing: 0.15,
   },
@@ -1498,7 +1519,7 @@ const styles = StyleSheet.create({
   },
   contextSkipHint: {
     fontFamily: FONTS.body,
-    fontSize: 12,
+    fontSize: 13,
     letterSpacing: 0.2,
   },
 
@@ -1529,7 +1550,7 @@ const styles = StyleSheet.create({
   },
   curfewDomain: {
     fontFamily: FONTS.mono,
-    fontSize: 13,
+    fontSize: 14,
     textAlign: 'center',
     marginTop: SPACING.xs,
   },
@@ -1642,7 +1663,7 @@ const styles = StyleSheet.create({
   },
   domainText: {
     fontFamily: FONTS.mono,
-    fontSize: 12,
+    fontSize: 13,
     letterSpacing: 0.3,
   },
   intentTitle: {
@@ -1674,13 +1695,13 @@ const styles = StyleSheet.create({
   },
   intentCardSub: {
     fontFamily: FONTS.body,
-    fontSize: 13,
+    fontSize: 14,
     lineHeight: 18,
     marginTop: 2,
   },
   proTag: {
     fontFamily: FONTS.mono,
-    fontSize: 12,
+    fontSize: 13,
   },
 
   // ── Quick-add button ─────────────────────────────────────────────────────────────────
@@ -1696,7 +1717,7 @@ const styles = StyleSheet.create({
   },
   quickAddText: {
     fontFamily: FONTS.body,
-    fontSize: 12,
+    fontSize: 13,
     letterSpacing: 0.2,
   },
 
@@ -1712,7 +1733,7 @@ const styles = StyleSheet.create({
   },
   openCountText: {
     fontFamily: FONTS.mono,
-    fontSize: 11,
+    fontSize: 13,
     letterSpacing: 0.3,
   },
 
@@ -1779,7 +1800,7 @@ const styles = StyleSheet.create({
   },
   calmCountdownLabel: {
     fontFamily: FONTS.mono,
-    fontSize: 11,
+    fontSize: 12,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
@@ -1860,7 +1881,7 @@ const styles = StyleSheet.create({
   },
   gateCompanionText: {
     fontFamily: FONTS.body,
-    fontSize: 13,
+    fontSize: 14,
     lineHeight: 18,
   },
 });

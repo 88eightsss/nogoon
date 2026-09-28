@@ -12,11 +12,13 @@ import { useState, useEffect, useRef } from 'react';
 import {
   View, Text, Pressable, ScrollView, StyleSheet,
   Alert, Switch, TextInput, Modal, PanResponder,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getLocalDateKey, localDateKeyDiffDays } from '@/utils/date';
 import * as Haptics from 'expo-haptics';
 import { useUserStore, getMinutesSaved } from '@/stores/useUserStore';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -30,6 +32,7 @@ import { GoonSprite, getGoonStage } from '@/components/home/GoonMascot';
 import { type CharacterId } from '@/stores/usePetStore';
 import { useUnlockedFeatures, lockHint, useProgressStore } from '@/stores/useProgressStore';
 import { PageGuide } from '@/components/PageGuide';
+import { TimeStepper } from '@/components/TimeStepper';
 
 // ─── Companion defaults ───────────────────────────────────────────────────────
 const DEFAULT_COMPANION_NAMES: Record<CharacterId, string> = { 0: 'Buddy', 1: 'Nova', 2: 'Rex' };
@@ -381,7 +384,8 @@ export default function MeScreen() {
     windDownEnabled, windDownHour,
     setWindDownEnabled, setWindDownHour,
     isBricked, enableBricked, requestDisableBricked,
-    startFocusSession, focusSessionEnd,
+    startFocusSession, endFocusSession, focusSessionEnd,
+    curfewEnabled, curfewStart, curfewEnd, setCurfew,
     preferWaitingRoom, setPreferWaitingRoom,
     resetStore,
   } = useUserStore();
@@ -396,6 +400,18 @@ export default function MeScreen() {
   const [showWdPicker, setShowWdPicker] = useState(false);
   const [dayCount,    setDayCount]      = useState(1);
 
+  // Focus Session — a small local clock tick so "X min left" stays roughly
+  // fresh without a full per-second countdown (this is a settings row, not
+  // the gate screen's hard-lock timer).
+  const [focusNow, setFocusNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!focusSessionEnd) return;
+    const interval = setInterval(() => setFocusNow(Date.now()), 30_000);
+    return () => clearInterval(interval);
+  }, [focusSessionEnd]);
+  const focusActive = !!focusSessionEnd && focusSessionEnd > focusNow;
+  const focusMinutesLeft = focusActive ? Math.max(1, Math.ceil((focusSessionEnd! - focusNow) / 60_000)) : 0;
+
   // ── Companion rename state ───────────────────────────────────────────────
   const [companionNames,    setCompanionNames]    = useState<Record<CharacterId, string>>(DEFAULT_COMPANION_NAMES);
   const [editingCompanion,  setEditingCompanion]  = useState<CharacterId | null>(null);
@@ -407,14 +423,17 @@ export default function MeScreen() {
     async function computeDay() {
       const startDate = await AsyncStorage.getItem('nogoon_start_date');
       if (startDate) {
-        const start = new Date(startDate).getTime();
-        const days  = Math.floor((Date.now() - start) / 86_400_000) + 1;
+        // Local calendar-day difference, not ms-since-epoch math against a
+        // date-only string — new Date('YYYY-MM-DD') parses as UTC midnight,
+        // which drifted the count by a day for anyone off from UTC (see
+        // utils/date.ts).
+        const days = localDateKeyDiffDays(getLocalDateKey(), startDate) + 1;
         setDayCount(days);
       } else {
         // First time anything has read this key (e.g. user opened Me before
         // ever landing on the home screen) — set it now so Day count starts
         // counting immediately instead of silently staying stuck at 1.
-        await AsyncStorage.setItem('nogoon_start_date', new Date().toISOString().split('T')[0]);
+        await AsyncStorage.setItem('nogoon_start_date', getLocalDateKey());
         setDayCount(1);
       }
     }
@@ -485,10 +504,15 @@ export default function MeScreen() {
   return (
     <>
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {/* ── Zone 1: Identity ── */}
         <View style={styles.zone1}>
@@ -576,9 +600,17 @@ export default function MeScreen() {
         </View>
 
         {/* ── Zone 3: Control board ── */}
+        {/* Regrouped into three labeled clusters (was one flat list of 7
+            rows) — new users kept landing on this screen after having just
+            met Hard Mode/Wind-down/Waiting Room/Modes in onboarding-adjacent
+            copy with nothing tying them together. Enforcement = is blocking
+            even running. Blocklist = what's on it and when. Blocking
+            strength = how hard the gate pushes back once something's hit. */}
         <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Controls</Text>
 
         <View style={[ctrlStyles.board, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+
+          <Text style={[ctrlStyles.groupLabel, { color: colors.textMuted }]}>Enforcement</Text>
 
           {/* Blocking */}
           <View style={[ctrlStyles.row, { borderBottomColor: colors.border }]}>
@@ -604,11 +636,51 @@ export default function MeScreen() {
             )}
           </View>
 
+          {/* Coverage — was "Protection layers"; renamed so it stops reading
+              as a duplicate of the Protect tab. Same screen (app/protection.tsx),
+              still the Accessibility/VPN/Notification-listener status page. */}
+          <Pressable
+            style={[ctrlStyles.row, { borderBottomColor: colors.border }]}
+            onPress={() => router.push('/protection')}
+          >
+            <Feather name="layers" size={16} color={colors.accent} />
+            <View style={{ flex: 1 }}>
+              <Text style={[ctrlStyles.label, { color: colors.text }]}>Coverage</Text>
+              <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>Accessibility, VPN filter, notifications</Text>
+            </View>
+            <Feather name="chevron-right" size={16} color={colors.textMuted} />
+          </Pressable>
+
+          <Text style={[ctrlStyles.groupLabel, { color: colors.textMuted }]}>Blocklist</Text>
+
+          {/* Modes */}
+          <Pressable
+            style={[ctrlStyles.row, { borderBottomColor: colors.border }]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push('/modes' as any);
+            }}
+          >
+            <Feather name="layers" size={16} color={colors.accent} />
+            <View style={{ flex: 1 }}>
+              <Text style={[ctrlStyles.label, { color: colors.text }]}>Modes</Text>
+              <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>
+                Saved blocklists that can switch on a schedule
+              </Text>
+            </View>
+            <Feather name="chevron-right" size={16} color={colors.textMuted} />
+          </Pressable>
+
+          <Text style={[ctrlStyles.groupLabel, { color: colors.textMuted }]}>Blocking strength</Text>
+
           {/* Wind-down */}
           <View style={[ctrlStyles.row, { borderBottomColor: colors.border }]}>
             <Feather name="moon" size={16} color={colors.accent} />
             <View style={{ flex: 1 }}>
               <Text style={[ctrlStyles.label, { color: colors.text }]}>Wind-down</Text>
+              {!windDownEnabled && (
+                <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>Ramps up friction after a nightly cutoff</Text>
+              )}
               {windDownEnabled && (
                 <Pressable onPress={() => setShowWdPicker(true)}>
                   <Text style={[ctrlStyles.sub, { color: colors.accent }]}>Starts at {fmt(windDownHour)} — tap to change</Text>
@@ -626,6 +698,33 @@ export default function MeScreen() {
             />
           </View>
 
+          {/* Digital Curfew — the store/native plumbing (setCurfew, and a live
+              per-event check in NoGoonAccessibilityService.kt) has existed for
+              a while with no way to actually turn it on. This is that control. */}
+          <View style={[ctrlStyles.row, { borderBottomColor: colors.border, alignItems: 'flex-start' }]}>
+            <Feather name="moon" size={16} color={colors.accent} style={{ marginTop: 2 }} />
+            <View style={{ flex: 1, gap: 6 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[ctrlStyles.label, { color: colors.text }]}>Digital Curfew</Text>
+                  <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>Dead-end gate, no unlock, during these hours</Text>
+                </View>
+                <Switch
+                  value={curfewEnabled}
+                  onValueChange={(val) => setCurfew(val, curfewStart, curfewEnd)}
+                  trackColor={{ false: colors.border, true: colors.danger }}
+                  thumbColor="#fff"
+                />
+              </View>
+              {curfewEnabled && (
+                <View style={{ flexDirection: 'row', gap: SPACING.xl, marginTop: 2 }}>
+                  <TimeStepper label="Starts" value={curfewStart} onChange={(v) => setCurfew(true, v, curfewEnd)} colors={colors} />
+                  <TimeStepper label="Ends"   value={curfewEnd}   onChange={(v) => setCurfew(true, curfewStart, v)} colors={colors} />
+                </View>
+              )}
+            </View>
+          </View>
+
           {/* Hard Mode */}
           <View style={[ctrlStyles.row, { borderBottomColor: colors.border }]}>
             <Feather name="lock" size={16} color={isBricked ? colors.danger : colors.accent} />
@@ -641,8 +740,46 @@ export default function MeScreen() {
             />
           </View>
 
+          {/* Focus Session — same story as Curfew: startFocusSession /
+              endFocusSession and gate.tsx's whole no-bypass "focus" phase
+              already existed; this is the first actual button for it. */}
+          <View style={[ctrlStyles.row, { borderBottomColor: colors.border, alignItems: 'flex-start' }]}>
+            <Feather name="target" size={16} color={focusActive ? colors.danger : colors.accent} style={{ marginTop: 2 }} />
+            <View style={{ flex: 1, gap: 6 }}>
+              <Text style={[ctrlStyles.label, { color: focusActive ? colors.danger : colors.text }]}>Focus Session</Text>
+              {focusActive ? (
+                <>
+                  <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>
+                    No bypasses for {focusMinutesLeft} more min
+                  </Text>
+                  <Pressable
+                    style={[ctrlStyles.fixBtn, { backgroundColor: colors.surfaceHigh, alignSelf: 'flex-start' }]}
+                    onPress={endFocusSession}
+                  >
+                    <Text style={[ctrlStyles.fixTxt, { color: colors.textSecondary }]}>End early</Text>
+                  </Pressable>
+                </>
+              ) : (
+                <>
+                  <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>Temporary hard-lock, no unlock path until it ends</Text>
+                  <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
+                    {[30, 60, 120].map((mins) => (
+                      <Pressable
+                        key={mins}
+                        style={[ctrlStyles.fixBtn, { backgroundColor: colors.accentDim }]}
+                        onPress={() => startFocusSession(mins)}
+                      >
+                        <Text style={[ctrlStyles.fixTxt, { color: colors.accent }]}>{mins}m</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </>
+              )}
+            </View>
+          </View>
+
           {/* Waiting Room mode */}
-          <View style={[ctrlStyles.row, { borderBottomColor: colors.border }]}>
+          <View style={[ctrlStyles.row, { borderBottomWidth: 0 }]}>
             <Feather name="clock" size={16} color={colors.accent} />
             <View style={{ flex: 1 }}>
               <Text style={[ctrlStyles.label, { color: colors.text }]}>Waiting Room</Text>
@@ -655,16 +792,6 @@ export default function MeScreen() {
               thumbColor="#fff"
             />
           </View>
-
-          {/* Protection layers */}
-          <Pressable
-            style={[ctrlStyles.row, { borderBottomWidth: 0 }]}
-            onPress={() => router.push('/protection')}
-          >
-            <Feather name="layers" size={16} color={colors.accent} />
-            <Text style={[ctrlStyles.label, { color: colors.text, flex: 1 }]}>Protection layers</Text>
-            <Feather name="chevron-right" size={16} color={colors.textMuted} />
-          </Pressable>
         </View>
 
         {/* ── Home Screen layout ── */}
@@ -872,7 +999,7 @@ export default function MeScreen() {
             <View style={{ flex: 1, opacity: unlocked.has('journal') ? 1 : 0.5 }}>
               <Text style={[ctrlStyles.label, { color: colors.text }]}>Impulse Journal</Text>
               <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>
-                {unlocked.has('journal') ? 'What you wrote during intercepts' : lockHint('journal')}
+                {unlocked.has('journal') ? 'A private record you can write in anytime' : lockHint('journal')}
               </Text>
             </View>
             <Feather name={unlocked.has('journal') ? 'chevron-right' : 'lock'} size={16} color={colors.textMuted} />
@@ -934,6 +1061,7 @@ export default function MeScreen() {
 
         <View style={{ height: SPACING.xl }} />
       </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Wind-down time picker modal */}
       <Modal
@@ -1053,6 +1181,15 @@ const ctrlStyles = StyleSheet.create({
   board: {
     borderWidth: 1,
     overflow: 'hidden',
+  },
+  groupLabel: {
+    fontFamily: FONTS.bodyMedium,
+    fontSize: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.md,
+    paddingBottom: 2,
   },
   row: {
     flexDirection: 'row',

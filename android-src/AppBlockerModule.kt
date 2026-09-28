@@ -24,6 +24,7 @@
 //   isNotificationListenerEnabled()           — returns true if Notification Access is granted
 //   openNotificationListenerSettings()        — opens Notification Access settings
 //   getVpnDomainLog()                         — returns JSON array of recent blocked domains
+//   setModesConfig(modesJson, activeModeId)   — writes the Modes/Presets config for native resolution
 
 package com.nogoon.app
 
@@ -703,6 +704,37 @@ class AppBlockerModule(reactContext: ReactApplicationContext) :
             promise.resolve(true)
         } catch (e: Exception) {
             promise.reject("SET_CURFEW_ERROR", e.message ?: "Unknown error", e)
+        }
+    }
+
+    // ── setModesConfig ─────────────────────────────────────────────────────────
+    // Called from JS (useAppBlocker) whenever the user's Modes list or their
+    // manually-selected "current" mode changes. Writes the whole config as a
+    // JSON string so the Accessibility Service can resolve "which Mode is
+    // active right now" independently — mirroring how curfew above is a
+    // live per-event check rather than something JS has to keep re-pushing.
+    //
+    // Arguments:
+    //   modesJson    — JSON array: [{ id, apps: string[], domains: string[],
+    //                  schedule: { enabled, days: number[], start, end } }, ...]
+    //   activeModeId — the manually-selected mode's id, used as the fallback
+    //                  when no mode's schedule currently matches. "" = none.
+    //
+    // When modesJson is "[]" (no Modes created yet), the service falls back
+    // to the legacy flat blockedPackages/blockedDomains lists untouched —
+    // see NoGoonAccessibilityService.activeBlockedApps/activeBlockedDomains.
+
+    @ReactMethod
+    fun setModesConfig(modesJson: String, activeModeId: String, promise: Promise) {
+        try {
+            val prefs = reactApplicationContext.getSharedPreferences(PREFS_NAME, 0)
+            prefs.edit()
+                .putString(NoGoonAccessibilityService.KEY_MODES_JSON, modesJson)
+                .putString(NoGoonAccessibilityService.KEY_ACTIVE_MODE_ID, activeModeId)
+                .apply()
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("SET_MODES_CONFIG_ERROR", e.message ?: "Unknown error", e)
         }
     }
 

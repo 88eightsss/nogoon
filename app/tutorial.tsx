@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // NoGoon INTERACTIVE TUTORIAL
 // ─────────────────────────────
-// 10-step swipeable walkthrough covering every major feature.
+// 6-step swipeable walkthrough covering what onboarding doesn't already.
 // Each step has an animated visual mockup, a plain-English explanation,
 // and a "Try It" deep-link to the relevant screen.
 //
@@ -503,56 +503,19 @@ const LootIllustration: React.FC<{ accent: string; dim: string }> = ({ accent, d
 
 // ─── Steps ────────────────────────────────────────────────────────────────────
 
+// Trimmed from 10 steps to 6 — the first four (blocklist, intercept screen,
+// games, walk-away) already get covered in onboarding's slides + setup card,
+// so this tutorial (auto-shown right after that) was re-teaching the same
+// four things before ever getting to what's actually new. Kept: everything
+// past that point, which onboarding never mentions at all.
 const STEPS: Step[] = [
-  {
-    id: 'blocklist',
-    emoji: '🛡️',
-    colorKey: 'purple' as const,
-    dimKey: 'purpleDim' as const,
-    title: 'Block what pulls you in',
-    subtitle: 'Step 1 of 10',
-    body: 'Add any app or website to your blocklist. The moment you open one, NoGoon steps in before the habit loop fires.\n\nTap the + on the Block tab to add your first site.',
-    cta: { label: 'Open Blocklist', route: '/(tabs)/blocklist' },
-    Illustration: BlocklistIllustration,
-  },
-  {
-    id: 'gate',
-    emoji: '🌬️',
-    colorKey: 'indigoBright' as const,
-    dimKey: 'indigoDim' as const,
-    title: 'The intercept screen',
-    subtitle: 'Step 2 of 10',
-    body: 'When you open a blocked app, you get a 3-second breathing pause. A calm moment before the craving hits full force.\n\nMost urges peak and pass in under 90 seconds — the pause is the product.',
-    Illustration: GateIllustration,
-  },
-  {
-    id: 'arcade',
-    emoji: '🎮',
-    colorKey: 'arcade' as const,
-    dimKey: 'arcadeDim' as const,
-    title: 'Play a game instead',
-    subtitle: 'Step 3 of 10',
-    body: 'After the pause, you\'re offered a quick game — 2048, Snake, WordWeave, and 16 more. They redirect the dopamine hit.\n\nYou choose whether to unlock the app or walk away when the game ends.',
-    cta: { label: 'Browse the Arcade', route: '/(tabs)/arcade' },
-    Illustration: ArcadeIllustration,
-  },
-  {
-    id: 'walkaway',
-    emoji: '🚶',
-    colorKey: 'green' as const,
-    dimKey: 'greenDim' as const,
-    title: 'Walk Away wins every time',
-    subtitle: 'Step 4 of 10',
-    body: 'Walk Away is always the primary button after a game. Each walk-away earns XP, builds your streak, and goes in your lifetime total.\n\nThe walk-away count is the only metric that matters — it\'s how many times the app actually worked.',
-    Illustration: WalkAwayIllustration,
-  },
   {
     id: 'unlocks',
     emoji: '🎁',
     colorKey: 'arcade' as const,
     dimKey: 'arcadeDim' as const,
     title: 'Unlock more as you go',
-    subtitle: 'Step 5 of 10',
+    subtitle: 'Step 1 of 6',
     body: 'Keep walking away and NoGoon opens up: the full Arcade (all 19 games), Journal, and Organizer mode for your Home screen all unlock at walk-away milestones.\n\nAnything you see locked isn\'t gone for good — it\'s waiting for you to earn it.',
     cta: { label: "See what's locked", route: '/(tabs)/arcade' },
     Illustration: LootIllustration,
@@ -563,9 +526,9 @@ const STEPS: Step[] = [
     colorKey: 'cyan' as const,
     dimKey: 'cyanDim' as const,
     title: 'Focus Session',
-    subtitle: 'Step 6 of 10',
-    body: 'Need to work without interruption? Start a Focus Session to pause blocking for a set time. It expires automatically — no willpower required to end it.\n\nFind it on the Home screen or via the Quick Settings tile.',
-    cta: { label: 'Go to Home', route: '/' },
+    subtitle: 'Step 2 of 6',
+    body: 'Need to work without interruption? Start a Focus Session to pause-proof your blocklist for a set time — no unlock path until it ends.\n\nFind it on your Profile, under Blocking strength.',
+    cta: { label: 'Open Profile', route: '/(tabs)/profile' },
     Illustration: FocusIllustration,
   },
   {
@@ -574,9 +537,9 @@ const STEPS: Step[] = [
     colorKey: 'purple' as const,
     dimKey: 'purpleDim' as const,
     title: 'Three layers of protection',
-    subtitle: 'Step 7 of 10',
-    body: 'NoGoon has three independent blocking layers: the Accessibility Service (app-level), a VPN DNS filter (network-level), and a Notification Listener (push-level).\n\nEnable all three on the Protection screen for airtight coverage.',
-    cta: { label: 'Protection Settings', route: '/protection' },
+    subtitle: 'Step 3 of 6',
+    body: 'NoGoon has three independent blocking layers: the Accessibility Service (app-level), a VPN DNS filter (network-level), and a Notification Listener (push-level).\n\nEnable all three on the Coverage screen for airtight protection.',
+    cta: { label: 'Open Coverage', route: '/protection' },
     Illustration: VpnIllustration,
   },
   {
@@ -585,7 +548,7 @@ const STEPS: Step[] = [
     colorKey: 'indigoBright' as const,
     dimKey: 'indigoDim' as const,
     title: 'Daily Intention',
-    subtitle: 'Step 8 of 10',
+    subtitle: 'Step 4 of 6',
     body: 'Set a short intention each morning — what you\'re protecting your focus for. It shows up quietly on the gate screen as a reminder of your own words.\n\nNot a rule. Just a nudge from past-you to present-you.',
     cta: { label: 'Set Today\'s Intention', route: '/' },
     Illustration: IntentionIllustration,
@@ -596,7 +559,7 @@ const STEPS: Step[] = [
     colorKey: 'cyan' as const,
     dimKey: 'cyanDim' as const,
     title: 'Track your patterns',
-    subtitle: 'Step 9 of 10',
+    subtitle: 'Step 5 of 6',
     body: 'The Insights screen shows your daily walk-aways for the past week, your peak distraction hour, and how you felt after each intercept.\n\nSpots emerge quickly — most people find a 2-hour window that accounts for most of their scrolling.',
     cta: { label: 'View Insights', route: '/insights' },
     Illustration: InsightsIllustration,
@@ -607,7 +570,7 @@ const STEPS: Step[] = [
     colorKey: 'indigo' as const,
     dimKey: 'indigoDim' as const,
     title: 'Wind-down Mode',
-    subtitle: 'Step 10 of 10',
+    subtitle: 'Step 6 of 6',
     body: 'Schedule automatic quiet hours. After your cutoff, NoGoon ramps up friction on every blocked site — harder games, longer pauses, fewer escape routes.\n\nSet it once on your Profile and stop negotiating with yourself at night.',
     cta: { label: 'Open Profile', route: '/(tabs)/profile' },
     Illustration: WindDownIllustration,

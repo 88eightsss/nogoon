@@ -9,6 +9,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getLocalDateKey } from '@/utils/date';
 import { ThemeId, BorderId, DEFAULT_THEME, DEFAULT_BORDER } from '@/constants/Themes';
 import {
   HomeLayout, BubbleConfig, BubbleSize, WidgetId,
@@ -89,14 +90,14 @@ export const useThemeStore = create<ThemeState>()(
       setBorder: (id) => set({ borderId: id }),
 
       setStruggling: (val) => {
-        const today = new Date().toISOString().split('T')[0];
+        const today = getLocalDateKey();
         set({ strugglingMode: val, strugglingDate: today });
       },
 
       checkResetStruggling: () => {
         const { strugglingMode, strugglingDate } = get();
         if (!strugglingMode) return;
-        const today = new Date().toISOString().split('T')[0];
+        const today = getLocalDateKey();
         if (strugglingDate !== today) {
           set({ strugglingMode: false, strugglingDate: '' });
         }

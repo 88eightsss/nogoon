@@ -22,6 +22,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useUserStore } from '@/stores/useUserStore';
+import { getLocalDateKey } from '@/utils/date';
 import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { useTheme } from '@/hooks/useTheme';
@@ -33,7 +34,7 @@ const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 function dateKey(daysAgo: number): string {
   const d = new Date();
   d.setDate(d.getDate() - daysAgo);
-  return d.toISOString().split('T')[0];
+  return getLocalDateKey(d);
 }
 
 function dayLabel(key: string): string {
@@ -48,10 +49,11 @@ export default function WeeklyRecapScreen() {
   const {
     walkAwayActivity,
     dailyWalkAways,
-    reflectionCounts,
+    urgeJournal,
     walkAwayCount,
     streak,
     name,
+    journalEntries,
   } = useUserStore();
 
   const days = useMemo(() => {
@@ -75,11 +77,28 @@ export default function WeeklyRecapScreen() {
     return top.count > 0 ? top : null;
   }, [days]);
 
+  // "Top Trigger" sits right next to the 7-day bar chart and consistency %,
+  // so it needs to actually be a 7-day stat — it used to read from
+  // reflectionCounts, a lifetime tally that's never reset, which meant this
+  // "weekly" card was quietly showing an all-time number instead. urgeJournal
+  // carries a timestamp per entry (see stores/useUserStore.ts), so filter to
+  // the same 7-day window everything else on this screen uses.
   const topTag = useMemo(() => {
-    const entries = Object.entries(reflectionCounts);
+    const weekAgoTs = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const counts: Record<string, number> = {};
+    for (const e of urgeJournal) {
+      if (e.timestamp > weekAgoTs) counts[e.tag] = (counts[e.tag] ?? 0) + 1;
+    }
+    const entries = Object.entries(counts);
     if (entries.length === 0) return null;
     return entries.sort((a, b) => b[1] - a[1])[0][0];
-  }, [reflectionCounts]);
+  }, [urgeJournal]);
+
+  // ── This week's journal entries ─────────────────────────────────────────────
+  const weekJournalEntries = useMemo(() => {
+    const weekAgoTs = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    return journalEntries.filter((e) => e.timestamp > weekAgoTs);
+  }, [journalEntries]);
 
   const handleShare = async () => {
     const lines = [
@@ -184,10 +203,33 @@ export default function WeeklyRecapScreen() {
                 <Text style={[styles.tagText, { color: COLORS.warning }]}>{topTag}</Text>
               </View>
               <Text style={[styles.cardBody, { flex: 1, color: colors.textSecondary }]}>
-                Your most common feeling when you hit a blocked app.
+                Your most common feeling this week when you hit a blocked app.
               </Text>
             </View>
           </View>
+        )}
+
+        {/* This week's journal */}
+        {weekJournalEntries.length > 0 && (
+          <Pressable
+            style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
+            onPress={() => router.push('/journal' as any)}
+          >
+            <View style={styles.journalCardHeader}>
+              <Text style={[styles.cardTitle, { color: colors.textMuted }]}>This Week's Journal</Text>
+              <Feather name="chevron-right" size={16} color={colors.textMuted} />
+            </View>
+            <Text style={[styles.journalCount, { color: colors.text }]}>
+              {weekJournalEntries.length} {weekJournalEntries.length === 1 ? 'entry' : 'entries'} written
+            </Text>
+            {/* Most recent entry as a short excerpt — a taste, not the full text */}
+            <Text
+              style={[styles.journalExcerpt, { color: colors.textSecondary }]}
+              numberOfLines={2}
+            >
+              "{weekJournalEntries[0].text}"
+            </Text>
+          </Pressable>
         )}
 
         {/* Lifetime */}
@@ -326,6 +368,22 @@ const styles = StyleSheet.create({
     fontSize: 10,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+
+  journalCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  journalCount: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 18,
+  },
+  journalExcerpt: {
+    fontFamily: FONTS.body,
+    fontSize: 14,
+    fontStyle: 'italic',
+    lineHeight: 20,
   },
 
   tagRow: {

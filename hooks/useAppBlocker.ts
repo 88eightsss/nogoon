@@ -21,6 +21,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { Platform, NativeModules, AppState } from 'react-native';
 import * as IntentLauncher from 'expo-intent-launcher';
 import { useUserStore } from '@/stores/useUserStore';
+import { useModesStore, resolveActiveMode } from '@/stores/useModesStore';
+import { getLocalDateKey } from '@/utils/date';
 
 // The native module registered by AppBlockerPackage.kt
 // On Android, this will be a real object. On iOS or Expo Go, it's undefined.
@@ -79,10 +81,12 @@ export const PACKAGE_TO_NAME: Record<string, string> = Object.fromEntries(
 
 export function useAppBlocker() {
   const {
-    blockedApps, setBlockedApps, blocklist: websiteBlocklist,
+    blockedApps, setBlockedApps, blocklist: websiteBlocklist, addSite, removeSite,
     curfewEnabled, curfewStart, curfewEnd,
     walkAwayCount, streak, dailyWalkAways,
+    setGameMode, setNoGames, setPreferWaitingRoom,
   } = useUserStore();
+  const { modes, activeModeId } = useModesStore();
   const [serviceEnabled, setServiceEnabled] = useState(false);
   const [checking, setChecking]             = useState(true);
   const [grayscaleEnabled, setGrayscaleEnabledState] = useState(false);
@@ -195,6 +199,74 @@ export function useAppBlocker() {
     AppBlocker.setBlockedDomains(websiteBlocklist).catch(console.warn);
   }, [websiteBlocklist]);
 
+  // ── Modes: re-check on a timer + on foreground resume ─────────────────────
+  // A scheduled Mode (e.g. "Work" 9-5) needs to apply itself even if the user
+  // never opens NoGoon exactly at the boundary. This ticks the effect below
+  // every 60s while the app is in the foreground, and immediately on resume.
+
+  const [modeCheckTick, setModeCheckTick] = useState(0);
+  useEffect(() => {
+    const interval = setInterval(() => setModeCheckTick((t) => t + 1), 60_000);
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') setModeCheckTick((t) => t + 1);
+    });
+    return () => { clearInterval(interval); sub.remove(); };
+  }, []);
+
+  // ── Modes: apply whichever one currently resolves ──────────────────────────
+  // A resolved Mode is a saved bundle (blocklist + game-mode/no-games/
+  // waiting-room settings) the user built themselves — applying it just calls
+  // the SAME setters the manual blocklist/settings screens already use, so it
+  // never becomes a second source of truth for those fields. When no Mode
+  // resolves (the common case for anyone who's never touched Modes), this is
+  // a no-op and every field stays exactly as manually set.
+  //
+  // Deliberately NOT touched here: isBricked / isColdTurkey (BRICKED / Cold
+  // Turkey have their own manual 24hr/48hr disable-request cooldown — letting
+  // a Mode switch flip them would let a schedule bypass that safety gate) and
+  // curfew (a separate always-on override layered on top of whichever Mode
+  // is active, not something a Mode itself controls). See useModesStore.ts.
+
+  useEffect(() => {
+    const active = resolveActiveMode(modes, activeModeId);
+    if (!active) return;
+
+    setBlockedApps(active.blockedApps);
+
+    const currentDomains = new Set(useUserStore.getState().blocklist);
+    const targetDomains  = new Set(active.blockedDomains);
+    for (const d of active.blockedDomains) {
+      if (!currentDomains.has(d)) addSite(d);
+    }
+    for (const d of useUserStore.getState().blocklist) {
+      if (!targetDomains.has(d)) removeSite(d);
+    }
+
+    setGameMode(active.gameMode);
+    setNoGames(active.noGames);
+    setPreferWaitingRoom(active.preferWaitingRoom);
+    // modeCheckTick deliberately in the deps only to re-run the check, not to
+    // read its value — this effect always re-resolves against the live clock.
+  }, [modes, activeModeId, modeCheckTick, setBlockedApps, addSite, removeSite, setGameMode, setNoGames, setPreferWaitingRoom]);
+
+  // ── Modes: push the full config natively ───────────────────────────────────
+  // Lets the Accessibility Service resolve "which Mode is active" itself,
+  // mirroring the Digital Curfew live-check, so a scheduled Mode boundary is
+  // enforced even while NoGoon hasn't been reopened to re-apply it from JS.
+
+  useEffect(() => {
+    if (!hasNativeModule) return;
+    const modesJson = JSON.stringify(
+      modes.map((m) => ({
+        id: m.id,
+        apps: m.blockedApps,
+        domains: m.blockedDomains,
+        schedule: m.schedule,
+      }))
+    );
+    AppBlocker.setModesConfig(modesJson, activeModeId ?? '').catch(console.warn);
+  }, [modes, activeModeId]);
+
   // ── Sync curfew settings to native ────────────────────────────────────────
   // Called whenever the user changes Digital Curfew in the profile screen so
   // the Accessibility Service can enforce it even before JS finishes loading.
@@ -211,7 +283,7 @@ export function useAppBlocker() {
 
   useEffect(() => {
     if (!hasNativeModule) return;
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateKey();
     const todayCount = dailyWalkAways[today] ?? 0;
     AppBlocker.setTodayStats(todayCount, streak).catch(console.warn);
   }, [walkAwayCount, streak, dailyWalkAways]);

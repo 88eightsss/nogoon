@@ -23,7 +23,7 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, Animated, Pressable, Modal, TextInput,
-  Switch, ScrollView,
+  Switch, ScrollView, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import Svg, { Rect } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -72,14 +72,42 @@ const CHARACTER_TAGLINES: Record<CharacterId, string> = {
   2: 'Bold · Dragon energy',
 };
 
-const STORAGE_KEY        = '@nogoon_goon_character';
+export const STORAGE_KEY = '@nogoon_goon_character';
 const CUSTOM_SPEECH_KEY  = '@nogoon_pet_speech';
 const SHOW_STATS_KEY     = '@nogoon_show_stats';
 const LAST_STAGE_KEY     = '@nogoon_last_stage';
+const PET_INTERACTION_COUNT_KEY = '@nogoon_pet_interaction_count';
+const PET_SPEECH_EVERY = 8; // your pal only speaks up every N pets/taps, not every single one
 
 /** Per-character name key — each companion has its own nickname slot. */
 function petNameKey(charId: CharacterId) {
   return `@nogoon_pet_name_${charId}`;
+}
+
+/**
+ * Shared "only speak up every Nth pet" gate — same persisted counter and
+ * threshold the main mascot uses (registerPetInteraction below), exported
+ * so other surfaces that render their own companion tap interaction (e.g.
+ * Organizer mode's CompanionWidget/CompanionHeroWidget in HomeOrganizer.tsx)
+ * throttle speech the same way instead of showing a new line on every tap.
+ * Returns a function that increments the shared count and resolves to
+ * `true` only on every PET_SPEECH_EVERY-th call — callers decide what to do
+ * with that (e.g. only update their own speech-bubble state when true).
+ * The tap/wave animation itself is NOT gated by this — only the talking is.
+ */
+export function usePetPokeGate() {
+  const countRef = useRef(0);
+  useEffect(() => {
+    AsyncStorage.getItem(PET_INTERACTION_COUNT_KEY).then((v) => {
+      countRef.current = v ? Number(v) : 0;
+    });
+  }, []);
+  return useCallback(() => {
+    const next = countRef.current + 1;
+    countRef.current = next;
+    AsyncStorage.setItem(PET_INTERACTION_COUNT_KEY, String(next));
+    return next % PET_SPEECH_EVERY === 0;
+  }, []);
 }
 
 // ─── Pixel grid ───────────────────────────────────────────────────────────────
@@ -640,7 +668,10 @@ function SecretPanel({
 
   return (
     <Modal visible transparent animationType="slide">
-      <View style={panelStyles.backdrop}>
+      <KeyboardAvoidingView
+        style={panelStyles.backdrop}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
         <View style={panelStyles.sheet}>
           <Text style={panelStyles.title}>Customize {petName}</Text>
 
@@ -702,7 +733,7 @@ function SecretPanel({
             </Pressable>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -851,6 +882,7 @@ export function GoonMascot({ walkAwayCount, onPress }: Props) {
   const [speechText,     setSpeechText]     = useState<string | null>(null);
   const speechTimer                         = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [feedFeedback,   setFeedFeedback]   = useState<string | null>(null);
+  const petInteractionCountRef              = useRef(0);
 
   const petStore = usePetStore();
 
@@ -860,7 +892,9 @@ export function GoonMascot({ walkAwayCount, onPress }: Props) {
       AsyncStorage.getItem(STORAGE_KEY),
       AsyncStorage.getItem(CUSTOM_SPEECH_KEY),
       AsyncStorage.getItem(SHOW_STATS_KEY),
-    ]).then(async ([charVal, speechVal, statsVal]) => {
+      AsyncStorage.getItem(PET_INTERACTION_COUNT_KEY),
+    ]).then(async ([charVal, speechVal, statsVal, petCountVal]) => {
+      petInteractionCountRef.current = petCountVal ? Number(petCountVal) : 0;
       if (charVal !== null) {
         const charId = Number(charVal) as CharacterId;
         setCharacter(charId);
@@ -961,6 +995,18 @@ export function GoonMascot({ walkAwayCount, onPress }: Props) {
     speechTimer.current = setTimeout(() => setSpeechText(null), 3000);
   }, []);
 
+  // ── Pet/tap interaction — your pal only speaks up every Nth one, not every
+  //    single tap, so the speech bubble stays a treat instead of noise. The
+  //    wave animation still plays every time; only the talking is throttled.
+  const registerPetInteraction = useCallback((text: string) => {
+    const next = petInteractionCountRef.current + 1;
+    petInteractionCountRef.current = next;
+    AsyncStorage.setItem(PET_INTERACTION_COUNT_KEY, String(next));
+    if (next % PET_SPEECH_EVERY === 0) {
+      showSpeech(text);
+    }
+  }, [showSpeech]);
+
   // ── Feed action ───────────────────────────────────────────────────────────
   const handleFeed = useCallback(async () => {
     const spent = await spendFeedToken();
@@ -1059,7 +1105,7 @@ export function GoonMascot({ walkAwayCount, onPress }: Props) {
         onPress={() => {
           if (character !== null) {
             triggerWave();
-            showSpeech(customSpeech || autoSpeech);
+            registerPetInteraction(customSpeech || autoSpeech);
             onPress?.();
           }
         }}
@@ -1157,7 +1203,7 @@ export function GoonMascot({ walkAwayCount, onPress }: Props) {
                 onPress={() => {
                   if (character !== null) petStore.petPet(character);
                   triggerWave();
-                  showSpeech('Thanks for the love!');
+                  registerPetInteraction('Thanks for the love!');
                 }}
               >
                 <Text style={styles.petBtnText}>Pet</Text>
