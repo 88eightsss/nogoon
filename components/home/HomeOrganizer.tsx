@@ -20,6 +20,7 @@ import { useUserStore, getMinutesSaved } from '@/stores/useUserStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { usePetStore } from '@/stores/usePetStore';
 import { useAppBlocker } from '@/hooks/useAppBlocker';
+import { PulseGlow } from '@/components/PulseGlow';
 import { ProtectionBanner } from '@/components/ProtectionBanner';
 import { useTheme } from '@/hooks/useTheme';
 import { useThemeStore } from '@/stores/useThemeStore';
@@ -560,13 +561,15 @@ function WidgetContent({
         );
       }
       return (
-        <Pressable style={cStyles.shieldRow} onPress={openSettings}>
-          <Feather name="alert-circle" size={20} color={colors.danger} />
-          <View>
-            <Text style={[cStyles.shieldTitle, { color: colors.danger }]}>Blocking off</Text>
-            <Text style={[cStyles.sub, { color: colors.textMuted }]}>Tap to fix</Text>
-          </View>
-        </Pressable>
+        <PulseGlow active color={colors.danger} radius={RADIUS.sm} style={{ padding: 6, margin: -6 }}>
+          <Pressable style={cStyles.shieldRow} onPress={openSettings}>
+            <Feather name="alert-circle" size={20} color={colors.danger} />
+            <View>
+              <Text style={[cStyles.shieldTitle, { color: colors.danger }]}>Blocking off</Text>
+              <Text style={[cStyles.sub, { color: colors.textMuted }]}>Tap to fix</Text>
+            </View>
+          </Pressable>
+        </PulseGlow>
       );
 
     default:

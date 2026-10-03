@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useUserStore } from '@/stores/useUserStore';
 import { useAppBlocker, BLOCKABLE_APPS } from '@/hooks/useAppBlocker';
+import { PulseGlow } from '@/components/PulseGlow';
 import { useTheme } from '@/hooks/useTheme';
 import { PageGuide } from '@/components/PageGuide';
 import { ProtectionBanner } from '@/components/ProtectionBanner';
@@ -253,6 +254,7 @@ export default function ProtectScreen() {
           {/* Header */}
           <View style={styles.header}>
             <Text style={[styles.title, { color: colors.text }]}>Protect</Text>
+            <PulseGlow active={blockingStatus !== 'active'} color={colors.danger} radius={20}>
             <Pressable
               style={[styles.statusPill, { backgroundColor: blockingStatus === 'active' ? colors.successDim : colors.dangerDim }]}
               onPress={blockingStatus !== 'active' ? openSettings : undefined}
@@ -266,6 +268,7 @@ export default function ProtectScreen() {
                 {blockingStatus === 'active' ? 'Active' : 'Off — tap to fix'}
               </Text>
             </Pressable>
+            </PulseGlow>
           </View>
 
           {/* Battery-exemption warning — catches the state the pill above can't see */}

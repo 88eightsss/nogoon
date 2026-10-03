@@ -5,7 +5,8 @@
 //   1–4. Slides — what NoGoon does, the pause/game/choice loop, the tab
 //        layout, and a heads-up that a phone setting comes next. No emoji —
 //        Feather icons only (see SLIDES below).
-//   5.   Name input (personalises the experience)
+//   5.   Palette pick (6 themes; applied immediately, changeable in Me)
+//   5b.  Name input (personalises the experience)
 //   6.   Companion pick
 //   7.   Setup step — add blocked sites, enable Accessibility Access
 //        (step-by-step instructions), the battery-optimization exemption, and
@@ -41,6 +42,8 @@ import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUserStore } from '@/stores/useUserStore';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { useThemeStore } from '@/stores/useThemeStore';
+import { THEMES, THEME_ORDER } from '@/constants/Themes';
 import { useAppBlocker } from '@/hooks/useAppBlocker';
 import { useVpn } from '@/hooks/useVpn';
 import { useNotificationListener } from '@/hooks/useNotificationListener';
@@ -79,8 +82,8 @@ const SLIDES: { icon: FeatherName; title: string; body: string; color: string }[
   },
   {
     icon: 'refresh-cw',
-    title: 'A pause, a game,\nthen your choice',
-    body: "A short game interrupts the urge. Most people walk away afterward — but if you still want in, a brief wait unlocks it. No points needed, no judgment either way.",
+    title: 'Pause. Play.\nThen choose.',
+    body: "Open a blocked app and a quick game steps in first. Most people walk away after it — but if you still want in, a short wait unlocks it. No points, no judgment.",
     color: COLORS.purple,
   },
   {
@@ -159,6 +162,8 @@ export default function OnboardingScreen() {
   }, [serviceEnabled, requestNotificationPermission]);
 
   const [step, setStep]                   = useState(0);
+  const { themeId, setTheme } = useThemeStore();
+  const [palettePicked, setPalettePicked] = useState(false);
   const [name, setNameLocal]              = useState('');
   const [nameError, setNameError]         = useState('');
   const [nameSaved, setNameSaved]         = useState(false);
@@ -262,6 +267,69 @@ export default function OnboardingScreen() {
   // ── Name input step ────────────────────────────────────────────────────────
 
   if (step === SLIDES.length) {
+    // ── Palette pick (after the slides, before the name input) ──────────────
+    // Tapping a card applies the theme immediately (persisted by the theme
+    // store), so the choice sticks even if the user force-quits mid-onboarding.
+    // It can always be changed later under Me → Theme.
+    if (!palettePicked) {
+      return (
+        <SafeAreaView style={styles.safe}>
+          <ScrollView
+            style={styles.flex}
+            contentContainerStyle={styles.paletteScreen}
+            showsVerticalScrollIndicator={false}
+          >
+            <Text style={styles.paletteTitle}>Pick your{'\n'}palette</Text>
+            <Text style={styles.paletteSub}>
+              Choose the look that feels right. You can change it any time in Me.
+            </Text>
+
+            <View style={styles.paletteGrid}>
+              {THEME_ORDER.map((id) => {
+                const triad = THEMES[id];
+                const pal = triad[triad.nativeMode];
+                const active = id === themeId;
+                return (
+                  <Pressable
+                    key={id}
+                    style={[
+                      styles.paletteCard,
+                      { backgroundColor: pal.background, borderColor: active ? pal.accent : pal.surfaceHigh },
+                      active && { borderWidth: 3 },
+                    ]}
+                    onPress={() => setTheme(id)}
+                  >
+                    <View style={[styles.paletteSurface, { backgroundColor: pal.surface }]}>
+                      <View style={[styles.paletteBar, { backgroundColor: pal.accent }]} />
+                      <View style={styles.paletteDots}>
+                        {[pal.protect, pal.calm, pal.arcade, pal.me].map((c, i) => (
+                          <View key={i} style={[styles.paletteDot, { backgroundColor: c }]} />
+                        ))}
+                      </View>
+                    </View>
+                    <Text style={[styles.paletteName, { color: pal.text }]}>{triad.name}</Text>
+                    {active && (
+                      <View style={[styles.paletteCheck, { backgroundColor: pal.accent }]}>
+                        <Feather name="check" size={12} color={pal.background} />
+                      </View>
+                    )}
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <Pressable style={styles.finishButton} onPress={() => setPalettePicked(true)}>
+              <Text style={styles.finishButtonText}>Continue →</Text>
+            </Pressable>
+
+            <Pressable onPress={goBack}>
+              <Text style={styles.backLink}>← Back</Text>
+            </Pressable>
+          </ScrollView>
+        </SafeAreaView>
+      );
+    }
+
     // ── Companion selection (shown after name saved, before setup) ──────────
     if (nameSaved && !companionPicked) {
       return (
@@ -862,6 +930,64 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.textPrimary,
     textAlign: 'center',
+  },
+
+  // ── Palette screen ──
+  paletteScreen: {
+    flexGrow: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.xl,
+    gap: SPACING.md,
+  },
+  paletteTitle: {
+    fontFamily: FONTS.display,
+    fontSize: 36,
+    color: COLORS.textPrimary,
+    textAlign: 'center',
+    lineHeight: 44,
+    letterSpacing: -0.5,
+  },
+  paletteSub: {
+    fontFamily: FONTS.body,
+    fontSize: 15,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    marginBottom: SPACING.sm,
+  },
+  paletteGrid: {
+    width: '100%',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    rowGap: SPACING.md,
+  },
+  paletteCard: {
+    width: '48%',
+    borderRadius: RADIUS.md,
+    borderWidth: 1.5,
+    padding: SPACING.sm,
+    gap: SPACING.sm,
+  },
+  paletteSurface: {
+    borderRadius: RADIUS.sm,
+    padding: SPACING.sm,
+    gap: SPACING.sm,
+  },
+  paletteBar: { height: 8, borderRadius: 4, width: '60%' },
+  paletteDots: { flexDirection: 'row', gap: 6 },
+  paletteDot: { width: 12, height: 12, borderRadius: 6 },
+  paletteName: { fontFamily: FONTS.bodyBold, fontSize: 14, paddingHorizontal: 2 },
+  paletteCheck: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   // ── Name screen ──

@@ -24,6 +24,7 @@ import * as Haptics from 'expo-haptics';
 import { useUserStore, getMinutesSaved } from '@/stores/useUserStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useAppBlocker } from '@/hooks/useAppBlocker';
+import { PulseGlow } from '@/components/PulseGlow';
 import { ProtectionBanner } from '@/components/ProtectionBanner';
 import { useTheme } from '@/hooks/useTheme';
 import { useThemeStore } from '@/stores/useThemeStore';
@@ -214,16 +215,18 @@ function ShieldStrip({ status, onFix }: { status: string; onFix: () => void }) {
     );
   }
   return (
-    <Pressable
-      style={[stripStyles.wrap, { backgroundColor: colors.dangerDim }]}
-      onPress={() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        onFix();
-      }}
-    >
-      <Feather name="alert-circle" size={14} color={colors.danger} />
-      <Text style={[stripStyles.text, { color: colors.danger }]}>Blocking off — tap to fix</Text>
-    </Pressable>
+    <PulseGlow active color={colors.danger} radius={RADIUS.sm} style={{ alignSelf: 'flex-start' }}>
+      <Pressable
+        style={[stripStyles.wrap, { backgroundColor: colors.dangerDim }]}
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          onFix();
+        }}
+      >
+        <Feather name="alert-circle" size={14} color={colors.danger} />
+        <Text style={[stripStyles.text, { color: colors.danger }]}>Blocking off — tap to fix</Text>
+      </Pressable>
+    </PulseGlow>
   );
 }
 

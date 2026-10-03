@@ -23,6 +23,7 @@ import * as Haptics from 'expo-haptics';
 import { useUserStore, getMinutesSaved } from '@/stores/useUserStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useAppBlocker } from '@/hooks/useAppBlocker';
+import { PulseGlow } from '@/components/PulseGlow';
 import { useTheme } from '@/hooks/useTheme';
 import { useThemeStore } from '@/stores/useThemeStore';
 import { THEMES, BORDERS, THEME_ORDER, BORDER_ORDER, ThemePalette, brightnessLabel } from '@/constants/Themes';
@@ -622,12 +623,14 @@ export default function MeScreen() {
               </Text>
             </View>
             {blockingStatus !== 'active' && (
-              <Pressable
-                style={[ctrlStyles.fixBtn, { backgroundColor: colors.dangerDim }]}
-                onPress={openSettings}
-              >
-                <Text style={[ctrlStyles.fixTxt, { color: colors.danger }]}>Fix</Text>
-              </Pressable>
+              <PulseGlow active color={colors.danger} radius={RADIUS.sm}>
+                <Pressable
+                  style={[ctrlStyles.fixBtn, { backgroundColor: colors.dangerDim }]}
+                  onPress={openSettings}
+                >
+                  <Text style={[ctrlStyles.fixTxt, { color: colors.danger }]}>Fix</Text>
+                </Pressable>
+              </PulseGlow>
             )}
             {blockingStatus === 'active' && (
               <View style={[ctrlStyles.activeTag, { backgroundColor: colors.successDim }]}>
