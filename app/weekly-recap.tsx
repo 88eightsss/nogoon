@@ -23,6 +23,7 @@ import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useUserStore } from '@/stores/useUserStore';
 import { getLocalDateKey } from '@/utils/date';
+import { computeConsistencyScore } from '@/utils/consistencyScore';
 import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { useTheme } from '@/hooks/useTheme';
@@ -49,6 +50,7 @@ export default function WeeklyRecapScreen() {
   const {
     walkAwayActivity,
     dailyWalkAways,
+    dailyGateFires,
     urgeJournal,
     walkAwayCount,
     streak,
@@ -67,10 +69,16 @@ export default function WeeklyRecapScreen() {
 
   const weekTotal   = useMemo(() => days.reduce((s, d) => s + d.count, 0), [days]);
   const maxDay      = useMemo(() => Math.max(...days.map((d) => d.count), 1), [days]);
-  const consistency = useMemo(() => {
-    const activeDays = days.filter((d) => d.count > 0).length;
-    return Math.round((activeDays / 7) * 100);
-  }, [days]);
+  // Days this week with at least one walk-away. Deliberately NOT called
+  // "consistency" — that name belongs to the 30-day score below (win rate on
+  // days the gate fired), and two different numbers under one label confused.
+  const activeDays = useMemo(() => days.filter((d) => d.count > 0).length, [days]);
+
+  // 30-day consistency score — same calc as the Insights screen.
+  const consistency30 = useMemo(
+    () => computeConsistencyScore(dailyGateFires, dailyWalkAways),
+    [dailyGateFires, dailyWalkAways],
+  );
 
   const bestDay = useMemo(() => {
     const top = [...days].sort((a, b) => b.count - a.count)[0];
@@ -105,7 +113,8 @@ export default function WeeklyRecapScreen() {
       `My NoGoon Week`,
       ``,
       `Walk-aways: ${weekTotal} this week`,
-      `Consistency: ${consistency}% of days`,
+      `Active days: ${activeDays} of 7`,
+      consistency30.daysActive > 0 ? `30-day consistency: ${consistency30.grade} (${consistency30.score}%)` : '',
       bestDay ? `Best day: ${bestDay.label} (${bestDay.count} walk-aways)` : '',
       topTag ? `Top trigger: ${topTag}` : '',
       `Lifetime total: ${walkAwayCount} walk-aways`,
@@ -183,7 +192,7 @@ export default function WeeklyRecapScreen() {
         {/* Stats row */}
         <View style={styles.statsRow}>
           {[
-            { num: `${consistency}%`, label: 'consistency' },
+            { num: `${activeDays}/7`, label: 'active days' },
             { num: bestDay ? String(bestDay.count) : '0', label: 'best day' },
             { num: String(streak), label: 'day streak' },
           ].map(({ num, label }) => (
@@ -193,6 +202,23 @@ export default function WeeklyRecapScreen() {
             </View>
           ))}
         </View>
+
+        {/* 30-day consistency — tap for the full breakdown on Insights */}
+        {consistency30.daysActive > 0 && (
+          <Pressable
+            style={[styles.card, styles.consistencyLink, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
+            onPress={() => router.push('/insights')}
+          >
+            <Text style={[styles.consistencyGrade, { color: colors.accent }]}>{consistency30.grade}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.cardTitle, { color: colors.textMuted }]}>30-Day Consistency</Text>
+              <Text style={[styles.cardBody, { color: colors.textSecondary }]}>
+                {consistency30.score}% — walked away on {consistency30.daysWon} of {consistency30.daysActive} days the gate stepped in
+              </Text>
+            </View>
+            <Feather name="chevron-right" size={16} color={colors.textMuted} />
+          </Pressable>
+        )}
 
         {/* Top trigger */}
         {topTag && (
@@ -370,6 +396,17 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
 
+  consistencyLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+  },
+  consistencyGrade: {
+    fontFamily: FONTS.display,
+    fontSize: 32,
+    width: 40,
+    textAlign: 'center',
+  },
   journalCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
