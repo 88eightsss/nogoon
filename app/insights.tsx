@@ -5,6 +5,7 @@
 //   2. What you were feeling (reflectionCounts breakdown)
 //   3. Your peak urge hour (hourlyOpenCounts heatmap)
 //   4. All-time summary stats
+//   5. 30-day consistency score (utils/consistencyScore.ts)
 //
 // All data is local — no server requests needed.
 
@@ -17,6 +18,7 @@ import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { useTheme } from '@/hooks/useTheme';
 import { getLocalDateKey } from '@/utils/date';
+import { computeConsistencyScore } from '@/utils/consistencyScore';
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -56,6 +58,7 @@ export default function InsightsScreen() {
     urgeJournal,
     commitmentLog,
     dailyWalkAways,
+    dailyGateFires,
     followThroughLog,
     firstActiveDate,
     totalActiveDays,
@@ -133,6 +136,21 @@ export default function InsightsScreen() {
   const maxWalkAway    = Math.max(...walkAwayActivity, 1);
   const totalThisWeek  = walkAwayActivity.reduce((a, b) => a + b, 0);
 
+  // 30-day consistency: days you walked away at least once / days the gate
+  // fired at all. Unlike a streak, one bad day only dents it.
+  const consistency = computeConsistencyScore(dailyGateFires, dailyWalkAways);
+  const gradeColor =
+    consistency.grade === 'S' || consistency.grade === 'A' ? C.green
+    : consistency.grade === 'B' ? C.cyan
+    : consistency.grade === 'C' ? C.warning
+    : C.danger;
+  const gradeCaption =
+    consistency.grade === 'S' ? 'Rock solid. You almost always walk away.'
+    : consistency.grade === 'A' ? 'Strong. Most days you walk away.'
+    : consistency.grade === 'B' ? 'Solid. More wins than slips.'
+    : consistency.grade === 'C' ? 'Building. Every walk-away counts.'
+    : 'Rough stretch. A bad day doesn\'t erase progress.';
+
   // Week-over-week delta — compare this week vs last 7 days prior
   const MS_PER_DAY = 86_400_000;
   const lastWeekTotal = Array.from({ length: 7 }, (_, i) => {
@@ -181,6 +199,39 @@ export default function InsightsScreen() {
           <SummaryCard num={gamesPlayed}     label={'games\nplayed'}      color={C.purple}  />
           <SummaryCard num={totalThisWeek}   label={'walk-aways\nthis week'} color={C.cyan} />
           <SummaryCard num={longestStreak}   label={'longest\nstreak'}    color={C.warning} />
+        </View>
+
+        {/* ── 30-day consistency ────────────────────────────────────────── */}
+        <View style={[styles.card, { borderColor: consistency.daysActive > 0 ? gradeColor + '44' : C.cardBorder, backgroundColor: C.surface }]}>
+          <View style={styles.cardHeader}>
+            <Text style={[styles.cardTitle, { color: C.textPrimary }]}>Consistency</Text>
+            <Text style={[styles.cardSub, { color: C.textMuted }]}>last 30 days</Text>
+          </View>
+          {consistency.daysActive === 0 ? (
+            <Text style={[styles.cardSub, { color: C.textMuted, lineHeight: 18 }]}>
+              Not enough data yet. This fills in once the gate has stepped in on a few days.
+            </Text>
+          ) : (
+            <>
+              <View style={styles.consistencyRow}>
+                <View style={[styles.gradeBadge, { backgroundColor: gradeColor + '1c', borderColor: gradeColor + '55' }]}>
+                  <Text style={[styles.gradeLetter, { color: gradeColor }]}>{consistency.grade}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.consistencyScore, { color: C.textPrimary }]}>{consistency.score}%</Text>
+                  <Text style={[styles.cardSub, { color: C.textSecondary }]}>
+                    Walked away on {consistency.daysWon} of {consistency.daysActive} {consistency.daysActive === 1 ? 'day' : 'days'} the gate stepped in
+                  </Text>
+                </View>
+              </View>
+              <View style={[styles.consistencyTrack, { backgroundColor: C.border }]}>
+                <View style={[styles.consistencyFill, { width: `${consistency.score}%`, backgroundColor: gradeColor }]} />
+              </View>
+              <Text style={[styles.cardSub, { color: C.textMuted, marginTop: SPACING.sm }]}>
+                {consistency.daysActive < 7 ? 'Early read — it gets more accurate as you go. ' : ''}{gradeCaption}
+              </Text>
+            </>
+          )}
         </View>
 
         {/* ── Since you started ─────────────────────────────────────────── */}
@@ -572,6 +623,12 @@ function SinceStat({ icon, color, value, label }: {
 
 // ─── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
+  consistencyRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, marginBottom: SPACING.md },
+  gradeBadge: { width: 56, height: 56, borderRadius: RADIUS.md, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  gradeLetter: { fontFamily: FONTS.display, fontSize: 30, lineHeight: 36 },
+  consistencyScore: { fontFamily: FONTS.display, fontSize: 28, lineHeight: 32 },
+  consistencyTrack: { height: 8, borderRadius: 4, overflow: 'hidden' },
+  consistencyFill: { height: 8, borderRadius: 4 },
   safe: { flex: 1 },
   content: {
     paddingHorizontal: SPACING.lg,
