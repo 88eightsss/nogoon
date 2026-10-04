@@ -30,7 +30,7 @@ import * as Haptics from 'expo-haptics';
 import { Feather } from '@expo/vector-icons';
 import { useUserStore } from '@/stores/useUserStore';
 import { PositiveNewsCard } from '@/components/PositiveNewsCard';
-import { useAppBlocker } from '@/hooks/useAppBlocker';
+import { grantTemporaryUnlock } from '@/utils/tempUnlock';
 import { AdBanner } from '@/components/ads/AdBanner';
 import { AdRewarded } from '@/components/ads/AdRewarded';
 import { COLORS, FONTS } from '@/constants/Colors';
@@ -244,8 +244,7 @@ export default function PostGameScreen() {
     recordGamePlayed,
     streakRestoresLeft,
     useStreakRestore,
-    incrementWalkAway,
-    recordDailyWalkAway,
+    recordWalkAway,
     setCommitment,
     intentionGoal,
     logTrigger,
@@ -255,7 +254,6 @@ export default function PostGameScreen() {
     notifyPartner,
   } = useUserStore();
   // Hook to tell the Android native module about the 10-min unlock
-  const { unlockTemporarily } = useAppBlocker();
 
   // ── Award points on mount (once only) ─────────────────────────────────────
   // The ref prevents this from running twice on strict-mode double renders.
@@ -329,10 +327,8 @@ export default function PostGameScreen() {
   const handleWalkAway = () => {
     const newCount = walkAwayCount + 1;
     setCelebrationCount(newCount);
-    incrementStreak();
+    recordWalkAway();
     if (selectedTrigger) logTrigger(selectedTrigger);
-    incrementWalkAway();
-    recordDailyWalkAway();
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     // Show commitment step first — ask what they'll do instead
     setShowCommitment(true);
@@ -349,7 +345,7 @@ export default function PostGameScreen() {
   const handleUnlock = () => {
     // Use 'app' (raw) for native unlock — it carries the package name for app blocks.
     // Fall back to 'domain' for web-only sessions where 'app' isn't present.
-    if (app || domain) unlockTemporarily(app || domain, unlockMinutes);
+    if (app || domain) grantTemporaryUnlock(app || domain, unlockMinutes);
     notifyPartner(domainDisplay, 'unlock');
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     router.dismissAll();
@@ -361,7 +357,7 @@ export default function PostGameScreen() {
     const restored = useStreakRestore();
     if (restored) {
       incrementStreak();
-      if (app || domain) unlockTemporarily(app || domain, unlockMinutes);
+      if (app || domain) grantTemporaryUnlock(app || domain, unlockMinutes);
       notifyPartner(domainDisplay, 'unlock');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.dismissAll();

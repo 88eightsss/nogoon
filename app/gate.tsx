@@ -66,6 +66,7 @@ import { WarpGame }          from '@/components/games/WarpGame';
 import { IntentionCheck }    from '@/components/games/IntentionCheck';
 import { TypingChallenge }   from '@/components/games/TypingChallenge';
 import { PACKAGE_TO_NAME } from '@/hooks/useAppBlocker';
+import { grantTemporaryUnlock } from '@/utils/tempUnlock';
 import { useUserStore } from '@/stores/useUserStore';
 import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
@@ -244,6 +245,7 @@ export default function NoGoonScreen() {
   // Happens when the gate is rapidly dismissed and re-opened (e.g., scroll trigger
   // fires while the user is mid-dismiss, or the ad resolves after unmount).
   const isMountedRef = useRef(true);
+  const gameCompletedRef = useRef(false);   // see handleGameComplete
   useEffect(() => {
     return () => { isMountedRef.current = false; };
   }, []);
@@ -467,6 +469,11 @@ export default function NoGoonScreen() {
   // ── Game completion ────────────────────────────────────────────────────────
   const handleGameComplete = useCallback(
     async (score: number) => {
+      // A game can report completion twice (e.g. a state updater re-running, or a
+      // late timer). Only the first one may continue — otherwise the user gets a
+      // second ad and a second navigation.
+      if (gameCompletedRef.current) return;
+      gameCompletedRef.current = true;
       // Show a full-screen interstitial ad every 3rd gate completion (free users only).
       // The ad resolves before navigating so the post-game screen appears cleanly after.
       await maybeShowInterstitial();
@@ -861,11 +868,14 @@ export default function NoGoonScreen() {
                 opacity: isMatch ? 1 : 0.5,
               },
             ]}
-            onPress={() => {
-              if (isMatch) {
-                notifyPartner(displayDomain, 'bypass');
-                router.dismissAll();
-              }
+            onPress={async () => {
+              if (!isMatch) return;
+              // Actually grant the unlock. Before, this only dismissed the screen,
+              // so the gate fired again within seconds — and the partner had
+              // already been told about a bypass that never happened.
+              const granted = await grantTemporaryUnlock(domain);
+              if (granted) notifyPartner(displayDomain, 'bypass');
+              router.dismissAll();
             }}
             disabled={!isMatch}
           >
@@ -1120,12 +1130,15 @@ export default function NoGoonScreen() {
             ))}
           </View>
 
-          {/* Override — requires typing a sentence before unlocking */}
-          <Pressable onPress={() => setPhase('override')} style={styles.exitTextRow}>
-            <Text style={[styles.exitText, { color: C.textSecondary }]}>
-              I actually need this right now
-            </Text>
-          </Pressable>
+          {/* Override — requires typing a sentence before unlocking. Hidden when
+              Hard Mode / Cold Turkey is on: those promise no unlock path. */}
+          {!isBricked && !isColdTurkey && (
+            <Pressable onPress={() => setPhase('override')} style={styles.exitTextRow}>
+              <Text style={[styles.exitText, { color: C.textSecondary }]}>
+                I actually need this right now
+              </Text>
+            </Pressable>
+          )}
 
         </Animated.View>
       </SafeAreaView>

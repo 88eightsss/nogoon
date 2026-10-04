@@ -28,6 +28,7 @@ import {
   Animated,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useUserStore } from '@/stores/useUserStore';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
@@ -110,6 +111,11 @@ export default function WaitingRoomScreen() {
     isColdTurkey?: string;
   }>();
   const isBricked = params.isBricked === '1';
+  // Two ways to get here: from the blocking gate (`app` = the blocked app/site
+  // the user is trying to open) or standalone from the Calm tab (no `app`).
+  // Only the first has anything to unlock — and anything to walk away from.
+  const fromGate = !!params.app;
+  const recordWalkAway = useUserStore((s) => s.recordWalkAway);
 
   const [secondsLeft, setSecondsLeft]   = useState(COUNTDOWN);
   const [ready,       setReady]         = useState(false);
@@ -156,7 +162,14 @@ export default function WaitingRoomScreen() {
     });
   };
 
+  // Leaving instead of continuing, in the blocking flow, IS a walk-away — it
+  // used to be thrown away unrecorded, so the user's best moment earned nothing.
+  // Standalone (Calm tab) visits record nothing: there was no urge to beat.
+  const leftRef = useRef(false);   // guards a double-tap from recording twice
   const handleBack = () => {
+    if (leftRef.current) return;
+    leftRef.current = true;
+    if (fromGate) recordWalkAway();
     router.replace('/(tabs)');
   };
 
@@ -203,6 +216,12 @@ export default function WaitingRoomScreen() {
                 <Text style={styles.backLinkText}>Go home</Text>
               </Pressable>
             </>
+          ) : ready && !fromGate ? (
+            // Calm-tab visit: nothing to unlock, so don't offer a path into the
+            // post-game screen (that screen awards a walk-away and streak day).
+            <Pressable style={styles.continueButton} onPress={handleBack}>
+              <Text style={styles.continueLabel}>I made it through</Text>
+            </Pressable>
           ) : ready ? (
             <>
               <Pressable

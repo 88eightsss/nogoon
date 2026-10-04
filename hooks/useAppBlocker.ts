@@ -102,11 +102,6 @@ export function useAppBlocker() {
   // Raw expiry timestamp from native (ms). 0 = not paused. > Date.now() = paused.
   const [blockingPausedUntil, setBlockingPausedUntil] = useState<number>(0);
 
-  // ── Temporary unlock state ─────────────────────────────────────────────────
-  // Tracks domains the user has unlocked temporarily after playing a game.
-  // Key = domain string, Value = expiry timestamp (ms).
-  // When the current time passes the expiry, the domain is blocked again.
-  const [tempUnlocks, setTempUnlocks] = useState<Record<string, number>>({});
   // Unlock-time log from native: Record<"YYYY-MM-DD", ms>
   const [unlockTimeLog, setUnlockTimeLog] = useState<Record<string, number>>({});
 
@@ -187,16 +182,6 @@ export function useAppBlocker() {
           .then((val: number) => setBlockingPausedUntil(val))
           .catch(() => {});
       }
-      // Also clean up any temp unlocks that expired while the app was backgrounded
-      const now = Date.now();
-      setTempUnlocks(prev => {
-        const cleaned = { ...prev };
-        let changed = false;
-        for (const [domain, expiry] of Object.entries(cleaned)) {
-          if (expiry <= now) { delete cleaned[domain]; changed = true; }
-        }
-        return changed ? cleaned : prev;
-      });
     });
     // Re-check every 30 s — Android can kill the service between AppState changes
     const pollInterval = setInterval(checkServiceStatus, 30_000);
@@ -466,33 +451,6 @@ export function useAppBlocker() {
     }
   }, [hasNativeModule]);
 
-  // ── Temporary unlock ──────────────────────────────────────────────────────
-  // Called from post-game.tsx when the user taps "Unlock for 10 min".
-  // Stores the expiry in state (and tells the Android native module too).
-  // After the duration, the domain is automatically blocked again.
-  const unlockTemporarily = useCallback((domain: string, minutes: number = 10) => {
-    const expiryMs = Date.now() + minutes * 60 * 1000;
-    setTempUnlocks((prev) => ({ ...prev, [domain]: expiryMs }));
-
-    // Also tell the native module so the Accessibility Service can enforce it
-    if (hasNativeModule) {
-      try {
-        AppBlocker.setTemporaryUnlock(domain, expiryMs.toString());
-      } catch (e) {
-        console.warn('setTemporaryUnlock native call failed:', e);
-      }
-    }
-
-    // Auto-clear after the unlock expires
-    setTimeout(() => {
-      setTempUnlocks((prev) => {
-        const updated = { ...prev };
-        delete updated[domain];
-        return updated;
-      });
-    }, minutes * 60 * 1000);
-  }, [hasNativeModule]);
-
   // ── Computed pause values ─────────────────────────────────────────────────
   // Derived from the raw timestamp each render — no extra state needed.
   const nowMs = Date.now();
@@ -545,8 +503,6 @@ export function useAppBlocker() {
     checkServiceStatus,
     hasNativeModule,       // boolean — false in Expo Go, true in built app
     blockingStatus,        // 'paused' | 'active' | 'empty' | 'off' — for ShieldStatus component
-    unlockTemporarily,     // (domain, minutes) => void — after game, let domain through
-    tempUnlocks,           // Record<domain, expiryMs> — currently unlocked domains
     isBlockingPaused,           // boolean — true when QS tile has paused blocking
     blockingPausedMinutesLeft,  // number — minutes remaining in the pause window
     resumeBlocking,             // () => Promise<void> — clears the paused flag

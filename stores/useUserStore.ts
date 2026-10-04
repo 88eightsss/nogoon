@@ -399,6 +399,10 @@ interface UserState {
 
   // Walk-away tracking
   incrementWalkAway: () => void;
+  // One call that records a walk-away everywhere it needs to count (streak,
+  // lifetime total, today's tally). Use this instead of calling the three
+  // pieces separately so no screen can forget one.
+  recordWalkAway: () => void;
 
   // Intention goal (set in onboarding)
   setIntentionGoal: (goal: string) => void;
@@ -976,6 +980,13 @@ export const useUserStore = create<UserState>()(
           }
           return { dailyGateFires: updated };
         });
+      },
+
+      recordWalkAway: () => {
+        const { incrementStreak, incrementWalkAway, recordDailyWalkAway } = get();
+        incrementStreak();
+        incrementWalkAway();
+        recordDailyWalkAway();
       },
 
       recordDailyWalkAway: () => {
