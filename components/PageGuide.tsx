@@ -1,14 +1,18 @@
 // ─── Page Guide ─────────────────────────────────────────────────────────────
 //
-// First-time explainer shown once per tab, the first time a new user lands
-// on it. Explains what the screen is for and why it's worth using — not a
-// full tutorial, just enough context that nothing feels unexplained.
+// First-time explainer, once per tab. It no longer pops up on arrival — a new
+// user landing on five screens and getting five walls of text in a row was
+// overwhelming. Instead the first visit shows a small, dismissible "New here?"
+// bubble tucked under the header, pointing up at the "?" button. Tapping it
+// opens the guide when the user is ready; the bubble then glides up toward the
+// "?" and disappears, and from then on the guide lives only behind that button.
+// The bubble's × just dismisses it without opening anything.
 //
-// State lives in useUserStore.seenPageGuides (persisted), keyed by `page`,
-// so it auto-shows exactly once per install. After that it's reachable
-// again any time via the tab header's "?" button, which sets the transient
+// State lives in useUserStore.seenPageGuides (persisted), keyed by `page`, so
+// the bubble shows exactly once per install. The tab header's "?" button
+// re-opens the guide any time by setting the transient
 // useUserStore.guideReopenRequest to this same `page` id — that's the whole
-// per-page help system now; there's no separate combined help screen.
+// per-page help system; there's no separate combined help screen.
 //
 // Usage (inside a tab screen, rendered alongside the screen's own content):
 //   <PageGuide
@@ -26,7 +30,8 @@
 // No icon is ever rendered as an emoji character here — Feather glyphs only,
 // so the guide reads the same on every device and font size.
 
-import { Modal, View, Text, Pressable, StyleSheet } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Modal, View, Text, Pressable, StyleSheet, Animated } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useUserStore } from '@/stores/useUserStore';
@@ -59,18 +64,90 @@ export function PageGuide({ page, icon, accent, title, subtitle, points }: Props
   const markPageGuideSeen = useUserStore((s) => s.markPageGuideSeen);
 
   // The header's "?" button re-requests this exact page's guide on demand,
-  // even after it's already been seen once — that's the whole mechanism
-  // behind "help, per page" without a separate combined help screen.
+  // even after it's already been seen once.
   const reopened = useUserStore((s) => s.guideReopenRequest === page);
   const clearGuideReopenRequest = useUserStore((s) => s.clearGuideReopenRequest);
 
-  const visible = !seen || reopened;
-  if (!visible) return null;
+  // The guide card is opened by tapping the bubble (local state) or the "?"
+  // (store request) — never automatically.
+  const [open, setOpen] = useState(false);
+  const [bubbleGone, setBubbleGone] = useState(false);
+  const [leaving, setLeaving] = useState(false);   // true while the fly-away animation runs
+
+  // Bubble animation: fades/slides in shortly after the screen settles, and
+  // on press glides up toward the header's "?" while shrinking away.
+  const appear = useRef(new Animated.Value(0)).current;   // 0 hidden → 1 shown
+  const leave  = useRef(new Animated.Value(0)).current;   // 0 in place → 1 gone
+
+  // Stays mounted through the fly-away animation even though marking the page
+  // seen (which happens at the start of it) would otherwise unmount it at once.
+  const showBubble = !bubbleGone && (!seen || leaving);
+
+  // Opening the guide from the header "?" before touching the bubble counts as
+  // having found help — retire the bubble so it doesn't linger behind the card.
+  useEffect(() => {
+    if (reopened && !seen) markPageGuideSeen(page);
+  }, [reopened, seen, markPageGuideSeen, page]);
+
+  useEffect(() => {
+    if (!showBubble) return;
+    const t = setTimeout(() => {
+      Animated.timing(appear, { toValue: 1, duration: 350, useNativeDriver: true }).start();
+    }, 700);
+    return () => clearTimeout(t);
+  }, [showBubble, appear]);
+
+  const flyAway = (then?: () => void) => {
+    setLeaving(true);
+    markPageGuideSeen(page);
+    Animated.timing(leave, { toValue: 1, duration: 280, useNativeDriver: true }).start(() => {
+      setBubbleGone(true);
+      then?.();
+    });
+  };
+
+  const visible = open || reopened;
 
   const dismiss = () => {
-    if (!seen) markPageGuideSeen(page);
+    setOpen(false);
     if (reopened) clearGuideReopenRequest();
   };
+
+  const bubbleOpacity = Animated.multiply(appear, leave.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }));
+  const bubbleTranslateY = Animated.add(
+    appear.interpolate({ inputRange: [0, 1], outputRange: [-6, 0] }),
+    leave.interpolate({ inputRange: [0, 1], outputRange: [0, -28] }),
+  );
+  const bubbleScale = leave.interpolate({ inputRange: [0, 1], outputRange: [1, 0.4] });
+
+  const bubble = showBubble ? (
+    <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
+      <Animated.View
+        style={[
+          styles.bubbleWrap,
+          { opacity: bubbleOpacity, transform: [{ translateY: bubbleTranslateY }, { scale: bubbleScale }] },
+        ]}
+      >
+        {/* little caret pointing up at the header's "?" */}
+        <View style={[styles.caret, { backgroundColor: accent }]} />
+        <View style={[styles.bubble, { backgroundColor: accent }]}>
+          <Pressable
+            style={styles.bubbleMain}
+            onPress={() => flyAway(() => setOpen(true))}
+            hitSlop={6}
+          >
+            <Feather name={icon} size={14} color={colors.background} />
+            <Text style={[styles.bubbleText, { color: colors.background }]}>New here? Quick look</Text>
+          </Pressable>
+          <Pressable style={styles.bubbleClose} onPress={() => flyAway()} hitSlop={8}>
+            <Feather name="x" size={14} color={colors.background} />
+          </Pressable>
+        </View>
+      </Animated.View>
+    </View>
+  ) : null;
+
+  if (!visible) return bubble;
 
   return (
     <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={dismiss}>
@@ -117,6 +194,49 @@ export function PageGuide({ page, icon, accent, title, subtitle, points }: Props
 }
 
 const styles = StyleSheet.create({
+  bubbleWrap: {
+    position:   'absolute',
+    top:        6,
+    right:      SPACING.md,
+    alignItems: 'flex-end',
+  },
+  caret: {
+    width:        10,
+    height:       10,
+    marginRight:  14,
+    marginBottom: -5,
+    transform:    [{ rotate: '45deg' }],
+  },
+  bubble: {
+    flexDirection:  'row',
+    alignItems:     'center',
+    borderRadius:   20,
+    paddingLeft:    SPACING.md,
+    paddingRight:   SPACING.sm,
+    paddingVertical: 8,
+    gap:            SPACING.sm,
+    shadowColor:    '#000',
+    shadowOpacity:  0.2,
+    shadowRadius:   6,
+    shadowOffset:   { width: 0, height: 2 },
+    elevation:      4,
+  },
+  bubbleMain: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:           6,
+  },
+  bubbleText: {
+    fontFamily: FONTS.bodyBold,
+    fontSize:   13,
+  },
+  bubbleClose: {
+    width:          22,
+    height:         22,
+    alignItems:     'center',
+    justifyContent: 'center',
+    opacity:        0.8,
+  },
   backdrop: {
     flex:            1,
     alignItems:      'center',
