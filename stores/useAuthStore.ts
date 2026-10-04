@@ -8,6 +8,7 @@
 // whether to show the auth screen, onboarding, or the main app.
 
 import { create } from 'zustand';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Session, User, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { useUserStore } from '@/stores/useUserStore';
@@ -130,6 +131,14 @@ export const useAuthStore = create<AuthState>((set) => ({
     // The wiped lists are gone, so forget which Mode was applied over them. (The
     // Modes themselves are device settings and stay.)
     useModesStore.getState().setApplied(null, null);
+    // Companion, nicknames, feed tokens etc. live in their own per-account keys;
+    // clear them so the next account on this phone doesn't inherit them.
+    try {
+      const keys = (await AsyncStorage.getAllKeys()).filter((k) => k.startsWith('@nogoon_'));
+      if (keys.length > 0) await AsyncStorage.multiRemove(keys);
+    } catch (e) {
+      console.warn('signOut: clearing companion keys failed', e);
+    }
   },
 
   // ── requestPasswordReset ──────────────────────────────────────────────────
