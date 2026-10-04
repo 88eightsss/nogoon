@@ -528,13 +528,12 @@ export default function PostGameScreen() {
             )}
 
             <Pressable
-              onPress={() => {
-                setReflectionDone(true);
-                setShowNews(true);
-              }}
+              onPress={() => continueToNews()} // keeps any note already typed
               style={styles.reflectionSkip}
             >
-              <Text style={[styles.reflectionSkipText, { color: COLORS.textMuted }]}>Skip</Text>
+              <Text style={[styles.reflectionSkipText, { color: COLORS.textMuted }]}>
+                {noteDraft.trim() ? 'Save note & continue' : 'Skip'}
+              </Text>
             </Pressable>
           </View>
         </View>
