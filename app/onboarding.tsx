@@ -77,25 +77,25 @@ const SLIDES: { icon: FeatherName; title: string; body: string; color: string }[
   {
     icon: 'shield',
     title: 'NoGoon blocks the\napps that pull you in',
-    body: "When you open something on your blocklist, NoGoon steps in before the scroll starts — no willpower required, it just happens automatically.",
+    body: "Open a blocked app and NoGoon steps in before the scroll starts. No willpower needed.",
     color: COLORS.green,
   },
   {
     icon: 'refresh-cw',
     title: 'Pause. Play.\nThen choose.',
-    body: "Open a blocked app and a quick game steps in first. Most people walk away after it — but if you still want in, a short wait unlocks it. No points, no judgment.",
+    body: "A quick game breaks the urge. Most people walk away. If you still want in, a short wait unlocks it.",
     color: COLORS.purple,
   },
   {
     icon: 'grid',
-    title: 'Everything lives\nin five tabs',
-    body: "Protect sets what's blocked. Calm holds grounding tools. Today shows your streak and daily snapshot. Arcade is your full game library. Me is your stats, theme, and settings.",
+    title: 'Five tabs,\none home',
+    body: "Protect, Calm, Today, Arcade and Me. Each one explains itself the first time you open it.",
     color: COLORS.cyan,
   },
   {
     icon: 'settings',
-    title: 'One setting\nturns it all on',
-    body: "Next you'll flip on Accessibility Access in your phone's Settings app — that's what lets NoGoon actually see and block app opens. Takes about 30 seconds, and we'll walk you through every tap.",
+    title: 'One setting\nturns it on',
+    body: "Next, turn on Accessibility Access in Settings so NoGoon can block app opens. About 30 seconds, and we'll guide every tap.",
     color: COLORS.arcade,
   },
 ];
@@ -708,6 +708,19 @@ export default function OnboardingScreen() {
     <SafeAreaView style={styles.safe}>
       <View style={styles.flex}>
 
+        {/* Skip — straight to the palette step; setup (and the Accessibility
+            instructions) still happens later, so nothing essential is skipped. */}
+        {step < SLIDES.length - 1 && (
+          <Pressable style={styles.skipButton} onPress={() => {
+            // Park the slide strip on the last slide so "Back" from the
+            // palette screen lands on a slide that matches the step.
+            slideX.setValue(-(SLIDES.length - 1) * SCREEN_WIDTH);
+            setStep(SLIDES.length);
+          }} hitSlop={10}>
+            <Text style={styles.skipButtonText}>Skip</Text>
+          </Pressable>
+        )}
+
         {/* Slide container — all slides side by side, animated left/right */}
         <View style={styles.slidesWrapper}>
           <Animated.View
@@ -775,6 +788,19 @@ const styles = StyleSheet.create({
   },
 
   // ── Slides ──
+  skipButton: {
+    position: 'absolute',
+    top: SPACING.md,
+    right: SPACING.lg,
+    zIndex: 5,
+    paddingVertical: SPACING.xs,
+    paddingHorizontal: SPACING.sm,
+  },
+  skipButtonText: {
+    fontFamily: FONTS.bodyMedium,
+    fontSize: 15,
+    color: COLORS.textMuted,
+  },
   slidesWrapper: {
     flex: 1,
     overflow: 'hidden',
