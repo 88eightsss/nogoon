@@ -29,7 +29,9 @@ interface AuthState {
   initialize: () => Promise<void>;
 
   // Sign up with email + password, then create a profile row
-  signUp: (email: string, password: string, name: string) => Promise<AuthError | null>;
+  // `needsConfirmation` is true when the account was created but Supabase wants
+  // the email confirmed first, so no session exists yet.
+  signUp: (email: string, password: string, name: string) => Promise<{ error: AuthError | null; needsConfirmation: boolean }>;
 
   // Sign in with existing email + password
   signIn: (email: string, password: string) => Promise<AuthError | null>;
@@ -83,7 +85,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   signUp: async (email, password, name) => {
     const { data, error } = await supabase.auth.signUp({ email, password });
 
-    if (error) return error;
+    if (error) return { error, needsConfirmation: false };
 
     // Create the profile row — this is the user's game data record
     if (data.user) {
@@ -98,7 +100,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       });
     }
 
-    return null; // null = success
+    return { error: null, needsConfirmation: !data.session };
   },
 
   // ── signIn ────────────────────────────────────────────────────────────────
@@ -114,14 +116,16 @@ export const useAuthStore = create<AuthState>((set) => ({
   // they won't see the previous user's streak, points, or blocklist.
 
   signOut: async () => {
-    // 1. Wipe all local user data (points, streak, blocklist, etc.)
-    useUserStore.getState().resetStore();
-
-    // 2. Sign out of Supabase (clears the session token from SecureStore)
+    // 1. Sign out of Supabase (clears the session token from SecureStore) and
+    //    clear the auth state — _layout.tsx redirects to /auth.
     await supabase.auth.signOut();
-
-    // 3. Clear the auth state — _layout.tsx will redirect to /auth
     set({ session: null, user: null });
+
+    // 2. THEN wipe all local user data (points, streak, blocklist, etc.).
+    //    Doing this first flipped hasOnboarded to false while the session was
+    //    still set, which bounced the user to /onboarding for a moment before
+    //    /auth. With the session already gone, the redirect is straight to /auth.
+    useUserStore.getState().resetStore();
   },
 
   // ── requestPasswordReset ──────────────────────────────────────────────────

@@ -12,9 +12,9 @@
 // The SafeAreaProvider here wraps everything so any screen can use
 // useSafeAreaInsets() to avoid the phone's notch and gesture bars.
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Stack, router } from 'expo-router';
+import { Stack, router, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -37,6 +37,7 @@ import { useSubscriptionStore } from '@/stores/useSubscriptionStore';
 import { requestNotificationPermission, scheduleWeeklyRecap, cancelComebackReminder, notifyTokenEarned } from '@/utils/notifications';
 import { useAdAppOpen } from '@/components/ads/AdAppOpen';
 import { processCheckIn } from '@/services/feedTokens';
+import { useCloudSync } from '@/hooks/useCloudSync';
 
 // ─── Error Boundary ─────────────────────────────────────────────────────────── //
 //
@@ -149,7 +150,7 @@ const errorStyles = StyleSheet.create({
 
 export default function RootLayout() {
   const { session, loading, initialize } = useAuthStore();
-  const { hasOnboarded, loadFromSupabase, walkAwayCount, streak, refreshStreakRestores, checkStreakContinuity } = useUserStore();
+  const { hasOnboarded, loadFromSupabase, refreshStreakRestores, checkStreakContinuity } = useUserStore();
   const { initialize: initSubscription } = useSubscriptionStore();
 
   // Full-screen ad on every app foreground (= every NoGoon intercept)
@@ -179,35 +180,70 @@ export default function RootLayout() {
     initialize();
   }, [initialize]);
 
-  // Once auth is resolved and fonts are loaded, redirect to the right screen.
-  // This effect re-runs whenever session changes (login, logout).
+  // The user store is persisted to AsyncStorage and hydrates asynchronously.
+  // Until it has, `hasOnboarded` is just its default (false) — routing on that
+  // would send a returning user back through onboarding for a moment.
+  const [storeHydrated, setStoreHydrated] = useState(() => useUserStore.persist.hasHydrated());
   useEffect(() => {
-    if (!fontsLoaded || loading) return;
+    if (useUserStore.persist.hasHydrated()) { setStoreHydrated(true); return; }
+    return useUserStore.persist.onFinishHydration(() => setStoreHydrated(true));
+  }, []);
 
-    if (!session) {
-      // Not logged in → show auth screen
-      router.replace('/auth');
+  // Keep the current route in a ref so the routing effect can look at it
+  // without re-running every time the user navigates.
+  const segments = useSegments();
+  const segmentsRef = useRef<string[]>(segments as string[]);
+  segmentsRef.current = segments as string[];
+
+  // Depend on the user's id, not the session object: Supabase hands out a new
+  // session object on every token refresh (about hourly), which used to re-fire
+  // all of this and yank the user out of whatever screen they were on.
+  const userId = session?.user.id;
+  const ready = fontsLoaded && !loading && storeHydrated;
+
+  // Routing: auth → onboarding → tabs. Only ever moves the user when they are
+  // somewhere they shouldn't be, never when they're already in the right place.
+  // In particular it must not touch a gate that the blocker service just
+  // launched via deep link (cold start) or a flow in progress.
+  useEffect(() => {
+    if (!ready) return;
+    const top = segmentsRef.current[0];
+
+    if (!userId) {
+      if (top !== 'auth' && top !== 'forgot-password' && top !== 'reset-password') router.replace('/auth');
     } else if (!hasOnboarded) {
-      // Logged in but first launch → show onboarding
-      router.replace('/onboarding');
+      if (top !== 'onboarding') router.replace('/onboarding');
     } else {
-      // Fully set up → main app
-      // Sync Supabase data and initialize subscription status in parallel
-      loadFromSupabase(session.user.id);
-      initSubscription(session.user.id);
-      // On every app open: reset monthly streak restores + protect streak with freeze tokens
-      refreshStreakRestores();
-      checkStreakContinuity();
-      // Request notification permission then schedule weekly recap
-      requestNotificationPermission().then((granted) => {
-        if (granted) scheduleWeeklyRecap(walkAwayCount, streak);
-      });
-      router.replace('/(tabs)');
+      const inFlow = top === 'gate' || top === 'waiting-room' || top === 'post-game';
+      const inApp = top === '(tabs)' || inFlow;
+      const onEntryScreen = top === undefined || top === 'auth' || top === 'onboarding' || top === 'index';
+      if (!inApp && onEntryScreen) router.replace('/(tabs)');
     }
-  }, [fontsLoaded, loading, session, hasOnboarded]);
+  }, [ready, userId, hasOnboarded]);
+
+  // Once per login / app start (not per token refresh): pull cloud data and set
+  // up per-open housekeeping.
+  useEffect(() => {
+    if (!ready || !userId || !hasOnboarded) return;
+    loadFromSupabase(userId);
+    initSubscription(userId);
+    // On every app open: reset monthly streak restores + protect streak with freeze tokens
+    refreshStreakRestores();
+    checkStreakContinuity();
+    // Request notification permission then schedule weekly recap
+    requestNotificationPermission().then((granted) => {
+      if (granted) {
+        const { walkAwayCount: wa, streak: st } = useUserStore.getState();
+        scheduleWeeklyRecap(wa, st);
+      }
+    });
+  }, [ready, userId, hasOnboarded]);
+
+  // Push progress (points, XP, streak, walk-aways) up to the cloud as it changes.
+  useCloudSync(userId, ready && hasOnboarded);
 
   // Show nothing (splash screen stays visible) until fonts + auth are ready
-  if (!fontsLoaded || loading) {
+  if (!ready) {
     return null;
   }
 

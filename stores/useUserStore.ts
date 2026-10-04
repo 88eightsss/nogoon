@@ -1158,16 +1158,24 @@ export const useUserStore = create<UserState>()(
         // ── Profile data ──
         if (profileResult.data) {
           const p = profileResult.data;
-          const { label } = getLevelProgress(p.xp ?? 0);
-          set({
-            name: p.name ?? '',
-            points: p.points ?? 0,
-            xp: p.xp ?? 0,
-            level: label,
-            streak: p.streak ?? 0,
-            longestStreak: p.longest_streak ?? 0,
-            gamesPlayed: p.games_played ?? 0,
-            hasOnboarded: true,
+          // MERGE, don't overwrite. Progress is written on this device first and
+          // uploaded later (see hooks/useCloudSync.ts), so the cloud copy can be
+          // older — or still all zeros for an account whose profile row was just
+          // created. Taking the larger of the two means a launch can never wipe
+          // progress, and a reinstall/new phone still recovers it from the cloud.
+          set((state) => {
+            const xp = Math.max(state.xp, p.xp ?? 0);
+            return {
+              name: state.name || p.name || '',
+              points: Math.max(state.points, p.points ?? 0),
+              xp,
+              level: getLevelProgress(xp).label,
+              streak: Math.max(state.streak, p.streak ?? 0),
+              longestStreak: Math.max(state.longestStreak, p.longest_streak ?? 0),
+              gamesPlayed: Math.max(state.gamesPlayed, p.games_played ?? 0),
+              walkAwayCount: Math.max(state.walkAwayCount, p.walk_away_count ?? 0),
+              hasOnboarded: true,
+            };
           });
         }
 
@@ -1201,18 +1209,24 @@ export const useUserStore = create<UserState>()(
 
       syncToSupabase: async (userId) => {
         const { points, xp, level, streak, longestStreak, gamesPlayed, walkAwayCount } = get();
-        await backgroundWrite('syncToSupabase', () =>
-          supabase.from('profiles').upsert({
-            id: userId,
-            points,
-            xp,
-            level,
-            streak,
-            longest_streak: longestStreak,
-            games_played: gamesPlayed,
-            walk_away_count: walkAwayCount,
-          })
-        );
+        const base = {
+          id: userId,
+          points,
+          xp,
+          level,
+          streak,
+          longest_streak: longestStreak,
+          games_played: gamesPlayed,
+        };
+        // walk_away_count may not exist on older `profiles` tables. If the full
+        // upsert is rejected, retry without it so the rest of the progress still
+        // reaches the cloud instead of the whole sync silently failing.
+        const { error } = await supabase.from('profiles').upsert({ ...base, walk_away_count: walkAwayCount });
+        if (error) {
+          await backgroundWrite('syncToSupabase (without walk_away_count)', () =>
+            supabase.from('profiles').upsert(base)
+          );
+        }
       },
 
       // Called on sign out so the next person who logs in starts fresh.

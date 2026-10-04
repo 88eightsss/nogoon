@@ -59,11 +59,25 @@ export default function AuthScreen() {
 
     setLoading(true);
 
-    const err = mode === 'signup'
-      ? await signUp(email.trim(), password, name.trim())
-      : await signIn(email.trim(), password);
+    let err: { message: string } | null = null;
+    let needsConfirmation = false;
+    if (mode === 'signup') {
+      const res = await signUp(email.trim(), password, name.trim());
+      err = res.error;
+      needsConfirmation = res.needsConfirmation;
+    } else {
+      err = await signIn(email.trim(), password);
+    }
 
     setLoading(false);
+
+    if (!err && needsConfirmation) {
+      // Account exists but there's no session until the email is confirmed —
+      // without this message the screen just sat there looking broken.
+      setMode('signin');
+      setError('Account created. Check your email to confirm it, then sign in.');
+      return;
+    }
 
     if (err) {
       // Make Supabase error messages friendlier
