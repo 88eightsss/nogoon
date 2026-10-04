@@ -285,6 +285,7 @@ interface UserState {
   // Old entries (>30 days) are pruned on each write to cap storage.
   dailyGateFires: Record<string, number>;   // date → gate fire count
   dailyWalkAways: Record<string, number>;   // date → walk-away count (rolling 30 days — see above)
+  dailyGames: Record<string, number>;       // date → games played (rolling 30 days); powers "games this week"
 
   // Lifetime activity — separate from dailyWalkAways above on purpose. That
   // map is pruned to 30 days for the consistency score; Insights' "first
@@ -585,6 +586,7 @@ const DEFAULT_STATE = {
   // 30-day consistency tracking
   dailyGateFires: {} as Record<string, number>,
   dailyWalkAways: {} as Record<string, number>,
+  dailyGames: {} as Record<string, number>,
 
   // Lifetime activity (never pruned — see UserState comment)
   firstActiveDate: '',
@@ -674,8 +676,14 @@ export const useUserStore = create<UserState>()(
         set((state) => {
           const updated = [...state.weeklyActivity] as typeof state.weeklyActivity;
           updated[6] = updated[6] + 1; // Index 6 = today
+          // Date-keyed copy that doesn't need a daily roll-over; keep ~30 days.
+          const today = getLocalDateKey();
+          const dailyGames = { ...state.dailyGames, [today]: (state.dailyGames[today] ?? 0) + 1 };
+          const keys = Object.keys(dailyGames).sort();
+          for (const k of keys.slice(0, Math.max(0, keys.length - 30))) delete dailyGames[k];
           return {
             weeklyActivity: updated,
+            dailyGames,
             gamesPlayed: state.gamesPlayed + 1,
           };
         });
@@ -1233,7 +1241,12 @@ export const useUserStore = create<UserState>()(
 
           // Map each day in our 7-day window to its count (0 if no sessions)
           const weeklyActivity = days.map((d) => activityMap[d] ?? 0) as [number, number, number, number, number, number, number];
-          set({ weeklyActivity });
+          // Merge the cloud's per-day counts into the date-keyed map (never lower a local count).
+          set((state) => {
+            const dailyGames = { ...state.dailyGames };
+            days.forEach((d) => { dailyGames[d] = Math.max(dailyGames[d] ?? 0, activityMap[d] ?? 0); });
+            return { weeklyActivity, dailyGames };
+          });
         }
       } catch (err) {
         console.error('[loadFromSupabase] error:', err);
@@ -1328,6 +1341,7 @@ export const useUserStore = create<UserState>()(
         commitmentLog: state.commitmentLog,
         dailyGateFires: state.dailyGateFires,
         dailyWalkAways: state.dailyWalkAways,
+        dailyGames: state.dailyGames,
         firstActiveDate: state.firstActiveDate,
         totalActiveDays: state.totalActiveDays,
         walkAwayCount: state.walkAwayCount,

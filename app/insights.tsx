@@ -50,7 +50,7 @@ export default function InsightsScreen() {
     hourlyOpenCounts,
     walkAwayCount,
     gamesPlayed,
-    weeklyActivity,
+    dailyGames,
     streak,
     longestStreak,
     urgeJournal,
@@ -171,7 +171,7 @@ export default function InsightsScreen() {
   const ftEntries = Object.entries(followThroughByLabel)
     .filter(([, { total }]) => total >= 2)
     .sort((a, b) => b[1].total - a[1].total);
-  const gamesThisWeek  = weeklyActivity.reduce((a, b) => a + b, 0);
+  const gamesThisWeek  = weekDays.reduce((sum, d) => sum + (dailyGames[d.key] ?? 0), 0);
 
   // Feeling breakdown
   const totalReflections = Object.values(reflectionCounts).reduce((a, b) => a + b, 0);
