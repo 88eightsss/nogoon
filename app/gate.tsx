@@ -303,6 +303,9 @@ export default function NoGoonScreen() {
 
   // ── Increment open count for this domain on first render ─────────────────
   useEffect(() => {
+    // A gate that's about to dismiss itself (outside the block schedule) never
+    // really fired — don't count it toward open counts or the consistency score.
+    if (blockScheduleEnabled && !isWithinBlockSchedule(blockScheduleStart, blockScheduleEnd, blockScheduleDays)) return;
     incrementOpenCount(domain);
     recordDailyGateFire();
   // eslint-disable-next-line react-hooks/exhaustive-deps
