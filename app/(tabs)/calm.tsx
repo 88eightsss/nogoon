@@ -239,11 +239,12 @@ export default function CalmScreen() {
       icon="wind"
       accent={colors.calm}
       title="Calm"
-      subtitle="Recovery tools for when you're struggling — no stats, no scores, just things that help."
+      hint="Tools for tough moments"
+      subtitle="For when you're struggling. No scores, just help."
       points={[
-        { icon: 'wind',      title: 'Grounding tools',   body: 'Breathing and quick exercises that calm the urge in under 2 minutes.' },
-        { icon: 'clock',     title: 'Waiting Room',      body: "Sit with the urge and watch it pass on its own, without doing anything else." },
-        { icon: 'moon',      title: "Tonight's rule",    body: 'Set a nightly commitment that shows up if you hit a block later.' },
+        { icon: 'wind',      title: 'Grounding tools',   body: 'Quick exercises that calm the urge in under 2 minutes.' },
+        { icon: 'clock',     title: 'Waiting Room',      body: 'Sit with the urge and watch it pass.' },
+        { icon: 'moon',      title: "Tonight's rule",    body: 'A nightly commitment that shows up if you hit a block.' },
       ]}
     />
     </>

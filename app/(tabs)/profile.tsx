@@ -1093,11 +1093,12 @@ export default function MeScreen() {
       icon="user"
       accent={colors.me}
       title="Me"
-      subtitle="Your progress, your controls, your look — all in one place."
+      hint="Stats & settings"
+      subtitle="Your progress, controls and look."
       points={[
-        { icon: 'trending-up', title: 'Stats',           body: 'Walk-aways and time saved, tracked over time.' },
-        { icon: 'sliders',     title: 'Control board',   body: 'Wind-down hours, hard mode, and focus sessions live here.' },
-        { icon: 'droplet',     title: 'Look & feel',     body: 'Pick a theme and border style — it applies across the whole app.' },
+        { icon: 'trending-up', title: 'Stats',           body: 'Walk-aways and time saved over time.' },
+        { icon: 'sliders',     title: 'Control board',   body: 'Wind-down hours, hard mode and focus sessions.' },
+        { icon: 'droplet',     title: 'Look & feel',     body: 'Pick a theme and border style.' },
       ]}
     />
     </>

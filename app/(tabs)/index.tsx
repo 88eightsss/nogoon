@@ -29,11 +29,12 @@ export default function HomeScreen() {
         icon="home"
         accent={colors.accent}
         title="Today"
-        subtitle="Your daily snapshot — streak, blocklist, and quick stats, all in one glance."
+        hint="Your daily snapshot"
+        subtitle="Your streak, blocklist and quick stats at a glance."
         points={[
-          { icon: 'zap',          title: 'Streak ring',        body: "Counts every day you don't give in. Keep it going." },
-          { icon: 'shield',       title: "Today's blocklist",  body: "Shows what's currently blocked and since when." },
-          { icon: 'bar-chart-2',  title: 'Quick stats',        body: 'Longest streak and hours reclaimed, updated as you go.' },
+          { icon: 'zap',          title: 'Streak ring',        body: "Counts every day you don't give in." },
+          { icon: 'shield',       title: "Today's blocklist",  body: "What's blocked right now." },
+          { icon: 'bar-chart-2',  title: 'Quick stats',        body: 'Longest streak and hours reclaimed.' },
         ]}
       />
     </>

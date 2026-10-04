@@ -366,11 +366,12 @@ export default function ProtectScreen() {
       icon="shield"
       accent={colors.protect}
       title="Protect"
-      subtitle="Choose what NoGoon steps in for — apps, sites, or both."
+      hint="What gets blocked"
+      subtitle="Choose what NoGoon steps in for."
       points={[
-        { icon: 'toggle-right', title: 'Per-app toggles',   body: 'Flip on the apps you actually struggle with.' },
-        { icon: 'package',      title: 'Quick blocks',      body: 'Pre-built packages so you can block a whole category in one tap.' },
-        { icon: 'plus-circle',  title: 'Add your own',      body: 'Type in any site or domain that isn\'t listed.' },
+        { icon: 'toggle-right', title: 'Per-app toggles',   body: 'Flip on the apps you struggle with.' },
+        { icon: 'package',      title: 'Quick blocks',      body: 'Block a whole category in one tap.' },
+        { icon: 'plus-circle',  title: 'Add your own',      body: 'Type in any site that isn\'t listed.' },
       ]}
     />
     </>

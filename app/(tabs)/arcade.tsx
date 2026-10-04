@@ -468,11 +468,12 @@ export default function ArcadeScreen() {
       icon="zap"
       accent={liveColors.arcade}
       title="Arcade"
-      subtitle="Mini-games you earn, not games that earn your time back from you."
+      hint="Your game library"
+      subtitle="Mini-games to do instead of scrolling."
       points={[
-        { icon: 'lock',       title: 'Unlocks with streaks',  body: 'New games open up as your walk-away streak grows.' },
-        { icon: 'wind',       title: 'Calm games',            body: 'Lower-stimulation picks when you just need a distraction, not a challenge.' },
-        { icon: 'shield-off', title: 'No pressure',           body: 'No points to chase here — just something to do instead of scrolling.' },
+        { icon: 'lock',       title: 'Unlocks with streaks',  body: 'New games open as your streak grows.' },
+        { icon: 'wind',       title: 'Calm games',            body: 'Low-stimulation picks for when you just need a distraction.' },
+        { icon: 'shield-off', title: 'No pressure',           body: 'No points to chase.' },
       ]}
     />
     </>

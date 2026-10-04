@@ -31,7 +31,7 @@
 // so the guide reads the same on every device and font size.
 
 import { useEffect, useRef, useState } from 'react';
-import { Modal, View, Text, Pressable, StyleSheet, Animated } from 'react-native';
+import { Modal, View, Text, Pressable, StyleSheet, Animated, AccessibilityInfo } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useUserStore } from '@/stores/useUserStore';
@@ -56,9 +56,12 @@ type Props = {
   title:    string;
   subtitle: string;
   points:   PageGuidePoint[];
+  // Short line shown on the first-visit bubble, e.g. "Your daily snapshot".
+  // Falls back to a generic "New here? Quick look".
+  hint?:    string;
 };
 
-export function PageGuide({ page, icon, accent, title, subtitle, points }: Props) {
+export function PageGuide({ page, icon, accent, title, subtitle, points, hint }: Props) {
   const { colors } = useTheme();
   const seen = useUserStore((s) => !!s.seenPageGuides[page]);
   const markPageGuideSeen = useUserStore((s) => s.markPageGuideSeen);
@@ -78,6 +81,7 @@ export function PageGuide({ page, icon, accent, title, subtitle, points }: Props
   // on press glides up toward the header's "?" while shrinking away.
   const appear = useRef(new Animated.Value(0)).current;   // 0 hidden → 1 shown
   const leave  = useRef(new Animated.Value(0)).current;   // 0 in place → 1 gone
+  const pulse  = useRef(new Animated.Value(0)).current;   // slow breathing, a few cycles only
 
   // Stays mounted through the fly-away animation even though marking the page
   // seen (which happens at the start of it) would otherwise unmount it at once.
@@ -91,11 +95,25 @@ export function PageGuide({ page, icon, accent, title, subtitle, points }: Props
 
   useEffect(() => {
     if (!showBubble) return;
+    let loop: Animated.CompositeAnimation | null = null;
     const t = setTimeout(() => {
       Animated.timing(appear, { toValue: 1, duration: 350, useNativeDriver: true }).start();
+      // Gentle pulse to catch the eye: ~2.4s per breath, 4 breaths, then it
+      // rests. Skipped entirely when the OS asks for reduced motion.
+      AccessibilityInfo.isReduceMotionEnabled().then((reduce) => {
+        if (reduce) return;
+        loop = Animated.loop(
+          Animated.sequence([
+            Animated.timing(pulse, { toValue: 1, duration: 1200, useNativeDriver: true }),
+            Animated.timing(pulse, { toValue: 0, duration: 1200, useNativeDriver: true }),
+          ]),
+          { iterations: 4 },
+        );
+        loop.start();
+      }).catch(() => {});
     }, 700);
-    return () => clearTimeout(t);
-  }, [showBubble, appear]);
+    return () => { clearTimeout(t); loop?.stop(); };
+  }, [showBubble, appear, pulse]);
 
   const flyAway = (then?: () => void) => {
     setLeaving(true);
@@ -118,7 +136,10 @@ export function PageGuide({ page, icon, accent, title, subtitle, points }: Props
     appear.interpolate({ inputRange: [0, 1], outputRange: [-6, 0] }),
     leave.interpolate({ inputRange: [0, 1], outputRange: [0, -28] }),
   );
-  const bubbleScale = leave.interpolate({ inputRange: [0, 1], outputRange: [1, 0.4] });
+  const bubbleScale = Animated.multiply(
+    leave.interpolate({ inputRange: [0, 1], outputRange: [1, 0.4] }),
+    pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.05] }),
+  );
 
   const bubble = showBubble ? (
     <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
@@ -137,7 +158,7 @@ export function PageGuide({ page, icon, accent, title, subtitle, points }: Props
             hitSlop={6}
           >
             <Feather name={icon} size={14} color={colors.background} />
-            <Text style={[styles.bubbleText, { color: colors.background }]}>New here? Quick look</Text>
+            <Text style={[styles.bubbleText, { color: colors.background }]}>{hint ?? 'New here? Quick look'}</Text>
           </Pressable>
           <Pressable style={styles.bubbleClose} onPress={() => flyAway()} hitSlop={8}>
             <Feather name="x" size={14} color={colors.background} />
