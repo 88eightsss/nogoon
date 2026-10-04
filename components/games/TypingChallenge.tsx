@@ -31,6 +31,7 @@ import { FONTS } from '@/constants/Colors';
 import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { ProceedButton } from '@/components/ui/ProceedButton';
+import { useSafeTimeout } from '@/hooks/useSafeTimeout';
 
 // ─── Phrase bank ───────────────────────────────────────────────────────────────
 // Each phrase is chosen to reinforce the app's values while keeping fingers busy.
@@ -60,6 +61,7 @@ interface Props {
 }
 
 export function TypingChallenge({ onComplete, duration = 30 }: Props) {
+  const schedule = useSafeTimeout();
   const COLORS = useThemedColors();
   const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   // Pick a random phrase once per session
@@ -130,7 +132,7 @@ export function TypingChallenge({ onComplete, duration = 30 }: Props) {
       const speedBonus = Math.max(0, Math.round(40 * (1 - elapsed / duration)));
       const score = 80 + speedBonus;
       setPhase('complete');
-      setTimeout(() => onComplete(score), 800);
+      schedule(() => onComplete(score), 800);
     }
   };
 

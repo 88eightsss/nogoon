@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { FONTS } from '@/constants/Colors';
 import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
+import { useSafeTimeout } from '@/hooks/useSafeTimeout';
 
 // ─── Game constants ────────────────────────────────────────────────────────────
 
@@ -47,6 +48,7 @@ interface Props {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function PixelDodge({ onComplete }: Props) {
+  const schedule = useSafeTimeout();
   const COLORS = useThemedColors();
   const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   const [phase, setPhase] = useState<'ready' | 'playing' | 'dead' | 'win'>('ready');
@@ -75,7 +77,7 @@ export function PixelDodge({ onComplete }: Props) {
       dead.current = true;
       setPhase('dead');
       clearTimers();
-      setTimeout(() => onComplete(50), 900);
+      schedule(() => onComplete(50), 900);
     }
   }, [onComplete]);
 
@@ -117,7 +119,7 @@ export function PixelDodge({ onComplete }: Props) {
         dead.current = true;
         setPhase('win');
         clearTimers();
-        setTimeout(() => onComplete(100), 900);
+        schedule(() => onComplete(100), 900);
       }
     }, 1000);
   }, [checkCollision, onComplete]);

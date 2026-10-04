@@ -25,6 +25,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { FONTS } from '@/constants/Colors';
 import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
+import { useSafeTimeout } from '@/hooks/useSafeTimeout';
 
 // ─── Tile colors ──────────────────────────────────────────────────────────────
 
@@ -90,6 +91,7 @@ interface Props {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function ColorSort({ onComplete }: Props) {
+  const schedule = useSafeTimeout();
   const COLORS = useThemedColors();
   const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   const [phase, setPhase]       = useState<'ready' | 'playing' | 'solved'>('ready');
@@ -134,7 +136,7 @@ export function ColorSort({ onComplete }: Props) {
     if (isSolved(next)) {
       const pts = newMoves <= 10 ? 100 : newMoves <= 20 ? 70 : 50;
       setPhase('solved');
-      setTimeout(() => onComplete(pts), 900);
+      schedule(() => onComplete(pts), 900);
     }
   };
 

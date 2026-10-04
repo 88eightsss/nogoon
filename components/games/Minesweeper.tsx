@@ -18,6 +18,7 @@ import * as Haptics from 'expo-haptics';
 import { FONTS } from '@/constants/Colors';
 import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
+import { useSafeTimeout } from '@/hooks/useSafeTimeout';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -128,6 +129,15 @@ interface Props {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function Minesweeper({ onComplete }: Props) {
+  const schedule = useSafeTimeout();
+  // The win/lose checks run inside a state updater, which React may invoke twice —
+  // so finishing is guarded to happen exactly once.
+  const finishedRef = useRef(false);
+  const finish = (pts: number, ms: number) => {
+    if (finishedRef.current) return;
+    finishedRef.current = true;
+    schedule(() => onComplete(pts), ms);
+  };
   const COLORS = useThemedColors();
   const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   const [phase, setPhase]           = useState<Phase>('ready');
@@ -184,7 +194,7 @@ export function Minesweeper({ onComplete }: Props) {
         }
         setPhase('lost');
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        setTimeout(() => onComplete(50), 1200);
+        finish(50, 1200);
         return g;
       }
 
@@ -194,7 +204,7 @@ export function Minesweeper({ onComplete }: Props) {
       if (checkWin(g)) {
         setPhase('won');
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        setTimeout(() => onComplete(100), 900);
+        finish(100, 900);
       }
 
       return g;

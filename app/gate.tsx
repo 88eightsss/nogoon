@@ -371,7 +371,10 @@ export default function NoGoonScreen() {
             useNativeDriver: true,
           }),
         ]),
-      ]).start(() => doPulse());
+      // `finished` is false when cleanup calls stopAnimation() — without this check,
+      // that stop fired the callback and restarted the loop, so the pulse (and its
+      // timers) kept running after the user left the calm screen.
+      ]).start(({ finished }) => { if (finished) doPulse(); });
     };
     doPulse();
 

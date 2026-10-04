@@ -21,6 +21,7 @@ import {
 import { FONTS } from '@/constants/Colors';
 import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
+import { useSafeTimeout } from '@/hooks/useSafeTimeout';
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
 
@@ -194,6 +195,7 @@ interface Props { onComplete: (score: number) => void; }
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function TwentyFortyEight({ onComplete }: Props) {
+  const schedule = useSafeTimeout();
   const COLORS = useThemedColors();
   const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   const [tiles, setTiles] = useState<Tile[]>(() => {
@@ -300,8 +302,8 @@ export function TwentyFortyEight({ onComplete }: Props) {
       const ns = scoreRef.current + gained;
       setScore(ns);
 
-      if (hasWon(finalTiles))           { setPhase('won');  setTimeout(() => onComplete(ns), 1500); }
-      else if (!hasValidMoves(finalTiles)) { setPhase('over'); setTimeout(() => onComplete(ns), 1000); }
+      if (hasWon(finalTiles))           { setPhase('won');  schedule(() => onComplete(ns), 1500); }
+      else if (!hasValidMoves(finalTiles)) { setPhase('over'); schedule(() => onComplete(ns), 1000); }
 
       isAnimating.current = false;
     });
