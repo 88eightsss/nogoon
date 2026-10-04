@@ -20,14 +20,15 @@
 //   Long press    → secret panel (custom speech · stat bars toggle)
 //   Feed button   → spend 1 feed token, restore hunger
 
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, Animated, Pressable, Modal, TextInput,
   Switch, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import Svg, { Rect } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { COLORS, FONTS } from '@/constants/Colors';
+import { FONTS } from '@/constants/Colors';
+import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { usePetStore, getPetMood, getPetSpeech, type CharacterId } from '@/stores/usePetStore';
 import { getFeedTokens, spendFeedToken, getMinutesAway, MINS_PER_TOKEN } from '@/services/feedTokens';
@@ -408,6 +409,8 @@ export function GoonSprite({
 function EvolutionModal({
   char, stage, petName, onDone,
 }: { char: CharacterId; stage: GoonStage; petName: string; onDone: () => void }) {
+  const COLORS = useThemedColors();
+  const evoStyles = useMemo(() => makeEvoStyles(COLORS), [COLORS]);
   const glow = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(0.6)).current;
 
@@ -451,7 +454,7 @@ function EvolutionModal({
   );
 }
 
-const evoStyles = StyleSheet.create({
+const makeEvoStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.90)',
@@ -510,6 +513,8 @@ const evoStyles = StyleSheet.create({
 // ─── Character picker ─────────────────────────────────────────────────────────
 
 function CharacterPicker({ onPick }: { onPick: (id: CharacterId) => void }) {
+  const COLORS = useThemedColors();
+  const pickerStyles = useMemo(() => makePickerStyles(COLORS), [COLORS]);
   return (
     <Modal visible transparent animationType="fade">
       <View style={pickerStyles.backdrop}>
@@ -536,7 +541,7 @@ function CharacterPicker({ onPick }: { onPick: (id: CharacterId) => void }) {
   );
 }
 
-const pickerStyles = StyleSheet.create({
+const makePickerStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.85)',
@@ -602,6 +607,8 @@ const pickerStyles = StyleSheet.create({
 // ─── Stat bar ─────────────────────────────────────────────────────────────────
 
 function StatBar({ label, value, color }: { label: string; value: number; color: string }) {
+  const COLORS = useThemedColors();
+  const statStyles = useMemo(() => makeStatStyles(COLORS), [COLORS]);
   return (
     <View style={statStyles.row}>
       <Text style={statStyles.label}>{label}</Text>
@@ -613,7 +620,7 @@ function StatBar({ label, value, color }: { label: string; value: number; color:
   );
 }
 
-const statStyles = StyleSheet.create({
+const makeStatStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -663,6 +670,8 @@ function SecretPanel({
   petName, stats, customSpeech, showStats,
   onChangeName, onChangeSpeech, onToggleStats, onClose, accentColor,
 }: SecretPanelProps) {
+  const COLORS = useThemedColors();
+  const panelStyles = useMemo(() => makePanelStyles(COLORS), [COLORS]);
   const [nameDraft,   setNameDraft]   = useState(petName);
   const [speechDraft, setSpeechDraft] = useState(customSpeech);
 
@@ -738,7 +747,7 @@ function SecretPanel({
   );
 }
 
-const panelStyles = StyleSheet.create({
+const makePanelStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.75)',
@@ -819,6 +828,8 @@ const panelStyles = StyleSheet.create({
 function AccumulationHint({
   minsAway, tokens, accentColor,
 }: { minsAway: number; tokens: number; accentColor: string }) {
+  const COLORS = useThemedColors();
+  const hintStyles = useMemo(() => makeHintStyles(COLORS), [COLORS]);
   const minsToNext = MINS_PER_TOKEN - (minsAway % MINS_PER_TOKEN);
   const isEarning  = minsAway >= 1;
   const isCapped   = tokens >= 8;
@@ -850,7 +861,7 @@ function AccumulationHint({
   );
 }
 
-const hintStyles = StyleSheet.create({
+const makeHintStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   text: {
     fontFamily: FONTS.mono,
     fontSize: 10,
@@ -868,6 +879,8 @@ interface Props {
 }
 
 export function GoonMascot({ walkAwayCount, onPress }: Props) {
+  const COLORS = useThemedColors();
+  const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   const [character,      setCharacter]      = useState<CharacterId | null>(null);
   const [petName,        setPetName]        = useState('');
   const [showPicker,     setShowPicker]     = useState(false);
@@ -1225,7 +1238,7 @@ export function GoonMascot({ walkAwayCount, onPress }: Props) {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   wrap: {
     alignItems: 'center',
     gap: SPACING.sm,
