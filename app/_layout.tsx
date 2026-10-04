@@ -38,6 +38,8 @@ import { requestNotificationPermission, scheduleWeeklyRecap, cancelComebackRemin
 import { useAdAppOpen } from '@/components/ads/AdAppOpen';
 import { processCheckIn } from '@/services/feedTokens';
 import { useCloudSync } from '@/hooks/useCloudSync';
+import { useTheme } from '@/hooks/useTheme';
+import { isLightColor } from '@/utils/colorLuminance';
 
 // ─── Error Boundary ─────────────────────────────────────────────────────────── //
 //
@@ -149,6 +151,7 @@ const errorStyles = StyleSheet.create({
 // ─── Root Layout ────────────────────────────────────────────────────────────── //
 
 export default function RootLayout() {
+  const { colors: themeColors } = useTheme();
   const { session, loading, initialize } = useAuthStore();
   const { hasOnboarded, loadFromSupabase, refreshStreakRestores, checkStreakContinuity } = useUserStore();
   const { initialize: initSubscription } = useSubscriptionStore();
@@ -251,8 +254,8 @@ export default function RootLayout() {
     <ErrorBoundary>
       {/* SafeAreaProvider makes insets available to all child screens */}
       <SafeAreaProvider>
-        <StatusBar style="dark" />
-        <Stack screenOptions={{ headerShown: false }}>
+        <StatusBar style={isLightColor(themeColors.background) ? 'dark' : 'light'} />
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: themeColors.background } }}>
           {/* Auth + onboarding — no tab bar */}
           <Stack.Screen name="auth" />
           <Stack.Screen name="onboarding" />
