@@ -8,7 +8,7 @@
 //   Sign In — email + password for existing accounts
 //   Sign Up — email + password + name for new accounts
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -24,12 +24,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuthStore } from '@/stores/useAuthStore';
-import { COLORS, FONTS } from '@/constants/Colors';
+import { FONTS } from '@/constants/Colors';
+import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 
 type AuthMode = 'signin' | 'signup';
 
 export default function AuthScreen() {
+  const COLORS = useThemedColors();
+  const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   const { signIn, signUp } = useAuthStore();
 
   const [mode, setMode]         = useState<AuthMode>('signin');
@@ -239,7 +242,7 @@ export default function AuthScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: COLORS.background,

@@ -4,11 +4,12 @@
 // Calls the 'positive-news' Supabase edge function which fetches real
 // headlines via NewsAPI and rewrites the most uplifting one using Claude.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { View, Text, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
-import { COLORS, FONTS } from '@/constants/Colors';
+import { FONTS } from '@/constants/Colors';
+import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 
 type NewsItem = {
@@ -22,6 +23,8 @@ type Props = {
 };
 
 export function PositiveNewsCard({ onDone }: Props) {
+  const COLORS = useThemedColors();
+  const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   const [news, setNews]       = useState<NewsItem | null>(null);
   const [error, setError]     = useState(false);
   const [loading, setLoading] = useState(true);
@@ -81,7 +84,7 @@ export function PositiveNewsCard({ onDone }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   container: {
     flex: 1,
     alignItems: 'center',

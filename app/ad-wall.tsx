@@ -6,7 +6,7 @@
 // Navigation: push this screen when you want to show the contrast.
 // e.g. from paywall: "See what you're protected from →"
 
-import { useRef } from 'react';
+import { useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -18,7 +18,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { AdBanner } from '@/components/ads/AdBanner';
-import { COLORS, FONTS } from '@/constants/Colors';
+import { FONTS } from '@/constants/Colors';
+import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 
 // ─── Fake ad data ─────────────────────────────────────────────────────────────
@@ -160,6 +161,8 @@ function FakeAdCard({
 }: {
   ad: typeof FAKE_ADS[number];
 }) {
+  const COLORS = useThemedColors();
+  const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   return (
@@ -195,6 +198,8 @@ function FakeAdCard({
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function AdWall() {
+  const COLORS = useThemedColors();
+  const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView
@@ -258,7 +263,7 @@ export default function AdWall() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: '#0a0a0a',

@@ -19,7 +19,7 @@
 //   route to /waiting-room?app=com.instagram.android
 //   The waiting room then routes to /post-game after the countdown.
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -30,7 +30,8 @@ import {
 import { router, useLocalSearchParams } from 'expo-router';
 import { useUserStore } from '@/stores/useUserStore';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { COLORS, FONTS } from '@/constants/Colors';
+import { FONTS } from '@/constants/Colors';
+import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 
 // ─── Truth Pool ───────────────────────────────────────────────────────────────
@@ -102,6 +103,8 @@ function pickTruth() {
 const COUNTDOWN = 5;
 
 export default function WaitingRoomScreen() {
+  const COLORS = useThemedColors();
+  const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   const params = useLocalSearchParams<{
     app?: string;
     pointsEarned?: string;
@@ -245,7 +248,7 @@ export default function WaitingRoomScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: '#0d0d0d',

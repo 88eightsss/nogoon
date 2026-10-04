@@ -19,7 +19,7 @@
 //   The act of predicting forces a conscious estimate — which itself reduces
 //   usage. The evening reveal creates accountability without punishment.
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useFocusEffect } from 'expo-router';
 import {
   View,
@@ -33,7 +33,8 @@ import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUserStore } from '@/stores/useUserStore';
 import { getLocalDateKey } from '@/utils/date';
-import { COLORS, FONTS } from '@/constants/Colors';
+import { FONTS } from '@/constants/Colors';
+import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 
 const PREDICTION_KEY = 'dead_reckoning_prediction';
@@ -42,6 +43,8 @@ const PREDICTION_DATE_KEY = 'dead_reckoning_date';
 type Phase = 'predict' | 'reveal' | 'already_predicted';
 
 export default function DeadReckoningScreen() {
+  const COLORS = useThemedColors();
+  const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   const { openCounts, openCountDate } = useUserStore();
 
   const [phase,      setPhase]      = useState<Phase>('predict');
@@ -239,7 +242,7 @@ export default function DeadReckoningScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: COLORS.background,

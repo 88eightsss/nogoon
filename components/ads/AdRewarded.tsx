@@ -25,11 +25,12 @@
 //   This is policy-safe — the user explicitly opts in by tapping the button.
 //   AdMob explicitly supports this "opt-in rewarded" pattern.
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useSubscriptionStore } from '@/stores/useSubscriptionStore';
-import { COLORS, FONTS } from '@/constants/Colors';
+import { FONTS } from '@/constants/Colors';
+import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 
 // ─── Ad Unit IDs ──────────────────────────────────────────────────────────────
@@ -82,6 +83,8 @@ export function AdRewarded({ bonusPoints = 50, onRewarded }: AdRewardedProps) {
 // ─── Inner component (only mounts when native module is available) ─────────────
 
 function AdRewardedInner({ bonusPoints, onRewarded }: Required<AdRewardedProps>) {
+  const COLORS = useThemedColors();
+  const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   const [loaded, setLoaded]   = useState(false);
   const [loading, setLoading] = useState(true);
   const [used, setUsed]       = useState(false);
@@ -158,7 +161,7 @@ function AdRewardedInner({ bonusPoints, onRewarded }: Required<AdRewardedProps>)
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   container: {
     alignItems: 'center',
   },

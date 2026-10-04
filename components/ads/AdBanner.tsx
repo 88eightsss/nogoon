@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 // ─── AdBanner Component ───────────────────────────────────────────────────────
 //
 // A banner ad slot powered by Google AdMob (react-native-google-mobile-ads).
@@ -31,7 +32,8 @@
 
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import { useSubscriptionStore } from '@/stores/useSubscriptionStore';
-import { COLORS, FONTS } from '@/constants/Colors';
+import { FONTS } from '@/constants/Colors';
+import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 
 // ─── AdMob Unit IDs ───────────────────────────────────────────────────────────
@@ -86,6 +88,8 @@ try {
 }
 
 export function AdBanner({ size = 'banner', style }: AdBannerProps) {
+  const COLORS = useThemedColors();
+  const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   const { isPro } = useSubscriptionStore();
 
   // Pro users see no ads — this is a key selling point
@@ -123,7 +127,7 @@ export function AdBanner({ size = 'banner', style }: AdBannerProps) {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   adContainer: {
     alignItems: 'center',
     justifyContent: 'center',

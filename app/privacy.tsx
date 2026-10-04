@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 // ─── Privacy Policy ───────────────────────────────────────────────────────────
 //
 // Required by Google Play for apps using:
@@ -11,12 +12,15 @@ import { ScrollView, View, Text, Pressable, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { COLORS, FONTS } from '@/constants/Colors';
+import { FONTS } from '@/constants/Colors';
+import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING } from '@/constants/Spacing';
 
 const LAST_UPDATED = 'July 2026';
 
 function Section({ title, body }: { title: string; body: string }) {
+  const COLORS = useThemedColors();
+  const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>{title}</Text>
@@ -26,6 +30,8 @@ function Section({ title, body }: { title: string; body: string }) {
 }
 
 export default function PrivacyScreen() {
+  const COLORS = useThemedColors();
+  const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
@@ -136,7 +142,7 @@ export default function PrivacyScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: COLORS.background,

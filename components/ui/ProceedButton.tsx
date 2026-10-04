@@ -9,9 +9,10 @@
 //
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Pressable, Text, StyleSheet } from 'react-native';
-import { COLORS, FONTS } from '@/constants/Colors';
+import { FONTS } from '@/constants/Colors';
+import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 
 interface ProceedButtonProps {
@@ -28,6 +29,8 @@ export function ProceedButton({
   delaySeconds = 3,
   style,
 }: ProceedButtonProps) {
+  const COLORS = useThemedColors();
+  const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   const [remaining, setRemaining] = useState(delaySeconds);
   const ready = remaining === 0;
 
@@ -55,7 +58,7 @@ export function ProceedButton({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   button: {
     backgroundColor: COLORS.indigoBright,
     borderRadius: RADIUS.md,

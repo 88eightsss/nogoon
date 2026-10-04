@@ -11,7 +11,7 @@
 // Navigated to from: Profile screen → "Accountability Partner" settings row
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -26,13 +26,16 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { COLORS, FONTS } from '@/constants/Colors';
+import { FONTS } from '@/constants/Colors';
+import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { useUserStore } from '@/stores/useUserStore';
 
 // ─── Main component ────────────────────────────────────────────────────────────
 
 export default function PartnerScreen() {
+  const COLORS = useThemedColors();
+  const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   // Pull partner data and actions from the global user store
   const {
     partnerName,
@@ -214,7 +217,7 @@ export default function PartnerScreen() {
 
 // ─── Styles ────────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   safe:    { flex: 1, backgroundColor: COLORS.background },
   scroll:  { flex: 1 },
   content: { paddingHorizontal: SPACING.lg, paddingTop: SPACING.md, gap: SPACING.md },
