@@ -365,7 +365,7 @@ export default function OnboardingScreen() {
             <View style={styles.companionRow}>
               {([0, 1, 2] as CharacterId[]).map((id) => {
                 const active = id === selectedChar;
-                const accent = CHAR_COLORS[id][2][1];
+                const accent = CHAR_COLORS[id][0][1];
                 return (
                   <Pressable
                     key={id}
@@ -380,7 +380,7 @@ export default function OnboardingScreen() {
                       }
                     }}
                   >
-                    <GoonSprite char={id} stage={2} size={0.9} />
+                    <GoonSprite char={id} stage={0} size={0.9} />
                     <Text style={[styles.companionCardName, active && { color: accent }]}>
                       {COMPANION_NAMES[id]}
                     </Text>

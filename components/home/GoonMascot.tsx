@@ -529,7 +529,7 @@ function CharacterPicker({ onPick }: { onPick: (id: CharacterId) => void }) {
                 style={pickerStyles.card}
                 onPress={() => onPick(id)}
               >
-                <GoonSprite char={id} stage={2} size={0.85} />
+                <GoonSprite char={id} stage={0} size={0.85} />
                 <Text style={pickerStyles.charName}>{CHARACTER_NAMES[id]}</Text>
                 <Text style={pickerStyles.charTag}>{CHARACTER_TAGLINES[id]}</Text>
               </Pressable>
