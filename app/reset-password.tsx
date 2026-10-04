@@ -3,7 +3,7 @@
 // Takes the 6-digit code emailed by Supabase plus a new password. Verifying
 // the code (supabase.auth.verifyOtp with type 'recovery') establishes a real
 // session for that user, so once the password is updated the user is already
-// signed in — _layout.tsx's normal redirect logic takes it from there.
+// signed in; this screen then sends them on to the app itself.
 
 import { useState, useMemo } from 'react';
 import {
@@ -21,6 +21,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { useUserStore } from '@/stores/useUserStore';
 import { FONTS } from '@/constants/Colors';
 import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
@@ -68,11 +69,11 @@ export default function ResetPasswordScreen() {
       return;
     }
 
-    // Success — the user now has a live session with the new password.
-    // Don't navigate manually here: _layout.tsx's own auth listener reacts to
-    // the session change and redirects to onboarding or the main app on its
-    // own (same pattern as app/auth.tsx's sign-in/sign-up — see its comment).
-    // Calling router.replace here too would just race that redirect.
+    // Success — verifying the code signed the user in, and the password is now
+    // updated. Navigate explicitly: the root layout deliberately leaves this
+    // screen alone until the password update has finished (so a failed update
+    // above is shown here instead of being hidden by a redirect).
+    router.replace(useUserStore.getState().hasOnboarded ? '/(tabs)' : '/onboarding');
   };
 
   return (

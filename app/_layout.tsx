@@ -228,7 +228,8 @@ export default function RootLayout() {
       if (top !== 'auth' && top !== 'forgot-password' && top !== 'reset-password') router.replace('/auth');
     } else if (!hasOnboarded) {
       if (cloudCheckedFor !== userId) return; // still checking the cloud profile
-      if (top !== 'onboarding') router.replace('/onboarding');
+      // reset-password finishes its own password update before moving on.
+      if (top !== 'onboarding' && top !== 'reset-password') router.replace('/onboarding');
     } else {
       const inFlow = top === 'gate' || top === 'waiting-room' || top === 'post-game';
       const inApp = top === '(tabs)' || inFlow;
