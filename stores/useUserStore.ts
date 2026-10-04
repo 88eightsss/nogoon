@@ -1196,18 +1196,29 @@ export const useUserStore = create<UserState>()(
               longestStreak: Math.max(state.longestStreak, p.longest_streak ?? 0),
               gamesPlayed: Math.max(state.gamesPlayed, p.games_played ?? 0),
               walkAwayCount: Math.max(state.walkAwayCount, p.walk_away_count ?? 0),
-              hasOnboarded: true,
+              // A brand-new account also has a (zeroed) profile row, so a row alone
+              // proves nothing — only real progress marks someone as a returning user
+              // who shouldn't be walked through onboarding again.
+              hasOnboarded:
+                state.hasOnboarded ||
+                (p.points ?? 0) > 0 || (p.xp ?? 0) > 0 || (p.streak ?? 0) > 0 ||
+                (p.games_played ?? 0) > 0 || (p.walk_away_count ?? 0) > 0,
             };
           });
         }
 
         // ── Blocklist ──
         if (blocklistResult.data) {
-          set({
-            blocklist: blocklistResult.data.map(
-              (r: { domain: string }) => r.domain
-            ),
-          });
+          set((state) => ({
+            // Union, not replace: a failed background insert (or a Mode that swapped
+            // the live list) must never leave the user with fewer blocked sites after
+            // a launch. Removals already delete the cloud row at the time they happen.
+            blocklist: Array.from(new Set([
+              ...state.blocklist,
+              ...blocklistResult.data.map((r: { domain: string }) => r.domain),
+            ])),
+            hasOnboarded: state.hasOnboarded || blocklistResult.data.length > 0,
+          }));
         }
 
         // ── Weekly chart ──

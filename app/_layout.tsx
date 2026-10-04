@@ -205,6 +205,17 @@ export default function RootLayout() {
   const userId = session?.user.id;
   const ready = fontsLoaded && !loading && storeHydrated;
 
+  // A fresh install / new phone starts with hasOnboarded=false even for an account
+  // that finished onboarding long ago. Check the cloud once before deciding to
+  // send someone through onboarding again.
+  const [cloudCheckedFor, setCloudCheckedFor] = useState<string | null>(null);
+  useEffect(() => {
+    if (!ready || !userId || hasOnboarded || cloudCheckedFor === userId) return;
+    let cancelled = false;
+    loadFromSupabase(userId).finally(() => { if (!cancelled) setCloudCheckedFor(userId); });
+    return () => { cancelled = true; };
+  }, [ready, userId, hasOnboarded, cloudCheckedFor, loadFromSupabase]);
+
   // Routing: auth → onboarding → tabs. Only ever moves the user when they are
   // somewhere they shouldn't be, never when they're already in the right place.
   // In particular it must not touch a gate that the blocker service just
@@ -216,6 +227,7 @@ export default function RootLayout() {
     if (!userId) {
       if (top !== 'auth' && top !== 'forgot-password' && top !== 'reset-password') router.replace('/auth');
     } else if (!hasOnboarded) {
+      if (cloudCheckedFor !== userId) return; // still checking the cloud profile
       if (top !== 'onboarding') router.replace('/onboarding');
     } else {
       const inFlow = top === 'gate' || top === 'waiting-room' || top === 'post-game';
@@ -223,7 +235,7 @@ export default function RootLayout() {
       const onEntryScreen = top === undefined || top === 'auth' || top === 'onboarding' || top === 'index';
       if (!inApp && onEntryScreen) router.replace('/(tabs)');
     }
-  }, [ready, userId, hasOnboarded]);
+  }, [ready, userId, hasOnboarded, cloudCheckedFor]);
 
   // Once per login / app start (not per token refresh): pull cloud data and set
   // up per-open housekeeping.

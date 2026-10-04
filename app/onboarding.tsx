@@ -175,7 +175,9 @@ export default function OnboardingScreen() {
     setThemeBrightness(THEMES[id].nativeMode === 'light' ? 100 : 0);
   };
   const [palettePicked, setPalettePicked] = useState(false);
-  const [name, setNameLocal]              = useState('');
+  // The sign-up form already asked for a name — reuse it instead of asking again.
+  const knownName = (useUserStore.getState().name || (user?.user_metadata?.name as string | undefined) || '').trim();
+  const [name, setNameLocal]              = useState(knownName);
   const [nameError, setNameError]         = useState('');
   const [nameSaved, setNameSaved]         = useState(false);
   const [companionPicked, setCompanionPicked] = useState(false);
@@ -214,6 +216,9 @@ export default function OnboardingScreen() {
         useNativeDriver: true,
       }).start();
       setStep(step - 1);
+    } else if (palettePicked && !nameSaved) {
+      // Name screen → back to the palette (not past it, to the last slide).
+      setPalettePicked(false);
     } else {
       setStep(SLIDES.length - 1);
     }
@@ -248,6 +253,15 @@ export default function OnboardingScreen() {
     // The setup screen renders next (name is now saved, nameSaved=true).
     // Navigation to /(tabs) happens from the setup screen's Continue button.
   };
+
+  // With a name already on file, skip the name screen once the palette is chosen.
+  const autoNamedRef = useRef(false);
+  useEffect(() => {
+    if (!knownName || !palettePicked || nameSaved || autoNamedRef.current) return;
+    autoNamedRef.current = true;
+    handleFinish();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [palettePicked, nameSaved]);
 
   // Adds all selected domains from the chip grid.
   // The chips are named after apps ("TikTok", "Instagram"), and people expect
