@@ -8,7 +8,7 @@
 // "Set tonight's rule" → stored in useUserStore.nightlyCommitment
 // and surfaced on the gate calm screen the following day.
 
-import { ScrollView, View, Text, Pressable, StyleSheet, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { ScrollView, View, Text, Pressable, StyleSheet, Alert, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -20,6 +20,7 @@ import { TYPE } from '@/constants/Typography';
 import { useTheme } from '@/hooks/useTheme';
 import { useUserStore } from '@/stores/useUserStore';
 import { PageGuide } from '@/components/PageGuide';
+import { useUnlockedFeatures, lockHint } from '@/stores/useProgressStore';
 
 type Tool = {
   id: string;
@@ -75,10 +76,16 @@ const TOOLS: Tool[] = [
 
 function ToolRow({ tool }: { tool: Tool }) {
   const { colors } = useTheme();
+  const { unlocked } = useUnlockedFeatures();
+  // Insights is gated behind walk-aways everywhere else (Me tab); keep Calm consistent.
+  const locked = tool.id === 'insights' && !unlocked.has('insights');
   return (
     <Pressable
       style={({ pressed }) => [styles.row, pressed && { backgroundColor: colors.surfaceHigh }]}
-      onPress={() => router.push(tool.route)}
+      onPress={() => {
+        if (locked) { Alert.alert('Still locked', lockHint('insights')); return; }
+        router.push(tool.route);
+      }}
       android_ripple={{ color: colors.border }}
     >
       <View style={[styles.iconWrap, { backgroundColor: tool.iconColor + '18' }]}>
@@ -86,9 +93,9 @@ function ToolRow({ tool }: { tool: Tool }) {
       </View>
       <View style={styles.rowText}>
         <Text style={[styles.rowTitle, { color: colors.text }]}>{tool.title}</Text>
-        <Text style={[styles.rowSub, { color: colors.textSecondary }]}>{tool.subtitle}</Text>
+        <Text style={[styles.rowSub, { color: colors.textSecondary }]}>{locked ? lockHint('insights') : tool.subtitle}</Text>
       </View>
-      <Feather name="chevron-right" size={18} color={colors.textMuted} />
+      <Feather name={locked ? 'lock' : 'chevron-right'} size={18} color={colors.textMuted} />
     </Pressable>
   );
 }

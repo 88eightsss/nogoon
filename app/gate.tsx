@@ -1143,6 +1143,10 @@ export default function NoGoonScreen() {
             </Pressable>
           )}
 
+          <Pressable onPress={() => router.dismissAll()} style={styles.exitTextRow}>
+            <Text style={[styles.exitText, { color: C.textMuted }]}>Never mind</Text>
+          </Pressable>
+
         </Animated.View>
       </SafeAreaView>
     );
