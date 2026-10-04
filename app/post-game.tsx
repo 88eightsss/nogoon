@@ -30,7 +30,7 @@ import * as Haptics from 'expo-haptics';
 import { Feather } from '@expo/vector-icons';
 import { useUserStore } from '@/stores/useUserStore';
 import { PositiveNewsCard } from '@/components/PositiveNewsCard';
-import { grantTemporaryUnlock } from '@/utils/tempUnlock';
+import { grantTemporaryUnlock, launchBlockedApp } from '@/utils/tempUnlock';
 import { AdBanner } from '@/components/ads/AdBanner';
 import { AdRewarded } from '@/components/ads/AdRewarded';
 import { FONTS } from '@/constants/Colors';
@@ -345,25 +345,29 @@ export default function PostGameScreen() {
     setShowNowWhat(true);
   };
 
-  const handleUnlock = () => {
+  const handleUnlock = async () => {
     // Use 'app' (raw) for native unlock — it carries the package name for app blocks.
     // Fall back to 'domain' for web-only sessions where 'app' isn't present.
-    if (app || domain) grantTemporaryUnlock(app || domain, unlockMinutes);
+    const target = app || domain;
+    const granted = target ? await grantTemporaryUnlock(target, unlockMinutes) : false;
     notifyPartner(domainDisplay, 'unlock');
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     router.dismissAll();
+    if (granted && app) launchBlockedApp(app);
   };
 
   // Pro-only: unlock AND save the streak using a monthly restore token
-  const handleUnlockWithRestore = () => {
+  const handleUnlockWithRestore = async () => {
     if (!canRestoreStreak) return;
     const restored = useStreakRestore();
     if (restored) {
       incrementStreak();
-      if (app || domain) grantTemporaryUnlock(app || domain, unlockMinutes);
+      const target = app || domain;
+      const granted = target ? await grantTemporaryUnlock(target, unlockMinutes) : false;
       notifyPartner(domainDisplay, 'unlock');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.dismissAll();
+      if (granted && app) launchBlockedApp(app);
     }
   };
 

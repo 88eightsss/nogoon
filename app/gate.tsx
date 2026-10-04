@@ -66,7 +66,7 @@ import { WarpGame }          from '@/components/games/WarpGame';
 import { IntentionCheck }    from '@/components/games/IntentionCheck';
 import { TypingChallenge }   from '@/components/games/TypingChallenge';
 import { PACKAGE_TO_NAME } from '@/hooks/useAppBlocker';
-import { grantTemporaryUnlock } from '@/utils/tempUnlock';
+import { grantTemporaryUnlock, launchBlockedApp } from '@/utils/tempUnlock';
 import { useUserStore } from '@/stores/useUserStore';
 import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
@@ -879,6 +879,7 @@ export default function NoGoonScreen() {
               const granted = await grantTemporaryUnlock(domain);
               if (granted) notifyPartner(displayDomain, 'bypass');
               router.dismissAll();
+              if (granted && isAppBlock) launchBlockedApp(domain);
             }}
             disabled={!isMatch}
           >

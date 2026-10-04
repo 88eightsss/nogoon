@@ -25,6 +25,7 @@
 //   openNotificationListenerSettings()        — opens Notification Access settings
 //   getVpnDomainLog()                         — returns JSON array of recent blocked domains
 //   setModesConfig(modesJson, activeModeId)   — writes the Modes/Presets config for native resolution
+//   launchApp(packageName)                    — opens another installed app (resolves false if it can't be launched)
 
 package com.nogoon.app
 
@@ -162,6 +163,27 @@ class AppBlockerModule(reactContext: ReactApplicationContext) :
             // Always delegate to the default handler so Android can log the crash
             // and show the "App stopped" system dialog.
             defaultHandler?.uncaughtException(thread, throwable)
+        }
+    }
+
+    // Brings another app to the foreground. Used after an unlock is granted so the
+    // user lands in the app they asked for instead of back on NoGoon's home.
+    // Resolves false (never rejects) when the package isn't installed/launchable,
+    // e.g. when the blocked target was a website domain.
+    @ReactMethod
+    fun launchApp(packageName: String, promise: Promise) {
+        try {
+            val intent = reactApplicationContext.packageManager.getLaunchIntentForPackage(packageName)
+            if (intent == null) {
+                promise.resolve(false)
+                return
+            }
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            reactApplicationContext.startActivity(intent)
+            promise.resolve(true)
+        } catch (e: Exception) {
+            Log.e(TAG, "launchApp failed for $packageName", e)
+            promise.resolve(false)
         }
     }
 

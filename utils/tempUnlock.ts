@@ -20,6 +20,18 @@ const hasNativeModule = Platform.OS === 'android' && !!AppBlocker;
 
 export const DEFAULT_UNLOCK_MINUTES = 10;
 
+// Opens the target app after an unlock so the user isn't left on NoGoon's home
+// screen. Quietly does nothing for websites, or on a build without the native
+// launchApp method.
+export async function launchBlockedApp(target: string): Promise<void> {
+  if (!target || !hasNativeModule || typeof AppBlocker.launchApp !== 'function') return;
+  try {
+    await AppBlocker.launchApp(target);
+  } catch (e) {
+    console.warn('launchApp native call failed:', e);
+  }
+}
+
 export async function grantTemporaryUnlock(
   target: string,
   minutes: number = DEFAULT_UNLOCK_MINUTES,
