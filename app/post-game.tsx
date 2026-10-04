@@ -15,7 +15,7 @@
 //  so this works in Expo Go without any native modules.
 // ═══════════════════════════════════════════════════════════════════════════
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -33,7 +33,8 @@ import { PositiveNewsCard } from '@/components/PositiveNewsCard';
 import { grantTemporaryUnlock } from '@/utils/tempUnlock';
 import { AdBanner } from '@/components/ads/AdBanner';
 import { AdRewarded } from '@/components/ads/AdRewarded';
-import { COLORS, FONTS } from '@/constants/Colors';
+import { FONTS } from '@/constants/Colors';
+import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { MOOD_TAGS } from '@/constants/moods';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 
@@ -47,49 +48,49 @@ const MICRO_CARDS = [
     title: 'The 90-Second Rule',
     body: 'A physiological craving lasts about 90 seconds in your body. If you ride it out without acting, the wave breaks on its own.',
     source: 'Dr. Jill Bolte Taylor — My Stroke of Insight',
-    accent: COLORS.cyan,
+    accent: 'cyan' as const,
   },
   {
     emoji: '📉',
     title: 'Dopamine Reset',
     body: "Every time you resist an urge, you're lowering the spike and raising your baseline. The things you used to need more of start to feel like enough.",
     source: 'Dr. Anna Lembke — Dopamine Nation',
-    accent: COLORS.purple,
+    accent: 'purple' as const,
   },
   {
     emoji: '⚡',
     title: 'Pattern Interruption',
     body: 'Playing a cognitively demanding game right after a trigger physically reroutes the neural pathway before the habitual behavior can fire.',
     source: 'Cognitive Behavioral Neuroscience',
-    accent: COLORS.green,
+    accent: 'green' as const,
   },
   {
     emoji: '🎰',
     title: 'Variable Reward Loop',
     body: 'Social media uses unpredictable rewards — the same mechanism as slot machines — to keep dopamine elevated and attention locked in.',
     source: 'B.J. Fogg — Persuasive Technology',
-    accent: COLORS.warning,
+    accent: 'warning' as const,
   },
   {
     emoji: '⌚',
     title: 'The 10-Minute Rule',
     body: 'Waiting just 10 minutes before acting on a craving reduces its felt intensity by up to 40% in most people. Time is a disruptor.',
     source: 'Behavioral Psychology Research',
-    accent: COLORS.cyan,
+    accent: 'cyan' as const,
   },
   {
     emoji: '🏄',
     title: 'Urge Surfing',
     body: 'Rather than fighting a craving, observe it like a wave. Notice where you feel it in your body. It rises, peaks, and passes — without you doing anything.',
     source: 'Acceptance & Commitment Therapy (ACT)',
-    accent: COLORS.purple,
+    accent: 'purple' as const,
   },
   {
     emoji: '🔄',
     title: 'Habit Stacking',
     body: "Habits have three parts: cue \u2192 routine \u2192 reward. You kept the cue and reward. You just swapped the routine for a game. That's exactly how new habits form.",
     source: 'Charles Duhigg — The Power of Habit',
-    accent: COLORS.green,
+    accent: 'green' as const,
   },
 ] as const;
 
@@ -209,6 +210,8 @@ function getNowWhatHints(label: string, domain: string): string[] {
 // ─── Main component ────────────────────────────────────────────────────────────
 
 export default function PostGameScreen() {
+  const COLORS = useThemedColors();
+  const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   // ── Route params ───────────────────────────────────────────────────────────
   // isBricked = '1' means BRICKED (Hard Mode) is active — unlock button is hidden
   // isColdTurkey passed separately — superset of BRICKED with zero unlock path
@@ -720,10 +723,10 @@ export default function PostGameScreen() {
         )}
 
         {/* ── Micro-learning card ── */}
-        <View style={[styles.microCard, { borderLeftColor: card.accent }]}>
+        <View style={[styles.microCard, { borderLeftColor: COLORS[card.accent] }]}>
           <View style={styles.microCardHeader}>
             <Text style={styles.microEmoji}>{card.emoji}</Text>
-            <Text style={[styles.microTitle, { color: card.accent }]}>
+            <Text style={[styles.microTitle, { color: COLORS[card.accent] }]}>
               {card.title}
             </Text>
           </View>
@@ -767,7 +770,7 @@ export default function PostGameScreen() {
 
 // ─── Styles ────────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: COLORS.background,

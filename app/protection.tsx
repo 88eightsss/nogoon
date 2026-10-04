@@ -30,7 +30,7 @@
 //   took — this screen now checks the real OS state via
 //   checkBatteryOptimized() so the status shown is never just optimistic.
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -48,7 +48,8 @@ import { Feather } from '@expo/vector-icons';
 import { useAppBlocker } from '@/hooks/useAppBlocker';
 import { useVpn } from '@/hooks/useVpn';
 import { useNotificationListener } from '@/hooks/useNotificationListener';
-import { COLORS, FONTS } from '@/constants/Colors';
+import { FONTS } from '@/constants/Colors';
+import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 
 // ─── Protection Layer Card ────────────────────────────────────────────────────
@@ -74,6 +75,8 @@ function LayerCard({
   statusLabel, isActive, isLoading, actionLabel, onAction,
   cautionLabel, cautionDetail, locked,
 }: LayerCardProps) {
+  const COLORS = useThemedColors();
+  const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   return (
     <View style={[styles.card, isActive && styles.cardActive]}>
       {/* Card header */}
@@ -149,6 +152,8 @@ function formatRelative(ts: number): string {
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function ProtectionScreen() {
+  const COLORS = useThemedColors();
+  const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   const {
     serviceEnabled, openSettings: openAccessibility, checkServiceStatus,
     checkBatteryOptimized, openBatterySettings,
@@ -408,7 +413,7 @@ export default function ProtectionScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: COLORS.background,
