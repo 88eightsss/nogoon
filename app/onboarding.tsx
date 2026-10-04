@@ -435,7 +435,7 @@ export default function OnboardingScreen() {
 
             {/* Title */}
             <Text style={styles.setupTitle}>Set it up in{'\n'}30 seconds</Text>
-            <Text style={styles.setupSubtitle}>Three steps and you're protected.</Text>
+            <Text style={styles.setupSubtitle}>Two quick steps and you're protected. The rest is optional.</Text>
 
             {/* Setup card with action rows */}
             <View style={styles.setupCard}>
@@ -546,7 +546,7 @@ export default function OnboardingScreen() {
                   <Text style={styles.setupRowEmoji}>⚡</Text>
                   <View style={styles.setupRowText}>
                     <Text style={styles.setupRowTitle}>Keep NoGoon always on</Text>
-                    <Text style={styles.setupRowSub}>Stops Android from turning it off</Text>
+                    <Text style={styles.setupRowSub}>Recommended — stops Android from turning it off</Text>
                   </View>
                 </View>
 

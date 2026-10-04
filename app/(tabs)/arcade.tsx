@@ -471,7 +471,7 @@ export default function ArcadeScreen() {
       hint="Your game library"
       subtitle="Mini-games to do instead of scrolling."
       points={[
-        { icon: 'lock',       title: 'Unlocks with streaks',  body: 'New games open as your streak grows.' },
+        { icon: 'lock',       title: 'Unlocks as you go',  body: 'New games open as you walk away from blocked apps.' },
         { icon: 'wind',       title: 'Calm games',            body: 'Low-stimulation picks for when you just need a distraction.' },
         { icon: 'shield-off', title: 'No pressure',           body: 'No points to chase.' },
       ]}

@@ -322,7 +322,7 @@ export default function ProtectScreen() {
                 style={[addStyles.input, { color: colors.text }]}
                 value={customInput}
                 onChangeText={setCustomInput}
-                placeholder="site or app name"
+                placeholder="website, e.g. reddit.com"
                 placeholderTextColor={colors.textMuted}
                 autoCapitalize="none"
                 autoCorrect={false}

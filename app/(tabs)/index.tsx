@@ -30,11 +30,11 @@ export default function HomeScreen() {
         accent={colors.accent}
         title="Today"
         hint="Your daily snapshot"
-        subtitle="Your streak, blocklist and quick stats at a glance."
+        subtitle="Your companion, protection status and streak."
         points={[
-          { icon: 'zap',          title: 'Streak ring',        body: "Counts every day you don't give in." },
-          { icon: 'shield',       title: "Today's blocklist",  body: "What's blocked right now." },
-          { icon: 'bar-chart-2',  title: 'Quick stats',        body: 'Longest streak and hours reclaimed.' },
+          { icon: 'heart',        title: 'Your companion',     body: 'Grows each time you walk away.' },
+          { icon: 'shield',       title: 'Protection status',  body: 'Shows if blocking is on — tap to fix it.' },
+          { icon: 'zap',          title: 'Streak & stats',     body: "Counts the days you don't give in." },
         ]}
       />
     </>

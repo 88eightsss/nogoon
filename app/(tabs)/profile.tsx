@@ -468,7 +468,7 @@ export default function MeScreen() {
   };
 
   const signOutConfirm = () => {
-    Alert.alert('Sign out?', 'Your data is saved to the cloud and will be here when you return.', [
+    Alert.alert('Sign out?', 'Your progress is synced to your account. Sign back in to pick up where you left off.', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Sign out', style: 'destructive', onPress: () => { resetStore(); signOut(); } },
     ]);
@@ -759,7 +759,10 @@ export default function MeScreen() {
                   </Text>
                   <Pressable
                     style={[ctrlStyles.fixBtn, { backgroundColor: colors.surfaceHigh, alignSelf: 'flex-start' }]}
-                    onPress={endFocusSession}
+                    onPress={() => Alert.alert('End focus session?', 'Blocked apps will get their normal unlock path back.', [
+                      { text: 'Keep going', style: 'cancel' },
+                      { text: 'End it', style: 'destructive', onPress: endFocusSession },
+                    ])}
                   >
                     <Text style={[ctrlStyles.fixTxt, { color: colors.textSecondary }]}>End early</Text>
                   </Pressable>
@@ -772,7 +775,10 @@ export default function MeScreen() {
                       <Pressable
                         key={mins}
                         style={[ctrlStyles.fixBtn, { backgroundColor: colors.accentDim }]}
-                        onPress={() => startFocusSession(mins)}
+                        onPress={() => Alert.alert(`Start a ${mins}-minute focus session?`, 'Blocked apps get no unlock path until it ends. You can end it early from this screen.', [
+                          { text: 'Not now', style: 'cancel' },
+                          { text: 'Start', onPress: () => startFocusSession(mins) },
+                        ])}
                       >
                         <Text style={[ctrlStyles.fixTxt, { color: colors.accent }]}>{mins}m</Text>
                       </Pressable>
