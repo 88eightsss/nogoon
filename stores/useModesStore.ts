@@ -120,6 +120,12 @@ interface ModesState {
   deleteMode: (id: string) => void;
   duplicateMode: (id: string) => void;
   setActiveModeId: (id: string | null) => void;
+
+  // Bookkeeping for useNativeSync: which Mode content is currently applied to
+  // the live lists, and the user's own lists to restore afterwards.
+  appliedKey: string | null;
+  baseSnapshot: { apps: string[]; domains: string[] } | null;
+  setApplied: (key: string | null, snapshot: { apps: string[]; domains: string[] } | null) => void;
 }
 
 export const useModesStore = create<ModesState>()(
@@ -127,6 +133,8 @@ export const useModesStore = create<ModesState>()(
     (set, get) => ({
       modes: [],
       activeModeId: null,
+      appliedKey: null,
+      baseSnapshot: null,
 
       createMode: (input) => {
         const id = newModeId();
@@ -169,6 +177,8 @@ export const useModesStore = create<ModesState>()(
       },
 
       setActiveModeId: (id) => set({ activeModeId: id }),
+
+      setApplied: (key, snapshot) => set({ appliedKey: key, baseSnapshot: snapshot }),
     }),
     {
       name:    'nogoon-modes-store',
@@ -177,6 +187,8 @@ export const useModesStore = create<ModesState>()(
       partialize: (state) => ({
         modes:        state.modes,
         activeModeId: state.activeModeId,
+        appliedKey:   state.appliedKey,
+        baseSnapshot: state.baseSnapshot,
       }),
     }
   )

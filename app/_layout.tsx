@@ -38,6 +38,7 @@ import { requestNotificationPermission, scheduleWeeklyRecap, cancelComebackRemin
 import { useAdAppOpen } from '@/components/ads/AdAppOpen';
 import { processCheckIn } from '@/services/feedTokens';
 import { useCloudSync } from '@/hooks/useCloudSync';
+import { useNativeSync } from '@/hooks/useNativeSync';
 import { useTheme } from '@/hooks/useTheme';
 import { isLightColor } from '@/utils/colorLuminance';
 
@@ -244,6 +245,9 @@ export default function RootLayout() {
 
   // Push progress (points, XP, streak, walk-aways) up to the cloud as it changes.
   useCloudSync(userId, ready && hasOnboarded);
+
+  // Push blocklist, Modes, curfew and widget stats to the Accessibility Service.
+  useNativeSync(ready);
 
   // Show nothing (splash screen stays visible) until fonts + auth are ready
   if (!ready) {
