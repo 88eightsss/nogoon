@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useUserStore } from '@/stores/useUserStore';
 import { useAppBlocker, BLOCKABLE_APPS } from '@/hooks/useAppBlocker';
+import { describeBlockingStatus } from '@/utils/blockingStatus';
 import { PulseGlow } from '@/components/PulseGlow';
 import { useTheme } from '@/hooks/useTheme';
 import { PageGuide } from '@/components/PageGuide';
@@ -211,6 +212,7 @@ export default function ProtectScreen() {
   const { colors, cardStyle } = useTheme();
   const { blocklist, addSite, removeSite, blockedApps, setBlockedApps } = useUserStore();
   const { blockingStatus, openSettings } = useAppBlocker();
+  const statusView = describeBlockingStatus(blockingStatus, colors);
 
   const [customInput, setCustomInput] = useState('');
 
@@ -254,21 +256,17 @@ export default function ProtectScreen() {
           {/* Header */}
           <View style={styles.header}>
             <Text style={[styles.title, { color: colors.text }]}>Protect</Text>
-            <PulseGlow active={blockingStatus !== 'active'} color={colors.danger} radius={20}>
-            <Pressable
-              style={[styles.statusPill, { backgroundColor: blockingStatus === 'active' ? colors.successDim : colors.dangerDim }]}
-              onPress={blockingStatus !== 'active' ? openSettings : undefined}
-            >
-              <Feather
-                name="shield"
-                size={12}
-                color={blockingStatus === 'active' ? colors.success : colors.danger}
-              />
-              <Text style={[styles.statusText, { color: blockingStatus === 'active' ? colors.success : colors.danger }]}>
-                {blockingStatus === 'active' ? 'Active' : 'Off — tap to fix'}
-              </Text>
-            </Pressable>
-            </PulseGlow>
+            {statusView.visible && (
+              <PulseGlow active={statusView.alarm} color={statusView.color} radius={20}>
+                <Pressable
+                  style={[styles.statusPill, { backgroundColor: statusView.dim }]}
+                  onPress={statusView.alarm ? openSettings : undefined}
+                >
+                  <Feather name={statusView.icon} size={12} color={statusView.color} />
+                  <Text style={[styles.statusText, { color: statusView.color }]}>{statusView.short}</Text>
+                </Pressable>
+              </PulseGlow>
+            )}
           </View>
 
           {/* Battery-exemption warning — catches the state the pill above can't see */}

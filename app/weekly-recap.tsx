@@ -48,7 +48,6 @@ function dayLabel(key: string): string {
 export default function WeeklyRecapScreen() {
   const { colors } = useTheme();
   const {
-    walkAwayActivity,
     dailyWalkAways,
     dailyGateFires,
     urgeJournal,
@@ -62,10 +61,10 @@ export default function WeeklyRecapScreen() {
     return Array.from({ length: 7 }, (_, i) => {
       const daysAgo = 6 - i;
       const key = dateKey(daysAgo);
-      const count = dailyWalkAways[key] ?? walkAwayActivity[i] ?? 0;
+      const count = dailyWalkAways[key] ?? 0;
       return { key, label: dayLabel(key), count, daysAgo };
     });
-  }, [dailyWalkAways, walkAwayActivity]);
+  }, [dailyWalkAways]);
 
   const weekTotal   = useMemo(() => days.reduce((s, d) => s + d.count, 0), [days]);
   const maxDay      = useMemo(() => Math.max(...days.map((d) => d.count), 1), [days]);

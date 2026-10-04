@@ -23,6 +23,7 @@ import * as Haptics from 'expo-haptics';
 import { useUserStore, getMinutesSaved } from '@/stores/useUserStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useAppBlocker } from '@/hooks/useAppBlocker';
+import { describeBlockingStatus } from '@/utils/blockingStatus';
 import { PulseGlow } from '@/components/PulseGlow';
 import { useTheme } from '@/hooks/useTheme';
 import { useThemeStore } from '@/stores/useThemeStore';
@@ -393,6 +394,7 @@ export default function MeScreen() {
 
   const { signOut } = useAuthStore();
   const { blockingStatus, openSettings } = useAppBlocker();
+  const blockingView = describeBlockingStatus(blockingStatus, colors);
   const { unlocked } = useUnlockedFeatures();
   const { forceUnlockAll, setForceUnlockAll } = useProgressStore();
 
@@ -619,16 +621,16 @@ export default function MeScreen() {
             <View style={{ flex: 1 }}>
               <Text style={[ctrlStyles.label, { color: colors.text }]}>Blocking</Text>
               <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>
-                {blockingStatus === 'active' ? 'Active' : 'Off — tap to fix'}
+                {blockingView.visible ? blockingView.short : ' '}
               </Text>
             </View>
-            {blockingStatus !== 'active' && (
-              <PulseGlow active color={colors.danger} radius={RADIUS.sm}>
+            {blockingView.alarm && (
+              <PulseGlow active color={blockingView.color} radius={RADIUS.sm}>
                 <Pressable
-                  style={[ctrlStyles.fixBtn, { backgroundColor: colors.dangerDim }]}
+                  style={[ctrlStyles.fixBtn, { backgroundColor: blockingView.dim }]}
                   onPress={openSettings}
                 >
-                  <Text style={[ctrlStyles.fixTxt, { color: colors.danger }]}>Fix</Text>
+                  <Text style={[ctrlStyles.fixTxt, { color: blockingView.color }]}>Fix</Text>
                 </Pressable>
               </PulseGlow>
             )}

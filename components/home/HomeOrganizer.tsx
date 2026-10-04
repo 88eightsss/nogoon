@@ -20,6 +20,7 @@ import { useUserStore, getMinutesSaved } from '@/stores/useUserStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { usePetStore } from '@/stores/usePetStore';
 import { useAppBlocker } from '@/hooks/useAppBlocker';
+import { describeBlockingStatus, type BlockingStatus } from '@/utils/blockingStatus';
 import { PulseGlow } from '@/components/PulseGlow';
 import { ProtectionBanner } from '@/components/ProtectionBanner';
 import { useTheme } from '@/hooks/useTheme';
@@ -548,29 +549,33 @@ function WidgetContent({
       );
     }
 
-    case 'shield':
-      if (blockingStatus === 'active') {
-        return (
-          <View style={cStyles.shieldRow}>
-            <Feather name="shield" size={20} color={colors.success} />
-            <View>
-              <Text style={[cStyles.shieldTitle, { color: colors.success }]}>Blocking active</Text>
-              <Text style={[cStyles.sub, { color: colors.textMuted }]}>You're protected</Text>
-            </View>
+    case 'shield': {
+      const view = describeBlockingStatus(blockingStatus as BlockingStatus, colors);
+      if (!view.visible) return null;
+      const sub =
+        blockingStatus === 'active' ? "You're protected"
+        : blockingStatus === 'paused' ? 'Resume from the quick-settings tile'
+        : blockingStatus === 'empty' ? 'Add an app on Protect'
+        : 'Tap to fix';
+      const row = (
+        <View style={cStyles.shieldRow}>
+          <Feather name={view.icon} size={20} color={view.color} />
+          <View>
+            <Text style={[cStyles.shieldTitle, { color: view.color }]}>
+              {blockingStatus === 'off' ? 'Blocking off' : view.label}
+            </Text>
+            <Text style={[cStyles.sub, { color: colors.textMuted }]}>{sub}</Text>
           </View>
-        );
-      }
+        </View>
+      );
+      // Only a genuinely-off service is an alarm: pulsing and tappable.
+      if (!view.alarm) return row;
       return (
-        <PulseGlow active color={colors.danger} radius={RADIUS.sm} style={{ padding: 6, margin: -6 }}>
-          <Pressable style={cStyles.shieldRow} onPress={openSettings}>
-            <Feather name="alert-circle" size={20} color={colors.danger} />
-            <View>
-              <Text style={[cStyles.shieldTitle, { color: colors.danger }]}>Blocking off</Text>
-              <Text style={[cStyles.sub, { color: colors.textMuted }]}>Tap to fix</Text>
-            </View>
-          </Pressable>
+        <PulseGlow active color={view.color} radius={RADIUS.sm} style={{ padding: 6, margin: -6 }}>
+          <Pressable onPress={openSettings}>{row}</Pressable>
         </PulseGlow>
       );
+    }
 
     default:
       return null;

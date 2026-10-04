@@ -24,6 +24,7 @@ import * as Haptics from 'expo-haptics';
 import { useUserStore, getMinutesSaved } from '@/stores/useUserStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useAppBlocker } from '@/hooks/useAppBlocker';
+import { describeBlockingStatus, type BlockingStatus } from '@/utils/blockingStatus';
 import { PulseGlow } from '@/components/PulseGlow';
 import { ProtectionBanner } from '@/components/ProtectionBanner';
 import { useTheme } from '@/hooks/useTheme';
@@ -204,27 +205,28 @@ const intentionStyles = StyleSheet.create({
 
 // ─── Shield status strip ──────────────────────────────────────────────────────
 
-function ShieldStrip({ status, onFix }: { status: string; onFix: () => void }) {
+function ShieldStrip({ status, onFix }: { status: BlockingStatus; onFix: () => void }) {
   const { colors } = useTheme();
-  if (status === 'active') {
-    return (
-      <View style={[stripStyles.wrap, { backgroundColor: colors.successDim }]}>
-        <Feather name="shield" size={14} color={colors.success} />
-        <Text style={[stripStyles.text, { color: colors.success }]}>Blocking active</Text>
-      </View>
-    );
-  }
+  const view = describeBlockingStatus(status, colors);
+  if (!view.visible) return null;
+  // Only a genuinely-off service is tappable and pulsing; paused / empty are
+  // calm informational states (see utils/blockingStatus.ts).
+  const strip = (
+    <View style={[stripStyles.wrap, { backgroundColor: view.dim }]}>
+      <Feather name={view.icon} size={14} color={view.color} />
+      <Text style={[stripStyles.text, { color: view.color }]}>{view.label}</Text>
+    </View>
+  );
+  if (!view.alarm) return strip;
   return (
-    <PulseGlow active color={colors.danger} radius={RADIUS.sm} style={{ alignSelf: 'flex-start' }}>
+    <PulseGlow active color={view.color} radius={RADIUS.sm} style={{ alignSelf: 'flex-start' }}>
       <Pressable
-        style={[stripStyles.wrap, { backgroundColor: colors.dangerDim }]}
         onPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
           onFix();
         }}
       >
-        <Feather name="alert-circle" size={14} color={colors.danger} />
-        <Text style={[stripStyles.text, { color: colors.danger }]}>Blocking off — tap to fix</Text>
+        {strip}
       </Pressable>
     </PulseGlow>
   );

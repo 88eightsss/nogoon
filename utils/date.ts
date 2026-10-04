@@ -46,6 +46,19 @@ export function parseLocalDateKey(key: string): Date {
 // Local calendar-day difference between two 'YYYY-MM-DD' keys (a - b).
 // Safe across DST because it walks Date objects via setDate(), not raw ms
 // math on possibly-UTC-anchored timestamps.
+const WEEKDAY_LETTERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+// The last 7 local calendar days, oldest first, ending today — with the weekday
+// letter for each. Screens that chart "this week" should build from this and
+// the per-day dailyWalkAways map, NOT from the old walkAwayActivity array,
+// which only ever incremented its last slot and never rolled over by date.
+export function getLast7DaysWithLabels(now: Date = new Date()): { key: string; label: string }[] {
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (6 - i));
+    return { key: getLocalDateKey(d), label: WEEKDAY_LETTERS[d.getDay()] };
+  });
+}
+
 export function localDateKeyDiffDays(a: string, b: string): number {
   const ms = parseLocalDateKey(a).getTime() - parseLocalDateKey(b).getTime();
   return Math.round(ms / 86_400_000);

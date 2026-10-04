@@ -1,7 +1,7 @@
 // ─── Insights Screen ──────────────────────────────────────────────────────────
 //
 // Shows the user's behavioral patterns over time:
-//   1. Walk-aways this week (bar chart, walkAwayActivity)
+//   1. Walk-aways this week (bar chart, from dailyWalkAways)
 //   2. What you were feeling (reflectionCounts breakdown)
 //   3. Your peak urge hour (hourlyOpenCounts heatmap)
 //   4. All-time summary stats
@@ -17,11 +17,10 @@ import { useUserStore, getMinutesSaved } from '@/stores/useUserStore';
 import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { useTheme } from '@/hooks/useTheme';
-import { getLocalDateKey } from '@/utils/date';
+import { getLocalDateKey, getLast7DaysWithLabels } from '@/utils/date';
 import { computeConsistencyScore } from '@/utils/consistencyScore';
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
-const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 const MAX_BAR_HEIGHT = 56;
 
 // IDs must match the REFLECTION_OPTIONS ids in post-game.tsx exactly (capitalized).
@@ -47,7 +46,6 @@ function hourLabel(h: number): string {
 // ─── Main component ────────────────────────────────────────────────────────────
 export default function InsightsScreen() {
   const {
-    walkAwayActivity,
     reflectionCounts,
     hourlyOpenCounts,
     walkAwayCount,
@@ -133,8 +131,12 @@ export default function InsightsScreen() {
   };
 
   // Walk-away chart
-  const maxWalkAway    = Math.max(...walkAwayActivity, 1);
-  const totalThisWeek  = walkAwayActivity.reduce((a, b) => a + b, 0);
+  // Built from the per-day map, so the bars are the real last 7 days (and the
+  // letters are the real weekdays) instead of a counter that never rolled over.
+  const weekDays       = getLast7DaysWithLabels();
+  const walkAwayWeek   = weekDays.map((d) => dailyWalkAways[d.key] ?? 0);
+  const maxWalkAway    = Math.max(...walkAwayWeek, 1);
+  const totalThisWeek  = walkAwayWeek.reduce((a, b) => a + b, 0);
 
   // 30-day consistency: days you walked away at least once / days the gate
   // fired at all. Unlike a streak, one bad day only dents it.
@@ -305,7 +307,7 @@ export default function InsightsScreen() {
             </View>
           </View>
           <View style={styles.barRow}>
-            {walkAwayActivity.map((val, i) => {
+            {walkAwayWeek.map((val, i) => {
               const barH = (val / maxWalkAway) * MAX_BAR_HEIGHT;
               return (
                 <View key={i} style={styles.barWrapper}>
@@ -313,7 +315,7 @@ export default function InsightsScreen() {
                   <View style={[styles.barTrack, { backgroundColor: C.border }]}>
                     <View style={[styles.barFill, { height: barH, backgroundColor: i === 6 ? C.green : C.green + '55' }]} />
                   </View>
-                  <Text style={[styles.dayLabel, { color: i === 6 ? C.green : C.textMuted }]}>{DAY_LABELS[i]}</Text>
+                  <Text style={[styles.dayLabel, { color: i === 6 ? C.green : C.textMuted }]}>{weekDays[i].label}</Text>
                 </View>
               );
             })}

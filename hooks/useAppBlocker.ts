@@ -23,6 +23,7 @@ import * as IntentLauncher from 'expo-intent-launcher';
 import { useUserStore } from '@/stores/useUserStore';
 import { useModesStore, resolveActiveMode } from '@/stores/useModesStore';
 import { getLocalDateKey } from '@/utils/date';
+import type { BlockingStatus } from '@/utils/blockingStatus';
 
 // The native module registered by AppBlockerPackage.kt
 // On Android, this will be a real object. On iOS or Expo Go, it's undefined.
@@ -477,14 +478,17 @@ export function useAppBlocker() {
   //   'active'  — accessibility service is ON and at least one site/app is blocked
   //   'empty'   — service is ON but the blocklist is empty (user hasn't added anything)
   //   'off'     — accessibility service is disabled (needs user to go to Settings)
+  //   'checking' — the first service check hasn't returned yet (show nothing)
   const hasAnyBlocks = blockedApps.length > 0 || websiteBlocklist.length > 0;
-  const blockingStatus: 'paused' | 'active' | 'empty' | 'off' = isBlockingPaused
+  const blockingStatus: BlockingStatus = isBlockingPaused
     ? 'paused'
-    : !serviceEnabled
-      ? 'off'
-      : hasAnyBlocks
-        ? 'active'
-        : 'empty';
+    : checking && !serviceEnabled
+      ? 'checking'   // first check hasn't returned yet — don't flash "off"
+      : !serviceEnabled
+        ? 'off'
+        : hasAnyBlocks
+          ? 'active'
+          : 'empty';
 
   return {
     serviceEnabled,        // boolean — true if user has granted permission
