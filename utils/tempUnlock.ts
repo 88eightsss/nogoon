@@ -13,6 +13,7 @@
 // (e.g. "instagram.com") — NOT the pretty display name.
 
 import { NativeModules, Platform } from 'react-native';
+import { useUserStore } from '@/stores/useUserStore';
 
 const { AppBlocker } = NativeModules;
 const hasNativeModule = Platform.OS === 'android' && !!AppBlocker;
@@ -27,6 +28,8 @@ export async function grantTemporaryUnlock(
   const expiryMs = Date.now() + minutes * 60 * 1000;
   try {
     await AppBlocker.setTemporaryUnlock(target, expiryMs.toString());
+    // Letting the app through counts as giving in for streak purposes.
+    useUserStore.getState().recordGiveIn();
     return true;
   } catch (e) {
     console.warn('setTemporaryUnlock native call failed:', e);

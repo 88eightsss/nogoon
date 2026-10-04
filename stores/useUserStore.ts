@@ -208,6 +208,7 @@ interface UserState {
   // Unlike Pro streak restores, these are earned through consistent behaviour.
   streakFreezeTokens: number;
   lastStreakDate: string; // 'YYYY-MM-DD' of last streak increment — gap detection
+  lastGiveInDate: string; // 'YYYY-MM-DD' of the last time the user unlocked a blocked app
 
   // ── Accountability partner (Pro+ only) ─────────────────────────────────────
   partnerEmail: string;
@@ -316,6 +317,7 @@ interface UserState {
   spendPoints: (amount: number) => boolean;
   incrementStreak: () => void;
   resetStreak: () => void;
+  recordGiveIn: () => void;           // an unlock was granted — can end the streak
   recordGamePlayed: (score?: number, gameId?: string) => void;
   completeDailyChallenge: () => void;
 
@@ -551,6 +553,7 @@ const DEFAULT_STATE = {
   // Streak freeze tokens
   streakFreezeTokens: 0,
   lastStreakDate: '',
+  lastGiveInDate: '',
 
   // Partner
   partnerEmail: '',
@@ -659,6 +662,8 @@ export const useUserStore = create<UserState>()(
       },
 
       resetStreak: () => set({ streak: 0, lastStreakDate: '' }),
+
+      recordGiveIn: () => set({ lastGiveInDate: getLocalDateKey() }),
 
       // ── recordGamePlayed ─────────────────────────────────────────────────
       // Called when a user completes any game (from post-game.tsx).
@@ -858,28 +863,34 @@ export const useUserStore = create<UserState>()(
       },
 
       // ── Streak continuity check ──────────────────────────────────────────────
-      // Call on every app open. Compares lastStreakDate to today:
-      // - Same day or yesterday → streak is intact, nothing to do
-      // - Gap of exactly 1 day (today - lastStreakDate > 1) → missed a day
-      //   → auto-consume a freeze token if available, otherwise reset streak
+      // Call on every app open. A streak counts days of resisting, so a quiet
+      // day (no gate, nothing unlocked) must NOT break it — before, anyone who
+      // simply wasn't tempted for two days lost their streak. It only ends when
+      // the user actually gave in (unlocked an app) on a day they didn't also
+      // walk away:
+      // - Same day / yesterday → intact
+      // - Longer gap, no give-in since the last walk-away → intact; keep it alive
+      // - Longer gap with a give-in → burn a freeze token if there is one,
+      //   otherwise reset
       checkStreakContinuity: () => {
-        const { lastStreakDate, streak, streakFreezeTokens } = get();
+        const { lastStreakDate, lastGiveInDate, streak, streakFreezeTokens } = get();
         if (!lastStreakDate || streak === 0) return; // no streak to protect
         const today = getLocalDateKey();
         if (lastStreakDate === today) return; // still the same calendar day
         const daysDiff = localDateKeyDiffDays(today, lastStreakDate);
         if (daysDiff <= 1) return; // yesterday — streak still alive
-        // Missed at least one day
-        if (streakFreezeTokens > 0) {
-          // Burn one freeze token, move lastStreakDate to yesterday so the next
-          // walk-away today will re-increment the streak normally.
-          const yestDate = parseLocalDateKey(today);
-          yestDate.setDate(yestDate.getDate() - 1);
-          const yesterday = getLocalDateKey(yestDate);
-          set({
-            streakFreezeTokens: streakFreezeTokens - 1,
-            lastStreakDate: yesterday,
-          });
+
+        const yestDate = parseLocalDateKey(today);
+        yestDate.setDate(yestDate.getDate() - 1);
+        const yesterday = getLocalDateKey(yestDate);
+
+        const gaveIn = !!lastGiveInDate && lastGiveInDate > lastStreakDate;
+        if (!gaveIn) {
+          // Clean gap: carry the streak forward so the next walk-away today
+          // continues it instead of starting over.
+          set({ lastStreakDate: yesterday });
+        } else if (streakFreezeTokens > 0) {
+          set({ streakFreezeTokens: streakFreezeTokens - 1, lastStreakDate: yesterday });
         } else {
           set({ streak: 0, lastStreakDate: '' });
         }
@@ -1282,6 +1293,7 @@ export const useUserStore = create<UserState>()(
         streakRestoreMonth: state.streakRestoreMonth,
         streakFreezeTokens: state.streakFreezeTokens,
         lastStreakDate: state.lastStreakDate,
+        lastGiveInDate: state.lastGiveInDate,
         partnerEmail: state.partnerEmail,
         partnerName: state.partnerName,
         partnerNotifyOnUnlock: state.partnerNotifyOnUnlock,
