@@ -11,6 +11,7 @@ import { create } from 'zustand';
 import { Session, User, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { useUserStore } from '@/stores/useUserStore';
+import { useModesStore } from '@/stores/useModesStore';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -126,6 +127,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     //    still set, which bounced the user to /onboarding for a moment before
     //    /auth. With the session already gone, the redirect is straight to /auth.
     useUserStore.getState().resetStore();
+    // The wiped lists are gone, so forget which Mode was applied over them. (The
+    // Modes themselves are device settings and stay.)
+    useModesStore.getState().setApplied(null, null);
   },
 
   // ── requestPasswordReset ──────────────────────────────────────────────────
