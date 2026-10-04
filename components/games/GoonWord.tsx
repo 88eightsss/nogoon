@@ -14,6 +14,7 @@ import {
 import { FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import * as Haptics from 'expo-haptics';
+import { useSafeTimeout } from '@/hooks/useSafeTimeout';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -248,6 +249,7 @@ const keyStyles = StyleSheet.create({
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function GoonWord({ onComplete }: { onComplete: (won: boolean) => void }) {
+  const schedule = useSafeTimeout();
   // Picked once per game — the secret word this round.
   const [target] = useState(() => pickTarget());
 
@@ -288,7 +290,7 @@ export default function GoonWord({ onComplete }: { onComplete: (won: boolean) =>
 
   const showToast = (msg: string) => {
     setToast(msg);
-    setTimeout(() => setToast(''), 1500);
+    schedule(() => setToast(''), 1500);
   };
 
   const flipRow = (row: number, onDone: () => void) => {
@@ -325,11 +327,11 @@ export default function GoonWord({ onComplete }: { onComplete: (won: boolean) =>
         showToast(msgs[Math.min(row, msgs.length - 1)]);
         setWon(true);
         setGameOver(true);
-        setTimeout(() => onComplete(true), 1500);
+        schedule(() => onComplete(true), 1500);
       } else if (newGuesses.length >= MAX_ROWS) {
         showToast(target);
         setGameOver(true);
-        setTimeout(() => onComplete(false), 2000);
+        schedule(() => onComplete(false), 2000);
       }
     });
   }, [current, guesses, target, onComplete]);

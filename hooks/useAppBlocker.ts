@@ -123,7 +123,14 @@ export function useAppBlocker() {
   const setGrayscaleEnabled = useCallback(async (enabled: boolean) => {
     setGrayscaleEnabledState(enabled);
     if (hasNativeModule) {
-      try { await AppBlocker.setGrayscaleEnabled(enabled); } catch {}
+      try {
+        await AppBlocker.setGrayscaleEnabled(enabled);
+      } catch (e) {
+        // The native side didn't take the change — undo the optimistic UI
+        // update so the toggle doesn't claim something that isn't true.
+        console.warn('setGrayscaleEnabled native call failed:', e);
+        setGrayscaleEnabledState(!enabled);
+      }
     }
   }, []);
 
@@ -131,7 +138,14 @@ export function useAppBlocker() {
   const resumeBlocking = useCallback(async () => {
     setBlockingPausedUntil(0);
     if (hasNativeModule) {
-      try { await AppBlocker.setBlockingPaused(false); } catch {}
+      try {
+        await AppBlocker.setBlockingPaused(false);
+      } catch (e) {
+        // If the native resume failed, the service may still be paused while
+        // the UI says "protected". Re-read the real state instead of guessing.
+        console.warn('setBlockingPaused(false) native call failed:', e);
+        try { setBlockingPausedUntil(await AppBlocker.isBlockingPaused()); } catch {}
+      }
     }
   }, []);
 

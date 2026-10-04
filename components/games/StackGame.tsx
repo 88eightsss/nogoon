@@ -28,6 +28,7 @@ import {
 import { FONTS } from '@/constants/Colors';
 import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
+import { useSafeTimeout } from '@/hooks/useSafeTimeout';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -63,6 +64,7 @@ interface Props {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function StackGame({ onComplete }: Props) {
+  const schedule = useSafeTimeout();
   const COLORS = useThemedColors();
   const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   const [phase, setPhase]       = useState<'ready' | 'playing' | 'done'>('ready');
@@ -155,7 +157,7 @@ export function StackGame({ onComplete }: Props) {
       setFailed(true);
       setPhase('done');
       const pts = cnt >= 5 ? 45 : 20;
-      setTimeout(() => onComplete(pts), 700);
+      schedule(() => onComplete(pts), 700);
       return;
     }
 
@@ -181,12 +183,12 @@ export function StackGame({ onComplete }: Props) {
       setPhase('done');
       const finalRatio = overlap / INITIAL_WIDTH;
       const pts = finalRatio > 0.85 ? 120 : finalRatio > 0.55 ? 85 : finalRatio > 0.30 ? 60 : 40;
-      setTimeout(() => onComplete(pts), 500);
+      schedule(() => onComplete(pts), 500);
       return;
     }
 
     // Next block: same width as the overlap (shrinks on imperfect drops)
-    setTimeout(() => startSliding(overlap, newStacks), 200);
+    schedule(() => startSliding(overlap, newStacks), 200);
   }, [phase]);
 
   // ── Start game ────────────────────────────────────────────────────────────

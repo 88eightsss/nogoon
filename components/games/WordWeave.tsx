@@ -30,6 +30,7 @@ import { FONTS } from '@/constants/Colors';
 import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import * as Haptics from 'expo-haptics';
+import { useSafeTimeout } from '@/hooks/useSafeTimeout';
 
 // ─── Grid constants ───────────────────────────────────────────────────────────
 
@@ -160,6 +161,7 @@ interface Props {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function WordWeave({ onComplete }: Props) {
+  const schedule = useSafeTimeout();
   const COLORS = useThemedColors();
   const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   const [phase, setPhase] = useState<'ready' | 'playing' | 'done'>('ready');
@@ -215,7 +217,7 @@ export function WordWeave({ onComplete }: Props) {
         if (prev.includes(word)) {
           // Already found — treat as invalid
           setLastResult('invalid');
-          setTimeout(() => setLastResult(null), 1200);
+          schedule(() => setLastResult(null), 1200);
           return prev;
         }
         const next = [...prev, word];
@@ -225,16 +227,16 @@ export function WordWeave({ onComplete }: Props) {
         if (next.length >= TARGET_WORDS) {
           setPhase('done');
           const pts = newAttempts <= 10 ? 100 : 75;
-          setTimeout(() => onComplete(pts), 900);
+          schedule(() => onComplete(pts), 900);
         } else {
-          setTimeout(() => setLastResult(null), 1200);
+          schedule(() => setLastResult(null), 1200);
         }
         return next;
       });
     } else {
       setLastResult('invalid');
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      setTimeout(() => setLastResult(null), 1200);
+      schedule(() => setLastResult(null), 1200);
     }
   }, [grid, attempts, onComplete]);
 
