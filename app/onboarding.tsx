@@ -162,7 +162,15 @@ export default function OnboardingScreen() {
   }, [serviceEnabled, requestNotificationPermission]);
 
   const [step, setStep]                   = useState(0);
-  const { themeId, setTheme } = useThemeStore();
+  const { themeId, setTheme, setThemeBrightness } = useThemeStore();
+  // The palette cards preview each theme in its native look (Forest/Mocha are
+  // light, the rest dark), but the app renders whatever the brightness dial
+  // says — which defaults to Dark. Without syncing the dial, picking a light
+  // card gave the user that theme's DARK variant, i.e. not what they picked.
+  const applyPalette = (id: (typeof THEME_ORDER)[number]) => {
+    setTheme(id);
+    setThemeBrightness(THEMES[id].nativeMode === 'light' ? 100 : 0);
+  };
   const [palettePicked, setPalettePicked] = useState(false);
   const [name, setNameLocal]              = useState('');
   const [nameError, setNameError]         = useState('');
@@ -297,7 +305,7 @@ export default function OnboardingScreen() {
                       { backgroundColor: pal.background, borderColor: active ? pal.accent : pal.surfaceHigh },
                       active && { borderWidth: 3 },
                     ]}
-                    onPress={() => setTheme(id)}
+                    onPress={() => applyPalette(id)}
                   >
                     <View style={[styles.paletteSurface, { backgroundColor: pal.surface }]}>
                       <View style={[styles.paletteBar, { backgroundColor: pal.accent }]} />
@@ -318,7 +326,7 @@ export default function OnboardingScreen() {
               })}
             </View>
 
-            <Pressable style={styles.finishButton} onPress={() => setPalettePicked(true)}>
+            <Pressable style={styles.finishButton} onPress={() => { applyPalette(themeId); setPalettePicked(true); }}>
               <Text style={styles.finishButtonText}>Continue →</Text>
             </Pressable>
 
