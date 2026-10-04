@@ -41,7 +41,7 @@ const TEST_REWARDED_ID_ANDROID  = 'ca-app-pub-3940256099942544/5224354917';
 const REAL_REWARDED_ID_ANDROID  = 'ca-app-pub-REPLACE_ME/REPLACE_ME';
 
 // Import IS_PRODUCTION from AdBanner so there's one flag to flip
-import { IS_PRODUCTION } from './AdBanner';
+import { IS_PRODUCTION, isAdIdConfigured } from './AdBanner';
 
 const REWARDED_ID = IS_PRODUCTION ? REAL_REWARDED_ID_ANDROID : TEST_REWARDED_ID_ANDROID;
 
@@ -93,6 +93,7 @@ function AdRewardedInner({ bonusPoints, onRewarded }: Required<AdRewardedProps>)
 
   useEffect(() => {
     if (!RewardedAdSDK) return;
+    if (!isAdIdConfigured(REWARDED_ID)) { setLoading(false); return; }
 
     // Create and preload a rewarded ad
     const ad = RewardedAdSDK.createForAdRequest(REWARDED_ID, {

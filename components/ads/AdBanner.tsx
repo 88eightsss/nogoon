@@ -50,6 +50,11 @@ const REAL_BANNER_ID_IOS     = 'ca-app-pub-REPLACE_ME/REPLACE_ME';
 // Switch between test and real IDs — set IS_PRODUCTION = true before releasing
 export const IS_PRODUCTION = true;
 
+// Placeholder IDs ('REPLACE_ME') can never fill, so every ad component skips
+// loading entirely until real ones are pasted in — no failing requests, no
+// 30-second retry loops, no empty ad slots.
+export const isAdIdConfigured = (id?: string | null): boolean => !!id && !id.includes('REPLACE_ME');
+
 export const BANNER_ID = Platform.select({
   android: IS_PRODUCTION ? REAL_BANNER_ID_ANDROID : TEST_BANNER_ID_ANDROID,
   ios:     IS_PRODUCTION ? REAL_BANNER_ID_IOS     : TEST_BANNER_ID_IOS,
@@ -99,6 +104,7 @@ export function AdBanner({ size = 'banner', style }: AdBannerProps) {
 
   // ── Real ad (EAS build with AdMob installed) ───────────────────────────────
   if (BannerAd && BannerAdSize) {
+    if (!isAdIdConfigured(BANNER_ID)) return null;
     return (
       <View style={[styles.adContainer, { height }, style]}>
         <BannerAd

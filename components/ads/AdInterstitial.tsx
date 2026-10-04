@@ -23,7 +23,7 @@
 
 import { useRef, useEffect, useCallback } from 'react';
 import { useSubscriptionStore } from '@/stores/useSubscriptionStore';
-import { IS_PRODUCTION } from './AdBanner';
+import { IS_PRODUCTION, isAdIdConfigured } from './AdBanner';
 
 // ─── Ad Unit IDs ──────────────────────────────────────────────────────────────
 const TEST_INTERSTITIAL_ID_ANDROID = 'ca-app-pub-3940256099942544/1033173712';
@@ -58,7 +58,7 @@ export function useAdInterstitial() {
 
   // Preload the first ad on mount
   useEffect(() => {
-    if (isPro || !InterstitialAdSDK) return;
+    if (isPro || !InterstitialAdSDK || !isAdIdConfigured(INTERSTITIAL_ID)) return;
 
     const loadAd = () => {
       const ad = InterstitialAdSDK.createForAdRequest(INTERSTITIAL_ID, {

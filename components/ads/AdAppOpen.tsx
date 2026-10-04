@@ -25,7 +25,7 @@
 import { useEffect, useRef } from 'react';
 import { AppState } from 'react-native';
 import { useSubscriptionStore } from '@/stores/useSubscriptionStore';
-import { IS_PRODUCTION } from './AdBanner';
+import { IS_PRODUCTION, isAdIdConfigured } from './AdBanner';
 
 // ─── Ad Unit IDs ──────────────────────────────────────────────────────────────
 const TEST_APP_OPEN_ID_ANDROID = 'ca-app-pub-3940256099942544/3419835294';
@@ -59,7 +59,7 @@ export function useAdAppOpen() {
   useEffect(() => { isProRef.current = isPro; }, [isPro]);
 
   useEffect(() => {
-    if (isPro || !AppOpenAdSDK) return;
+    if (isPro || !AppOpenAdSDK || !isAdIdConfigured(APP_OPEN_ID)) return;
 
     let cleanupListeners: (() => void) | undefined;
 
