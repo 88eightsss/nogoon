@@ -31,7 +31,7 @@ import {
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { FONTS } from '@/constants/Colors';
-import { SPACING, RADIUS } from '@/constants/Spacing';
+import { SPACING } from '@/constants/Spacing';
 import { ProceedButton } from '@/components/ui/ProceedButton';
 
 // ─── Game constants ────────────────────────────────────────────────────────────

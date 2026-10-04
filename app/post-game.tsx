@@ -237,7 +237,6 @@ export default function PostGameScreen() {
   // ── Store ──────────────────────────────────────────────────────────────────
   const {
     streak,
-    level,
     walkAwayCount,
     addPoints,
     addXP,

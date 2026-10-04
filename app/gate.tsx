@@ -69,7 +69,7 @@ import { PACKAGE_TO_NAME } from '@/hooks/useAppBlocker';
 import { useUserStore } from '@/stores/useUserStore';
 import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
-import { ALL_GAMES, GATE_GAMES, CALM_GAMES as CALM_CATEGORY_GAMES, pickRandomGame, getGameById, type GameId } from '@/constants/games';
+import { GATE_GAMES, CALM_GAMES as CALM_CATEGORY_GAMES, pickRandomGame, getGameById, type GameId } from '@/constants/games';
 import { useThemeStore } from '@/stores/useThemeStore';
 import { useAdInterstitial } from '@/components/ads/AdInterstitial';
 import AsyncStorage from '@react-native-async-storage/async-storage';

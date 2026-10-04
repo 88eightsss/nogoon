@@ -23,7 +23,6 @@ import {
   StyleSheet,
   SafeAreaView,
   Animated,
-  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,

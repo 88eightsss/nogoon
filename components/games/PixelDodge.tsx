@@ -11,7 +11,6 @@ import {
   StyleSheet,
   Pressable,
   SafeAreaView,
-  Animated,
 } from 'react-native';
 import { FONTS } from '@/constants/Colors';
 import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
@@ -28,7 +27,6 @@ const BOARD_W     = COLS * CELL + (COLS - 1) * GAP;
 const BOARD_H     = TOTAL_ROWS * CELL + (TOTAL_ROWS - 1) * GAP;
 const WIN_SECONDS = 30;
 const TICK_START  = 600;         // ms between block drops initially
-const TICK_MIN    = 180;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

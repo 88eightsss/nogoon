@@ -269,7 +269,6 @@ const FEED: FeedPost[] = [
   },
 ];
 
-const AD_COUNT = FEED.filter(p => p.isAd).length; // 5
 const GAME_DURATION = 60;
 
 // ─── FeedPost Component ───────────────────────────────────────────────────────

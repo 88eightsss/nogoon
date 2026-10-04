@@ -23,7 +23,7 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, Animated, Pressable, Modal, TextInput,
-  Switch, ScrollView, KeyboardAvoidingView, Platform,
+  Switch, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import Svg, { Rect } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';

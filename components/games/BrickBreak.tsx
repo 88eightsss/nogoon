@@ -65,7 +65,7 @@ export function BrickBreak({ onComplete }: Props) {
   const [phase, setPhase] = useState<'ready' | 'playing' | 'done'>('ready');
   const [lives, setLives] = useState(MAX_LIVES);
   const [bricksLeft, setBricksLeft] = useState(BRICK_ROWS * BRICK_COLS);
-  const [renderTick, setRenderTick] = useState(0); // force re-render
+  const [, setRenderTick] = useState(0); // force re-render
 
   // Measured board size
   const boardW = useRef(300);
@@ -152,7 +152,6 @@ export function BrickBreak({ onComplete }: Props) {
     const brickW = (bw - (BRICK_COLS + 1) * BRICK_GAP) / BRICK_COLS;
     const topPad = 50;
 
-    let hitBrick = false;
     outer:
     for (let r = 0; r < BRICK_ROWS; r++) {
       for (let c = 0; c < BRICK_COLS; c++) {
@@ -174,8 +173,6 @@ export function BrickBreak({ onComplete }: Props) {
           const overlapY = Math.min(y + BALL_R - by, by + BRICK_H - (y - BALL_R));
           if (overlapX < overlapY) vx = -vx;
           else vy = -vy;
-
-          hitBrick = true;
 
           if (bricksLeftRef.current === 0) {
             doneRef.current = true;

@@ -151,7 +151,7 @@ function StreakMilestoneFlash({ days, onDone }: { days: number; onDone: () => vo
 const INTENTION_KEY      = 'nogoon_today_intention';
 const INTENTION_DATE_KEY = 'nogoon_intention_date';
 
-function IntentionWidget({ colors, cardBorderRadius }: { colors: any; cardBorderRadius: number }) {
+function IntentionWidget({ colors }: { colors: any }) {
   const [intention, setIntention] = useState('');
   const [editing,   setEditing]   = useState(false);
   const [draft,     setDraft]     = useState('');
@@ -495,7 +495,7 @@ function WidgetContent({
     }
 
     case 'intention':
-      return <IntentionWidget colors={colors} cardBorderRadius={RADIUS.lg} />;
+      return <IntentionWidget colors={colors} />;
 
     case 'breathe':
       return (
@@ -762,12 +762,11 @@ const bubStyles = StyleSheet.create({
 });
 
 // ─── Widget picker modal ──────────────────────────────────────────────────────
-function WidgetPicker({ visible, onClose, onSelect, colors, cardStyle }: {
+function WidgetPicker({ visible, onClose, onSelect, colors }: {
   visible: boolean;
   onClose: () => void;
   onSelect: (id: WidgetId) => void;
   colors: any;
-  cardStyle: any;
 }) {
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -822,7 +821,7 @@ export function HomeOrganizer() {
   const { name, walkAwayCount, streak, longestStreak, streakFreezeTokens = 0, dailyWalkAways, loadFromSupabase } = useUserStore();
   const minutesSaved = getMinutesSaved(walkAwayCount);
   const { blockingStatus, openSettings } = useAppBlocker();
-  const { colors, cardStyle } = useTheme();
+  const { colors } = useTheme();
   const {
     homeLayout, updateBubble, addBubble, removeBubble, moveBubble, borderId,
   } = useThemeStore();
@@ -1152,7 +1151,6 @@ export function HomeOrganizer() {
           setSwappingId(null);
         }}
         colors={colors}
-        cardStyle={cardStyle}
       />
     </SafeAreaView>
   );

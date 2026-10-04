@@ -14,15 +14,12 @@ import {
   StyleSheet,
   Pressable,
   Animated,
-  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { AdBanner } from '@/components/ads/AdBanner';
 import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
-
-const { width: W } = Dimensions.get('window');
 
 // ─── Fake ad data ─────────────────────────────────────────────────────────────
 // Parody ads that mirror real dark-pattern ads found online.

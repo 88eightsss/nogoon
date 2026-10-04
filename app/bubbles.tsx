@@ -12,7 +12,7 @@
 import { useState, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, Pressable, TextInput,
-  ScrollView, Modal, Alert, Animated,
+  Modal, Alert, Animated,
   KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -34,7 +34,7 @@ import { Feather } from '@expo/vector-icons';
 // ─── Write view — fullscreen text editor for a single bubble ─────────────────
 
 function WriteView({ bubble, onClose }: { bubble: Bubble; onClose: () => void }) {
-  const { colors, cardStyle } = useTheme();
+  const { colors } = useTheme();
   const { updateBubble, deleteBubble } = useBubblesStore();
   const [text, setText] = useState(bubble.text);
   const [title, setTitle] = useState(bubble.title);
@@ -334,11 +334,10 @@ const bubbleNodeStyles = StyleSheet.create({
 // ─── Canvas ───────────────────────────────────────────────────────────────────
 
 export default function BubblesScreen() {
-  const { colors, cardStyle } = useTheme();
+  const { colors } = useTheme();
   const { bubbles, addBubble, updateBubble } = useBubblesStore();
 
   const [openBubble, setOpenBubble]  = useState<Bubble | null>(null);
-  const [showNew,    setShowNew]     = useState(false);
   const [showModal,  setShowModal]   = useState(false);
 
   // Canvas pan + scale
@@ -396,7 +395,6 @@ export default function BubblesScreen() {
 
   const createBubble = useCallback((title: string, color: BubbleColor) => {
     const id = addBubble(title, color);
-    setShowNew(false);
     setShowModal(false);
     // Open write view immediately after creation
     const newBubble = useBubblesStore.getState().bubbles.find((b) => b.id === id);

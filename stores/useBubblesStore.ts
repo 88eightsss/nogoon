@@ -50,7 +50,7 @@ interface BubblesState {
 
 export const useBubblesStore = create<BubblesState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       bubbles:      [],
       canvasX:      0,
       canvasY:      0,

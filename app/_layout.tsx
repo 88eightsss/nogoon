@@ -12,7 +12,7 @@
 // The SafeAreaProvider here wraps everything so any screen can use
 // useSafeAreaInsets() to avoid the phone's notch and gesture bars.
 
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';

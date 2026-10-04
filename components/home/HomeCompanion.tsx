@@ -516,7 +516,7 @@ export function HomeCompanion() {
   const minutesSaved = getMinutesSaved(walkAwayCount);
   const { showIntentionCard, showStruggleToggle, showTimeReclaimed } = useThemeStore();
   const { blockingStatus, openSettings } = useAppBlocker();
-  const { colors, struggling, setStruggling, cardStyle } = useTheme();
+  const { colors, struggling, setStruggling } = useTheme();
   const { newlyUnlocked } = useUnlockedFeatures();
 
   const [showMilestone, setShowMilestone] = useState<number | null>(null);

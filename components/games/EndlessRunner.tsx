@@ -71,8 +71,8 @@ export function EndlessRunner({ onComplete }: Props) {
   const COLORS = useThemedColors();
   const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   const [phase, setPhase]         = useState<'ready' | 'playing' | 'done'>('ready');
-  const [displayTick, setDisplayTick] = useState(0);
-  const [renderTick, setRenderTick]   = useState(0);
+  const [, setDisplayTick] = useState(0);
+  const [, setRenderTick]   = useState(0);
   const [spriteFrame, setSpriteFrame] = useState<0 | 1>(0);
 
   const boardW = useRef(360);

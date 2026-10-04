@@ -7,7 +7,7 @@
 // Yellow = right letter, wrong place.
 // Gray = not in word.
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import {
   View, Text, Pressable, StyleSheet, Animated,
 } from 'react-native';
@@ -255,7 +255,7 @@ export default function GoonWord({ onComplete }: { onComplete: (won: boolean) =>
   const [current, setCurrent]   = useState('');
   const [toast,   setToast]     = useState('');
   const [gameOver, setGameOver] = useState(false);
-  const [won, setWon]           = useState(false);
+  const [, setWon]              = useState(false);
 
   // One flip animation per submitted row
   const flipAnims = useRef<Animated.Value[]>(

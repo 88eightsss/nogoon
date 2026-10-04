@@ -5,7 +5,7 @@
 //   2. Quick blocks — collapsible site packages
 //   3. Add your own — custom domain input
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View, Text, TextInput, Pressable, ScrollView,
   StyleSheet, Switch, KeyboardAvoidingView, Platform,

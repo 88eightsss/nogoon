@@ -95,7 +95,6 @@ const FEELING_OPTIONS = [
   },
 ] as const;
 
-type FeelId = (typeof FEELING_OPTIONS)[number]['id'];
 type Step = 'feeling' | 'reframe' | 'done';
 
 // ─── Main component ────────────────────────────────────────────────────────────

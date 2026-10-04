@@ -58,7 +58,7 @@ export function BreathRhythm({ onComplete }: Props) {
   const COLORS = useThemedColors();
   const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   const [phase, setPhase]         = useState<'ready' | 'breathing' | 'done'>('ready');
-  const [stepIdx, setStepIdx]     = useState(0);
+  const [, setStepIdx]            = useState(0);
   const [cycle, setCycle]         = useState(0);
   const [currentStep, setCurrentStep] = useState<BreathStep>(STEPS[0]);
 
@@ -182,9 +182,6 @@ export function BreathRhythm({ onComplete }: Props) {
   // PHASE: BREATHING / DONE
   // ─────────────────────────────────────────────────────────────────────────
 
-  const progressTotal  = TOTAL_CYCLES * STEP_COUNT;
-  const progressNow    = cycle * STEP_COUNT + stepIdx;
-  const progressWidth  = `${(progressNow / progressTotal) * 100}%`;
 
   return (
     <SafeAreaView style={styles.safe}>
