@@ -268,7 +268,10 @@ export default function PostGameScreen() {
     addXP(xpEarned);
     // Pass the score and a simplified game ID so it's stored in Supabase game_sessions
     // and can power the weekly chart on the home screen
-    recordGamePlayed(pointsEarned, gameName.toLowerCase().replace(/\s+/g, '_'));
+    // Sitting in the Waiting Room isn't a game — don't inflate games played / the weekly chart.
+    if (gameName !== 'Waiting Room') {
+      recordGamePlayed(pointsEarned, gameName.toLowerCase().replace(/\s+/g, '_'));
+    }
   }, [addPoints, addXP, recordGamePlayed, pointsEarned, xpEarned, gameName]);
 
   // ── Random micro-learning card — chosen once per session ──────────────────
