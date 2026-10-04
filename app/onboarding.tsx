@@ -44,7 +44,7 @@ import { useUserStore } from '@/stores/useUserStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useThemeStore } from '@/stores/useThemeStore';
 import { THEMES, THEME_ORDER } from '@/constants/Themes';
-import { useAppBlocker } from '@/hooks/useAppBlocker';
+import { useAppBlocker, appPackagesForDomains } from '@/hooks/useAppBlocker';
 import { useVpn } from '@/hooks/useVpn';
 import { useNotificationListener } from '@/hooks/useNotificationListener';
 import { COLORS, FONTS } from '@/constants/Colors';
@@ -116,7 +116,7 @@ const SITE_SUGGESTIONS = [
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function OnboardingScreen() {
-  const { setName, completeOnboarding, addSite } = useUserStore();
+  const { setName, completeOnboarding, addSite, blockedApps, setBlockedApps } = useUserStore();
   const { user } = useAuthStore();
   const {
     openSettings, serviceEnabled, checkServiceStatus, checkBatteryOptimized, openBatterySettings,
@@ -247,8 +247,14 @@ export default function OnboardingScreen() {
   };
 
   // Adds all selected domains from the chip grid.
+  // The chips are named after apps ("TikTok", "Instagram"), and people expect
+  // the app itself to be blocked — but the service only matches website domains
+  // inside browsers. So also add the matching app packages, otherwise "Blocking
+  // active" would be shown while the real app opens freely.
   const handleAddSelected = () => {
     selectedDomains.forEach((domain) => addSite(domain));
+    const pkgs = appPackagesForDomains(selectedDomains);
+    if (pkgs.length > 0) setBlockedApps(Array.from(new Set([...blockedApps, ...pkgs])));
     setSitesAdded(true);
   };
 

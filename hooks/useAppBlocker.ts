@@ -43,24 +43,26 @@ export interface BlockableApp {
   name: string;     // Human-readable name
   emoji: string;    // Icon emoji
   category: 'social' | 'video' | 'shopping' | 'gaming';
+  domain?: string;  // matching website, so blocking the site can also block the app
 }
 
 export const BLOCKABLE_APPS: BlockableApp[] = [
   // ── Social ──
-  { id: 'com.instagram.android',         name: 'Instagram',  emoji: '📸', category: 'social' },
-  { id: 'com.zhiliaoapp.musically',      name: 'TikTok',     emoji: '🎵', category: 'social' },
-  { id: 'com.twitter.android',           name: 'X (Twitter)',emoji: '𝕏',  category: 'social' },
-  { id: 'com.snapchat.android',          name: 'Snapchat',   emoji: '👻', category: 'social' },
-  { id: 'com.facebook.katana',           name: 'Facebook',   emoji: '👤', category: 'social' },
+  { id: 'com.instagram.android',         name: 'Instagram',  emoji: '📸', category: 'social', domain: 'instagram.com' },
+  { id: 'com.zhiliaoapp.musically',      name: 'TikTok',     emoji: '🎵', category: 'social', domain: 'tiktok.com' },
+  { id: 'com.twitter.android',           name: 'X (Twitter)',emoji: '𝕏',  category: 'social', domain: 'twitter.com' },
+  { id: 'com.snapchat.android',          name: 'Snapchat',   emoji: '👻', category: 'social', domain: 'snapchat.com' },
+  { id: 'com.facebook.katana',           name: 'Facebook',   emoji: '👤', category: 'social', domain: 'facebook.com' },
   { id: 'com.pinterest',                 name: 'Pinterest',  emoji: '📌', category: 'social' },
   { id: 'com.bereal.ft',                 name: 'BeReal',     emoji: '📷', category: 'social' },
   { id: 'com.discord',                   name: 'Discord',    emoji: '🎮', category: 'social' },
+  { id: 'com.reddit.frontpage',            name: 'Reddit',     emoji: '🤖', category: 'social', domain: 'reddit.com' },
 
   // ── Video ──
-  { id: 'com.google.android.youtube',   name: 'YouTube',    emoji: '▶️',  category: 'video' },
+  { id: 'com.google.android.youtube',   name: 'YouTube',    emoji: '▶️',  category: 'video', domain: 'youtube.com' },
   { id: 'com.netflix.mediaclient',       name: 'Netflix',    emoji: '🎬', category: 'video' },
   { id: 'com.amazon.avod.thirdpartyclient', name: 'Prime Video', emoji: '🎥', category: 'video' },
-  { id: 'com.twitch.android.viewer',    name: 'Twitch',     emoji: '🟣', category: 'video' },
+  { id: 'com.twitch.android.viewer',    name: 'Twitch',     emoji: '🟣', category: 'video', domain: 'twitch.tv' },
 
   // ── Shopping ──
   { id: 'com.amazon.mShop.android.shopping', name: 'Amazon', emoji: '📦', category: 'shopping' },
@@ -71,6 +73,13 @@ export const BLOCKABLE_APPS: BlockableApp[] = [
   { id: 'com.supercell.clashofclans',   name: 'Clash of Clans', emoji: '⚔️', category: 'gaming' },
   { id: 'com.roblox.client',            name: 'Roblox',     emoji: '🟥', category: 'gaming' },
 ];
+
+// Android packages whose website is in the given list of domains (e.g. picking
+// "tiktok.com" during setup should also block the TikTok app, not only the site).
+export function appPackagesForDomains(domains: Iterable<string>): string[] {
+  const wanted = new Set(domains);
+  return BLOCKABLE_APPS.filter((a) => a.domain && wanted.has(a.domain)).map((a) => a.id);
+}
 
 // Map package name → friendly name for use in gate.tsx
 export const PACKAGE_TO_NAME: Record<string, string> = Object.fromEntries(
