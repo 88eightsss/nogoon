@@ -159,7 +159,15 @@ function pickCalmGame(): GameId {
 
 type Phase = 'intro' | 'followthrough' | 'rapid' | 'lockout' | 'calm' | 'friction' | 'intent' | 'nogames' | 'context' | 'pick' | 'playing' | 'override' | 'curfew';
 
-export default function NoGoonScreen() {
+// The blocker can re-launch this screen for a different app while it's already
+// open (single-top). Keying on the target remounts it so the new app gets a fresh
+// gate — not the previous app's phase, countdown and typed override text.
+export default function GateRoute() {
+  const { domain, source } = useLocalSearchParams<{ domain?: string; source?: string }>();
+  return <NoGoonScreen key={`${domain ?? ''}|${source ?? ''}`} />;
+}
+
+function NoGoonScreen() {
   const {
     domain = 'instagram.com',
     source = 'web',
