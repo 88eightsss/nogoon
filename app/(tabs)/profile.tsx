@@ -504,7 +504,12 @@ export default function MeScreen() {
 
   return (
     <>
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
+    {/* edges: this screen sits inside the Tabs layout, which already pads for the
+        status bar (header) and the bottom inset (tab bar). Letting SafeAreaView
+        add top/bottom padding on top of that double-counted the inset, so
+        scrolling content got clipped short of the header and tab bar — a visible
+        band at the top and bottom of the page. Only left/right are left to it. */}
+    <SafeAreaView edges={['left', 'right']} style={[styles.safe, { backgroundColor: colors.background }]}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
