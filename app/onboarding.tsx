@@ -22,7 +22,7 @@
 // separate, later mechanism — see components/PageGuide.tsx — shown once each
 // the first time a new user actually lands on that tab.
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -47,7 +47,8 @@ import { THEMES, THEME_ORDER } from '@/constants/Themes';
 import { useAppBlocker, appPackagesForDomains } from '@/hooks/useAppBlocker';
 import { useVpn } from '@/hooks/useVpn';
 import { useNotificationListener } from '@/hooks/useNotificationListener';
-import { COLORS, FONTS } from '@/constants/Colors';
+import { COLORS as SLIDE_COLORS, FONTS } from '@/constants/Colors';
+import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { GoonSprite, CHAR_COLORS } from '@/components/home/GoonMascot';
 import type { CharacterId } from '@/stores/usePetStore';
@@ -78,25 +79,25 @@ const SLIDES: { icon: FeatherName; title: string; body: string; color: string }[
     icon: 'shield',
     title: 'NoGoon blocks the\napps that pull you in',
     body: "Open a blocked app and NoGoon steps in before the scroll starts. No willpower needed.",
-    color: COLORS.green,
+    color: SLIDE_COLORS.green,
   },
   {
     icon: 'refresh-cw',
     title: 'Pause. Play.\nThen choose.',
     body: "A quick game breaks the urge. Most people walk away. If you still want in, a short wait unlocks it.",
-    color: COLORS.purple,
+    color: SLIDE_COLORS.purple,
   },
   {
     icon: 'grid',
     title: 'Five tabs,\none home',
     body: "Protect, Calm, Today, Arcade and Me. Each one explains itself the first time you open it.",
-    color: COLORS.cyan,
+    color: SLIDE_COLORS.cyan,
   },
   {
     icon: 'settings',
     title: 'One setting\nturns it on',
     body: "Next, turn on Accessibility Access in Settings so NoGoon can block app opens. About 30 seconds, and we'll guide every tap.",
-    color: COLORS.arcade,
+    color: SLIDE_COLORS.arcade,
   },
 ];
 
@@ -116,6 +117,8 @@ const SITE_SUGGESTIONS = [
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function OnboardingScreen() {
+  const COLORS = useThemedColors();
+  const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   const { setName, completeOnboarding, addSite, blockedApps, setBlockedApps } = useUserStore();
   const { user } = useAuthStore();
   const {
@@ -784,7 +787,7 @@ export default function OnboardingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: COLORS.background,
