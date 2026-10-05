@@ -242,11 +242,12 @@ export default function RootLayout() {
   // up per-open housekeeping.
   useEffect(() => {
     if (!ready || !userId || !hasOnboarded) return;
-    loadFromSupabase(userId);
     initSubscription(userId);
     // On every app open: reset monthly streak restores + protect streak with freeze tokens
     refreshStreakRestores();
-    checkStreakContinuity();
+    // Pull the cloud copy FIRST, then run the streak check. The other way round, the
+    // cloud merge (max of local and cloud) resurrected a streak the check had just ended.
+    loadFromSupabase(userId).finally(() => checkStreakContinuity());
     // Request notification permission then schedule weekly recap
     requestNotificationPermission().then((granted) => {
       if (granted) {

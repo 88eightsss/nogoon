@@ -246,7 +246,11 @@ export default function OnboardingScreen() {
     // Fire-and-forget Supabase profile name sync
     if (user) {
       import('@/lib/supabase').then(({ supabase }) => {
-        supabase.from('profiles').update({ name: trimmed }).eq('id', user.id);
+        // Supabase query builders only run once awaited/then'd — without this the
+        // name was never actually sent. Upsert also creates the row if sign-up
+        // couldn't (no session until the email was confirmed).
+        supabase.from('profiles').upsert({ id: user.id, name: trimmed })
+          .then(({ error }) => { if (error) console.warn('profile name sync failed:', error.message); });
       });
     }
 
@@ -290,6 +294,14 @@ export default function OnboardingScreen() {
   // "Continue" and "Skip for now" actions, once the user has been through
   // (or deliberately skipped) the companion pick and the Accessibility
   // Service instructions, not just the name step.
+  // "Continue" applies the site chips the user can see selected (otherwise they landed
+  // on "Nothing blocked yet" despite a screen full of ticked chips). "Skip for now"
+  // deliberately leaves everything untouched.
+  const handleContinueSetup = () => {
+    if (!sitesAdded && selectedDomains.size > 0) handleAddSelected();
+    handleExitSetup();
+  };
+
   const handleExitSetup = () => {
     completeOnboarding();
     router.replace('/(tabs)');
@@ -665,7 +677,7 @@ export default function OnboardingScreen() {
                 onboarding actually completes (see handleExitSetup above). */}
             <Pressable
               style={styles.setupContinueButton}
-              onPress={handleExitSetup}
+              onPress={handleContinueSetup}
             >
               <Text style={styles.setupContinueText}>Continue to NoGoon →</Text>
             </Pressable>

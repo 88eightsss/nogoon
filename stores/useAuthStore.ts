@@ -85,7 +85,9 @@ export const useAuthStore = create<AuthState>((set) => ({
   // with the user's chosen name and zeroed-out stats.
 
   signUp: async (email, password, name) => {
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    // The name also rides along as auth metadata so onboarding can reuse it even if
+    // the profile row below can't be written yet (no session until email is confirmed).
+    const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { name } } });
 
     if (error) return { error, needsConfirmation: false };
 
