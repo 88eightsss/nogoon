@@ -28,6 +28,7 @@ import { describeBlockingStatus, type BlockingStatus } from '@/utils/blockingSta
 import { PulseGlow } from '@/components/PulseGlow';
 import { ProtectionBanner } from '@/components/ProtectionBanner';
 import { useTheme } from '@/hooks/useTheme';
+import { readableOn } from '@/utils/colorLuminance';
 import { useThemeStore } from '@/stores/useThemeStore';
 import { FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
@@ -688,8 +689,8 @@ export function HomeCompanion() {
           {/* Streak freeze tokens */}
           {streakFreezeTokens > 0 && (
             <View style={[styles.freezePill, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <Feather name="wind" size={12} color="#a5b4fc" />
-              <Text style={[styles.freezeText, { color: '#a5b4fc' }]}>
+              <Feather name="wind" size={12} color={readableOn('#a5b4fc', colors.surface)} />
+              <Text style={[styles.freezeText, { color: readableOn('#a5b4fc', colors.surface) }]}>
                 {streakFreezeTokens} streak freeze{streakFreezeTokens !== 1 ? 's' : ''}
               </Text>
             </View>

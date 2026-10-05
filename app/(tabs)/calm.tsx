@@ -18,6 +18,7 @@ import { FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { TYPE } from '@/constants/Typography';
 import { useTheme } from '@/hooks/useTheme';
+import { readableOn } from '@/utils/colorLuminance';
 import { useUserStore } from '@/stores/useUserStore';
 import { PageGuide } from '@/components/PageGuide';
 import { useUnlockedFeatures, lockHint } from '@/stores/useProgressStore';
@@ -137,7 +138,7 @@ function NightlyCommitmentCard() {
       {/* Header row */}
       <View style={styles.nightlyHeader}>
         <View style={[styles.iconWrap, { backgroundColor: '#7c3aed18' }]}>
-          <Feather name="moon" size={20} color="#7c3aed" />
+          <Feather name="moon" size={20} color={readableOn('#7c3aed', colors.surface)} />
         </View>
         <View style={styles.rowText}>
           <Text style={[styles.rowTitle, { color: colors.text }]}>Tonight's rule</Text>
@@ -152,7 +153,7 @@ function NightlyCommitmentCard() {
       {/* Current commitment display */}
       {hasCurrent && !editing && (
         <View style={styles.currentBox}>
-          <Text style={styles.currentText}>"{nightlyCommitment}"</Text>
+          <Text style={[styles.currentText, { color: readableOn('#a78bfa', colors.surface, 4.5) }]}>"{nightlyCommitment}"</Text>
           <View style={styles.currentActions}>
             <Pressable onPress={handleEdit} style={styles.textBtn}>
               <Text style={[styles.textBtnLabel, { color: colors.textSecondary }]}>Edit</Text>

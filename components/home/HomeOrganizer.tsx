@@ -24,6 +24,7 @@ import { describeBlockingStatus, type BlockingStatus } from '@/utils/blockingSta
 import { PulseGlow } from '@/components/PulseGlow';
 import { ProtectionBanner } from '@/components/ProtectionBanner';
 import { useTheme } from '@/hooks/useTheme';
+import { readableOn } from '@/utils/colorLuminance';
 import { useThemeStore } from '@/stores/useThemeStore';
 import { BORDERS } from '@/constants/Themes';
 import { FONTS } from '@/constants/Colors';
@@ -398,6 +399,8 @@ function WidgetContent({
   longestStreak: number;
   consistencyPct: number;
 }) {
+  // Fixed identity hues, nudged to stay readable on this theme's surface.
+  const tone = (hex: string) => readableOn(hex, colors.surface);
   switch (widgetId) {
     case 'companion': {
       if (gateCharacter === null) {
@@ -445,12 +448,12 @@ function WidgetContent({
     case 'streak':
       return (
         <View>
-          <Text style={[cStyles.tag, { color: '#0ea5e9AA' }]}>CONSISTENCY</Text>
-          <Text style={[cStyles.medNum, { color: '#0ea5e9' }]}>{consistencyPct}%</Text>
+          <Text style={[cStyles.tag, { color: tone('#0ea5e9') + 'AA' }]}>CONSISTENCY</Text>
+          <Text style={[cStyles.medNum, { color: tone('#0ea5e9') }]}>{consistencyPct}%</Text>
           {streakFreezeTokens > 0 && (
             <View style={cStyles.freezeRow}>
-              <Feather name="wind" size={10} color="#a5b4fc" />
-              <Text style={[cStyles.freezeTxt, { color: '#a5b4fc' }]}>{streakFreezeTokens}× freeze</Text>
+              <Feather name="wind" size={10} color={tone('#a5b4fc')} />
+              <Text style={[cStyles.freezeTxt, { color: tone('#a5b4fc') }]}>{streakFreezeTokens}× freeze</Text>
             </View>
           )}
         </View>
@@ -464,7 +467,7 @@ function WidgetContent({
       return (
         <View>
           <Text style={[cStyles.tag, { color: '#0277BDAA' }]}>TIME SAVED</Text>
-          <Text style={[cStyles.medNum, { color: '#0277BD' }]}>{display || '0m'}</Text>
+          <Text style={[cStyles.medNum, { color: tone('#0277BD') }]}>{display || '0m'}</Text>
         </View>
       );
     }
@@ -474,7 +477,7 @@ function WidgetContent({
       return (
         <View>
           <Text style={[cStyles.tag, { color: '#e0a500AA' }]}>THE BILL</Text>
-          <Text style={[cStyles.medNum, { color: '#e0a500' }]}>${costDollars}</Text>
+          <Text style={[cStyles.medNum, { color: tone('#e0a500') }]}>${costDollars}</Text>
           <Text style={[cStyles.sub, { color: colors.textMuted }]}>at $22/hr avg</Text>
         </View>
       );
@@ -523,8 +526,8 @@ function WidgetContent({
       const earned = MILESTONE_THRESHOLDS.filter((m) => walkAwayCount >= m).length;
       return (
         <Pressable onPress={() => router.push('/milestones' as any)}>
-          <Text style={[cStyles.tag, { color: '#D97706AA' }]}>MILESTONES</Text>
-          <Text style={[cStyles.medNum, { color: '#D97706' }]}>
+          <Text style={[cStyles.tag, { color: tone('#D97706') + 'AA' }]}>MILESTONES</Text>
+          <Text style={[cStyles.medNum, { color: tone('#D97706') }]}>
             {earned}/{MILESTONE_THRESHOLDS.length}
           </Text>
           <Text style={[cStyles.sub, { color: colors.textMuted }]}>

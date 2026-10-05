@@ -39,6 +39,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/useTheme';
+import { readableOn, isLightColor } from '@/utils/colorLuminance';
 import { getLocalDateKey } from '@/utils/date';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -222,6 +223,8 @@ function NoGoonScreen() {
     indigo:       themeColors.accent,
     indigoBright: themeColors.accentBright,
   };
+  // Text on a solid success-green button: dark on light greens, white on deep ones.
+  const onGreen = isLightColor(C.green) ? '#0b1217' : '#ffffff';
 
   // ── Companion ─────────────────────────────────────────────────────────────
   const petStore = usePetStore();
@@ -909,8 +912,8 @@ function NoGoonScreen() {
             }}
             disabled={!isMatch}
           >
-            <Feather name="unlock" size={16} color={isMatch ? '#0b1217' : C.textMuted} />
-            <Text style={[styles.overrideUnlockText, { color: isMatch ? '#0b1217' : C.textMuted }]}>
+            <Feather name="unlock" size={16} color={isMatch ? onGreen : C.textMuted} />
+            <Text style={[styles.overrideUnlockText, { color: isMatch ? onGreen : C.textMuted }]}>
               Unlock
             </Text>
           </Pressable>
@@ -1270,8 +1273,8 @@ function NoGoonScreen() {
         {/* Nightly pre-commitment — "Last night you said: No doomscrolling after 10pm" */}
         {hasYesterdayCommitment && (
           <View style={[styles.urgePatternRow, { backgroundColor: '#7c3aed14', borderColor: '#7c3aed33', borderWidth: 1 }]}>
-            <Feather name="moon" size={12} color="#a78bfa" />
-            <Text style={[styles.urgePatternText, { color: '#a78bfa' }]}>
+            <Feather name="moon" size={12} color={readableOn('#a78bfa', C.surface, 4.5)} />
+            <Text style={[styles.urgePatternText, { color: readableOn('#a78bfa', C.surface, 4.5) }]}>
               Last night you said:{' '}
               <Text style={{ color: C.textPrimary }}>{hasYesterdayCommitment}</Text>
             </Text>
