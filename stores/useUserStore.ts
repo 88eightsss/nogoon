@@ -35,14 +35,29 @@ function syncFocusSessionToNative(endMs: number): void {
 async function backgroundWrite(
   label: string,
   writeFn: () => PromiseLike<{ error: any }>
-): Promise<void> {
+): Promise<boolean> {
   try {
     const { error } = await writeFn();
     if (error) {
       console.error(`[NoGoon] ${label} failed:`, error.message);
+      return false;
     }
+    return true;
   } catch (err) {
     console.error(`[NoGoon] ${label} threw:`, err);
+    return false;
+  }
+}
+
+// The signed-in user, read from the locally stored session. supabase.auth.getUser()
+// makes a network round trip, so offline it returned nothing and the write below was
+// silently skipped; the saved session needs no network.
+async function getCachedUser() {
+  try {
+    const { data } = await supabase.auth.getSession();
+    return data.session?.user ?? null;
+  } catch {
+    return null;
   }
 }
 
@@ -140,6 +155,9 @@ interface UserState {
 
   // App blocklist — array of Android package names (e.g. 'com.instagram.android')
   blockedApps: string[];
+  // Sites removed while the cloud delete hasn't gone through (e.g. offline). Retried on
+  // the next launch and kept out of the cloud merge so they don't come back.
+  pendingSiteDeletes: string[];
 
   // Game mode — 'random' (default) or 'choose' (user picks the game).
   gameMode: 'random' | 'choose';
@@ -465,7 +483,7 @@ interface UserState {
   // Supabase sync — pushes local changes up to cloud
   // `blockedApps` is passed in by the caller so an active Mode's temporary list is
   // never uploaded in place of the user's own.
-  syncToSupabase: (userId: string, blockedApps?: string[]) => Promise<void>;
+  syncToSupabase: (userId: string, blockedApps?: string[]) => Promise<boolean>;
 
   // Resets ALL local data — called on sign out so the next user starts fresh
   resetStore: () => void;
@@ -511,6 +529,7 @@ const DEFAULT_STATE = {
   dailyChallengeCompleted: false,
   blocklist: [] as string[],
   blockedApps: [] as string[],
+  pendingSiteDeletes: [] as string[],
   gameMode: 'random' as const,
   // Default: skip picker, jump straight into a game
 
@@ -631,7 +650,14 @@ export const useUserStore = create<UserState>()(
 
       // ── Actions ──────────────────────────────────────────────────────────
 
-      setName: (name) => set({ name }),
+      setName: (name) => {
+        if (name === get().name) return;
+        set({ name });
+        // Keep the cloud profile's name in step (previously only the local copy changed).
+        getCachedUser().then((user) => {
+          if (user) backgroundWrite('profile name update', () => supabase.from('profiles').update({ name }).eq('id', user.id));
+        });
+      },
 
       completeOnboarding: () => set({ hasOnboarded: true }),
 
@@ -694,14 +720,16 @@ export const useUserStore = create<UserState>()(
 
         // Write to Supabase in the background (non-blocking)
         // This is what powers the weekly chart on the next app load
-        supabase.auth.getUser().then(({ data }) => {
-          if (data.user) {
+        getCachedUser().then((user) => {
+          if (user) {
             backgroundWrite('game_sessions insert', () =>
               supabase.from('game_sessions').insert({
-                user_id: data.user!.id,
+                user_id: user.id,
                 score,
                 game_id: gameId,
-                // played_at defaults to CURRENT_DATE in the database
+                // Local calendar day — the DB default is the UTC date, which files a
+                // Hawaii evening under tomorrow.
+                played_at: getLocalDateKey(),
               })
             );
           }
@@ -727,14 +755,17 @@ export const useUserStore = create<UserState>()(
           if (deduped.length !== blocklist.length) set({ blocklist: deduped });
           return;
         }
-        set({ blocklist: [...deduped, cleaned] });
+        set((st) => ({
+          blocklist: [...deduped, cleaned],
+          pendingSiteDeletes: st.pendingSiteDeletes.filter((d) => d !== cleaned),
+        }));
 
         // Sync to Supabase in the background
-        supabase.auth.getUser().then(({ data }) => {
-          if (data.user) {
+        getCachedUser().then((user) => {
+          if (user) {
             backgroundWrite('blocklist insert', () =>
               supabase.from('blocklist').insert({
-                user_id: data.user!.id,
+                user_id: user.id,
                 domain: cleaned,
               })
             );
@@ -750,18 +781,17 @@ export const useUserStore = create<UserState>()(
       removeSite: (domain) => {
         set((state) => ({
           blocklist: state.blocklist.filter((d) => d !== domain),
+          pendingSiteDeletes: state.pendingSiteDeletes.includes(domain)
+            ? state.pendingSiteDeletes
+            : [...state.pendingSiteDeletes, domain],
         }));
 
-        supabase.auth.getUser().then(({ data }) => {
-          if (data.user) {
-            backgroundWrite('blocklist delete', () =>
-              supabase
-                .from('blocklist')
-                .delete()
-                .eq('user_id', data.user!.id)
-                .eq('domain', domain)
-            );
-          }
+        getCachedUser().then(async (user) => {
+          if (!user) return;
+          const ok = await backgroundWrite('blocklist delete', () =>
+            supabase.from('blocklist').delete().eq('user_id', user.id).eq('domain', domain)
+          );
+          if (ok) set((state) => ({ pendingSiteDeletes: state.pendingSiteDeletes.filter((d) => d !== domain) }));
         });
       },
 
@@ -936,13 +966,13 @@ export const useUserStore = create<UserState>()(
         set({ partnerEmail: sanitizedEmail, partnerName: name });
 
         // Sync partner info to Supabase
-        supabase.auth.getUser().then(({ data }) => {
-          if (data.user) {
+        getCachedUser().then((user) => {
+          if (user) {
             backgroundWrite('partner update', () =>
               supabase.from('profiles').update({
                 partner_email: sanitizedEmail,
                 partner_name: name,
-              }).eq('id', data.user!.id)
+              }).eq('id', user.id)
             );
           }
         });
@@ -1113,11 +1143,11 @@ export const useUserStore = create<UserState>()(
         }));
 
         // Sync to Supabase in background
-        supabase.auth.getUser().then(({ data }) => {
-          if (data.user && text.trim()) {
+        getCachedUser().then((user) => {
+          if (user && text.trim()) {
             backgroundWrite('journal_entries insert', () =>
               supabase.from('journal_entries').insert({
-                user_id: data.user!.id,
+                user_id: user.id,
                 text,
                 domain,
               })
@@ -1248,7 +1278,22 @@ export const useUserStore = create<UserState>()(
         }
 
         // ── Blocklist ──
+        // First finish any removals that never reached the cloud, and keep those
+        // domains out of the merge below so a removed site doesn't come back.
+        const pending = get().pendingSiteDeletes;
+        if (pending.length > 0) {
+          const results = await Promise.all(
+            pending.map((d) =>
+              backgroundWrite('blocklist delete (retry)', () =>
+                supabase.from('blocklist').delete().eq('user_id', userId).eq('domain', d)
+              ).then((ok) => (ok ? d : null))
+            )
+          );
+          const done = results.filter((d): d is string => !!d);
+          if (done.length > 0) set((st) => ({ pendingSiteDeletes: st.pendingSiteDeletes.filter((d) => !done.includes(d)) }));
+        }
         if (blocklistResult.data) {
+          const stillPending = new Set(get().pendingSiteDeletes);
           set((state) => ({
             // Union, not replace: a failed background insert (or a Mode that swapped
             // the live list) must never leave the user with fewer blocked sites after
@@ -1256,7 +1301,7 @@ export const useUserStore = create<UserState>()(
             blocklist: Array.from(new Set([
               ...state.blocklist,
               ...blocklistResult.data.map((r: { domain: string }) => r.domain),
-            ])),
+            ])).filter((d) => !stillPending.has(d)),
             hasOnboarded: state.hasOnboarded || blocklistResult.data.length > 0,
           }));
         }
@@ -1303,14 +1348,17 @@ export const useUserStore = create<UserState>()(
         // The same applies to blocked_apps (see supabase/migrations). Try the full
         // row first, then without the newest column, then the bare minimum.
         const full = { ...base, walk_away_count: walkAwayCount, blocked_apps: apps };
-        const { error } = await supabase.from('profiles').upsert(full);
-        if (error) {
+        try {
+          const { error } = await supabase.from('profiles').upsert(full);
+          if (!error) return true;
           const { error: e2 } = await supabase.from('profiles').upsert({ ...base, walk_away_count: walkAwayCount });
-          if (e2) {
-            await backgroundWrite('syncToSupabase (minimal)', () =>
-              supabase.from('profiles').upsert(base)
-            );
-          }
+          if (!e2) return true;
+          return await backgroundWrite('syncToSupabase (minimal)', () =>
+            supabase.from('profiles').upsert(base)
+          );
+        } catch (e) {
+          console.warn('[NoGoon] syncToSupabase failed:', e);
+          return false;
         }
       },
 
@@ -1356,6 +1404,7 @@ export const useUserStore = create<UserState>()(
         dailyChallengeCompleted: state.dailyChallengeCompleted,
         blocklist: state.blocklist,
         blockedApps: state.blockedApps,
+        pendingSiteDeletes: state.pendingSiteDeletes,
         gameMode: state.gameMode,
         noGames: state.noGames,
         preferWaitingRoom: state.preferWaitingRoom,

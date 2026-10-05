@@ -36,7 +36,11 @@ export function useCloudSync(userId: string | undefined, ready: boolean) {
       const current = pick(useUserStore.getState());
       if (current === lastSynced) return;
       lastSynced = current;
-      useUserStore.getState().syncToSupabase(userId, userApps()).catch(() => {});
+      // If the upload fails (offline), forget that it was "synced" so the next change,
+      // background or launch tries again instead of waiting for different numbers.
+      useUserStore.getState().syncToSupabase(userId, userApps()).then((ok) => {
+        if (!ok && lastSynced === current) lastSynced = '';
+      }).catch(() => { if (lastSynced === current) lastSynced = ''; });
     };
 
     const onChange = () => {

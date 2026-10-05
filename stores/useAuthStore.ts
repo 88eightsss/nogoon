@@ -44,7 +44,7 @@ interface AuthState {
   signIn: (email: string, password: string) => Promise<AuthError | null>;
 
   // Sign out, clear the session, AND wipe local user data
-  signOut: () => Promise<void>;
+  signOut: (opts?: { skipSync?: boolean }) => Promise<void>;
 
   // Permanently deletes the account (server-side) and wipes local data.
   // Resolves to an error message, or null on success.
@@ -194,11 +194,21 @@ export const useAuthStore = create<AuthState>((set) => ({
   // This ensures the next person who logs in on the same phone gets a clean slate —
   // they won't see the previous user's streak, points, or blocklist.
 
-  signOut: async () => {
+  signOut: async (opts) => {
     // 1. Sign out of Supabase and clear the auth state — _layout.tsx redirects to /auth.
     //    If the server call fails (offline), supabase-js leaves the saved session on
     //    disk and the next launch would sign the user straight back in, so also drop
     //    it locally.
+    // Push any progress still waiting in the 4-second debounce first (capped, so a bad
+    // connection can't hold up signing out).
+    const uid = useAuthStore.getState().user?.id;
+    if (uid && !opts?.skipSync) {
+      const apps = useModesStore.getState().baseSnapshot?.apps;
+      await Promise.race([
+        useUserStore.getState().syncToSupabase(uid, apps).catch(() => false),
+        new Promise((r) => setTimeout(r, 3000)),
+      ]);
+    }
     const { error } = await supabase.auth.signOut();
     if (error) await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
     set({ session: null, user: null });
@@ -225,7 +235,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
     // The server-side user is gone; signing out may report an invalid session,
     // which is fine — the local session is cleared either way.
-    try { await useAuthStore.getState().signOut(); } catch { /* already gone */ }
+    try { await useAuthStore.getState().signOut({ skipSync: true }); } catch { /* already gone */ }
     return null;
   },
 
