@@ -35,6 +35,27 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
+// ─── Abuse limits ───────────────────────────────────────────────────────────── //
+// partner_email is user-supplied and unverified, so without a cap this function
+// could be used to send repeated mail to a third party. Best-effort per-user limit
+// (in-memory, so it resets when the function instance recycles) plus input caps.
+const MAX_PER_HOUR = 5;
+const sentLog = new Map<string, number[]>();
+
+function rateLimited(userId: string): boolean {
+  const now = Date.now();
+  const recent = (sentLog.get(userId) ?? []).filter((t) => now - t < 3_600_000);
+  if (recent.length >= MAX_PER_HOUR) {
+    sentLog.set(userId, recent);
+    return true;
+  }
+  recent.push(now);
+  sentLog.set(userId, recent);
+  return false;
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 // ─── Main Handler ───────────────────────────────────────────────────────────── //
 
 serve(async (req: Request) => {
@@ -73,8 +94,17 @@ serve(async (req: Request) => {
     const userId = user.id;
 
     // ── 2. Parse request body (domain only — userId comes from JWT) ──────── //
-    const { domain } = await req.json();
-    if (!domain || typeof domain !== 'string') {
+    let body: { domain?: unknown };
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON body' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const domain = typeof body?.domain === 'string' ? body.domain.trim().slice(0, 120) : '';
+    if (!domain) {
       return new Response(
         JSON.stringify({ error: 'Missing domain field' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -82,9 +112,11 @@ serve(async (req: Request) => {
     }
 
     // ── 3. Look up user profile and partner email ────────────────────────── //
+    // select('*'): the app stores the user's name in `name`; older rows may use
+    // `display_name`. Naming columns here made the whole query fail when one was absent.
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('display_name, partner_email, partner_name')
+      .select('*')
       .eq('id', userId)
       .single();
 
@@ -95,7 +127,7 @@ serve(async (req: Request) => {
       );
     }
 
-    if (!profile.partner_email) {
+    if (!profile.partner_email || !EMAIL_RE.test(String(profile.partner_email))) {
       return new Response(
         JSON.stringify({ error: 'No partner email configured' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -103,7 +135,8 @@ serve(async (req: Request) => {
     }
 
     // ── 4. Build email with escaped user-provided content ────────────────── //
-    const safeName = escapeHtml(profile.display_name || 'Someone');
+    const rawName = String(profile.name || profile.display_name || 'Someone').replace(/[\r\n]+/g, ' ').slice(0, 60);
+    const safeName = escapeHtml(rawName);
     const safePartnerName = escapeHtml(profile.partner_name || 'there');
     const safeDomain = escapeHtml(domain);
 
@@ -152,6 +185,13 @@ serve(async (req: Request) => {
       </html>
     `;
 
+    if (rateLimited(userId)) {
+      return new Response(
+        JSON.stringify({ error: 'Too many notifications — try again later' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // ── 5. Send via Resend ───────────────────────────────────────────────── //
     // Deployment: set RESEND_API_KEY in Supabase dashboard → Project Settings → Edge Functions.
     // Sender domain (notifications@nogoon.app) must be verified in Resend before emails deliver.
@@ -172,7 +212,7 @@ serve(async (req: Request) => {
       body: JSON.stringify({
         from: 'NoGoon <notifications@nogoon.app>', // ← Replace with your verified Resend domain
         to: [profile.partner_email],
-        subject: `${safeName} could use your support right now`,
+        subject: `${rawName} could use your support right now`, // plain text, not HTML-escaped
         html: emailHtml,
       }),
     });

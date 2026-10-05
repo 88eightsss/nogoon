@@ -61,11 +61,11 @@ export const BLOCKABLE_APPS: BlockableApp[] = [
   { id: 'com.google.android.youtube',   name: 'YouTube',    emoji: '▶️',  category: 'video', domain: 'youtube.com' },
   { id: 'com.netflix.mediaclient',       name: 'Netflix',    emoji: '🎬', category: 'video' },
   { id: 'com.amazon.avod.thirdpartyclient', name: 'Prime Video', emoji: '🎥', category: 'video' },
-  { id: 'com.twitch.android.viewer',    name: 'Twitch',     emoji: '🟣', category: 'video', domain: 'twitch.tv' },
+  { id: 'tv.twitch.android.app',    name: 'Twitch',     emoji: '🟣', category: 'video', domain: 'twitch.tv' },
 
   // ── Shopping ──
   { id: 'com.amazon.mShop.android.shopping', name: 'Amazon', emoji: '📦', category: 'shopping' },
-  { id: 'com.shein.gplay',              name: 'SHEIN',      emoji: '👗', category: 'shopping' },
+  { id: 'com.zzkko',              name: 'SHEIN',      emoji: '👗', category: 'shopping' },
 
   // ── Gaming ──
   { id: 'com.kiloo.subwaysurf',         name: 'Subway Surfers', emoji: '🏃', category: 'gaming' },

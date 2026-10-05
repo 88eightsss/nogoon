@@ -9,6 +9,7 @@
 //   ANTHROPIC_API_KEY — from console.anthropic.com
 
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -25,12 +26,45 @@ const QUERIES = [
   'art culture creativity celebration',
 ];
 
+// Cost guards. NewsAPI's free tier is 100 requests/day and every call also spends
+// model credits, so: signed-in users only, a small per-user hourly cap, and results are
+// cached for a few hours and served back at random (in-memory — resets on cold start).
+const CACHE_MS = 3 * 60 * 60 * 1000;
+const CACHE_MAX = 5;
+const MAX_PER_HOUR = 10;
+let cache: { at: number; items: unknown[] } = { at: 0, items: [] };
+const calls = new Map<string, number[]>();
+
+function overLimit(userId: string): boolean {
+  const now = Date.now();
+  const recent = (calls.get(userId) ?? []).filter((t) => now - t < 3_600_000);
+  if (recent.length >= MAX_PER_HOUR) { calls.set(userId, recent); return true; }
+  recent.push(now);
+  calls.set(userId, recent);
+  return false;
+}
+
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
+    // The app's anon key alone must not be enough to call this: require a user session.
+    const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer /, '');
+    const authClient = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_ANON_KEY') ?? '');
+    const { data: { user } } = await authClient.auth.getUser(token);
+    if (!user) return json({ error: 'Sign in required' }, 401);
+    if (overLimit(user.id)) return json({ error: 'Too many requests' }, 429);
+
+    // Fresh cache with enough variety? Serve one without spending any quota.
+    if (Date.now() - cache.at < CACHE_MS && cache.items.length >= CACHE_MAX) {
+      return json(cache.items[Math.floor(Math.random() * cache.items.length)]);
+    }
+
     const newsApiKey   = Deno.env.get('NEWSAPI_KEY');
     const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY');
 
@@ -85,6 +119,10 @@ serve(async (req: Request) => {
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('Could not parse Claude response');
     const result = JSON.parse(jsonMatch[0]);
+
+    // Remember it (starting a fresh window once the old one has expired).
+    if (Date.now() - cache.at >= CACHE_MS) cache = { at: Date.now(), items: [] };
+    cache.items.push(result);
 
     return new Response(JSON.stringify(result), {
       status: 200,

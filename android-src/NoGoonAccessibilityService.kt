@@ -207,6 +207,7 @@ class NoGoonAccessibilityService : AccessibilityService() {
         "org.mozilla.firefox", "org.mozilla.firefox_beta",
         "com.brave.browser", "com.microsoft.emmx", "com.opera.browser",
         "com.opera.mini.native", "com.sec.android.app.sbrowser",
+        "com.duckduckgo.mobile.android", "com.vivaldi.browser", "com.mi.globalbrowser",
     )
 
     // ── Packages exempt from Digital Curfew ───────────────────────────────────
@@ -238,6 +239,7 @@ class NoGoonAccessibilityService : AccessibilityService() {
         "org.mozilla.firefox", "org.mozilla.firefox_beta",
         "com.brave.browser", "com.microsoft.emmx", "com.opera.browser",
         "com.opera.mini.native", "com.sec.android.app.sbrowser",
+        "com.duckduckgo.mobile.android", "com.vivaldi.browser", "com.mi.globalbrowser",
     )
 
     // ── Service lifecycle ─────────────────────────────────────────────────────

@@ -38,7 +38,7 @@ const PACKAGES: SitePackage[] = [
     name:  'Social & Entertainment',
     emoji: '📱',
     sites: [
-      'instagram.com', 'tiktok.com', 'youtube.com', 'twitter.com',
+      'instagram.com', 'tiktok.com', 'youtube.com', 'twitter.com', 'x.com',
       'facebook.com', 'snapchat.com', 'pinterest.com', 'twitch.tv',
       'reddit.com', 'discord.com',
     ],
@@ -49,7 +49,7 @@ const PACKAGES: SitePackage[] = [
     emoji: '🗞️',
     sites: [
       'cnn.com', 'foxnews.com', 'reddit.com', 'news.google.com',
-      'bbc.com', 'twitter.com', 'apple.news', 'huffpost.com',
+      'bbc.com', 'twitter.com', 'x.com', 'apple.news', 'huffpost.com',
       'nytimes.com', 'theguardian.com',
     ],
   },
