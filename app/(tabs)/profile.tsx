@@ -12,7 +12,7 @@ import { useState, useEffect, useRef } from 'react';
 import {
   View, Text, Pressable, ScrollView, StyleSheet,
   Alert, Switch, TextInput, Modal, PanResponder,
-  KeyboardAvoidingView, Platform,
+  KeyboardAvoidingView, Platform, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -1080,6 +1080,14 @@ export default function MeScreen() {
             <Feather name="file-text" size={16} color={colors.textMuted} />
             <Text style={[ctrlStyles.label, { color: colors.text, flex: 1 }]}>Privacy policy</Text>
             <Feather name="chevron-right" size={16} color={colors.textMuted} />
+          </Pressable>
+          <Pressable
+            style={[ctrlStyles.row, { borderBottomColor: colors.border }]}
+            onPress={() => Linking.openURL('https://88eightsss.github.io/nogoon-legal/terms-of-service.html').catch(() => {})}
+          >
+            <Feather name="file-text" size={16} color={colors.textMuted} />
+            <Text style={[ctrlStyles.label, { color: colors.text, flex: 1 }]}>Terms of service</Text>
+            <Feather name="external-link" size={16} color={colors.textMuted} />
           </Pressable>
           <View style={[ctrlStyles.row, { borderBottomColor: colors.border }]}>
             <Feather name="unlock" size={16} color={colors.accent} />

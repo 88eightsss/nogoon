@@ -24,7 +24,6 @@
 - Native: unlock is keyed to the exact host (m./music./web. subdomains re-gate); `lastSeenUrl` stamped before the cooldown check; text-scan URL fallback can match on-page text; VPN DNS forwarding is serial with a 3s timeout; overnight Mode windows use the current day-of-week; widget lags up to 30 min.
 - Cloud: `loadFromSupabase` doesn't pull partner info, journal entries or freeze tokens back; one freeze token covers a gap of any length.
 - A kill during onboarding after adding sites marks the user onboarded (skips setup steps).
-- Dev toggle "Unlock everything now" is exposed in Me; remove before production.
 - AdMob uses Google test IDs / REPLACE_ME ad units.
 - Arcade `?game=` deep link bypasses the fullArcade lock (intentional for Daily Challenge — confirm).
 
@@ -34,3 +33,4 @@
 - Supabase → Authentication → Email Templates → Reset Password: include `{{ .Token }}` so the email shows the 6-digit code.
 - Play Console: add a web account-deletion URL (Data safety → Data deletion).
 - New EAS build for the native (Kotlin) changes.
+- Dev toggle "Unlock everything now" is exposed in Me; keeping for first testing builds, hide/remove before wide production release.
