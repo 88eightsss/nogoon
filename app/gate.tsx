@@ -66,7 +66,7 @@ import { WarpGame }          from '@/components/games/WarpGame';
 import { IntentionCheck }    from '@/components/games/IntentionCheck';
 import { TypingChallenge }   from '@/components/games/TypingChallenge';
 import { PACKAGE_TO_NAME } from '@/hooks/useAppBlocker';
-import { grantTemporaryUnlock, launchBlockedApp } from '@/utils/tempUnlock';
+import { grantTemporaryUnlock, launchBlockedApp, DEFAULT_UNLOCK_MINUTES } from '@/utils/tempUnlock';
 import { exitGate } from '@/utils/exitGate';
 import { useUserStore } from '@/stores/useUserStore';
 import { COLORS, FONTS } from '@/constants/Colors';
@@ -294,7 +294,14 @@ function NoGoonScreen() {
   // ── Block schedule check — exit immediately if outside schedule window ────
   useEffect(() => {
     if (blockScheduleEnabled && !isWithinBlockSchedule(blockScheduleStart, blockScheduleEnd, blockScheduleDays)) {
-      exitGate();
+      // Outside the schedule nothing should be blocked. Just closing the gate left the user
+      // on NoGoon's home (and the next open fired the gate again), so let the app through
+      // briefly and open it. Not a give-in: the user did nothing wrong.
+      (async () => {
+        const ok = await grantTemporaryUnlock(domain, DEFAULT_UNLOCK_MINUTES, false);
+        exitGate();
+        if (ok && isAppBlock) launchBlockedApp(domain);
+      })();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -315,7 +322,14 @@ function NoGoonScreen() {
     // A gate that's about to dismiss itself (outside the block schedule) never
     // really fired — don't count it toward open counts or the consistency score.
     if (blockScheduleEnabled && !isWithinBlockSchedule(blockScheduleStart, blockScheduleEnd, blockScheduleDays)) return;
+    // Same for gates that are a dead end by design (curfew, focus session, rapid-return
+    // lockout): the user can't win those, so counting them as "fired, not resisted"
+    // dragged the consistency score down for nothing.
+    const deadEnd =
+      isCurfewTriggered || isFocusSession || Number(rapidCountStr) >= 5 ||
+      (curfewEnabled && isWithinBlockSchedule(curfewStart, curfewEnd));
     incrementOpenCount(domain);
+    if (deadEnd) return;
     recordDailyGateFire();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

@@ -35,13 +35,14 @@ export async function launchBlockedApp(target: string): Promise<void> {
 export async function grantTemporaryUnlock(
   target: string,
   minutes: number = DEFAULT_UNLOCK_MINUTES,
+  countAsGiveIn: boolean = true,
 ): Promise<boolean> {
   if (!target || !hasNativeModule) return false;
   const expiryMs = Date.now() + minutes * 60 * 1000;
   try {
     await AppBlocker.setTemporaryUnlock(target, expiryMs.toString());
     // Letting the app through counts as giving in for streak purposes.
-    useUserStore.getState().recordGiveIn();
+    if (countAsGiveIn) useUserStore.getState().recordGiveIn();
     return true;
   } catch (e) {
     console.warn('setTemporaryUnlock native call failed:', e);

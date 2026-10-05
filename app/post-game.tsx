@@ -331,7 +331,12 @@ export default function PostGameScreen() {
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
+  // One decision per visit: a double-tap used to record two walk-aways / two partner emails.
+  const decidedRef = useRef(false);
+
   const handleWalkAway = () => {
+    if (decidedRef.current) return;
+    decidedRef.current = true;
     const newCount = walkAwayCount + 1;
     setCelebrationCount(newCount);
     recordWalkAway();
@@ -350,6 +355,8 @@ export default function PostGameScreen() {
   };
 
   const handleUnlock = async () => {
+    if (decidedRef.current) return;
+    decidedRef.current = true;
     // Use 'app' (raw) for native unlock — it carries the package name for app blocks.
     // Fall back to 'domain' for web-only sessions where 'app' isn't present.
     const target = app || domain;
@@ -362,9 +369,10 @@ export default function PostGameScreen() {
 
   // Pro-only: unlock AND save the streak using a monthly restore token
   const handleUnlockWithRestore = async () => {
-    if (!canRestoreStreak) return;
+    if (!canRestoreStreak || decidedRef.current) return;
     const restored = useStreakRestore();
     if (restored) {
+      decidedRef.current = true;
       incrementStreak();
       const target = app || domain;
       const granted = target ? await grantTemporaryUnlock(target, unlockMinutes) : false;
