@@ -681,6 +681,9 @@ class NoGoonAccessibilityService : AccessibilityService() {
         val cooldownKey = "${KEY_COOLDOWN_PREFIX}curfew_$packageName"
         val lastTrigger = prefs.getLong(cooldownKey, 0L)
         if (now - lastTrigger < COOLDOWN_MS) return
+        // If the launch debounce is going to swallow this event, bail BEFORE stamping the
+        // cooldown — otherwise the stamp makes the next real attempt look "on cooldown".
+        if (now - lastGateLaunchMs < GATE_LAUNCH_DEBOUNCE_MS) return
         prefs.edit().putLong(cooldownKey, now).apply()
         // Launch gate with curfew=1 so gate.tsx jumps straight to curfew phase
         val now2 = System.currentTimeMillis()
@@ -745,6 +748,10 @@ class NoGoonAccessibilityService : AccessibilityService() {
         val cooldownKey = "$KEY_COOLDOWN_PREFIX$target"
         val lastTrigger = prefs.getLong(cooldownKey, 0L)
         if (now - lastTrigger < COOLDOWN_MS) return
+        // Don't stamp the cooldown / rapid counters for an event launchNoGoon() will drop
+        // because of the service-level debounce — that would make the user's next genuine
+        // attempt look "on cooldown" and open the app with no gate.
+        if (now - lastGateLaunchMs < GATE_LAUNCH_DEBOUNCE_MS) return
 
         // ── Rapid re-entry detection ──────────────────────────────────────────
         // Tracks how many times the user returns to a blocked target within the
