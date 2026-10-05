@@ -30,7 +30,6 @@
 
 ## Deploy checklist (yours to run)
 - `supabase functions deploy delete-account notify-partner positive-news`
-- Run `supabase/migrations/20261005_baseline_tables_and_rls.sql` (safe on existing tables; adds columns + own-row RLS).
 - Run `supabase/migrations/20261005_profile_blocked_apps.sql` in the Supabase SQL editor.
 - Supabase → Authentication → Email Templates → Reset Password: include `{{ .Token }}` so the email shows the 6-digit code.
 - Play Console: add a web account-deletion URL (Data safety → Data deletion).
