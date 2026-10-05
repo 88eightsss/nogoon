@@ -34,6 +34,7 @@ import {
 } from '@expo-google-fonts/jetbrains-mono';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUserStore } from '@/stores/useUserStore';
+import { useThemeStore } from '@/stores/useThemeStore';
 import { useSubscriptionStore } from '@/stores/useSubscriptionStore';
 import { requestNotificationPermission, scheduleWeeklyRecap, walkAwaysThisWeek, cancelComebackReminder, notifyTokenEarned } from '@/utils/notifications';
 import { useAdAppOpen } from '@/components/ads/AdAppOpen';
@@ -199,10 +200,16 @@ export default function RootLayout() {
   // The user store is persisted to AsyncStorage and hydrates asynchronously.
   // Until it has, `hasOnboarded` is just its default (false) — routing on that
   // would send a returning user back through onboarding for a moment.
-  const [storeHydrated, setStoreHydrated] = useState(() => useUserStore.persist.hasHydrated());
+  // The theme store hydrates the same way; without waiting for it the first frame
+  // painted the default theme before flipping to the saved one.
+  const bothHydrated = () => useUserStore.persist.hasHydrated() && useThemeStore.persist.hasHydrated();
+  const [storeHydrated, setStoreHydrated] = useState(bothHydrated);
   useEffect(() => {
-    if (useUserStore.persist.hasHydrated()) { setStoreHydrated(true); return; }
-    return useUserStore.persist.onFinishHydration(() => setStoreHydrated(true));
+    if (bothHydrated()) { setStoreHydrated(true); return; }
+    const check = () => { if (bothHydrated()) setStoreHydrated(true); };
+    const u1 = useUserStore.persist.onFinishHydration(check);
+    const u2 = useThemeStore.persist.onFinishHydration(check);
+    return () => { u1(); u2(); };
   }, []);
 
   // Keep the current route in a ref so the routing effect can look at it
