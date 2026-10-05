@@ -743,7 +743,8 @@ export const useUserStore = create<UserState>()(
         const cleaned = domain
           .replace(/^https?:\/\//i, '')
           .replace(/^www\./i, '')
-          .replace(/\/.*$/, '')
+          .replace(/[/?#].*$/, '')
+          .replace(/:\d+$/, '')
           .toLowerCase()
           .trim();
         if (!cleaned) return;

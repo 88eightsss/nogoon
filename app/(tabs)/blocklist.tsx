@@ -8,11 +8,12 @@
 import { useState, useCallback } from 'react';
 import {
   View, Text, TextInput, Pressable, ScrollView,
-  StyleSheet, Switch, KeyboardAvoidingView, Platform,
+  StyleSheet, Switch, KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useUserStore } from '@/stores/useUserStore';
+import { useModesStore } from '@/stores/useModesStore';
 import { useAppBlocker, BLOCKABLE_APPS } from '@/hooks/useAppBlocker';
 import { describeBlockingStatus } from '@/utils/blockingStatus';
 import { PulseGlow } from '@/components/PulseGlow';
@@ -210,11 +211,41 @@ const customStyles = StyleSheet.create({
 
 export default function ProtectScreen() {
   const { colors, cardStyle } = useTheme();
-  const { blocklist, addSite, removeSite, blockedApps, setBlockedApps } = useUserStore();
+  const { blocklist, addSite: addSiteRaw, removeSite: removeSiteRaw, blockedApps, setBlockedApps, isBricked, focusSessionEnd } = useUserStore();
+  const modeActive = useModesStore((s) => s.baseSnapshot !== null);
+  const focusActive = !!focusSessionEnd && focusSessionEnd > Date.now();
+  const removalLocked = isBricked || focusActive;
+
+  // While a Mode is applied the live lists belong to the Mode (the user's own lists are
+  // parked and restored when it ends), so edits here would be thrown away. Hard Mode and
+  // Focus Session mean "no easy way out", so they also block removing things.
+  const canAdd = (): boolean => {
+    if (modeActive) {
+      Alert.alert('A Mode is active', 'Your lists are paused while a Mode is running. Change them once it ends, or edit the Mode itself.');
+      return false;
+    }
+    return true;
+  };
+  const canRemove = (): boolean => {
+    if (!canAdd()) return false;
+    if (removalLocked) {
+      Alert.alert(
+        isBricked ? 'Hard Mode is on' : 'Focus Session is running',
+        isBricked
+          ? 'You can add to your lists, but nothing can be removed while Hard Mode is on.'
+          : 'Nothing can be removed until your focus session ends.'
+      );
+      return false;
+    }
+    return true;
+  };
+  const addSite = (d: string) => { if (canAdd()) addSiteRaw(d); };
+  const removeSite = (d: string) => { if (canRemove()) removeSiteRaw(d); };
   const { blockingStatus, openSettings } = useAppBlocker();
   const statusView = describeBlockingStatus(blockingStatus, colors);
 
   const [customInput, setCustomInput] = useState('');
+  const [customError, setCustomError] = useState<string | null>(null);
 
   // Sites that are in blocklist but NOT from any package
   const packageSites = PACKAGES.flatMap((p) => p.sites);
@@ -222,23 +253,35 @@ export default function ProtectScreen() {
 
   const submitCustom = useCallback(() => {
     const val = customInput
+      .trim()
       .replace(/^https?:\/\//i, '')
       .replace(/^www\./i, '')
-      .replace(/\/.*$/, '')
-      .toLowerCase()
-      .trim();
+      .replace(/[/?#].*$/, '')
+      .replace(/:\d+$/, '')
+      .toLowerCase();
     if (!val) return;
+    if (!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(val)) {
+      setCustomError('Enter a website like reddit.com');
+      return;
+    }
+    if (blocklist.includes(val)) {
+      setCustomError(`${val} is already blocked`);
+      return;
+    }
+    setCustomError(null);
     addSite(val);
     setCustomInput('');
-  }, [customInput, addSite]);
+  }, [customInput, blocklist, modeActive]);
 
-  const toggleApp = useCallback((pkg: string, enabled: boolean) => {
+  const toggleApp = (pkg: string, enabled: boolean) => {
     if (enabled) {
+      if (!canAdd()) return;
       setBlockedApps([...blockedApps, pkg]);
     } else {
+      if (!canRemove()) return;
       setBlockedApps(blockedApps.filter((p) => p !== pkg));
     }
-  }, [blockedApps, setBlockedApps]);
+  };
 
   return (
     <>
@@ -300,6 +343,18 @@ export default function ProtectScreen() {
             </>
           )}
 
+          {(modeActive || removalLocked) && (
+            <View style={{ backgroundColor: colors.accentDim, borderRadius: RADIUS.md, padding: SPACING.md, marginBottom: SPACING.md }}>
+              <Text style={{ color: colors.text, fontFamily: FONTS.bodyMedium, fontSize: 13 }}>
+                {modeActive
+                  ? 'A Mode is active — your lists are paused until it ends.'
+                  : isBricked
+                    ? 'Hard Mode is on — you can add, but nothing can be removed.'
+                    : 'Focus Session running — nothing can be removed until it ends.'}
+              </Text>
+            </View>
+          )}
+
           {/* Section: Packages */}
           <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Quick blocks</Text>
 
@@ -321,7 +376,7 @@ export default function ProtectScreen() {
               <TextInput
                 style={[addStyles.input, { color: colors.text }]}
                 value={customInput}
-                onChangeText={setCustomInput}
+                onChangeText={(t) => { setCustomInput(t); if (customError) setCustomError(null); }}
                 placeholder="website, e.g. reddit.com"
                 placeholderTextColor={colors.textMuted}
                 autoCapitalize="none"
@@ -337,6 +392,12 @@ export default function ProtectScreen() {
                 <Feather name="plus" size={16} color="#fff" />
               </Pressable>
             </View>
+
+            {customError && (
+              <Text style={{ color: colors.danger, fontFamily: FONTS.body, fontSize: 12, paddingHorizontal: SPACING.md, paddingBottom: SPACING.sm }}>
+                {customError}
+              </Text>
+            )}
 
             {/* Custom site list */}
             {customSites.length > 0 && (
