@@ -16,6 +16,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Stack, router, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import * as Notifications from 'expo-notifications';
 import { useFonts } from 'expo-font';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
@@ -38,6 +39,17 @@ import { requestNotificationPermission, scheduleWeeklyRecap, cancelComebackRemin
 import { useAdAppOpen } from '@/components/ads/AdAppOpen';
 import { processCheckIn } from '@/services/feedTokens';
 import { useCloudSync } from '@/hooks/useCloudSync';
+
+// Without a handler Android drops notifications that arrive while the app is open,
+// which silenced every celebration (streaks, walk-aways, tokens).
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: false,
+    shouldSetBadge: false,
+  }),
+});
 import { useNativeSync } from '@/hooks/useNativeSync';
 import { useTheme } from '@/hooks/useTheme';
 import { isLightColor } from '@/utils/colorLuminance';

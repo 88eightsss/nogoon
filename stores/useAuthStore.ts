@@ -9,6 +9,8 @@
 
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { NativeModules, Platform } from 'react-native';
+import * as Notifications from 'expo-notifications';
 import { Session, User, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { useUserStore } from '@/stores/useUserStore';
@@ -55,6 +57,69 @@ interface AuthState {
   confirmPasswordReset: (email: string, code: string, newPassword: string) => Promise<AuthError | null>;
 }
 
+// ─── Local wipe ───────────────────────────────────────────────────────────────
+// Everything that belongs to the signed-in account and lives on this phone. Used by
+// signOut AND by the auth listener, so a session that ends any other way (account
+// deleted elsewhere, refresh token revoked) can't leave the previous account's
+// points, streak and blocklists behind for the next person to inherit.
+
+let wiping = false;
+
+async function wipeLocal() {
+  if (wiping) return;
+  wiping = true;
+  try {
+    const locked =
+      useUserStore.getState().isBricked ||
+      useUserStore.getState().isColdTurkey ||
+      (useUserStore.getState().focusSessionEnd ?? 0) > Date.now();
+
+    useUserStore.getState().resetStore();
+    // The wiped lists are gone, so forget which Mode was applied over them. (The
+    // Modes themselves are device settings and stay.)
+    useModesStore.getState().setApplied(null, null);
+    // Other persisted stores keep their state in memory and would simply write it back,
+    // so reset them in memory too (private brain-bubble text, pet stats, unlock toasts).
+    useBubblesStore.setState(useBubblesStore.getInitialState(), true);
+    useProgressStore.setState(useProgressStore.getInitialState(), true);
+    usePetStore.setState(usePetStore.getInitialState(), true);
+
+    // The Android service reads its own copy of the lists, which would otherwise keep
+    // gating the old account's apps with nobody signed in. A self-imposed lock
+    // (Hard Mode, Cold Turkey, Focus Session) is the exception: it keeps enforcing on
+    // purpose, so signing out can't be used to get around it.
+    const native = NativeModules.AppBlocker;
+    if (!locked && Platform.OS === 'android' && native) {
+      try {
+        await native.setBlockedApps?.([]);
+        await native.setBlockedDomains?.([]);
+        await native.setModesConfig?.('[]', '');
+      } catch (e) {
+        console.warn('wipeLocal: clearing native lists failed', e);
+      }
+    }
+    // Scheduled reminders (recap, comeback, daily summary) are about the old account too.
+    try { await Notifications.cancelAllScheduledNotificationsAsync(); } catch { /* best effort */ }
+
+    // Companion, nicknames, feed tokens etc. live in their own per-account keys.
+    try {
+      const loose = [
+        'nogoon_start_date', 'nogoon_today_intention', 'nogoon_intention_date',
+        'goon_last_shown_milestone', 'goon_last_shown_streak_milestone',
+        'nogoon_whatnow_nudge_shown', 'nogoon_organizer_edit_hint_seen',
+      ];
+      const keys = (await AsyncStorage.getAllKeys()).filter(
+        (k) => k.startsWith('@nogoon_') || k.includes('dead-reckoning') || k.includes('dead_reckoning') || loose.includes(k)
+      );
+      if (keys.length > 0) await AsyncStorage.multiRemove(keys);
+    } catch (e) {
+      console.warn('wipeLocal: clearing companion keys failed', e);
+    }
+  } finally {
+    wiping = false;
+  }
+}
+
 // ─── Store ────────────────────────────────────────────────────────────────────
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -77,8 +142,11 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({ session, user: session?.user ?? null, loading: false });
 
       // Listen for future session changes (sign in, sign out, token refresh)
-      supabase.auth.onAuthStateChange((_event, session) => {
+      supabase.auth.onAuthStateChange((event, session) => {
         set({ session, user: session?.user ?? null });
+        // The session ended without going through signOut() (deleted account, revoked
+        // refresh token). Wipe the previous account's data from this phone.
+        if (event === 'SIGNED_OUT') void wipeLocal();
       });
     } catch (e) {
       // Network failure or unconfigured Supabase keys — treat as logged out
@@ -127,33 +195,18 @@ export const useAuthStore = create<AuthState>((set) => ({
   // they won't see the previous user's streak, points, or blocklist.
 
   signOut: async () => {
-    // 1. Sign out of Supabase (clears the session token from SecureStore) and
-    //    clear the auth state — _layout.tsx redirects to /auth.
-    await supabase.auth.signOut();
+    // 1. Sign out of Supabase and clear the auth state — _layout.tsx redirects to /auth.
+    //    If the server call fails (offline), supabase-js leaves the saved session on
+    //    disk and the next launch would sign the user straight back in, so also drop
+    //    it locally.
+    const { error } = await supabase.auth.signOut();
+    if (error) await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
     set({ session: null, user: null });
 
-    // 2. THEN wipe all local user data (points, streak, blocklist, etc.).
-    //    Doing this first flipped hasOnboarded to false while the session was
-    //    still set, which bounced the user to /onboarding for a moment before
-    //    /auth. With the session already gone, the redirect is straight to /auth.
-    useUserStore.getState().resetStore();
-    // The wiped lists are gone, so forget which Mode was applied over them. (The
-    // Modes themselves are device settings and stay.)
-    useModesStore.getState().setApplied(null, null);
-    // Companion, nicknames, feed tokens etc. live in their own per-account keys;
-    // clear them so the next account on this phone doesn't inherit them.
-    // Other persisted stores keep their state in memory and would simply write it back,
-    // so reset them in memory too (private brain-bubble text, pet stats, unlock toasts).
-    useBubblesStore.setState(useBubblesStore.getInitialState(), true);
-    useProgressStore.setState(useProgressStore.getInitialState(), true);
-    usePetStore.setState(usePetStore.getInitialState(), true);
-    try {
-      const loose = ['nogoon_start_date', 'nogoon_today_intention', 'nogoon_intention_date', 'goon_last_shown_milestone'];
-      const keys = (await AsyncStorage.getAllKeys()).filter((k) => k.startsWith('@nogoon_') || loose.includes(k));
-      if (keys.length > 0) await AsyncStorage.multiRemove(keys);
-    } catch (e) {
-      console.warn('signOut: clearing companion keys failed', e);
-    }
+    // 2. THEN wipe all local user data. Doing this first flipped hasOnboarded to false
+    //    while the session was still set, which bounced the user to /onboarding for a
+    //    moment before /auth.
+    await wipeLocal();
   },
 
   // ── deleteAccount ─────────────────────────────────────────────────────────
@@ -190,12 +243,18 @@ export const useAuthStore = create<AuthState>((set) => ({
   // then immediately updates their password to the new one they chose.
 
   confirmPasswordReset: async (email, code, newPassword) => {
-    const { error: verifyError } = await supabase.auth.verifyOtp({
-      email,
-      token: code,
-      type: 'recovery',
-    });
-    if (verifyError) return verifyError;
+    // verifyOtp consumes the single-use code and signs the user in. If the password
+    // update then failed (e.g. same as the old one), a retry must not verify again.
+    const existing = useAuthStore.getState().session;
+    const alreadyVerified = existing?.user?.email?.toLowerCase() === email.trim().toLowerCase();
+    if (!alreadyVerified) {
+      const { error: verifyError } = await supabase.auth.verifyOtp({
+        email,
+        token: code,
+        type: 'recovery',
+      });
+      if (verifyError) return verifyError;
+    }
 
     const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
     return updateError ?? null;
