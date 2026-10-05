@@ -14,7 +14,7 @@
 // requires the user to navigate to Settings → Apps → Special App Access →
 // Notification Access → NoGoon. We send them there directly.
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Platform, NativeModules, AppState } from 'react-native';
 
 const { AppBlocker } = NativeModules;
@@ -35,6 +35,16 @@ export function useNotificationListener() {
       setIsGranted(granted);
     } catch {
       setIsGranted(false);
+    }
+    // Read the real toggle back from native. It used to start at "off" on every launch,
+    // so a filter that was already running was shown as off. (Older builds without the
+    // getter keep whatever was last set in this session.)
+    try {
+      if (typeof AppBlocker.isNotificationFilterEnabled === 'function') {
+        setIsFilterEnabled(!!(await AppBlocker.isNotificationFilterEnabled()));
+      }
+    } catch {
+      // keep current value
     }
   }, []);
 
@@ -59,8 +69,13 @@ export function useNotificationListener() {
 
   // ── Toggle filter (requires permission to be granted first) ───────────────
 
+  // The in-flight guard lives in a ref so toggleFilter keeps one stable identity —
+  // as state it changed identity on every call and could make effects that depend on it
+  // retry in a loop when the native call failed.
+  const busyRef = useRef(false);
   const toggleFilter = useCallback(async (enabled: boolean) => {
-    if (!hasNative || isLoading) return;
+    if (!hasNative || busyRef.current) return;
+    busyRef.current = true;
     setIsLoading(true);
     try {
       await AppBlocker.setNotificationFilterEnabled(enabled);
@@ -68,9 +83,10 @@ export function useNotificationListener() {
     } catch {
       // Best-effort
     } finally {
+      busyRef.current = false;
       setIsLoading(false);
     }
-  }, [isLoading]);
+  }, []);
 
   return {
     isGranted,

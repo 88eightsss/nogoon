@@ -21,6 +21,7 @@
 //   stopVpn()                                 — stops NoGoonVpnService
 //   isVpnActive()                             — returns true if VPN service is running
 //   setNotificationFilterEnabled(enabled)     — enables/disables notification suppression
+//   isNotificationFilterEnabled()             — reads that toggle back (so the UI can show the real state)
 //   isNotificationListenerEnabled()           — returns true if Notification Access is granted
 //   openNotificationListenerSettings()        — opens Notification Access settings
 //   getVpnDomainLog()                         — returns JSON array of recent blocked domains
@@ -645,6 +646,16 @@ class AppBlockerModule(reactContext: ReactApplicationContext) :
             promise.resolve(true)
         } catch (e: Exception) {
             promise.reject("SET_NOTIF_FILTER_ERROR", e.message ?: "Unknown error", e)
+        }
+    }
+
+    @ReactMethod
+    fun isNotificationFilterEnabled(promise: Promise) {
+        try {
+            val prefs = reactApplicationContext.getSharedPreferences(PREFS_NAME, 0)
+            promise.resolve(prefs.getBoolean("notificationFilterEnabled", false))
+        } catch (e: Exception) {
+            promise.resolve(false)
         }
     }
 
