@@ -9,7 +9,7 @@
 // Pinch canvas → zoom in/out
 // Drag empty space → pan the canvas
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import {
   View, Text, StyleSheet, Pressable, TextInput,
   Modal, Alert, Animated,
@@ -39,6 +39,15 @@ function WriteView({ bubble, onClose }: { bubble: Bubble; onClose: () => void })
   const [text, setText] = useState(bubble.text);
   const [title, setTitle] = useState(bubble.title);
 
+  // Android back / swipe leaves this screen without pressing the arrow, which used to
+  // drop the edit. Keep the latest text in a ref and save it whenever the view goes away.
+  const latest = useRef({ text, title });
+  latest.current = { text, title };
+  const deleted = useRef(false);
+  useEffect(() => () => {
+    if (!deleted.current) updateBubble(bubble.id, latest.current);
+  }, [bubble.id]);
+
   const save = useCallback(() => {
     updateBubble(bubble.id, { text, title });
     onClose();
@@ -49,7 +58,7 @@ function WriteView({ bubble, onClose }: { bubble: Bubble; onClose: () => void })
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete', style: 'destructive',
-        onPress: () => { deleteBubble(bubble.id); onClose(); },
+        onPress: () => { deleted.current = true; deleteBubble(bubble.id); onClose(); },
       },
     ]);
   };
@@ -230,22 +239,31 @@ const sheetStyles = StyleSheet.create({
 function BubbleNode({
   bubble,
   scale,
+  scaleAnim,
   onTap,
   onMove,
 }: {
   bubble: Bubble;
   scale: number;
+  scaleAnim: Animated.AnimatedNode;
   onTap: () => void;
   onMove: (dx: number, dy: number) => void;
 }) {
   const { colors } = useTheme();
   const lastPos = useRef({ x: bubble.x, y: bubble.y });
-  const translateX = useRef(new Animated.Value(bubble.x)).current;
-  const translateY = useRef(new Animated.Value(bubble.y)).current;
+  // Settled position + the live finger drag. The drag is divided by the canvas scale so
+  // the bubble tracks the finger at any zoom (the canvas itself is scaled, so a raw
+  // translation moved it by translation * scale on screen).
+  const baseX = useRef(new Animated.Value(bubble.x)).current;
+  const baseY = useRef(new Animated.Value(bubble.y)).current;
+  const dragX = useRef(new Animated.Value(0)).current;
+  const dragY = useRef(new Animated.Value(0)).current;
+  const translateX = useRef(Animated.add(baseX, Animated.divide(dragX, scaleAnim))).current;
+  const translateY = useRef(Animated.add(baseY, Animated.divide(dragY, scaleAnim))).current;
 
   const onPanEvent = useRef(
     Animated.event(
-      [{ nativeEvent: { translationX: translateX, translationY: translateY } }],
+      [{ nativeEvent: { translationX: dragX, translationY: dragY } }],
       { useNativeDriver: true }
     )
   ).current;
@@ -256,16 +274,11 @@ function BubbleNode({
         const newX = lastPos.current.x + e.nativeEvent.translationX / scale;
         const newY = lastPos.current.y + e.nativeEvent.translationY / scale;
         lastPos.current = { x: newX, y: newY };
-        translateX.setOffset(0);
-        translateY.setOffset(0);
-        translateX.setValue(newX);
-        translateY.setValue(newY);
+        baseX.setValue(newX);
+        baseY.setValue(newY);
+        dragX.setValue(0);
+        dragY.setValue(0);
         onMove(newX, newY);
-      } else if (e.nativeEvent.state === State.BEGAN) {
-        translateX.setOffset(lastPos.current.x);
-        translateY.setOffset(lastPos.current.y);
-        translateX.setValue(0);
-        translateY.setValue(0);
       }
     },
     [scale, onMove]
@@ -343,7 +356,11 @@ export default function BubblesScreen() {
   // Canvas pan + scale
   const panX  = useRef(new Animated.Value(0)).current;
   const panY  = useRef(new Animated.Value(0)).current;
-  const scale = useRef(new Animated.Value(1)).current;
+  // Zoom = settled zoom × the live pinch factor (multiplicative, so a pinch composes
+  // correctly with the zoom already applied).
+  const baseScale  = useRef(new Animated.Value(1)).current;
+  const pinchScale = useRef(new Animated.Value(1)).current;
+  const scale      = useRef(Animated.multiply(baseScale, pinchScale)).current;
   const lastPan   = useRef({ x: 0, y: 0 });
   const lastScale = useRef(1);
   const [scaleNum, setScaleNum] = useState(1);
@@ -375,7 +392,7 @@ export default function BubblesScreen() {
   // Pinch handler
   const onPinch = useRef(
     Animated.event(
-      [{ nativeEvent: { scale } }],
+      [{ nativeEvent: { scale: pinchScale } }],
       { useNativeDriver: true }
     )
   ).current;
@@ -384,12 +401,9 @@ export default function BubblesScreen() {
     if (e.nativeEvent.state === State.END) {
       const newScale = Math.max(0.3, Math.min(3, lastScale.current * e.nativeEvent.scale));
       lastScale.current = newScale;
-      scale.setOffset(0);
-      scale.setValue(newScale);
+      baseScale.setValue(newScale);
+      pinchScale.setValue(1);
       setScaleNum(newScale);
-    } else if (e.nativeEvent.state === State.BEGAN) {
-      scale.setOffset(lastScale.current);
-      scale.setValue(0);
     }
   }, []);
 
@@ -459,6 +473,7 @@ export default function BubblesScreen() {
                       key={bubble.id}
                       bubble={bubble}
                       scale={scaleNum}
+                      scaleAnim={scale}
                       onTap={() => setOpenBubble(bubble)}
                       onMove={(x, y) => updateBubble(bubble.id, { x, y })}
                     />
