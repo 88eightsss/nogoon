@@ -232,7 +232,7 @@ function NoGoonScreen() {
   const [gatePetName,   setGatePetName]   = useState('Buddy');
 
   const isAppBlock = source === 'app';
-  const displayDomain = isAppBlock
+  const displayDomain = isAppBlock || source === 'curfew'
     ? (PACKAGE_TO_NAME[domain] ?? domain)
     : domain;
 
@@ -628,7 +628,13 @@ function NoGoonScreen() {
             </Text>
           </View>
           <Pressable
-            style={[styles.skipRow, { marginTop: SPACING.xl }]}
+            style={[styles.calmContinueBtn, { borderColor: C.indigoBright + '88', backgroundColor: C.indigoBright + '18', alignSelf: 'stretch', justifyContent: 'center', marginTop: SPACING.xl }]}
+            onPress={() => exitGate()}
+          >
+            <Text style={[styles.calmContinueText, { color: C.indigoBright }]}>Back to my focus</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.skipRow, { marginTop: SPACING.md }]}
             onPress={() => {
               Alert.alert(
                 'End focus session?',
@@ -1054,7 +1060,12 @@ function NoGoonScreen() {
   // RENDER: Pick — game chooser (when gameMode === 'choose')
   // ══════════════════════════════════════════════════════════════════════════
   if (phase === 'pick') {
-    const pool = [...GATE_GAMES, ...CALM_CATEGORY_GAMES.filter((g) => enabledCalmGateGames.includes(g.id))];
+    // Respect the Arcade's "turn off games you don't enjoy" switches here too.
+    const enabledGate = GATE_GAMES.filter((g) => !disabledGateGames.includes(g.id));
+    const pool = [
+      ...(enabledGate.length > 0 ? enabledGate : GATE_GAMES),
+      ...CALM_CATEGORY_GAMES.filter((g) => enabledCalmGateGames.includes(g.id)),
+    ];
 
     return (
       <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]}>
