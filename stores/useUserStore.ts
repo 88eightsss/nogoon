@@ -461,7 +461,9 @@ interface UserState {
   loadFromSupabase: (userId: string) => Promise<void>;
 
   // Supabase sync — pushes local changes up to cloud
-  syncToSupabase: (userId: string) => Promise<void>;
+  // `blockedApps` is passed in by the caller so an active Mode's temporary list is
+  // never uploaded in place of the user's own.
+  syncToSupabase: (userId: string, blockedApps?: string[]) => Promise<void>;
 
   // Resets ALL local data — called on sign out so the next user starts fresh
   resetStore: () => void;
@@ -1206,6 +1208,13 @@ export const useUserStore = create<UserState>()(
               longestStreak: Math.max(state.longestStreak, p.longest_streak ?? 0),
               gamesPlayed: Math.max(state.gamesPlayed, p.games_played ?? 0),
               walkAwayCount: Math.max(state.walkAwayCount, p.walk_away_count ?? 0),
+              // Blocked apps: a fresh install/new phone has none locally, so take the
+              // cloud list then. Otherwise the device wins (it is uploaded on change),
+              // so an app the user removed never comes back.
+              blockedApps:
+                state.blockedApps.length === 0 && Array.isArray(p.blocked_apps)
+                  ? (p.blocked_apps as string[])
+                  : state.blockedApps,
               // A brand-new account also has a (zeroed) profile row, so a row alone
               // proves nothing — only real progress marks someone as a returning user
               // who shouldn't be walked through onboarding again.
@@ -1255,8 +1264,9 @@ export const useUserStore = create<UserState>()(
       }
     },
 
-      syncToSupabase: async (userId) => {
+      syncToSupabase: async (userId, blockedApps) => {
         const { points, xp, level, streak, longestStreak, gamesPlayed, walkAwayCount } = get();
+        const apps = blockedApps ?? get().blockedApps;
         const base = {
           id: userId,
           points,
@@ -1269,11 +1279,17 @@ export const useUserStore = create<UserState>()(
         // walk_away_count may not exist on older `profiles` tables. If the full
         // upsert is rejected, retry without it so the rest of the progress still
         // reaches the cloud instead of the whole sync silently failing.
-        const { error } = await supabase.from('profiles').upsert({ ...base, walk_away_count: walkAwayCount });
+        // The same applies to blocked_apps (see supabase/migrations). Try the full
+        // row first, then without the newest column, then the bare minimum.
+        const full = { ...base, walk_away_count: walkAwayCount, blocked_apps: apps };
+        const { error } = await supabase.from('profiles').upsert(full);
         if (error) {
-          await backgroundWrite('syncToSupabase (without walk_away_count)', () =>
-            supabase.from('profiles').upsert(base)
-          );
+          const { error: e2 } = await supabase.from('profiles').upsert({ ...base, walk_away_count: walkAwayCount });
+          if (e2) {
+            await backgroundWrite('syncToSupabase (minimal)', () =>
+              supabase.from('profiles').upsert(base)
+            );
+          }
         }
       },
 

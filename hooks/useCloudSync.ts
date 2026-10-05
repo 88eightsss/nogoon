@@ -13,11 +13,16 @@
 import { useEffect } from 'react';
 import { AppState } from 'react-native';
 import { useUserStore } from '@/stores/useUserStore';
+import { useModesStore } from '@/stores/useModesStore';
 
 const DEBOUNCE_MS = 4000;
 
+// The user's own app list. While a Mode is applied the live list is the Mode's, so
+// the saved copy of the user's list is what belongs in the cloud.
+const userApps = () => useModesStore.getState().baseSnapshot?.apps ?? useUserStore.getState().blockedApps;
+
 const pick = (s: ReturnType<typeof useUserStore.getState>) =>
-  [s.points, s.xp, s.streak, s.longestStreak, s.gamesPlayed, s.walkAwayCount].join('|');
+  [s.points, s.xp, s.streak, s.longestStreak, s.gamesPlayed, s.walkAwayCount, [...userApps()].sort().join(',')].join('|');
 
 export function useCloudSync(userId: string | undefined, ready: boolean) {
   useEffect(() => {
@@ -31,21 +36,24 @@ export function useCloudSync(userId: string | undefined, ready: boolean) {
       const current = pick(useUserStore.getState());
       if (current === lastSynced) return;
       lastSynced = current;
-      useUserStore.getState().syncToSupabase(userId).catch(() => {});
+      useUserStore.getState().syncToSupabase(userId, userApps()).catch(() => {});
     };
 
-    const unsubscribe = useUserStore.subscribe((state) => {
-      if (pick(state) === lastSynced) return;
+    const onChange = () => {
+      if (pick(useUserStore.getState()) === lastSynced) return;
       if (timer) clearTimeout(timer);
       timer = setTimeout(flush, DEBOUNCE_MS);
-    });
+    };
+    const unsubUser = useUserStore.subscribe(onChange);
+    const unsubModes = useModesStore.subscribe(onChange);
 
     const appState = AppState.addEventListener('change', (next) => {
       if (next !== 'active') flush();
     });
 
     return () => {
-      unsubscribe();
+      unsubUser();
+      unsubModes();
       appState.remove();
       if (timer) clearTimeout(timer);
     };
