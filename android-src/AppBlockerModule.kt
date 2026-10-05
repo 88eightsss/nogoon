@@ -86,11 +86,12 @@ class AppBlockerModule(reactContext: ReactApplicationContext) :
                 // User approved — now start the VPN service
                 try {
                     val serviceIntent = Intent(reactApplicationContext, NoGoonVpnService::class.java)
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        reactApplicationContext.startForegroundService(serviceIntent)
-                    } else {
-                        reactApplicationContext.startService(serviceIntent)
-                    }
+                    // startService, not startForegroundService: NoGoonVpnService never calls
+                    // startForeground(), so on Android 8+ the system killed the app a few seconds
+                    // after "Network filter" was enabled. A VpnService doesn't need to be a
+                    // foreground service (the system shows its own VPN key icon), and this is
+                    // only ever called while the app is on screen.
+                    reactApplicationContext.startService(serviceIntent)
                     promise.resolve(true)
                 } catch (e: Exception) {
                     promise.reject("VPN_START_ERROR", e.message ?: "Unknown error", e)
@@ -571,11 +572,7 @@ class AppBlockerModule(reactContext: ReactApplicationContext) :
             }
             // Already approved — start the service directly
             val serviceIntent = Intent(reactApplicationContext, NoGoonVpnService::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                reactApplicationContext.startForegroundService(serviceIntent)
-            } else {
-                reactApplicationContext.startService(serviceIntent)
-            }
+            reactApplicationContext.startService(serviceIntent)   // see note at the other call site
             promise.resolve(true)
         } catch (e: Exception) {
             promise.reject("VPN_START_ERROR", e.message ?: "Unknown error", e)

@@ -86,6 +86,7 @@ class NoGoonAccessibilityService : AccessibilityService() {
         private const val RAPID_WINDOW_MS     = 3L * 60 * 1000  // 3-minute rapid re-entry window
         private const val RAPID_LOCKOUT_COUNT = 5               // trigger lockout after this many rapid returns
         private const val RAPID_LOCKOUT_MS    = 10L * 60 * 1000 // 10-minute hard lockout duration
+        private const val KEY_LOCKOUT_UNTIL_PREFIX = "lockout_until_"  // per-target end of the rapid-return lockout
 
         // ── Digital Curfew (Sleep Mode) ───────────────────────────────────────
         // Written by AppBlockerModule.setCurfew() when JS curfew settings change.
@@ -448,15 +449,20 @@ class NoGoonAccessibilityService : AccessibilityService() {
     // active Mode's lists when Modes are configured and one currently applies,
     // otherwise falls back unchanged to the legacy flat lists.
 
+    // A Mode that lists nothing at all (e.g. one just created) must not switch blocking
+    // off — fall back to the flat lists, same as the JS side (useNativeSync) does.
+    private fun modeHasLists(mode: org.json.JSONObject): Boolean =
+        (mode.optJSONArray("apps")?.length() ?: 0) > 0 || (mode.optJSONArray("domains")?.length() ?: 0) > 0
+
     private fun activeBlockedApps(): Set<String> {
         val mode = resolveActiveModeJson()
-        if (mode != null) return jsonArrayToStringSet(mode.optJSONArray("apps"))
+        if (mode != null && modeHasLists(mode)) return jsonArrayToStringSet(mode.optJSONArray("apps"))
         return prefs.getStringSet(KEY_BLOCKLIST, emptySet()) ?: emptySet()
     }
 
     private fun activeBlockedDomains(): Set<String> {
         val mode = resolveActiveModeJson()
-        if (mode != null) return jsonArrayToStringSet(mode.optJSONArray("domains"))
+        if (mode != null && modeHasLists(mode)) return jsonArrayToStringSet(mode.optJSONArray("domains"))
         return prefs.getStringSet(KEY_DOMAIN_BLOCKLIST, emptySet()) ?: emptySet()
     }
 
@@ -753,6 +759,16 @@ class NoGoonAccessibilityService : AccessibilityService() {
         // attempt look "on cooldown" and open the app with no gate.
         if (now - lastGateLaunchMs < GATE_LAUNCH_DEBOUNCE_MS) return
 
+        // Rapid-return lockout: for 10 minutes every attempt is still gated (with the
+        // "breather" screen). It used to push the cooldown key 10 minutes out, which made
+        // the service silently ignore the app — i.e. a 10-minute FREE PASS.
+        val lockoutKey = "$KEY_LOCKOUT_UNTIL_PREFIX$target"
+        if (prefs.getLong(lockoutKey, 0L) > now) {
+            prefs.edit().putLong(cooldownKey, now).apply()
+            launchNoGoon(target, source, true, RAPID_LOCKOUT_COUNT)
+            return
+        }
+
         // ── Rapid re-entry detection ──────────────────────────────────────────
         // Tracks how many times the user returns to a blocked target within the
         // 3-minute window after the gate last fired.  After RAPID_LOCKOUT_COUNT
@@ -770,11 +786,9 @@ class NoGoonAccessibilityService : AccessibilityService() {
             .putLong(rapidLastKey, now)
             .putInt(rapidCountKey, rapidCount)
 
-        // After enough rapid returns, extend the cooldown to lock out for 10 minutes.
-        // Setting cooldownKey to (now + lockout - COOLDOWN_MS) means the next
-        // "now2 - lastTrigger < COOLDOWN_MS" check stays true until now + lockout.
+        // After enough rapid returns, start a 10-minute lockout (checked above).
         if (isRapid && rapidCount >= RAPID_LOCKOUT_COUNT) {
-            editor.putLong(cooldownKey, now + RAPID_LOCKOUT_MS - COOLDOWN_MS)
+            editor.putLong(lockoutKey, now + RAPID_LOCKOUT_MS)
         }
         editor.apply()
 
@@ -878,7 +892,12 @@ class NoGoonAccessibilityService : AccessibilityService() {
             if (key.startsWith(KEY_COOLDOWN_PREFIX) && value is Long) {
                 if (now - value > COOLDOWN_MS) { editor.remove(key); pruned++ }
             }
-            if (key.startsWith("unlock_") && value is Long) {
+            // "unlock_time_<date>" holds accumulated milliseconds for Insights, NOT an expiry
+            // timestamp — pruning it as one deleted the whole log on every service reconnect.
+            if (key.startsWith("unlock_") && !key.startsWith(KEY_UNLOCK_TIME_PREFIX) && value is Long) {
+                if (now > value) { editor.remove(key); pruned++ }
+            }
+            if (key.startsWith(KEY_LOCKOUT_UNTIL_PREFIX) && value is Long) {
                 if (now > value) { editor.remove(key); pruned++ }
             }
             // Rapid re-entry tracking keys: prune after 1 hour of inactivity

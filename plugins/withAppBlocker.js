@@ -68,6 +68,24 @@ function withAppBlockerManifest(config) {
       });
     }
 
+    // ── Package visibility (Android 11+) ───────────────────────────────────
+    // After an unlock NoGoon opens the app the user asked for via
+    // PackageManager.getLaunchIntentForPackage(). Without a <queries> entry for
+    // launchable apps that call returns null and the user is left on NoGoon's home.
+    if (!manifest.queries) manifest.queries = [{}];
+    const queriesEntry = manifest.queries[0];
+    if (!queriesEntry.intent) queriesEntry.intent = [];
+    const hasLauncherQuery = queriesEntry.intent.some((i) =>
+      (i.action ?? []).some((a) => a.$?.['android:name'] === 'android.intent.action.MAIN') &&
+      (i.category ?? []).some((c) => c.$?.['android:name'] === 'android.intent.category.LAUNCHER')
+    );
+    if (!hasLauncherQuery) {
+      queriesEntry.intent.push({
+        action:   [{ $: { 'android:name': 'android.intent.action.MAIN' } }],
+        category: [{ $: { 'android:name': 'android.intent.category.LAUNCHER' } }],
+      });
+    }
+
     if (!application.service) application.service = [];
 
     const serviceName  = '.NoGoonAccessibilityService';
