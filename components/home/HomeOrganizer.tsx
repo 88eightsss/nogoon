@@ -149,36 +149,21 @@ function StreakMilestoneFlash({ days, onDone }: { days: number; onDone: () => vo
 }
 
 // ─── Intention card (inline) ──────────────────────────────────────────────────
-const INTENTION_KEY      = 'nogoon_today_intention';
-const INTENTION_DATE_KEY = 'nogoon_intention_date';
 
 function IntentionWidget({ colors }: { colors: any }) {
-  const [intention, setIntention] = useState('');
-  const [editing,   setEditing]   = useState(false);
-  const [draft,     setDraft]     = useState('');
+  // Single source of truth is the user store (the gate reads it too). It used to live
+  // only in AsyncStorage, so the "Today you wanted to…" line on the gate never appeared.
+  const storeIntention    = useUserStore((s) => s.dailyIntention);
+  const intentionDate     = useUserStore((s) => s.intentionDate);
+  const setDailyIntention = useUserStore((s) => s.setDailyIntention);
+  const intention = intentionDate === getLocalDateKey() ? storeIntention : '';
+  const [editing, setEditing] = useState(false);
+  const [draft,   setDraft]   = useState('');
 
-  useEffect(() => {
-    async function load() {
-      const today = getLocalDateKey();
-      const [saved, savedDate] = await Promise.all([
-        AsyncStorage.getItem(INTENTION_KEY),
-        AsyncStorage.getItem(INTENTION_DATE_KEY),
-      ]);
-      if (savedDate === today && saved) setIntention(saved);
-    }
-    load();
-  }, []);
-
-  const save = useCallback(async () => {
-    const today = getLocalDateKey();
-    const val = draft.trim();
-    setIntention(val);
+  const save = useCallback(() => {
+    setDailyIntention(draft.trim());   // an empty draft clears it
     setEditing(false);
-    if (val) {
-      await AsyncStorage.setItem(INTENTION_KEY, val);
-      await AsyncStorage.setItem(INTENTION_DATE_KEY, today);
-    }
-  }, [draft]);
+  }, [draft, setDailyIntention]);
 
   if (editing) {
     return (
