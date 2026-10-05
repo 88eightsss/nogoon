@@ -6,7 +6,7 @@ import { useMemo } from 'react';
 //   - VPN Service (intercepts DNS queries)
 //   - Notification Listener (cancels notifications from blocked apps)
 //
-// All processing is on-device. No user data leaves the device.
+// Blocking itself runs on-device. Signed-in accounts sync progress and lists to Supabase.
 
 import { ScrollView, View, Text, Pressable, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,7 +16,7 @@ import { FONTS } from '@/constants/Colors';
 import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING } from '@/constants/Spacing';
 
-const LAST_UPDATED = 'July 2026';
+const LAST_UPDATED = 'October 2026';
 
 function Section({ title, body }: { title: string; body: string }) {
   const COLORS = useThemedColors();
@@ -51,7 +51,8 @@ export default function PrivacyScreen() {
 
         <Text style={styles.intro}>
           NoGoon is a focus and app-blocking tool. We believe your data is yours.
-          Everything the app does happens on your device — nothing is sent to our servers.
+          Blocking happens entirely on your device. If you create an account, your progress and
+          lists are also saved to our servers so you can restore them — this policy explains exactly what.
         </Text>
 
         <Section
@@ -73,26 +74,27 @@ export default function PrivacyScreen() {
         <Section
           title="Data stored on your device"
           body={
-            'NoGoon stores the following locally using Android SharedPreferences and AsyncStorage:\n\n' +
-            '• Your blocked app and website list\n' +
+            'NoGoon stores the following on your device using Android SharedPreferences and AsyncStorage:\n\n' +
+            '• Your blocked app and website lists, and your Modes\n' +
             '• Your game scores, streak count, and walk-away counts\n' +
-            '• App open counts (used to display The Bill)\n' +
-            '• Your Dead Reckoning daily prediction\n' +
-            '• Your hourly rate setting (used by The Bill)\n' +
-            '• Protection layer toggle states\n\n' +
-            'None of this data is transmitted off your device unless you have signed in with an ' +
-            'account, in which case your stats and streak are synced to our database so you do not ' +
-            'lose them if you reinstall.'
+            '• Your journal entries, brain-bubble notes, daily intention and nightly rule\n' +
+            '• Your companion, theme and protection settings\n\n' +
+            'If you are signed in, some of this is also copied to your account — see the next section. ' +
+            'Brain-bubble notes and the content of other apps never leave your device.'
           }
         />
 
         <Section
           title="Account data (optional sign-in)"
           body={
-            'If you choose to create an account, we store your email address and the following ' +
-            'stats in our database (Supabase): game count, walk-away count, streak, XP, and level. ' +
-            'We do not sell this data. We do not share it with advertisers. We use it solely to ' +
-            'restore your progress across reinstalls and devices.'
+            'If you create an account, we store your email address and name, and sync the following to our ' +
+            'database (Supabase): points, XP, level, streak, game and walk-away counts; the websites and ' +
+            'apps on your blocklist; the date and score of each game you play; and the journal entries ' +
+            'you write. If you set an accountability partner, we store their name and email and use them ' +
+            'only to send the notifications you turned on (the email names the site you tried to open). ' +
+            'We do not sell this data and do not share it with advertisers. We use it solely to ' +
+            'restore your progress across reinstalls and devices and to run the features above. ' +
+            'Journal entries are never shared with your partner or anyone else.'
           }
         />
 
@@ -112,7 +114,7 @@ export default function PrivacyScreen() {
             'Local data is deleted when you uninstall the app. You can delete your account at ' +
             'any time from Me → Delete account; this immediately erases your profile, progress, ' +
             'blocklist and sessions from our servers. If you can no longer open the app, email ' +
-            'nogoonapp@gmail.com with a deletion request and we will delete your account data ' +
+            'jtshibao@gmail.com with a deletion request and we will delete your account data ' +
             'within 30 days.'
           }
         />
@@ -135,7 +137,7 @@ export default function PrivacyScreen() {
 
         <Section
           title="Contact"
-          body={'Questions? Email us at nogoonapp@gmail.com'}
+          body={'Questions? Email us at jtshibao@gmail.com'}
         />
 
         <View style={{ height: SPACING.xxl }} />

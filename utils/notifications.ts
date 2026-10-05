@@ -80,6 +80,18 @@ export async function maybeNotifyWalkAway(newCount: number) {
 // ── Weekly recap — fires every Sunday at 9 am ────────────────────────────────
 // Call once on app startup (after permission granted). We cancel any existing
 // 'weekly-recap' before re-scheduling to prevent duplicate Sunday fires.
+// Walk-aways in the last 7 days (today included) from the date-keyed tally.
+export function walkAwaysThisWeek(dailyWalkAways: Record<string, number>): number {
+  let total = 0;
+  const d = new Date();
+  for (let i = 0; i < 7; i++) {
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    total += dailyWalkAways[key] ?? 0;
+    d.setDate(d.getDate() - 1);
+  }
+  return total;
+}
+
 export async function scheduleWeeklyRecap(walkAwayCount: number, streak: number) {
   try {
     await Notifications.cancelScheduledNotificationAsync('weekly-recap').catch(() => {});

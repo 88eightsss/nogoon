@@ -217,7 +217,7 @@ export default function WaitingRoomScreen() {
             <>
               <View style={styles.brickedNotice}>
                 <Text style={styles.brickedText}>
-                  You set a hard lock on this app. It can't be opened until the lock expires.
+                  You set a hard lock on this app. It can't be opened while Hard Mode is on.
                 </Text>
               </View>
               <Pressable style={styles.backLink} onPress={handleBack}>

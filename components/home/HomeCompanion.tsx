@@ -570,12 +570,15 @@ export function HomeCompanion() {
   const [showWhatNowNudge, setShowWhatNowNudge] = useState(false);
   useEffect(() => {
     if (!hasSeenTutorial) return;
+    let cancelled = false;
+    let hideTimer: ReturnType<typeof setTimeout> | undefined;
     AsyncStorage.getItem(WHATNOW_NUDGE_KEY).then((seen) => {
-      if (seen) return;
+      if (seen || cancelled) return;
       setShowWhatNowNudge(true);
       AsyncStorage.setItem(WHATNOW_NUDGE_KEY, 'true');
-      setTimeout(() => setShowWhatNowNudge(false), 5000);
+      hideTimer = setTimeout(() => setShowWhatNowNudge(false), 5000);
     });
+    return () => { cancelled = true; if (hideTimer) clearTimeout(hideTimer); };
   }, [hasSeenTutorial]);
 
   return (

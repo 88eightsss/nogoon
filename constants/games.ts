@@ -45,8 +45,8 @@ export const ALL_GAMES: readonly GameMeta[] = [
     description: '5-4-3-2-1 — anchor to your senses and the present moment.',
     emoji: '🌿',
     color: COLORS.cyan,
-    tagline: 'Clinically reduces cravings',
-    howToPlay: 'Work through your five senses in order: name 5 things you can see, 4 you can touch, 3 you can hear, 2 you can smell, 1 you can taste. Tap each item as you notice it. A clinically validated technique for breaking a craving loop.',
+    tagline: 'Ground yourself in the moment',
+    howToPlay: 'Work through your five senses in order: name 5 things you can see, 4 you can touch, 3 you can hear, 2 you can smell, 1 you can taste. Tap each item as you notice it. A well-known grounding technique for interrupting a craving loop.',
     category: 'calm',
   },
   {

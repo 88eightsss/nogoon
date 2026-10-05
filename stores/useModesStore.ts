@@ -156,7 +156,11 @@ export const useModesStore = create<ModesState>()(
       },
 
       updateMode: (id, patch) => set((s) => ({
-        modes: s.modes.map((m) => (m.id === id ? { ...m, ...patch } : m)),
+        modes: s.modes.map((m) =>
+          m.id === id
+            ? { ...m, ...patch, ...(patch.name !== undefined ? { name: patch.name.trim() || m.name } : {}) }
+            : m
+        ),
       })),
 
       deleteMode: (id) => set((s) => ({

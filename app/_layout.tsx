@@ -35,7 +35,7 @@ import {
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUserStore } from '@/stores/useUserStore';
 import { useSubscriptionStore } from '@/stores/useSubscriptionStore';
-import { requestNotificationPermission, scheduleWeeklyRecap, cancelComebackReminder, notifyTokenEarned } from '@/utils/notifications';
+import { requestNotificationPermission, scheduleWeeklyRecap, walkAwaysThisWeek, cancelComebackReminder, notifyTokenEarned } from '@/utils/notifications';
 import { useAdAppOpen } from '@/components/ads/AdAppOpen';
 import { processCheckIn } from '@/services/feedTokens';
 import { useCloudSync } from '@/hooks/useCloudSync';
@@ -263,8 +263,8 @@ export default function RootLayout() {
     // Request notification permission then schedule weekly recap
     requestNotificationPermission().then((granted) => {
       if (granted) {
-        const { walkAwayCount: wa, streak: st } = useUserStore.getState();
-        scheduleWeeklyRecap(wa, st);
+        const { dailyWalkAways: dw, streak: st } = useUserStore.getState();
+        scheduleWeeklyRecap(walkAwaysThisWeek(dw), st);
       }
     });
   }, [ready, userId, hasOnboarded]);
@@ -279,6 +279,14 @@ export default function RootLayout() {
       s.settleBricked();
       s.refreshStreakRestores();
       s.checkStreakContinuity();
+      // Keep the Sunday recap's numbers current (it's scheduled with a fixed body).
+      // (Only check — never re-prompt from a foreground event.)
+      Notifications.getPermissionsAsync().then(({ status }) => {
+        if (status === 'granted') {
+          const st = useUserStore.getState();
+          scheduleWeeklyRecap(walkAwaysThisWeek(st.dailyWalkAways), st.streak);
+        }
+      }).catch(() => {});
     };
     run();
     const sub = AppState.addEventListener('change', (next) => { if (next === 'active') run(); });
