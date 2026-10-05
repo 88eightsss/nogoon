@@ -363,7 +363,7 @@ const STEPS: Step[] = [
     dimKey: 'indigoDim' as const,
     title: 'Wind-down Mode',
     subtitle: 'Step 6 of 6',
-    body: 'Schedule automatic quiet hours. After your cutoff, NoGoon ramps up friction on every blocked site — harder games, longer pauses, fewer escape routes.\n\nSet it once on your Profile and stop negotiating with yourself at night.',
+    body: 'Schedule automatic quiet hours. After your cutoff, NoGoon adds friction on every blocked site.\n\nSet it once on your Profile and stop negotiating with yourself at night.',
     cta: { label: 'Open Profile', route: '/(tabs)/profile' },
     Illustration: WindDownIllustration,
   },

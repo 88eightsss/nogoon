@@ -659,7 +659,7 @@ export default function PostGameScreen() {
               <Text style={styles.brickedLockEmoji}>{isColdTurkeyMode ? '🦃' : '🧱'}</Text>
               <View style={styles.brickedLockText}>
                 <Text style={styles.brickedLockTitle}>
-                  {isColdTurkeyMode ? 'Cold Turkey Active' : 'BRICKED Mode Active'}
+                  {isColdTurkeyMode ? 'Cold Turkey Active' : 'Hard Mode Active'}
                 </Text>
                 <Text style={styles.brickedLockSub}>
                   {isColdTurkeyMode

@@ -826,7 +826,7 @@ function NoGoonScreen() {
           </Text>
           <View style={[styles.checkinCard, { backgroundColor: C.surface, borderColor: C.cardBorder }]}>
             <Text style={[styles.checkinCardLabel, { color: C.textSecondary, fontFamily: FONTS.body, fontSize: 15, lineHeight: 24 }]}>
-              That three-second pause is the whole thing. Most urges fade on their own — you just proved it.
+              That short pause is the whole thing. Most urges fade on their own — you just proved it.
             </Text>
           </View>
           <View style={[styles.checkinCard, { backgroundColor: C.surface, borderColor: C.cardBorder }]}>

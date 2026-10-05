@@ -331,7 +331,7 @@ export default function ArcadeScreen() {
             <Feather name="zap" size={18} color={COLORS.arcade} />
             <Text style={styles.freeCalloutText}>
               <Text style={styles.freeHighlight}>{ALL_GAMES.length} games</Text>
-              {' '}included with NoGoon — all free, forever.
+              {' '}included with NoGoon.
             </Text>
           </View>
         )}

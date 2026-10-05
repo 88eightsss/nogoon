@@ -34,7 +34,7 @@ export default function HomeScreen() {
         points={[
           { icon: 'heart',        title: 'Your companion',     body: 'Grows each time you walk away.' },
           { icon: 'shield',       title: 'Protection status',  body: 'Shows if blocking is on — tap to fix it.' },
-          { icon: 'zap',          title: 'Streak & stats',     body: "Counts the days you don't give in." },
+          { icon: 'award',        title: 'Your progress',      body: 'Walk-aways banked and streak freezes earned.' },
         ]}
       />
     </>

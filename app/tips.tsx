@@ -60,7 +60,7 @@ const TIPS = [
   {
     icon: 'moon',
     title: 'Schedule Wind-down for the evenings',
-    body: 'Set a cutoff time on your Profile and NoGoon adds friction automatically after dark — harder games, longer pauses, no willpower required.',
+    body: 'Set a cutoff time on your Profile and NoGoon adds friction automatically after dark — no willpower required.',
   },
   {
     icon: 'shield',
