@@ -16,6 +16,12 @@ const { withAndroidManifest, withDangerousMod } = require('@expo/config-plugins'
 const fs   = require('fs');
 const path = require('path');
 
+// Feature flags shared with the JS app (constants/features.ts). networkShield
+// = the DNS VPN (NoGoonVpnService). Off for the first Play release: no VPN
+// service in the manifest, no VPN code compiled in. See docs/TODO.md.
+const FEATURES = require('../features.json');
+const VPN_ENABLED = FEATURES.networkShield === true;
+
 // ─── Step 1: Patch AndroidManifest.xml ────────────────────────────────────────
 
 function withAppBlockerManifest(config) {
@@ -46,9 +52,9 @@ function withAppBlockerManifest(config) {
     if (!manifest['uses-permission']) manifest['uses-permission'] = [];
     const permsToAdd = [
       'android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS',
-      'android.permission.INTERNET',                            // VPN socket to forward DNS
-      'android.permission.FOREGROUND_SERVICE',                  // VPN runs as foreground service
-      'android.permission.FOREGROUND_SERVICE_SPECIAL_USE',      // Android 14+ VPN foreground
+      'android.permission.INTERNET',                            // network access (Supabase, partner emails; VPN DNS forward when enabled)
+      'android.permission.FOREGROUND_SERVICE',                  // accessibility-service foreground notification
+      'android.permission.FOREGROUND_SERVICE_SPECIAL_USE',      // Android 14+ foreground type for the same
     ];
     for (const perm of permsToAdd) {
       const alreadyHas = manifest['uses-permission'].some(
@@ -171,7 +177,12 @@ function withAppBlockerManifest(config) {
     const vpnExists      = application.service.some(
       (s) => s.$?.['android:name'] === vpnServiceName
     );
-    if (!vpnExists) {
+    if (!VPN_ENABLED) {
+      // Strip any stale declaration so the release manifest has no VpnService.
+      application.service = application.service.filter(
+        (s) => s.$?.['android:name'] !== vpnServiceName
+      );
+    } else if (!vpnExists) {
       application.service.push({
         $: {
           'android:name':       vpnServiceName,
@@ -266,8 +277,7 @@ function withAppBlockerFiles(config) {
         'AppBlockerModule.kt',
         'AppBlockerPackage.kt',
         'NoGoonQsTile.kt',
-        'NoGoonVpnService.kt',
-        'DnsPacketParser.kt',
+        ...(VPN_ENABLED ? ['NoGoonVpnService.kt', 'DnsPacketParser.kt'] : []),
         'ModeResolver.kt',
         'NoGoonNotificationListener.kt',
         'NoGoonWidget.kt',
@@ -276,8 +286,22 @@ function withAppBlockerFiles(config) {
 
       const srcDir = path.join(projectRoot, 'android-src');
 
-      for (const file of kotlinFiles) {
-        const src  = path.join(srcDir, file);
+      // VpnController: real (touches android.net.VpnService) or a no-op stub.
+      const vpnControllerSrc = path.join(
+        srcDir, VPN_ENABLED ? 'vpn' : 'vpn-stub', 'VpnController.kt'
+      );
+      // Remove VPN sources left in a previously generated android/ project.
+      if (!VPN_ENABLED) {
+        for (const stale of ['NoGoonVpnService.kt', 'DnsPacketParser.kt']) {
+          try { fs.unlinkSync(path.join(kotlinDir, stale)); } catch (_) {}
+        }
+      }
+      const filesToCopy = [
+        ...kotlinFiles.map((f) => [f, path.join(srcDir, f)]),
+        ['VpnController.kt', vpnControllerSrc],
+      ];
+
+      for (const [file, src] of filesToCopy) {
         const dest = path.join(kotlinDir, file);
         if (!fs.existsSync(src)) {
           console.warn(`[withAppBlocker] Missing source file: ${src}`);

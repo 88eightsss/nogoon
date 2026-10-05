@@ -29,6 +29,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { useThemeStore } from '@/stores/useThemeStore';
 import { THEMES, BORDERS, THEME_ORDER, BORDER_ORDER, ThemePalette, brightnessLabel } from '@/constants/Themes';
 import { FONTS } from '@/constants/Colors';
+import { NETWORK_SHIELD_ENABLED } from '@/constants/features';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { GoonSprite, getGoonStage } from '@/components/home/GoonMascot';
 import { type CharacterId } from '@/stores/usePetStore';
@@ -685,7 +686,7 @@ export default function MeScreen() {
             <Feather name="layers" size={16} color={colors.accent} />
             <View style={{ flex: 1 }}>
               <Text style={[ctrlStyles.label, { color: colors.text }]}>Coverage</Text>
-              <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>Accessibility, VPN filter, notifications</Text>
+              <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>{NETWORK_SHIELD_ENABLED ? 'Accessibility, VPN filter, notifications' : 'Accessibility, notifications, battery'}</Text>
             </View>
             <Feather name="chevron-right" size={16} color={colors.textMuted} />
           </Pressable>

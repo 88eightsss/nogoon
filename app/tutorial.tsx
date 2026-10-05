@@ -27,6 +27,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, type Href } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { FONTS } from '@/constants/Colors';
+import { NETWORK_SHIELD_ENABLED } from '@/constants/features';
 import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { useUserStore } from '@/stores/useUserStore';
@@ -99,7 +100,7 @@ const VpnIllustration: React.FC<{ accent: string; dim: string }> = ({ accent, di
   }, [flash]);
 
   const layers = [
-    { icon: 'wifi' as const, label: 'VPN DNS filter' },
+    ...(NETWORK_SHIELD_ENABLED ? [{ icon: 'wifi' as const, label: 'VPN DNS filter' }] : []),
     { icon: 'bell-off' as const, label: 'Notification block' },
     { icon: 'eye-off' as const, label: 'Accessibility watch' },
   ];
@@ -341,9 +342,11 @@ const STEPS: Step[] = [
     emoji: '🔐',
     colorKey: 'purple' as const,
     dimKey: 'purpleDim' as const,
-    title: 'Three layers of protection',
+    title: NETWORK_SHIELD_ENABLED ? 'Three layers of protection' : 'Two layers of protection',
     subtitle: 'Step 3 of 6',
-    body: 'NoGoon has three independent blocking layers: the Accessibility Service (app-level), a VPN DNS filter (network-level), and a Notification Listener (push-level).\n\nEnable all three on the Coverage screen for airtight protection.',
+    body: NETWORK_SHIELD_ENABLED
+      ? 'NoGoon has three independent blocking layers: the Accessibility Service (app-level), a VPN DNS filter (network-level), and a Notification Listener (push-level).\n\nEnable all three on the Coverage screen for airtight protection.'
+      : 'NoGoon has two independent blocking layers: the Accessibility Service (app-level) and a Notification Listener (push-level).\n\nEnable both on the Coverage screen for the strongest protection.',
     cta: { label: 'Open Coverage', route: '/protection' },
     Illustration: VpnIllustration,
   },

@@ -46,6 +46,7 @@ import { useThemeStore } from '@/stores/useThemeStore';
 import { THEMES, THEME_ORDER } from '@/constants/Themes';
 import { useAppBlocker, appPackagesForDomains } from '@/hooks/useAppBlocker';
 import { useVpn } from '@/hooks/useVpn';
+import { NETWORK_SHIELD_ENABLED } from '@/constants/features';
 import { useNotificationListener } from '@/hooks/useNotificationListener';
 import { COLORS as SLIDE_COLORS, FONTS } from '@/constants/Colors';
 import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
@@ -598,6 +599,8 @@ export default function OnboardingScreen() {
 
               <View style={styles.setupDivider} />
 
+              {NETWORK_SHIELD_ENABLED && (
+              <>
               {/* Row 4 — VPN filter (network-level layer). Optional: full
                   protection works without it, but it catches things the
                   Accessibility Service alone can miss (in-app browser tabs,
@@ -626,6 +629,8 @@ export default function OnboardingScreen() {
               </View>
 
               <View style={styles.setupDivider} />
+              </>
+              )}
 
               {/* Row 5 — Notification listener (push-level layer). Also optional —
                   filters distracting notifications from blocked apps/sites. */}

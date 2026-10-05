@@ -47,6 +47,7 @@ import { useFocusEffect, router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { useAppBlocker } from '@/hooks/useAppBlocker';
 import { useVpn } from '@/hooks/useVpn';
+import { NETWORK_SHIELD_ENABLED } from '@/constants/features';
 import { useNotificationListener } from '@/hooks/useNotificationListener';
 import { FONTS } from '@/constants/Colors';
 import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
@@ -223,7 +224,8 @@ export default function ProtectionScreen() {
     }
   }, [serviceEnabled, requestNotificationPermission]);
 
-  const activeCount = [serviceEnabled, vpnActive, notifGranted && notifEnabled, batteryExempt]
+  const totalChecks = NETWORK_SHIELD_ENABLED ? 4 : 3;
+  const activeCount = [serviceEnabled, NETWORK_SHIELD_ENABLED && vpnActive, notifGranted && notifEnabled, batteryExempt]
     .filter(Boolean).length;
 
   return (
@@ -246,12 +248,12 @@ export default function ProtectionScreen() {
         <View style={styles.summary}>
           <View style={styles.summaryLeft}>
             <Text style={styles.summaryCount}>
-              {activeCount}/4
+              {activeCount}/{totalChecks}
             </Text>
             <Text style={styles.summaryLabel}>checks active</Text>
           </View>
           <View style={styles.summaryBars}>
-            {[0, 1, 2, 3].map((i) => (
+            {Array.from({ length: totalChecks }, (_, i) => i).map((i) => (
               <View
                 key={i}
                 style={[
@@ -283,7 +285,8 @@ export default function ProtectionScreen() {
           cautionDetail={serviceEnabled ? undefined : "Tap 'Enable' and select NoGoon in Accessibility Settings."}
         />
 
-        {/* Layer 2 — Network Shield */}
+        {/* Layer 2 — Network Shield (hidden while features.networkShield is false) */}
+        {NETWORK_SHIELD_ENABLED && (
         <LayerCard
           number={2}
           icon="🌐"
@@ -299,10 +302,11 @@ export default function ProtectionScreen() {
           cautionLabel={vpnPermissionGranted ? undefined : 'One-time setup required'}
           cautionDetail={vpnPermissionGranted ? undefined : "Android will show a system dialog asking you to trust this VPN — tap OK once and it\'s remembered forever."}
         />
+        )}
 
         {/* Layer 3 — Notification Filter */}
         <LayerCard
-          number={3}
+          number={NETWORK_SHIELD_ENABLED ? 3 : 2}
           icon="🔕"
           title="Notification Filter"
           subtitle="Notification Listener"
@@ -335,7 +339,7 @@ export default function ProtectionScreen() {
 
         {/* Battery Exemption — reliability check, not a blocking layer */}
         <LayerCard
-          number={4}
+          number={NETWORK_SHIELD_ENABLED ? 4 : 3}
           icon="🔋"
           title="Battery Exemption"
           subtitle="Keeps the App Blocker alive"
@@ -386,7 +390,7 @@ export default function ProtectionScreen() {
         )}
 
         {/* VPN Domain Log */}
-        {domainLog.length > 0 && (
+        {NETWORK_SHIELD_ENABLED && domainLog.length > 0 && (
           <View style={styles.domainLogCard}>
             <View style={styles.domainLogHeader}>
               <Feather name="activity" size={14} color={COLORS.textSecondary} />

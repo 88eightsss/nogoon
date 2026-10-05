@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { FONTS } from '@/constants/Colors';
+import { NETWORK_SHIELD_ENABLED } from '@/constants/features';
 import { useThemedColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 
@@ -64,8 +65,10 @@ const TIPS = [
   },
   {
     icon: 'shield',
-    title: 'Stack all three protection layers',
-    body: 'Accessibility Service, VPN DNS filter, and Notification Listener each close a different gap. Turn on all three on the Coverage screen for the fewest ways around a block.',
+    title: NETWORK_SHIELD_ENABLED ? 'Stack all three protection layers' : 'Stack both protection layers',
+    body: NETWORK_SHIELD_ENABLED
+      ? 'Accessibility Service, VPN DNS filter, and Notification Listener each close a different gap. Turn on all three on the Coverage screen for the fewest ways around a block.'
+      : 'Accessibility Service and Notification Listener each close a different gap. Turn on both on the Coverage screen for the fewest ways around a block.',
   },
 ] as const;
 

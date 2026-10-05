@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { FONTS } from '@/constants/Colors';
+import { NETWORK_SHIELD_ENABLED } from '@/constants/features';
 import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING } from '@/constants/Spacing';
 
@@ -58,13 +59,15 @@ export default function PrivacyScreen() {
         <Section
           title="What NoGoon can access"
           body={
-            'NoGoon requests three special permissions, each used for a single purpose:\n\n' +
+            `NoGoon requests ${NETWORK_SHIELD_ENABLED ? 'three' : 'two'} special permissions, each used for a single purpose:\n\n` +
             '• Accessibility Service — detects when you open a blocked app and shows the gate screen. ' +
             'NoGoon does not read the content of other apps, does not record keystrokes, and does not ' +
             'log which apps you use.\n\n' +
-            '• VPN Service (Network Shield) — intercepts DNS queries only, allowing NoGoon to block ' +
-            'blocked apps at the network layer. NoGoon does not inspect, log, or transmit the content ' +
-            'of your internet traffic. Non-DNS traffic bypasses the VPN entirely.\n\n' +
+            (NETWORK_SHIELD_ENABLED
+              ? '• VPN Service (Network Shield) — intercepts DNS queries only, allowing NoGoon to block ' +
+                'blocked apps at the network layer. NoGoon does not inspect, log, or transmit the content ' +
+                'of your internet traffic. Non-DNS traffic bypasses the VPN entirely.\n\n'
+              : '') +
             '• Notification Access — silences notifications from blocked apps. NoGoon reads only the ' +
             'package name of each notification to check if it is from a blocked app. Notification ' +
             'content is never read or stored.'

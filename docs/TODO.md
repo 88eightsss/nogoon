@@ -34,3 +34,15 @@
 - Play Console: add a web account-deletion URL (Data safety → Data deletion).
 - New EAS build for the native (Kotlin) changes.
 - Dev toggle "Unlock everything now" is exposed in Me; keeping for first testing builds, hide/remove before wide production release.
+
+## Network Shield (VPN) — removed from the first release, kept for later
+First Play release ships WITHOUT the VPN so the "VPN service" Play Console declaration is not required (it was overdue and blocks releases). `features.json` → `"networkShield": false` does all of this at once:
+- `plugins/withAppBlocker.js` omits the `.NoGoonVpnService` manifest entry (and `BIND_VPN_SERVICE`) and does not copy `NoGoonVpnService.kt` / `DnsPacketParser.kt` into the build; it copies the no-op `android-src/vpn-stub/VpnController.kt` instead. The APK contains no VpnService code.
+- JS: `constants/features.ts` (`NETWORK_SHIELD_ENABLED`) hides the Network filter row (onboarding), Network Shield card + recent-blocks log (Coverage), and VPN mentions in tutorial/tips/privacy/Me.
+- Coverage lost without it: DNS-level blocking of sites/apps in contexts the Accessibility Service can't read (some in-app browsers/webviews, background requests). The Accessibility gate, notification filter and curfew/Hard Mode are unaffected.
+- All VPN code is still in the repo: `android-src/NoGoonVpnService.kt`, `android-src/DnsPacketParser.kt`, `android-src/vpn/VpnController.kt`, `hooks/useVpn.ts`.
+
+### Re-enable Network Shield (a later release)
+1. Set `"networkShield": true` in `features.json`.
+2. Rebuild with EAS (it re-runs prebuild; delete any local `android/` folder first so stale files don't linger).
+3. In Play Console, complete the "VPN service" declaration (App content) for that release: core functionality = on-device DNS filtering for the user's blocklist; no traffic is logged or transmitted. Update privacy policy/Terms and Data safety wording if needed (VPN text is already in `app/privacy.tsx` behind the flag).

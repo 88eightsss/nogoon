@@ -69,39 +69,11 @@ class AppBlockerModule(reactContext: ReactApplicationContext) :
         // Ensures we only install the crash handler once even if the module
         // is instantiated multiple times during the React Native bridge lifecycle.
         @Volatile private var crashHandlerInstalled = false
-
-        // Request code for the VPN permission consent dialog
-        private const val VPN_REQUEST_CODE = 7777
     }
 
-    // Held while waiting for the VPN consent dialog result
-    private var vpnStartPromise: Promise? = null
-
-    // Receives the result of VpnService.prepare() → startActivityForResult
-    private val activityEventListener = object : BaseActivityEventListener() {
-        override fun onActivityResult(activity: Activity, requestCode: Int, resultCode: Int, data: Intent?) {
-            if (requestCode != VPN_REQUEST_CODE) return
-            val promise = vpnStartPromise ?: return
-            vpnStartPromise = null
-            if (resultCode == Activity.RESULT_OK) {
-                // User approved — now start the VPN service
-                try {
-                    val serviceIntent = Intent(reactApplicationContext, NoGoonVpnService::class.java)
-                    // startService, not startForegroundService: NoGoonVpnService never calls
-                    // startForeground(), so on Android 8+ the system killed the app a few seconds
-                    // after "Network filter" was enabled. A VpnService doesn't need to be a
-                    // foreground service (the system shows its own VPN key icon), and this is
-                    // only ever called while the app is on screen.
-                    reactApplicationContext.startService(serviceIntent)
-                    promise.resolve(true)
-                } catch (e: Exception) {
-                    promise.reject("VPN_START_ERROR", e.message ?: "Unknown error", e)
-                }
-            } else {
-                promise.reject("VPN_PERMISSION_DENIED", "User denied VPN permission")
-            }
-        }
-    }
+    // All android.net.VpnService usage lives in VpnController (real or stub,
+    // chosen by the withAppBlocker plugin's enableVpn option).
+    private val vpn = VpnController(reactContext)
 
     init {
         // Install an UncaughtExceptionHandler so that if the app crashes, the user
@@ -109,8 +81,6 @@ class AppBlockerModule(reactContext: ReactApplicationContext) :
         // NotificationManager.notify() posts to the system process, so it completes
         // successfully even though our process is about to exit.
         installCrashNotifier(reactContext)
-        // Register for VPN consent dialog result
-        reactContext.addActivityEventListener(activityEventListener)
         // Make sure the protection watchdog is scheduled. Idempotent (KEEP
         // policy) — this just confirms the periodic background check is
         // running, it doesn't reset its timer on every app launch.
@@ -555,82 +525,17 @@ class AppBlockerModule(reactContext: ReactApplicationContext) :
     // and only call startVpn() after the user has granted permission.
 
     @ReactMethod
-    fun startVpn(promise: Promise) {
-        try {
-            // prepare() returns an Intent if the user hasn't approved this VPN yet (null = approved)
-            val prepareIntent = android.net.VpnService.prepare(reactApplicationContext)
-            if (prepareIntent != null) {
-                // Show the Android system VPN consent dialog via startActivityForResult.
-                // The result arrives in activityEventListener.onActivityResult().
-                val activity = reactApplicationContext.currentActivity
-                if (activity == null) {
-                    promise.reject("VPN_NO_ACTIVITY", "No foreground activity available")
-                    return
-                }
-                vpnStartPromise = promise
-                activity.startActivityForResult(prepareIntent, VPN_REQUEST_CODE)
-                return
-            }
-            // Already approved — start the service directly
-            val serviceIntent = Intent(reactApplicationContext, NoGoonVpnService::class.java)
-            reactApplicationContext.startService(serviceIntent)   // see note at the other call site
-            promise.resolve(true)
-        } catch (e: Exception) {
-            promise.reject("VPN_START_ERROR", e.message ?: "Unknown error", e)
-        }
-    }
+    fun startVpn(promise: Promise) = vpn.start(promise)
 
     @ReactMethod
-    fun stopVpn(promise: Promise) {
-        try {
-            val intent = Intent(reactApplicationContext, NoGoonVpnService::class.java).apply {
-                action = NoGoonVpnService.ACTION_STOP
-            }
-            reactApplicationContext.startService(intent)
-            promise.resolve(true)
-        } catch (e: Exception) {
-            promise.reject("VPN_STOP_ERROR", e.message ?: "Unknown error", e)
-        }
-    }
+    fun stopVpn(promise: Promise) = vpn.stop(promise)
 
     @ReactMethod
-    fun isVpnActive(promise: Promise) {
-        try {
-            val prefs = reactApplicationContext.getSharedPreferences(PREFS_NAME, 0)
-            val flagSet = prefs.getBoolean("vpnRunning", false)
-            if (!flagSet) {
-                promise.resolve(false)
-                return
-            }
-            // Validate with heartbeat: if the service was SIGKILL'd, onDestroy()
-            // never ran, so the flag is stale. The heartbeat timestamp goes stale
-            // after ~10s (written every 5s by the packet loop).
-            val heartbeat = prefs.getLong("vpnHeartbeat", 0L)
-            val age = System.currentTimeMillis() - heartbeat
-            if (age > 10_000L) {
-                // Service is gone — clear stale flag
-                prefs.edit().putBoolean("vpnRunning", false).remove("vpnHeartbeat").apply()
-                promise.resolve(false)
-            } else {
-                promise.resolve(true)
-            }
-        } catch (e: Exception) {
-            promise.resolve(false)
-        }
-    }
+    fun isVpnActive(promise: Promise) = vpn.isActive(promise)
 
-    // Returns true if the user has already granted the one-time VPN consent.
-    // VpnService.prepare() returns null when permission is already held.
-    // Used by the UI to distinguish "VPN off, never set up" from "VPN off, was set up before".
+    // True if the one-time VPN consent is already held (always false in the stub).
     @ReactMethod
-    fun isVpnPermissionGranted(promise: Promise) {
-        try {
-            val needsConsent = android.net.VpnService.prepare(reactApplicationContext) != null
-            promise.resolve(!needsConsent)
-        } catch (e: Exception) {
-            promise.resolve(false)
-        }
-    }
+    fun isVpnPermissionGranted(promise: Promise) = vpn.isPermissionGranted(promise)
 
     // ── Notification Filter ───────────────────────────────────────────────────
     //
