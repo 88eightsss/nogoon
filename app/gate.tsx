@@ -67,6 +67,7 @@ import { IntentionCheck }    from '@/components/games/IntentionCheck';
 import { TypingChallenge }   from '@/components/games/TypingChallenge';
 import { PACKAGE_TO_NAME } from '@/hooks/useAppBlocker';
 import { grantTemporaryUnlock, launchBlockedApp } from '@/utils/tempUnlock';
+import { exitGate } from '@/utils/exitGate';
 import { useUserStore } from '@/stores/useUserStore';
 import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
@@ -293,7 +294,7 @@ function NoGoonScreen() {
   // ── Block schedule check — exit immediately if outside schedule window ────
   useEffect(() => {
     if (blockScheduleEnabled && !isWithinBlockSchedule(blockScheduleStart, blockScheduleEnd, blockScheduleDays)) {
-      router.dismissAll();
+      exitGate();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -650,7 +651,7 @@ function NoGoonScreen() {
             style={[styles.curfewBtn, { backgroundColor: C.surface, borderColor: C.border }]}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.dismissAll();
+              exitGate();
             }}
           >
             <Text style={[styles.curfewBtnText, { color: C.textSecondary }]}>Close</Text>
@@ -824,7 +825,7 @@ function NoGoonScreen() {
           </View>
           <Pressable
             style={styles.exitTextRow}
-            onPress={() => router.dismissAll()}
+            onPress={() => exitGate()}
           >
             <Text style={[styles.exitText, { color: C.textSecondary, fontSize: 16 }]}>
               Close this screen
@@ -889,7 +890,7 @@ function NoGoonScreen() {
               // already been told about a bypass that never happened.
               const granted = await grantTemporaryUnlock(domain);
               if (granted) notifyPartner(displayDomain, 'bypass');
-              router.dismissAll();
+              exitGate();
               if (granted && isAppBlock) launchBlockedApp(domain);
             }}
             disabled={!isMatch}
@@ -961,7 +962,7 @@ function NoGoonScreen() {
               </>
             )}
           </Pressable>
-          <Pressable onPress={() => router.dismissAll()} style={styles.exitTextRow}>
+          <Pressable onPress={() => exitGate()} style={styles.exitTextRow}>
             <Text style={[styles.exitText, { color: C.textMuted }]}>Close this screen</Text>
           </Pressable>
         </View>
@@ -988,7 +989,7 @@ function NoGoonScreen() {
           </View>
           <Pressable
             style={[styles.exitTextRow, { marginTop: 8 }]}
-            onPress={() => router.dismissAll()}
+            onPress={() => exitGate()}
           >
             <Text style={[styles.exitText, { color: C.textMuted }]}>
               Close this screen
@@ -1155,7 +1156,7 @@ function NoGoonScreen() {
             </Pressable>
           )}
 
-          <Pressable onPress={() => router.dismissAll()} style={styles.exitTextRow}>
+          <Pressable onPress={() => exitGate()} style={styles.exitTextRow}>
             <Text style={[styles.exitText, { color: C.textMuted }]}>Never mind</Text>
           </Pressable>
 

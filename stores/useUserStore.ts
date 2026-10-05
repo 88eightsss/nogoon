@@ -1054,7 +1054,9 @@ export const useUserStore = create<UserState>()(
         set((state) => {
           const updated = [...state.walkAwayActivity] as typeof state.walkAwayActivity;
           updated[6] = updated[6] + 1;
-          newTodayWalkAways = updated[6];
+          // walkAwayActivity[6] is never rolled over by date, so it is a lifetime count by now.
+          // Today's real number comes from dailyWalkAways (recordDailyWalkAway runs right after).
+          newTodayWalkAways = (state.dailyWalkAways[getLocalDateKey()] ?? 0) + 1;
           // Award a freeze token at each 5-walk-away milestone (5, 10, 15 …)
           const crossedMilestone = Math.floor(newCount / 5) > Math.floor(prev / 5);
           return {

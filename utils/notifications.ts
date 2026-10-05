@@ -171,6 +171,11 @@ export async function scheduleDailySummary(todayWalkAways: number, topDomain?: s
     const eightPm = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 20, 0, 0);
     if (eightPm.getTime() <= now.getTime()) return; // Past 8pm — skip until tomorrow
 
+    // Open counts are keyed by domain OR Android package id ("com.instagram.android");
+    // a raw package id reads badly in a notification, so only name plain domains.
+    const namedDomain = topDomain && (topDomain.match(/\./g) ?? []).length < 2 ? topDomain : undefined;
+    topDomain = namedDomain;
+
     const body = todayWalkAways === 0
       ? "The urge might hit tonight. NoGoon's got you."
       : `${todayWalkAways} walk-away${todayWalkAways !== 1 ? 's' : ''} today${topDomain ? ` · ${topDomain} was calling` : ''}. Strong work.`;

@@ -25,12 +25,13 @@ import {
   TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Feather } from '@expo/vector-icons';
 import { useUserStore } from '@/stores/useUserStore';
 import { PositiveNewsCard } from '@/components/PositiveNewsCard';
 import { grantTemporaryUnlock, launchBlockedApp } from '@/utils/tempUnlock';
+import { exitGate } from '@/utils/exitGate';
 import { AdBanner } from '@/components/ads/AdBanner';
 import { AdRewarded } from '@/components/ads/AdRewarded';
 import { FONTS } from '@/constants/Colors';
@@ -355,7 +356,7 @@ export default function PostGameScreen() {
     const granted = target ? await grantTemporaryUnlock(target, unlockMinutes) : false;
     notifyPartner(domainDisplay, 'unlock');
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    router.dismissAll();
+    exitGate();
     if (granted && app) launchBlockedApp(app);
   };
 
@@ -369,7 +370,7 @@ export default function PostGameScreen() {
       const granted = target ? await grantTemporaryUnlock(target, unlockMinutes) : false;
       notifyPartner(domainDisplay, 'unlock');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.dismissAll();
+      exitGate();
       if (granted && app) launchBlockedApp(app);
     }
   };
@@ -461,7 +462,7 @@ export default function PostGameScreen() {
     if (showNews) {
       return (
         <SafeAreaView style={styles.safe}>
-          <PositiveNewsCard onDone={() => router.dismissAll()} />
+          <PositiveNewsCard onDone={() => exitGate()} />
         </SafeAreaView>
       );
     }
