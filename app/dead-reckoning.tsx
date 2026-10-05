@@ -20,6 +20,7 @@
 //   usage. The evening reveal creates accountability without punishment.
 
 import { useState, useCallback, useMemo } from 'react';
+import { useSafeTimeout } from '@/hooks/useSafeTimeout';
 import { useFocusEffect } from 'expo-router';
 import {
   View,
@@ -43,6 +44,7 @@ const PREDICTION_DATE_KEY = 'dead_reckoning_date';
 type Phase = 'predict' | 'reveal' | 'already_predicted';
 
 export default function DeadReckoningScreen() {
+  const schedule = useSafeTimeout();
   const COLORS = useThemedColors();
   const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   const { openCounts, openCountDate } = useUserStore();
@@ -84,7 +86,7 @@ export default function DeadReckoningScreen() {
       await AsyncStorage.setItem(PREDICTION_DATE_KEY, today);
       setPrevPred(prediction);
       setSaved(true);
-      setTimeout(() => router.back(), 1200);
+      schedule(() => router.back(), 1200);
     } catch { /* ignore */ }
   };
 

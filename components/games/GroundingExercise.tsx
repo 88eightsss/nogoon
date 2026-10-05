@@ -42,6 +42,7 @@ import { FONTS } from '@/constants/Colors';
 import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { ProceedButton } from '@/components/ui/ProceedButton';
+import { useSafeTimeout } from '@/hooks/useSafeTimeout';
 
 interface GroundingExerciseProps {
   onComplete: (score: number) => void;
@@ -102,6 +103,7 @@ const SCORE = 35;
 // ─── Main component ────────────────────────────────────────────────────────────
 
 export function GroundingExercise({ onComplete }: GroundingExerciseProps) {
+  const schedule = useSafeTimeout();   // timers are cancelled if the player leaves mid-finish
   const COLORS = useThemedColors();
   const SENSES = useMemo(() => getSenses(COLORS), [COLORS]);
   const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
@@ -161,7 +163,7 @@ export function GroundingExercise({ onComplete }: GroundingExerciseProps) {
       if (nextIndex >= SENSES.length) {
         setAllDone(true);
       } else {
-        setTimeout(() => {
+        schedule(() => {
           setSenseIndex(nextIndex);
           setInputText('');
         }, 600);

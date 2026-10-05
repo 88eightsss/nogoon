@@ -16,6 +16,7 @@ import * as Haptics from 'expo-haptics';
 import { FONTS } from '@/constants/Colors';
 import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
+import { useSafeTimeout } from '@/hooks/useSafeTimeout';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -151,6 +152,7 @@ const dpadStyles = StyleSheet.create({
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function SnakeGame({ onComplete }: Props) {
+  const schedule = useSafeTimeout();   // timers are cancelled if the player leaves mid-finish
   const COLORS = useThemedColors();
   const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   const [phase, setPhase] = useState<'ready' | 'playing' | 'done'>('ready');
@@ -213,7 +215,7 @@ export function SnakeGame({ onComplete }: Props) {
         doneRef.current = true;
         setPhase('done');
         clearTick();
-        setTimeout(() => onComplete(100), 900);
+        schedule(() => onComplete(100), 900);
         return;
       }
 
@@ -228,7 +230,7 @@ export function SnakeGame({ onComplete }: Props) {
     setPhase('done');
     clearTick();
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    setTimeout(() => onComplete(50), 900);
+    schedule(() => onComplete(50), 900);
   }, [onComplete]);
 
   const startGame = useCallback(() => {

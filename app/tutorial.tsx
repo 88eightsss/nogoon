@@ -52,12 +52,14 @@ const FocusIllustration: React.FC<{ accent: string; dim: string }> = ({ accent, 
   const COLORS = useThemedColors();
   const progress = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    Animated.loop(
+    const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(progress, { toValue: 1, duration: 3000, useNativeDriver: true }),
         Animated.timing(progress, { toValue: 0, duration: 500, useNativeDriver: true }),
       ])
-    ).start();
+    );
+    loop.start();
+    return () => loop.stop();
   }, [progress]);
 
   return (
@@ -86,12 +88,14 @@ const VpnIllustration: React.FC<{ accent: string; dim: string }> = ({ accent, di
   const COLORS = useThemedColors();
   const flash = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    Animated.loop(
+    const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(flash, { toValue: 1, duration: 800, useNativeDriver: true }),
         Animated.timing(flash, { toValue: 0.4, duration: 800, useNativeDriver: true }),
       ])
-    ).start();
+    );
+    loop.start();
+    return () => loop.stop();
   }, [flash]);
 
   const layers = [
@@ -127,14 +131,16 @@ const IntentionIllustration: React.FC<{ accent: string; dim: string }> = ({ acce
   const COLORS = useThemedColors();
   const fade = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    Animated.loop(
+    const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(fade, { toValue: 1, duration: 1000, useNativeDriver: true }),
         Animated.delay(2000),
         Animated.timing(fade, { toValue: 0, duration: 1000, useNativeDriver: true }),
         Animated.delay(500),
       ])
-    ).start();
+    );
+    loop.start();
+    return () => loop.stop();
   }, [fade]);
 
   return (
@@ -159,7 +165,7 @@ const InsightsIllustration: React.FC<{ accent: string; dim: string }> = ({ accen
   const anims = bars.map(() => useRef(new Animated.Value(0)).current);
 
   useEffect(() => {
-    Animated.stagger(
+    const stagger = Animated.stagger(
       120,
       anims.map((a) =>
         Animated.loop(
@@ -171,7 +177,9 @@ const InsightsIllustration: React.FC<{ accent: string; dim: string }> = ({ accen
           ])
         )
       )
-    ).start();
+    );
+    stagger.start();
+    return () => stagger.stop();
   }, []);
 
   const dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -214,12 +222,14 @@ const WindDownIllustration: React.FC<{ accent: string; dim: string }> = ({ accen
   const COLORS = useThemedColors();
   const moonGlow = useRef(new Animated.Value(0.6)).current;
   useEffect(() => {
-    Animated.loop(
+    const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(moonGlow, { toValue: 1, duration: 1800, useNativeDriver: true }),
         Animated.timing(moonGlow, { toValue: 0.6, duration: 1800, useNativeDriver: true }),
       ])
-    ).start();
+    );
+    loop.start();
+    return () => loop.stop();
   }, [moonGlow]);
 
   return (
@@ -249,19 +259,22 @@ const LootIllustration: React.FC<{ accent: string; dim: string }> = ({ accent, d
   const sparkle = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.loop(
+    const bounceLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(bounce, { toValue: -8, duration: 500, useNativeDriver: true }),
         Animated.timing(bounce, { toValue: 0, duration: 500, useNativeDriver: true }),
         Animated.delay(1000),
       ])
-    ).start();
-    Animated.loop(
+    );
+    const sparkleLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(sparkle, { toValue: 1, duration: 600, useNativeDriver: true }),
         Animated.timing(sparkle, { toValue: 0, duration: 600, useNativeDriver: true }),
       ])
-    ).start();
+    );
+    bounceLoop.start();
+    sparkleLoop.start();
+    return () => { bounceLoop.stop(); sparkleLoop.stop(); };
   }, [bounce, sparkle]);
 
   const items = ['🎮', '📔', '🧩']; // Arcade, Journal, Organizer

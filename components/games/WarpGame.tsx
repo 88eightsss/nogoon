@@ -30,6 +30,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
+import { useSafeTimeout } from '@/hooks/useSafeTimeout';
 
 const { width: W, height: H } = Dimensions.get('window');
 
@@ -110,6 +111,7 @@ interface Props {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function WarpGame({ onComplete }: Props) {
+  const schedule = useSafeTimeout();   // timers are cancelled if the player leaves mid-finish
   const { stars, nebulae, introStars } = useMemo(() => makeWorld(), []);
 
   const [phase, setPhase]         = useState<'intro' | 'playing' | 'complete'>('intro');
@@ -145,7 +147,7 @@ export function WarpGame({ onComplete }: Props) {
   useEffect(() => {
     if (phase === 'complete') {
       allLoops.current.forEach((l) => l.stop());
-      setTimeout(() => onComplete(Math.max(score, 10)), 1200);
+      schedule(() => onComplete(Math.max(score, 10)), 1200);
     }
   }, [phase]);
 

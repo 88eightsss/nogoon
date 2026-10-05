@@ -33,6 +33,7 @@ import * as Haptics from 'expo-haptics';
 import { FONTS } from '@/constants/Colors';
 import { SPACING } from '@/constants/Spacing';
 import { ProceedButton } from '@/components/ui/ProceedButton';
+import { useSafeTimeout } from '@/hooks/useSafeTimeout';
 
 // ─── Game constants ────────────────────────────────────────────────────────────
 
@@ -79,6 +80,7 @@ export interface PatternMemoryProps {
 // ─── Main component ────────────────────────────────────────────────────────────
 
 export function PatternMemory({ onComplete }: PatternMemoryProps) {
+  const schedule = useSafeTimeout();   // timers are cancelled if the player leaves mid-finish
 
   // ── Game state ────────────────────────────────────────────────────────────
 
@@ -125,7 +127,7 @@ export function PatternMemory({ onComplete }: PatternMemoryProps) {
       setCountdown((n) => {
         if (n <= 1) {
           clearInterval(tick);
-          setTimeout(() => startRound([]), 0);
+          schedule(() => startRound([]), 0);
           return 0;
         }
         return n - 1;
@@ -194,10 +196,10 @@ export function PatternMemory({ onComplete }: PatternMemoryProps) {
       setLitTile(tileId);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-      setTimeout(() => {
+      schedule(() => {
         setLitTile(null);
         i++;
-        setTimeout(flashNext, FLASH_GAP_MS);
+        schedule(flashNext, FLASH_GAP_MS);
       }, FLASH_DURATION_MS);
     };
 
@@ -237,7 +239,7 @@ export function PatternMemory({ onComplete }: PatternMemoryProps) {
 
       // Brief pause then start the next round
       inputDisabledRef.current = true;
-      setTimeout(() => startRound(sequence), 600);
+      schedule(() => startRound(sequence), 600);
     } else {
       setInputIndex(nextIndex);
     }

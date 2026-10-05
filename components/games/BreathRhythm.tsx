@@ -24,6 +24,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { FONTS } from '@/constants/Colors';
 import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
+import { useSafeTimeout } from '@/hooks/useSafeTimeout';
 
 // ─── Breath phases ────────────────────────────────────────────────────────────
 
@@ -55,6 +56,7 @@ interface Props {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function BreathRhythm({ onComplete }: Props) {
+  const schedule = useSafeTimeout();   // timers are cancelled if the player leaves mid-finish
   const COLORS = useThemedColors();
   const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   const [phase, setPhase]         = useState<'ready' | 'breathing' | 'done'>('ready');
@@ -117,7 +119,7 @@ export function BreathRhythm({ onComplete }: Props) {
 
       if (nextCycle >= TOTAL_CYCLES) {
         setPhase('done');
-        setTimeout(() => onComplete(80), 600);
+        schedule(() => onComplete(80), 600);
         return;
       }
 

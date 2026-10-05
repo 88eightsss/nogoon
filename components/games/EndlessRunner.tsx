@@ -19,6 +19,7 @@ import { FONTS } from '@/constants/Colors';
 import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { GoonSprite } from '@/components/home/GoonMascot';
+import { useSafeTimeout } from '@/hooks/useSafeTimeout';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -68,6 +69,7 @@ function scoreForTicks(ticks: number): number {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function EndlessRunner({ onComplete }: Props) {
+  const schedule = useSafeTimeout();   // timers are cancelled if the player leaves mid-finish
   const COLORS = useThemedColors();
   const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   const [phase, setPhase]         = useState<'ready' | 'playing' | 'done'>('ready');
@@ -186,7 +188,7 @@ export function EndlessRunner({ onComplete }: Props) {
         clearTick();
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         const final = tickCount.current;
-        setTimeout(() => onComplete(scoreForTicks(final)), 900);
+        schedule(() => onComplete(scoreForTicks(final)), 900);
         return;
       }
     }
