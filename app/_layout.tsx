@@ -261,7 +261,7 @@ export default function RootLayout() {
   useCloudSync(userId, ready && hasOnboarded);
 
   // Push blocklist, Modes, curfew and widget stats to the Accessibility Service.
-  useNativeSync(ready);
+  useNativeSync(ready && !!userId);
 
   // Show nothing (splash screen stays visible) until fonts + auth are ready
   if (!ready) {

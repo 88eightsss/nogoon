@@ -1281,7 +1281,24 @@ export const useUserStore = create<UserState>()(
       // The persist middleware automatically clears SecureStore as part
       // of the state reset.
       resetStore: () => {
-        set(DEFAULT_STATE);
+        // Self-imposed locks (Hard Mode, Cold Turkey, Focus Session, Curfew) are
+        // commitments about THIS phone, and the Android service keeps enforcing them
+        // regardless. Wiping them on sign-out turned "sign out, sign back in" into a
+        // free way around the 24-hour disable wait, so they survive a reset.
+        const s = get();
+        set({
+          ...DEFAULT_STATE,
+          isBricked: s.isBricked,
+          brickedEnabledAt: s.brickedEnabledAt,
+          brickedDisableRequestedAt: s.brickedDisableRequestedAt,
+          isColdTurkey: s.isColdTurkey,
+          coldTurkeyEnabledAt: s.coldTurkeyEnabledAt,
+          coldTurkeyDisableRequestedAt: s.coldTurkeyDisableRequestedAt,
+          focusSessionEnd: s.focusSessionEnd,
+          curfewEnabled: s.curfewEnabled,
+          curfewStart: s.curfewStart,
+          curfewEnd: s.curfewEnd,
+        });
       },
     }),
     // \u2500\u2500 Persist config \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500

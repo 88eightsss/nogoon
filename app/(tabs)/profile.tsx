@@ -389,7 +389,6 @@ export default function MeScreen() {
     startFocusSession, endFocusSession, focusSessionEnd,
     curfewEnabled, curfewStart, curfewEnd, setCurfew,
     preferWaitingRoom, setPreferWaitingRoom,
-    resetStore,
   } = useUserStore();
 
   const { signOut } = useAuthStore();
@@ -470,7 +469,7 @@ export default function MeScreen() {
   const signOutConfirm = () => {
     Alert.alert('Sign out?', 'Your progress is synced to your account. Sign back in to pick up where you left off.', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign out', style: 'destructive', onPress: () => { resetStore(); signOut(); } },
+      { text: 'Sign out', style: 'destructive', onPress: () => { signOut(); } },
     ]);
   };
 

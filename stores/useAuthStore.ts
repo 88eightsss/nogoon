@@ -13,6 +13,9 @@ import { Session, User, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { useUserStore } from '@/stores/useUserStore';
 import { useModesStore } from '@/stores/useModesStore';
+import { useBubblesStore } from '@/stores/useBubblesStore';
+import { useProgressStore } from '@/stores/useProgressStore';
+import { usePetStore } from '@/stores/usePetStore';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -135,8 +138,14 @@ export const useAuthStore = create<AuthState>((set) => ({
     useModesStore.getState().setApplied(null, null);
     // Companion, nicknames, feed tokens etc. live in their own per-account keys;
     // clear them so the next account on this phone doesn't inherit them.
+    // Other persisted stores keep their state in memory and would simply write it back,
+    // so reset them in memory too (private brain-bubble text, pet stats, unlock toasts).
+    useBubblesStore.setState(useBubblesStore.getInitialState(), true);
+    useProgressStore.setState(useProgressStore.getInitialState(), true);
+    usePetStore.setState(usePetStore.getInitialState(), true);
     try {
-      const keys = (await AsyncStorage.getAllKeys()).filter((k) => k.startsWith('@nogoon_'));
+      const loose = ['nogoon_start_date', 'nogoon_today_intention', 'nogoon_intention_date', 'goon_last_shown_milestone'];
+      const keys = (await AsyncStorage.getAllKeys()).filter((k) => k.startsWith('@nogoon_') || loose.includes(k));
       if (keys.length > 0) await AsyncStorage.multiRemove(keys);
     } catch (e) {
       console.warn('signOut: clearing companion keys failed', e);
