@@ -63,11 +63,11 @@
 
 <p><strong>Account information.</strong> When you create an account, we collect your email address and a display name through Supabase Authentication.</p>
 
-<p><strong>Usage data.</strong> We store records of your in-app activity, including mini-game sessions (game type, score, points earned, timestamp), your blocklist of apps and websites, journal entries you choose to write, and your walk-away streak count. This data is stored in our Supabase database and linked to your account.</p>
+<p><strong>Usage data.</strong> We store records of your in-app activity, including mini-game sessions (game type, score, points earned, timestamp), your blocklist of apps and websites (including which apps you chose to block, so it can sync across your devices), your Modes and settings, journal entries you choose to write, and your walk-away streak count. This data is stored in our Supabase database and linked to your account.</p>
 
-<p><strong>Accessibility Service data.</strong> NoGoon uses Android's Accessibility Service to detect when you open a blocked app or visit a blocked website. This detection happens entirely on your device. We do not transmit the names of apps you open or websites you visit to our servers. The only data sent is whether you successfully walked away (a boolean event), which updates your streak.</p>
+<p><strong>Accessibility Service data.</strong> NoGoon uses Android's Accessibility Service to detect when you open a blocked app or visit a blocked website. This detection happens entirely on your device. We do not transmit a history of the apps you open or the websites you visit to our servers. What is stored is your own blocklist and whether you successfully walked away (which updates your streak). If you have set up an accountability partner and choose to continue to a blocked site, the name of that site is included in the email sent to your partner (see below).</p>
 
-<p><strong>Partner accountability email.</strong> If you choose to set an accountability partner, we store their email address so we can send them a notification when you achieve milestones. We do not use this email for marketing.</p>
+<p><strong>Partner accountability email.</strong> If you choose to set an accountability partner, we store their name and email address so we can email them when you open a blocked app or site and choose to continue instead of walking away. That email includes your name and the site or domain you tried to open. We do not use this email address for marketing, and we limit how many notifications can be sent per hour.</p>
 
 <p><strong>Purchase information.</strong> Subscriptions and point purchases are handled by RevenueCat and the Google Play Store. We do not store your payment card details. RevenueCat provides us with your subscription status (active or inactive) linked to your anonymous user ID.</p>
 
@@ -76,6 +76,7 @@
 <ul>
   <li>To provide the core app experience: tracking streaks, running mini-games, and maintaining your blocklist.</li>
   <li>To send accountability notifications to your designated partner (if you set one).</li>
+  <li>To sync your blocklist, Modes, and settings across your devices.</li>
   <li>To manage your subscription status and point balance.</li>
   <li>To improve the app based on aggregate, anonymized usage patterns.</li>
 </ul>
