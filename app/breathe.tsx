@@ -10,6 +10,7 @@
 
 import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -47,6 +48,25 @@ export default function BreatheScreen() {
     'pick'
   );
   const C = useThemedColors();
+  const insets = useSafeAreaInsets();
+
+  // The exercises are shared with the gate, where there must be no way out, so they have
+  // no exit of their own. Opened from the Calm tab you can always leave — previously only
+  // the hardware back button worked, which gesture-nav users don't always find.
+  const closeButton = (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Close"
+      onPress={() => router.back()}
+      hitSlop={12}
+      style={[
+        styles.closeBtn,
+        { top: insets.top + 8, backgroundColor: C.surfaceHigh, borderColor: C.cardBorder },
+      ]}
+    >
+      <Feather name="x" size={18} color={C.textSecondary} />
+    </Pressable>
+  );
 
   // ── Done ───────────────────────────────────────────────────────────────────
   if (phase === 'done') {
@@ -71,10 +91,20 @@ export default function BreatheScreen() {
 
   // ── Playing ────────────────────────────────────────────────────────────────
   if (phase === 'breathing') {
-    return <BreathRhythm onComplete={() => setPhase('done')} />;
+    return (
+      <View style={styles.flex}>
+        <BreathRhythm onComplete={() => setPhase('done')} />
+        {closeButton}
+      </View>
+    );
   }
   if (phase === 'grounding') {
-    return <GroundingExercise onComplete={() => setPhase('done')} />;
+    return (
+      <View style={styles.flex}>
+        <GroundingExercise onComplete={() => setPhase('done')} />
+        {closeButton}
+      </View>
+    );
   }
 
   // ── Pick ───────────────────────────────────────────────────────────────────
@@ -177,6 +207,19 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
     paddingHorizontal: SPACING.lg,
+  },
+
+  flex: { flex: 1 },
+  closeBtn: {
+    position: 'absolute',
+    right: SPACING.lg,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
   },
 
   // Done screen
