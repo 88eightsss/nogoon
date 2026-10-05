@@ -86,6 +86,18 @@ class ProtectionWatchdogWorker(
             return Result.success()
         }
 
+        // Nothing to protect yet (e.g. still in onboarding, before any app/site is picked):
+        // "protection is off" would be a false alarm, so stay quiet.
+        val prefs = context.getSharedPreferences("NoGoonBlocker", 0)
+        val nothingConfigured =
+            ModeResolver.activeApps(prefs).isEmpty() &&
+            ModeResolver.activeDomains(prefs).isEmpty() &&
+            !prefs.getBoolean("curfew_enabled", false)
+        if (nothingConfigured) {
+            nm.cancel(WATCHDOG_NOTIFICATION_ID)
+            return Result.success()
+        }
+
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 val channel = NotificationChannel(

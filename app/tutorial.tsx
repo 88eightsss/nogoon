@@ -68,7 +68,7 @@ const FocusIllustration: React.FC<{ accent: string; dim: string }> = ({ accent, 
         <Feather name="clock" size={28} color={accent} />
         <Text style={[ill.focusTime, { color: COLORS.textPrimary }]}>45:00</Text>
         <Text style={[ill.focusLabel, { color: COLORS.textMuted }]}>Focus Session</Text>
-        <View style={ill.progressTrack}>
+        <View style={[ill.progressTrack, { backgroundColor: COLORS.border }]}>
           <Animated.View
             style={[
               ill.progressFill,

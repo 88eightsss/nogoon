@@ -27,6 +27,7 @@ import { computeConsistencyScore } from '@/utils/consistencyScore';
 import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { useTheme } from '@/hooks/useTheme';
+import { readableOn } from '@/utils/colorLuminance';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -225,7 +226,7 @@ export default function WeeklyRecapScreen() {
             <Text style={[styles.cardTitle, { color: colors.textMuted }]}>Top Trigger</Text>
             <View style={styles.tagRow}>
               <View style={[styles.tagPill, { backgroundColor: COLORS.warning + '22', borderColor: COLORS.warning + '55' }]}>
-                <Text style={[styles.tagText, { color: COLORS.warning }]}>{topTag}</Text>
+                <Text style={[styles.tagText, { color: readableOn(COLORS.warning, colors.surface, 4.5) }]}>{topTag}</Text>
               </View>
               <Text style={[styles.cardBody, { flex: 1, color: colors.textSecondary }]}>
                 Your most common feeling this week when you hit a blocked app.
@@ -260,7 +261,7 @@ export default function WeeklyRecapScreen() {
         {/* Lifetime */}
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
           <Text style={[styles.cardTitle, { color: colors.textMuted }]}>All Time</Text>
-          <Text style={[styles.lifetimeNum, { color: COLORS.cyan }]}>{walkAwayCount}</Text>
+          <Text style={[styles.lifetimeNum, { color: readableOn(COLORS.cyan, colors.surface, 4.5) }]}>{walkAwayCount}</Text>
           <Text style={[styles.cardBody, { color: colors.textSecondary }]}>
             total walk-aways since you started
           </Text>
