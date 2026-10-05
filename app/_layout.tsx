@@ -13,7 +13,7 @@
 // useSafeAreaInsets() to avoid the phone's notch and gesture bars.
 
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, AppState } from 'react-native';
 import { Stack, router, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
@@ -267,6 +267,22 @@ export default function RootLayout() {
         scheduleWeeklyRecap(wa, st);
       }
     });
+  }, [ready, userId, hasOnboarded]);
+
+  // Housekeeping that must also happen when the app comes back to the foreground —
+  // the process often survives for days, so "on launch" alone isn't enough: finish a
+  // pending Hard Mode disable, roll monthly restores, and notice a missed day.
+  useEffect(() => {
+    if (!ready || !userId || !hasOnboarded) return;
+    const run = () => {
+      const s = useUserStore.getState();
+      s.settleBricked();
+      s.refreshStreakRestores();
+      s.checkStreakContinuity();
+    };
+    run();
+    const sub = AppState.addEventListener('change', (next) => { if (next === 'active') run(); });
+    return () => sub.remove();
   }, [ready, userId, hasOnboarded]);
 
   // Push progress (points, XP, streak, walk-aways) up to the cloud as it changes.

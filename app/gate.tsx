@@ -440,7 +440,15 @@ function NoGoonScreen() {
   }, [phase]);
 
   // ── Intent selection ──────────────────────────────────────────────────────
-  const isWindDown = windDownEnabled && new Date().getHours() >= windDownHour;
+  // Wind-down runs from the chosen hour through to ~5am — a plain `>=` check switched
+  // it off at midnight, exactly when it is needed most.
+  const nowHour = new Date().getHours();
+  const WIND_DOWN_END = 5;
+  const isWindDown =
+    windDownEnabled &&
+    (windDownHour >= WIND_DOWN_END
+      ? nowHour >= windDownHour || nowHour < WIND_DOWN_END
+      : nowHour >= windDownHour && nowHour < WIND_DOWN_END);
 
   const handleIntent = useCallback(
     (option: IntentOption) => {

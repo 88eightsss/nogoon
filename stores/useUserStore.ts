@@ -357,6 +357,8 @@ interface UserState {
   enableBricked: () => void;
   requestDisableBricked: () => void;  // starts 24hr countdown
   confirmDisableBricked: () => void;  // called after 24hrs have passed
+  cancelDisableBricked: () => void;   // user changed their mind during the wait
+  settleBricked: () => void;          // call on app open: finishes the disable once 24h have passed
 
   // Cold Turkey actions
   enableColdTurkey: () => void;
@@ -811,8 +813,24 @@ export const useUserStore = create<UserState>()(
 
       // User taps "Disable BRICKED" — starts the 24hr safety countdown.
       // They can't immediately turn it off — that would defeat the purpose.
-      requestDisableBricked: () =>
-        set({ brickedDisableRequestedAt: Date.now() }),
+      // A second request must not restart the clock.
+      requestDisableBricked: () => {
+        if (get().brickedDisableRequestedAt) return;
+        set({ brickedDisableRequestedAt: Date.now() });
+      },
+
+      cancelDisableBricked: () => set({ brickedDisableRequestedAt: null }),
+
+      // Nothing else ever acted on the request, so Hard Mode could never actually
+      // turn off. Called on app open / foreground.
+      settleBricked: () => {
+        const s = get();
+        if (!s.isBricked || !s.brickedDisableRequestedAt) return;
+        if (s.isColdTurkey) return; // Cold Turkey keeps Hard Mode on until it is lifted itself
+        if (Date.now() - s.brickedDisableRequestedAt >= 24 * 60 * 60 * 1000) {
+          set({ isBricked: false, brickedEnabledAt: null, brickedDisableRequestedAt: null });
+        }
+      },
 
       // Called after the 24hr cooldown has expired.
       confirmDisableBricked: () =>
@@ -1204,7 +1222,10 @@ export const useUserStore = create<UserState>()(
               points: Math.max(state.points, p.points ?? 0),
               xp,
               level: getLevelProgress(xp).label,
-              streak: Math.max(state.streak, p.streak ?? 0),
+              // Once this device tracks its own streak date it is authoritative: a cloud
+              // copy that is merely older (e.g. an unsynced reset) must not revive an
+              // ended streak.
+              streak: state.lastStreakDate ? state.streak : Math.max(state.streak, p.streak ?? 0),
               longestStreak: Math.max(state.longestStreak, p.longest_streak ?? 0),
               gamesPlayed: Math.max(state.gamesPlayed, p.games_played ?? 0),
               walkAwayCount: Math.max(state.walkAwayCount, p.walk_away_count ?? 0),

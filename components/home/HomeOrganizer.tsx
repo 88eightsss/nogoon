@@ -874,10 +874,6 @@ export function HomeOrganizer() {
   }, []);
 
   useEffect(() => {
-    if (session?.user?.id) loadFromSupabase(session.user.id);
-  }, [session?.user?.id]);
-
-  useEffect(() => {
     async function checkMilestone() {
       const lastShown = parseInt((await AsyncStorage.getItem(MILESTONE_KEY)) ?? '0', 10);
       const next = MILESTONES.find((m) => m > lastShown && walkAwayCount >= m);

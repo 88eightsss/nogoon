@@ -385,7 +385,7 @@ export default function MeScreen() {
     name, setName, walkAwayCount,
     windDownEnabled, windDownHour,
     setWindDownEnabled, setWindDownHour,
-    isBricked, enableBricked, requestDisableBricked,
+    isBricked, enableBricked, requestDisableBricked, cancelDisableBricked, brickedDisableRequestedAt,
     startFocusSession, endFocusSession, focusSessionEnd,
     curfewEnabled, curfewStart, curfewEnd, setCurfew,
     preferWaitingRoom, setPreferWaitingRoom,
@@ -495,6 +495,20 @@ export default function MeScreen() {
   };
 
   const hardModeConfirm = () => {
+    if (isBricked && brickedDisableRequestedAt) {
+      const left = Math.max(0, 24 * 3600000 - (Date.now() - brickedDisableRequestedAt));
+      const hrs = Math.floor(left / 3600000);
+      const mins = Math.ceil((left % 3600000) / 60000);
+      Alert.alert(
+        'Hard Mode is turning off',
+        `It switches off in about ${hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`}. You can keep it on instead.`,
+        [
+          { text: 'Let it turn off', style: 'cancel' },
+          { text: 'Keep it on', onPress: cancelDisableBricked },
+        ]
+      );
+      return;
+    }
     if (isBricked) {
       Alert.alert(
         'Disable Hard Mode?',
@@ -755,7 +769,9 @@ export default function MeScreen() {
             <Feather name="lock" size={16} color={isBricked ? colors.danger : colors.accent} />
             <View style={{ flex: 1 }}>
               <Text style={[ctrlStyles.label, { color: isBricked ? colors.danger : colors.text }]}>Hard Mode</Text>
-              <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>Removes unlock button entirely</Text>
+              <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>
+                {isBricked && brickedDisableRequestedAt ? 'Turning off — within 24 hours' : 'Removes unlock button entirely'}
+              </Text>
             </View>
             <Switch
               value={isBricked}

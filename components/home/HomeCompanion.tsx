@@ -22,7 +22,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getLocalDateKey, localDateKeyDiffDays } from '@/utils/date';
 import * as Haptics from 'expo-haptics';
 import { useUserStore, getMinutesSaved } from '@/stores/useUserStore';
-import { useAuthStore } from '@/stores/useAuthStore';
 import { useAppBlocker } from '@/hooks/useAppBlocker';
 import { describeBlockingStatus, type BlockingStatus } from '@/utils/blockingStatus';
 import { PulseGlow } from '@/components/PulseGlow';
@@ -496,8 +495,7 @@ const quickAccessStyles = StyleSheet.create({
 // ─── Home screen ──────────────────────────────────────────────────────────────
 
 export function HomeCompanion() {
-  const { session } = useAuthStore();
-  const { name, walkAwayCount, streakFreezeTokens = 0, loadFromSupabase, requestGuideReopen } = useUserStore();
+  const { name, walkAwayCount, streakFreezeTokens = 0, requestGuideReopen } = useUserStore();
   const minutesSaved = getMinutesSaved(walkAwayCount);
   const { showIntentionCard, showStruggleToggle, showTimeReclaimed } = useThemeStore();
   const { blockingStatus, openSettings } = useAppBlocker();
@@ -507,12 +505,7 @@ export function HomeCompanion() {
   const [showMilestone, setShowMilestone] = useState<number | null>(null);
   const [showSheet, setShowSheet] = useState(false);
 
-  // Load Supabase data after login
-  useEffect(() => {
-    if (session?.user?.id) {
-      loadFromSupabase(session.user.id);
-    }
-  }, [session?.user?.id, loadFromSupabase]);
+  // (Cloud data is pulled once per launch by the root layout, before the streak check.)
 
   // Check milestone
   useEffect(() => {
