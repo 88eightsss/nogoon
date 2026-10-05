@@ -44,6 +44,10 @@ interface AuthState {
   // Sign out, clear the session, AND wipe local user data
   signOut: () => Promise<void>;
 
+  // Permanently deletes the account (server-side) and wipes local data.
+  // Resolves to an error message, or null on success.
+  deleteAccount: () => Promise<string | null>;
+
   // Forgot password: sends a 6-digit reset code to the given email
   requestPasswordReset: (email: string) => Promise<AuthError | null>;
 
@@ -150,6 +154,26 @@ export const useAuthStore = create<AuthState>((set) => ({
     } catch (e) {
       console.warn('signOut: clearing companion keys failed', e);
     }
+  },
+
+  // ── deleteAccount ─────────────────────────────────────────────────────────
+  // Calls the `delete-account` edge function (which removes the user's rows and
+  // the auth user using the service role), then does a normal sign-out so every
+  // local store, key and native list is wiped exactly like a regular sign-out.
+
+  deleteAccount: async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('delete-account', { method: 'POST' });
+      if (error || (data && (data as { error?: string }).error)) {
+        return (data as { error?: string } | null)?.error ?? 'Could not delete your account. Check your connection and try again.';
+      }
+    } catch {
+      return 'Could not delete your account. Check your connection and try again.';
+    }
+    // The server-side user is gone; signing out may report an invalid session,
+    // which is fine — the local session is cleared either way.
+    try { await useAuthStore.getState().signOut(); } catch { /* already gone */ }
+    return null;
   },
 
   // ── requestPasswordReset ──────────────────────────────────────────────────

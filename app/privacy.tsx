@@ -109,9 +109,11 @@ export default function PrivacyScreen() {
         <Section
           title="Data retention and deletion"
           body={
-            'Local data is deleted when you uninstall the app. Account data can be deleted by ' +
-            'signing out and emailing nogoonapp@gmail.com with a deletion request. We will delete ' +
-            'your account data within 30 days.'
+            'Local data is deleted when you uninstall the app. You can delete your account at ' +
+            'any time from Me → Delete account; this immediately erases your profile, progress, ' +
+            'blocklist and sessions from our servers. If you can no longer open the app, email ' +
+            'nogoonapp@gmail.com with a deletion request and we will delete your account data ' +
+            'within 30 days.'
           }
         />
 

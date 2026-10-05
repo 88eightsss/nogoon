@@ -391,7 +391,11 @@ export default function MeScreen() {
     preferWaitingRoom, setPreferWaitingRoom,
   } = useUserStore();
 
-  const { signOut } = useAuthStore();
+  const { signOut, deleteAccount } = useAuthStore();
+  const [showDelete, setShowDelete] = useState(false);
+  const [deleteText, setDeleteText] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const { blockingStatus, openSettings } = useAppBlocker();
   const blockingView = describeBlockingStatus(blockingStatus, colors);
   const { unlocked } = useUnlockedFeatures();
@@ -471,6 +475,23 @@ export default function MeScreen() {
       { text: 'Cancel', style: 'cancel' },
       { text: 'Sign out', style: 'destructive', onPress: () => { signOut(); } },
     ]);
+  };
+
+  const closeDelete = () => {
+    if (deleting) return;
+    setShowDelete(false);
+    setDeleteText('');
+    setDeleteError(null);
+  };
+
+  const runDelete = async () => {
+    if (deleting || deleteText.trim().toUpperCase() !== 'DELETE') return;
+    setDeleting(true);
+    setDeleteError(null);
+    const err = await deleteAccount();
+    setDeleting(false);
+    if (err) setDeleteError(err);
+    // On success the auth listener routes to the sign-in screen.
   };
 
   const hardModeConfirm = () => {
@@ -1067,11 +1088,67 @@ export default function MeScreen() {
             <Feather name="log-out" size={16} color={colors.danger} />
             <Text style={[ctrlStyles.label, { color: colors.danger, flex: 1 }]}>Sign out</Text>
           </Pressable>
+          <Pressable
+            style={[ctrlStyles.row, { borderBottomWidth: 0, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border }]}
+            onPress={() => setShowDelete(true)}
+          >
+            <Feather name="trash-2" size={16} color={colors.danger} />
+            <View style={{ flex: 1 }}>
+              <Text style={[ctrlStyles.label, { color: colors.danger }]}>Delete account</Text>
+              <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>Erase your account and all synced data</Text>
+            </View>
+          </Pressable>
         </View>
 
         <View style={{ height: SPACING.xl }} />
       </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Delete account modal */}
+      <Modal visible={showDelete} transparent animationType="fade" onRequestClose={closeDelete}>
+        <View style={[modalStyles.overlay, { backgroundColor: colors.overlay, justifyContent: 'center', paddingHorizontal: SPACING.lg }]}>
+          <View style={{ backgroundColor: colors.surface, borderColor: colors.cardBorder, borderWidth: 1, borderRadius: RADIUS.lg, padding: SPACING.lg, gap: SPACING.md }}>
+            <Text style={{ color: colors.danger, fontFamily: FONTS.bodyBold, fontSize: 18 }}>Delete your account?</Text>
+            <Text style={{ color: colors.textMuted, fontFamily: FONTS.body, fontSize: 14, lineHeight: 20 }}>
+              This permanently erases your account, streak, points and synced blocklist from our servers, and wipes NoGoon on this phone. It can't be undone.
+            </Text>
+            <Text style={{ color: colors.text, fontFamily: FONTS.body, fontSize: 13 }}>Type DELETE to confirm.</Text>
+            <TextInput
+              value={deleteText}
+              onChangeText={setDeleteText}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              editable={!deleting}
+              placeholder="DELETE"
+              placeholderTextColor={colors.textMuted}
+              style={{ borderWidth: 1, borderColor: colors.border, borderRadius: RADIUS.md, padding: SPACING.md, color: colors.text, fontFamily: FONTS.body, fontSize: 16 }}
+            />
+            {deleteError && (
+              <Text style={{ color: colors.danger, fontFamily: FONTS.body, fontSize: 13 }}>{deleteError}</Text>
+            )}
+            <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
+              <Pressable
+                onPress={closeDelete}
+                disabled={deleting}
+                style={{ flex: 1, alignItems: 'center', padding: SPACING.md, borderRadius: RADIUS.md, borderWidth: 1, borderColor: colors.border }}
+              >
+                <Text style={{ color: colors.text, fontFamily: FONTS.bodyBold, fontSize: 15 }}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                onPress={runDelete}
+                disabled={deleting || deleteText.trim().toUpperCase() !== 'DELETE'}
+                style={{
+                  flex: 1, alignItems: 'center', padding: SPACING.md, borderRadius: RADIUS.md,
+                  backgroundColor: colors.danger,
+                  opacity: deleting || deleteText.trim().toUpperCase() !== 'DELETE' ? 0.4 : 1,
+                }}
+              >
+                <Text style={{ color: '#fff', fontFamily: FONTS.bodyBold, fontSize: 15 }}>{deleting ? 'Deleting…' : 'Delete forever'}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Wind-down time picker modal */}
       <Modal
