@@ -576,7 +576,7 @@ export default function PostGameScreen() {
               </Text>
               <Text style={styles.streakCalloutSub}>
                 {streak >= 30
-                  ? 'Legendary. You\'re in the top 1%.'
+                  ? 'Legendary. That is rare consistency.'
                   : streak >= 14
                   ? 'Two weeks strong. This is a real habit now.'
                   : streak >= 7

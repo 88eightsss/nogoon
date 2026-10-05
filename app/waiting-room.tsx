@@ -40,54 +40,44 @@ import { SPACING, RADIUS } from '@/constants/Spacing';
 
 const TRUTHS = [
   {
-    stat: '2.5 hours',
-    context: 'The average person spends this much time on social media every day.',
-    reflection: "What would you do with an extra 17 hours a week?",
+    stat: 'No end',
+    context: 'Feeds are built so nothing ever finishes. There is no last page, so you have to be the one to stop.',
+    reflection: "Stopping is a skill. You're practicing it.",
   },
   {
-    stat: '600 engineers',
-    context: "Instagram's recommendation team. Their only job: keep you here longer.",
-    reflection: "They're really good at it.",
+    stat: 'Designed',
+    context: 'Apps are tested and tuned to keep you scrolling a little longer than you meant to.',
+    reflection: "They're good at it. You can be better at noticing.",
   },
   {
-    stat: '1 in 3',
-    context: 'People say social media makes them feel worse after using it.',
-    reflection: "They open it anyway. You know why.",
+    stat: 'Autopilot',
+    context: 'Most opens happen before you decide to open them. Thumb, icon, scroll.',
+    reflection: 'This pause is you deciding.',
   },
   {
-    stat: '47%',
-    context: 'Of adults say they check their phone more than they want to.',
-    reflection: "Wanting to stop and stopping are different things.",
-  },
-  {
-    stat: '11 minutes',
-    context: "That's how long a typical Instagram session lasts once you open it.",
-    reflection: 'You only meant to check for a second.',
-  },
-  {
-    stat: '$35/hour',
-    context: "That's the median US hourly wage. Social media companies make $1.10 per hour of your attention.",
-    reflection: 'They buy low, sell high.',
-  },
-  {
-    stat: '86%',
-    context: 'Of Gen Z say they use their phones while doing something else.',
-    reflection: 'You stopped being fully present somewhere.',
-  },
-  {
-    stat: '250 million',
-    context: 'Dollars spent last year studying how to make apps more addictive.',
-    reflection: 'This is an arms race. You need armor.',
-  },
-  {
-    stat: '4 seconds',
-    context: 'The average attention span on social media before scrolling.',
-    reflection: 'What are you training your brain to do?',
+    stat: 'It passes',
+    context: 'An urge rises, peaks, and fades, usually within minutes, whether or not you act on it.',
+    reflection: 'You only have to outlast the wave.',
   },
   {
     stat: 'Dopamine',
-    context: "Variable reward schedules — unpredictable 'likes' — activate the same brain pathway as slot machines.",
-    reflection: 'Your phone is a casino in your pocket.',
+    context: "Unpredictable rewards, like a surprise like or a fresh post, are the same pattern slot machines use to hold attention.",
+    reflection: 'Your phone can feel like a casino in your pocket.',
+  },
+  {
+    stat: 'Just a second',
+    context: "\"I'll only check for a second\" is how most long sessions start.",
+    reflection: 'You only meant to look.',
+  },
+  {
+    stat: 'Your time',
+    context: 'Whatever you open next gets your attention, and you only have so much of it today.',
+    reflection: 'Spend it on purpose.',
+  },
+  {
+    stat: 'Choice',
+    context: 'Wanting to stop and stopping are different things. The gap between them is this screen.',
+    reflection: 'You are already standing in it.',
   },
 ];
 
@@ -119,6 +109,9 @@ export default function WaitingRoomScreen() {
   // Only the first has anything to unlock — and anything to walk away from.
   const fromGate = !!params.app;
   const recordWalkAway = useUserStore((s) => s.recordWalkAway);
+  const addPoints = useUserStore((s) => s.addPoints);
+  const addXP = useUserStore((s) => s.addXP);
+  const recordGamePlayed = useUserStore((s) => s.recordGamePlayed);
 
   const [secondsLeft, setSecondsLeft]   = useState(COUNTDOWN);
   const [ready,       setReady]         = useState(false);
@@ -172,7 +165,19 @@ export default function WaitingRoomScreen() {
   const handleBack = () => {
     if (leftRef.current) return;
     leftRef.current = true;
-    if (fromGate) recordWalkAway();
+    if (fromGate) {
+      recordWalkAway();
+      // The game was played and then the user walked away right here, so post-game
+      // (which normally awards these) is never reached — credit it now, once.
+      const pts = Number(params.pointsEarned) || 0;
+      if (pts > 0) {
+        addPoints(pts);
+        addXP(Math.round(pts * 0.5));   // same half-of-points rule post-game uses
+      }
+      if (params.gameName && params.gameName !== 'Waiting Room') {
+        recordGamePlayed(pts, params.gameName.toLowerCase().replace(/\s+/g, '_'));
+      }
+    }
     router.replace('/(tabs)');
   };
 
@@ -251,7 +256,7 @@ export default function WaitingRoomScreen() {
 const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#0d0d0d',
+    backgroundColor: COLORS.background,
   },
   container: {
     flex: 1,
@@ -262,7 +267,7 @@ const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   // ── Progress bar ──
   progressTrack: {
     height: 3,
-    backgroundColor: '#222',
+    backgroundColor: COLORS.border,
     borderRadius: 2,
     marginTop: SPACING.md,
     overflow: 'hidden',
@@ -282,7 +287,7 @@ const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   label: {
     fontFamily: FONTS.bodyMedium,
     fontSize: 13,
-    color: '#555',
+    color: COLORS.textMuted,
     letterSpacing: 1,
     textTransform: 'uppercase',
     marginBottom: SPACING.lg,
@@ -290,11 +295,11 @@ const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
 
   // ── Truth card ──
   truthCard: {
-    backgroundColor: '#141414',
+    backgroundColor: COLORS.surface,
     borderRadius: RADIUS.lg,
     padding: SPACING.xl,
     borderWidth: 1,
-    borderColor: '#222',
+    borderColor: COLORS.cardBorder,
   },
   statNumber: {
     fontFamily: FONTS.bodyBold,
@@ -306,19 +311,19 @@ const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   statContext: {
     fontFamily: FONTS.body,
     fontSize: 15,
-    color: '#888',
+    color: COLORS.textSecondary,
     lineHeight: 22,
     marginBottom: SPACING.md,
   },
   divider: {
     height: 1,
-    backgroundColor: '#222',
+    backgroundColor: COLORS.border,
     marginBottom: SPACING.md,
   },
   reflection: {
     fontFamily: FONTS.bodyMedium,
     fontSize: 16,
-    color: '#ccc',
+    color: COLORS.textPrimary,
     lineHeight: 24,
     fontStyle: 'italic',
   },
@@ -328,17 +333,17 @@ const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
     gap: SPACING.sm,
   },
   continueButton: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: COLORS.surface,
     borderRadius: RADIUS.md,
     paddingVertical: 14,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: COLORS.cardBorder,
   },
   continueLabel: {
     fontFamily: FONTS.bodyMedium,
     fontSize: 15,
-    color: '#666',
+    color: COLORS.textMuted,
   },
   backLink: {
     alignItems: 'center',
@@ -350,18 +355,18 @@ const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
     color: COLORS.green,
   },
   brickedNotice: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: COLORS.surface,
     borderRadius: RADIUS.md,
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.lg,
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: COLORS.cardBorder,
     alignItems: 'center',
   },
   brickedText: {
     fontFamily: FONTS.body,
     fontSize: 14,
-    color: '#666',
+    color: COLORS.textMuted,
     textAlign: 'center',
     lineHeight: 20,
   },

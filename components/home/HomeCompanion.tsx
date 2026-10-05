@@ -463,7 +463,7 @@ function QuickAccessRow() {
             <View
               style={[
                 quickAccessStyles.iconWrap,
-                { backgroundColor: isUnlocked ? colors.accentDim : colors.border + '40' },
+                { backgroundColor: isUnlocked ? colors.accentDim : colors.surfaceHigh },
               ]}
             >
               <Feather
