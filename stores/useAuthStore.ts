@@ -166,6 +166,12 @@ export const useAuthStore = create<AuthState>((set) => ({
 
     if (error) return { error, needsConfirmation: false };
 
+    // With email confirmation on, signing up an address that already has an account
+    // returns a user with no identities (and no error) — don't report "created".
+    if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      return { error: { message: 'User already registered' } as AuthError, needsConfirmation: false };
+    }
+
     // Create the profile row — this is the user's game data record
     if (data.user) {
       await supabase.from('profiles').insert({
@@ -225,16 +231,29 @@ export const useAuthStore = create<AuthState>((set) => ({
   // local store, key and native list is wiped exactly like a regular sign-out.
 
   deleteAccount: async () => {
+    const generic = 'Could not delete your account. Check your connection and try again.';
     try {
       const { data, error } = await supabase.functions.invoke('delete-account', { method: 'POST' });
-      if (error || (data && (data as { error?: string }).error)) {
-        return (data as { error?: string } | null)?.error ?? 'Could not delete your account. Check your connection and try again.';
+      if (error) {
+        // invoke() hides the response body behind error.context; read it for a useful message.
+        const res = (error as { context?: Response }).context;
+        const status = res?.status;
+        // 401 after supabase-js has refreshed the token means the user no longer exists —
+        // a previous attempt succeeded but its response was lost. Finish locally.
+        if (status !== 401) {
+          let msg = generic;
+          try { msg = ((await res?.json()) as { error?: string })?.error ?? generic; } catch { /* keep generic */ }
+          return msg;
+        }
+      } else if (data && (data as { error?: string }).error) {
+        return (data as { error: string }).error;
       }
     } catch {
-      return 'Could not delete your account. Check your connection and try again.';
+      return generic;
     }
     // The server-side user is gone; signing out may report an invalid session,
-    // which is fine — the local session is cleared either way.
+    // which is fine — the local session is cleared either way. skipSync: don't upload
+    // to a profile that no longer exists.
     try { await useAuthStore.getState().signOut({ skipSync: true }); } catch { /* already gone */ }
     return null;
   },

@@ -1122,11 +1122,12 @@ export default function MeScreen() {
 
       {/* Delete account modal */}
       <Modal visible={showDelete} transparent animationType="fade" onRequestClose={closeDelete}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <View style={[modalStyles.overlay, { backgroundColor: colors.overlay, justifyContent: 'center', paddingHorizontal: SPACING.lg }]}>
           <View style={{ backgroundColor: colors.surface, borderColor: colors.cardBorder, borderWidth: 1, borderRadius: RADIUS.lg, padding: SPACING.lg, gap: SPACING.md }}>
             <Text style={{ color: colors.danger, fontFamily: FONTS.bodyBold, fontSize: 18 }}>Delete your account?</Text>
             <Text style={{ color: colors.textMuted, fontFamily: FONTS.body, fontSize: 14, lineHeight: 20 }}>
-              This permanently erases your account, streak, points and synced blocklist from our servers, and wipes NoGoon on this phone. It can't be undone.
+              This permanently erases your account, streak, points and synced blocklist from our servers, and clears your NoGoon data on this phone. It can't be undone.
             </Text>
             <Text style={{ color: colors.text, fontFamily: FONTS.body, fontSize: 13 }}>Type DELETE to confirm.</Text>
             <TextInput
@@ -1164,6 +1165,7 @@ export default function MeScreen() {
             </View>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Wind-down time picker modal */}

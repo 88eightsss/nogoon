@@ -42,9 +42,11 @@ export default function AuthScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState<string | null>(null);
+  const [info, setInfo]         = useState<string | null>(null);
 
   const handleSubmit = async () => {
     setError(null);
+    setInfo(null);
 
     // Basic validation
     if (!email.trim() || !password.trim()) {
@@ -78,7 +80,7 @@ export default function AuthScreen() {
       // Account exists but there's no session until the email is confirmed —
       // without this message the screen just sat there looking broken.
       setMode('signin');
-      setError('Account created. Check your email to confirm it, then sign in.');
+      setInfo('Account created. Check your email to confirm it, then sign in.');
       return;
     }
 
@@ -207,6 +209,12 @@ export default function AuthScreen() {
                 </Pressable>
               )}
             </View>
+
+            {info && (
+              <View style={[styles.errorBox, { backgroundColor: COLORS.green + '18', borderColor: COLORS.green + '44' }]}>
+                <Text style={[styles.errorText, { color: COLORS.green }]}>{info}</Text>
+              </View>
+            )}
 
             {/* Error message */}
             {error && (

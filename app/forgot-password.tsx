@@ -114,6 +114,11 @@ export default function ForgotPasswordScreen() {
             </View>
           ) : (
             <View style={styles.form}>
+              {error && (
+                <View style={styles.errorBox}>
+                  <Text style={styles.errorText}>{error}</Text>
+                </View>
+              )}
               <Pressable
                 style={styles.submitButton}
                 onPress={() => router.replace({ pathname: '/reset-password', params: { email: email.trim() } } as any)}
