@@ -33,17 +33,25 @@ export function useNativeSync(enabled: boolean) {
   const dailyWalkAways = useUserStore((s) => s.dailyWalkAways);
   const modes = useModesStore((s) => s.modes);
   const activeModeId = useModesStore((s) => s.activeModeId);
+  const baseSnapshot = useModesStore((s) => s.baseSnapshot);
 
-  // Blocked apps / sites → native
+  // Blocked apps / sites → native.
+  // While a Mode is applied the live store lists are the Mode's, but the service
+  // resolves the Mode itself from the Modes config below. What belongs in the flat
+  // lists is the user's OWN lists, so when the Mode stops applying (including at a
+  // schedule boundary while NoGoon is closed) the right lists are already in place.
+  const nativeApps = baseSnapshot ? baseSnapshot.apps : blockedApps;
+  const nativeDomains = baseSnapshot ? baseSnapshot.domains : websiteBlocklist;
+
   useEffect(() => {
     if (!enabled || !hasNativeModule) return;
-    AppBlocker.setBlockedApps(blockedApps).catch(console.warn);
-  }, [enabled, blockedApps]);
+    AppBlocker.setBlockedApps(nativeApps).catch(console.warn);
+  }, [enabled, nativeApps]);
 
   useEffect(() => {
     if (!enabled || !hasNativeModule) return;
-    AppBlocker.setBlockedDomains(websiteBlocklist).catch(console.warn);
-  }, [enabled, websiteBlocklist]);
+    AppBlocker.setBlockedDomains(nativeDomains).catch(console.warn);
+  }, [enabled, nativeDomains]);
 
   // Re-check Modes every minute while foregrounded, and on resume, so a
   // scheduled boundary applies even if NoGoon wasn't reopened exactly then.
@@ -80,13 +88,19 @@ export function useNativeSync(enabled: boolean) {
       active.gameMode, active.noGames, active.preferWaitingRoom]);
     if (modesState.appliedKey === key) return;
 
-    // First activation: remember the user's own lists so they can be restored.
-    const snapshot = modesState.baseSnapshot ?? { apps: user.blockedApps, domains: user.blocklist };
-    // A Mode that lists nothing leaves the user's lists alone rather than
-    // silently dropping all protection.
-    if (active.blockedApps.length > 0 || active.blockedDomains.length > 0) {
+    const swapsLists = active.blockedApps.length > 0 || active.blockedDomains.length > 0;
+    const existing = modesState.baseSnapshot;
+    let snapshot: { apps: string[]; domains: string[] } | null = null;
+    if (swapsLists) {
+      // First activation: remember the user's own lists so they can be restored.
+      snapshot = existing ?? { apps: user.blockedApps, domains: user.blocklist };
       user.setBlockedApps(active.blockedApps);
       useUserStore.setState({ blocklist: active.blockedDomains });
+    } else if (existing) {
+      // Switching from a Mode that swapped the lists to one that lists nothing:
+      // bring the user's own lists back. Nothing is parked, so edits stick.
+      user.setBlockedApps(existing.apps);
+      useUserStore.setState({ blocklist: existing.domains });
     }
     user.setGameMode(active.gameMode);
     user.setNoGames(active.noGames);

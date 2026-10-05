@@ -254,12 +254,18 @@ class NoGoonVpnService : VpnService() {
 
     private fun isBlocked(domain: String): Boolean {
         val prefs = getSharedPreferences(PREFS_NAME, 0)
-        // AppBlockerModule writes blockedDomains via putStringSet() — must read with getStringSet().
-        // getString() would always return null here and fall through to "[]", blocking nothing.
-        val domainSet = prefs.getStringSet("blockedDomains", emptySet()) ?: emptySet()
+        val now = System.currentTimeMillis()
+        // Blocking is paused (QS tile) — except during a focus session, which overrides it.
+        val focusActive = prefs.getLong("focusSessionEnd", 0L) > now
+        if (!focusActive && prefs.getLong("blockingPausedUntil", 0L) > now) return false
+
+        // Mode-aware: the live domain list is the active Mode's, if one applies.
+        val domainSet = ModeResolver.activeDomains(prefs)
         return domainSet.any { blocked ->
             val b = blocked.lowercase().trim()
-            domain == b || domain.endsWith(".$b")
+            val matches = domain == b || domain.endsWith(".$b")
+            // A site the user just unlocked through the gate must actually load.
+            matches && prefs.getLong("unlock_$b", 0L) <= now
         }
     }
 

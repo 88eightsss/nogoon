@@ -268,6 +268,7 @@ function withAppBlockerFiles(config) {
         'NoGoonQsTile.kt',
         'NoGoonVpnService.kt',
         'DnsPacketParser.kt',
+        'ModeResolver.kt',
         'NoGoonNotificationListener.kt',
         'NoGoonWidget.kt',
         'ProtectionWatchdogWorker.kt',

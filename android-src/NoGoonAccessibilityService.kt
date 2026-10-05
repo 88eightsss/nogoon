@@ -222,6 +222,13 @@ class NoGoonAccessibilityService : AccessibilityService() {
         "com.realme.launcher", "com.oneplus.launcher",
         "com.android.systemui", "com.android.settings", "android",
         "com.android.phone", "com.android.dialer", "com.google.android.dialer",
+        // Things that must keep working at night: alarms, in-call UI, permission
+        // prompts and keyboards (a keyboard window opens on top of whatever app you type in).
+        "com.google.android.deskclock", "com.android.deskclock", "com.sec.android.app.clockpackage",
+        "com.android.incallui", "com.samsung.android.incallui",
+        "com.google.android.permissioncontroller", "com.android.permissioncontroller",
+        "com.google.android.inputmethod", "com.android.inputmethod", "com.samsung.android.honeyboard",
+        "com.touchtype.swiftkey", "com.swiftkey",
     )
 
     // ── Known browser packages — URL detection runs for these ─────────────────
@@ -313,7 +320,8 @@ class NoGoonAccessibilityService : AccessibilityService() {
         // Exception: a focus session overrides the pause so the hard-lock can't be bypassed.
         val now = System.currentTimeMillis()
         val isFocusSession = prefs.getLong(KEY_FOCUS_SESSION_END, 0L) > now
-        if (!isFocusSession && prefs.getLong(KEY_PAUSED_UNTIL, 0L) > now) return
+        // Curfew, like a focus session, can't be paused away.
+        if (!isFocusSession && !isWithinCurfew() && prefs.getLong(KEY_PAUSED_UNTIL, 0L) > now) return
 
         val hasBlockedApps    = activeBlockedApps().isNotEmpty()
         val hasBlockedDomains = activeBlockedDomains().isNotEmpty()

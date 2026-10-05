@@ -70,7 +70,7 @@ class NoGoonNotificationListener : NotificationListenerService() {
     // notification filter and the accessibility service block the same apps.
 
     private fun isAppBlocked(prefs: android.content.SharedPreferences, packageName: String): Boolean {
-        val blocked = prefs.getStringSet("blockedPackages", emptySet()) ?: emptySet()
+        val blocked = ModeResolver.activeApps(prefs)
         return blocked.contains(packageName)
     }
 }
