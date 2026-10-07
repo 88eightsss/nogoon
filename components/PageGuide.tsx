@@ -41,6 +41,19 @@ import { SPACING, RADIUS } from '@/constants/Spacing';
 
 type FeatherName = React.ComponentProps<typeof Feather>['name'];
 
+// One line of a tab's live "snapshot" card: a real number the user cares about.
+export type PageGuideStat = {
+  icon:  FeatherName;
+  value: string;   // e.g. "5 days"
+  label: string;   // e.g. "Current streak"
+};
+
+export type PageGuideSnapshot = {
+  title:    string;
+  subtitle: string;
+  stats:    PageGuideStat[];
+};
+
 export type PageGuidePoint = {
   icon:  FeatherName;
   title: string;
@@ -59,9 +72,12 @@ type Props = {
   // Short line shown on the first-visit bubble, e.g. "Your daily snapshot".
   // Falls back to a generic "New here? Quick look".
   hint?:    string;
+  // Optional live numbers. When given, tapping the first-visit bubble shows
+  // these instead of the explainer; the header "?" always opens the explainer.
+  snapshot?: PageGuideSnapshot;
 };
 
-export function PageGuide({ page, icon, accent, title, subtitle, points, hint }: Props) {
+export function PageGuide({ page, icon, accent, title, subtitle, points, hint, snapshot }: Props) {
   const { colors } = useTheme();
   const seen = useUserStore((s) => !!s.seenPageGuides[page]);
   const markPageGuideSeen = useUserStore((s) => s.markPageGuideSeen);
@@ -75,6 +91,8 @@ export function PageGuide({ page, icon, accent, title, subtitle, points, hint }:
   // (store request) — never automatically.
   const [open, setOpen] = useState(false);
   const [bubbleGone, setBubbleGone] = useState(false);
+  // True when the card was opened from the bubble and should show live numbers.
+  const [showSnapshot, setShowSnapshot] = useState(false);
   const [leaving, setLeaving] = useState(false);   // true while the fly-away animation runs
 
   // Bubble animation: fades/slides in shortly after the screen settles, and
@@ -126,8 +144,12 @@ export function PageGuide({ page, icon, accent, title, subtitle, points, hint }:
 
   const visible = open || reopened;
 
+  // The header "?" (reopened) always wins and shows the explainer.
+  const snapMode = !!snapshot && showSnapshot && open && !reopened;
+
   const dismiss = () => {
     setOpen(false);
+    setShowSnapshot(false);
     if (reopened) clearGuideReopenRequest();
   };
 
@@ -154,7 +176,7 @@ export function PageGuide({ page, icon, accent, title, subtitle, points, hint }:
         <View style={[styles.bubble, { backgroundColor: accent }]}>
           <Pressable
             style={styles.bubbleMain}
-            onPress={() => flyAway(() => setOpen(true))}
+            onPress={() => flyAway(() => { setShowSnapshot(!!snapshot); setOpen(true); })}
             hitSlop={6}
           >
             <Feather name={icon} size={14} color={colors.background} />
@@ -178,11 +200,14 @@ export function PageGuide({ page, icon, accent, title, subtitle, points, hint }:
             <Feather name={icon} size={28} color={accent} />
           </View>
 
-          <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{subtitle}</Text>
+          <Text style={[styles.title, { color: colors.text }]}>{snapMode ? snapshot!.title : title}</Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{snapMode ? snapshot!.subtitle : subtitle}</Text>
 
           <View style={styles.points}>
-            {points.map((p, i) => (
+            {(snapMode
+              ? snapshot!.stats.map((st) => ({ icon: st.icon, title: st.value, body: st.label }))
+              : points
+            ).map((p, i) => (
               <View key={i} style={styles.point}>
                 <View style={[styles.pointIcon, { backgroundColor: accent + '14' }]}>
                   <Feather name={p.icon} size={15} color={accent} />
@@ -201,11 +226,15 @@ export function PageGuide({ page, icon, accent, title, subtitle, points, hint }:
 
           <Pressable
             style={styles.tourLink}
-            onPress={() => { dismiss(); router.push('/tutorial'); }}
+            onPress={() => {
+              if (snapMode) { setShowSnapshot(false); return; }   // swap to the explainer
+              dismiss();
+              router.push('/tutorial');
+            }}
             hitSlop={8}
           >
             <Text style={[styles.tourLinkText, { color: colors.textMuted }]}>
-              Or take the full interactive tour
+              {snapMode ? 'How this screen works' : 'Or take the full interactive tour'}
             </Text>
           </Pressable>
         </View>

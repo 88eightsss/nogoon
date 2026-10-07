@@ -15,11 +15,40 @@ import { useThemeStore } from '@/stores/useThemeStore';
 import { useTheme } from '@/hooks/useTheme';
 import { HomeCompanion } from '@/components/home/HomeCompanion';
 import { HomeOrganizer } from '@/components/home/HomeOrganizer';
-import { PageGuide } from '@/components/PageGuide';
+import { PageGuide, type PageGuideStat } from '@/components/PageGuide';
+import { useUserStore, getMinutesSaved } from '@/stores/useUserStore';
+import { getLocalDateKey } from '@/utils/date';
 
 export default function HomeScreen() {
   const { homeMode } = useThemeStore();
   const { colors } = useTheme();
+
+  // Live numbers for the first-visit "Your daily snapshot" bubble.
+  const streak         = useUserStore((s) => s.streak);
+  const longestStreak  = useUserStore((s) => s.longestStreak);
+  const walkAwayCount  = useUserStore((s) => s.walkAwayCount);
+  const weeklyActivity = useUserStore((s) => s.weeklyActivity);
+  const openCounts     = useUserStore((s) => s.openCounts);
+  const openCountDate  = useUserStore((s) => s.openCountDate);
+  const blocklist      = useUserStore((s) => s.blocklist);
+  const blockedApps    = useUserStore((s) => s.blockedApps);
+
+  const gamesToday = weeklyActivity?.[6] ?? 0;
+  const gamesWeek  = (weeklyActivity ?? []).reduce((a, b) => a + b, 0);
+  const gateStopsToday = openCountDate === getLocalDateKey()
+    ? Object.values(openCounts ?? {}).reduce((a, b) => a + b, 0)
+    : 0;
+  const minutesSaved = getMinutesSaved(walkAwayCount);
+  const plural = (n: number, one: string, many = one + 's') => `${n.toLocaleString()} ${n === 1 ? one : many}`;
+
+  const stats: PageGuideStat[] = [
+    { icon: 'zap',      value: plural(streak, 'day'),            label: `Current streak \u00b7 best ${longestStreak}` },
+    { icon: 'award',    value: plural(walkAwayCount, 'walk-away'), label: 'Times you chose to walk away' },
+    { icon: 'clock',    value: minutesSaved >= 60 ? `~${Math.round(minutesSaved / 60)} hrs` : `~${minutesSaved} min`, label: 'Attention reclaimed' },
+    { icon: 'lock',     value: plural(gateStopsToday, 'stop'),   label: 'Gate stops today' },
+    { icon: 'target',   value: plural(gamesToday, 'game'),       label: `Played today \u00b7 ${gamesWeek} this week` },
+    { icon: 'slash',    value: `${plural(blocklist.length, 'site')} \u00b7 ${plural(blockedApps.length, 'app')}`, label: 'Currently blocked' },
+  ];
 
   return (
     <>
@@ -31,6 +60,7 @@ export default function HomeScreen() {
         title="Today"
         hint="Your daily snapshot"
         subtitle="Your companion, protection status and streak."
+        snapshot={{ title: 'Today', subtitle: 'Where you stand right now.', stats }}
         points={[
           { icon: 'heart',        title: 'Your companion',     body: 'Grows each time you walk away.' },
           { icon: 'shield',       title: 'Protection status',  body: 'Shows if blocking is on — tap to fix it.' },
