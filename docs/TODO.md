@@ -8,22 +8,21 @@
 - `checkResetStruggling` never called.
 - "AI suggestions coming soon" teaser.
 
+## Done in v29 (build 29)
+- Unlocks cover the whole site (host + subdomains) and last 20 min on every path.
+- Fresh installs always run the full onboarding/palette intro; the cloud no longer marks a user onboarded.
+- Home snapshot shows real numbers; Me tab shows version + build; user store has `version`/`migrate`.
+- Calm "Set just now" label, waiting-room exit returns to Calm, reset-password resend, gate calm screen scrolls on small phones.
+
 ## Smaller items
-- Calm tab nightly rule shows "Set 0m ago" right after saving.
-- Calm Waiting Room exit lands on Today.
-- Reset-password has no "resend code".
 - Insights/Journal route isn't gated by the tutorial CTA.
 - MILESTONES/start-date not fully account-scoped.
-- Unlock minutes differ (post-game 20 vs override 10).
-- Gate calm screen may clip on small phones.
-- User store has no `version`/`migrate`.
 - Me tab has 8+ controls; consider grouping.
 - `AdInterstitial` only unsubscribes the first ad's listeners.
 
 ## Still open from the 2026-10-05 audit (lower risk)
-- Native: unlock is keyed to the exact host (m./music./web. subdomains re-gate); `lastSeenUrl` stamped before the cooldown check; text-scan URL fallback can match on-page text; VPN DNS forwarding is serial with a 3s timeout; overnight Mode windows use the current day-of-week; widget lags up to 30 min.
+- Native: `lastSeenUrl` stamped before the cooldown check; text-scan URL fallback can match on-page text; VPN DNS forwarding is serial with a 3s timeout; overnight Mode windows use the current day-of-week; widget lags up to 30 min.
 - Cloud: `loadFromSupabase` doesn't pull partner info, journal entries or freeze tokens back; one freeze token covers a gap of any length.
-- A kill during onboarding after adding sites marks the user onboarded (skips setup steps).
 - AdMob uses Google test IDs / REPLACE_ME ad units.
 - Arcade `?game=` deep link bypasses the fullArcade lock (intentional for Daily Challenge — confirm).
 

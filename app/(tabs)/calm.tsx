@@ -116,6 +116,7 @@ function NightlyCommitmentCard() {
   const setAgoLabel = () => {
     if (!nightlyCommitmentSetAt) return '';
     const mins = Math.round((Date.now() - nightlyCommitmentSetAt) / 60000);
+    if (mins < 1) return 'just now';
     if (mins < 60) return `${mins}m ago`;
     const hrs = Math.round(mins / 60);
     return `${hrs}h ago`;

@@ -35,6 +35,7 @@ import { GoonSprite, getGoonStage } from '@/components/home/GoonMascot';
 import { type CharacterId } from '@/stores/usePetStore';
 import { useUnlockedFeatures, lockHint, useProgressStore } from '@/stores/useProgressStore';
 import { PageGuide } from '@/components/PageGuide';
+import Constants from 'expo-constants';
 import { TimeStepper } from '@/components/TimeStepper';
 
 // ─── Companion defaults ───────────────────────────────────────────────────────
@@ -1090,6 +1091,13 @@ export default function MeScreen() {
             <Text style={[ctrlStyles.label, { color: colors.text, flex: 1 }]}>Terms of service</Text>
             <Feather name="external-link" size={16} color={colors.textMuted} />
           </Pressable>
+          <View style={[ctrlStyles.row, { borderBottomColor: colors.border }]}>
+            <Feather name="info" size={16} color={colors.textMuted} />
+            <Text style={[ctrlStyles.label, { color: colors.text, flex: 1 }]}>Version</Text>
+            <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>
+              {`${Constants.expoConfig?.version ?? '1.0.0'} (build ${Constants.expoConfig?.android?.versionCode ?? '?'})`}
+            </Text>
+          </View>
           <View style={[ctrlStyles.row, { borderBottomColor: colors.border }]}>
             <Feather name="unlock" size={16} color={colors.accent} />
             <View style={{ flex: 1 }}>

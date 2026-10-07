@@ -1208,7 +1208,8 @@ function NoGoonScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]}>
-      <Animated.View style={[styles.calmContainer, { opacity: contentOpacity }]}>
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false} bounces={false}>
+      <Animated.View style={[styles.calmContainer, { flex: undefined, flexGrow: 1, paddingVertical: SPACING.lg, opacity: contentOpacity }]}>
 
         {/* Domain — large and unmissable so addicted-brain registers it at a glance */}
         <View style={styles.calmDomainBlock}>
@@ -1409,6 +1410,7 @@ function NoGoonScreen() {
         )}
 
       </Animated.View>
+      </ScrollView>
     </SafeAreaView>
   );
 }

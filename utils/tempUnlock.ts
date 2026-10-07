@@ -18,7 +18,7 @@ import { useUserStore } from '@/stores/useUserStore';
 const { AppBlocker } = NativeModules;
 const hasNativeModule = Platform.OS === 'android' && !!AppBlocker;
 
-export const DEFAULT_UNLOCK_MINUTES = 10;
+export const DEFAULT_UNLOCK_MINUTES = 20;
 
 // Opens the target app after an unlock so the user isn't left on NoGoon's home
 // screen. Quietly does nothing for websites, or on a build without the native

@@ -743,13 +743,38 @@ class NoGoonAccessibilityService : AccessibilityService() {
     // every intercept. Expired entries are cleaned up immediately.
 
     private fun isTemporarilyUnlocked(target: String): Boolean {
-        val key = "unlock_${target.trim().lowercase()}"
-        val expiryMs = prefs.getLong(key, 0L)
-        if (expiryMs == 0L) return false
+        val host = target.trim().lowercase()
+        if (host.isEmpty()) return false
         val now = System.currentTimeMillis()
-        if (now < expiryMs) return true
-        prefs.edit().remove(key).apply()    // expired — clean up
-        return false
+
+        // An unlock covers the whole site: the host itself, any parent domain
+        // (unlock for instagram.com covers m.instagram.com) and any subdomain
+        // (unlock for m.instagram.com covers instagram.com).
+        val candidates = ArrayList<String>()
+        candidates.add(host)
+        if (host.contains('.')) {
+            var rest = host
+            while (rest.contains('.')) {
+                rest = rest.substringAfter('.')
+                if (rest.contains('.')) candidates.add(rest)   // never match a bare TLD
+            }
+            for (k in prefs.all.keys) {
+                if (k.startsWith("unlock_") && !k.startsWith("unlock_time_")) {
+                    val d = k.removePrefix("unlock_")
+                    if (d.endsWith(".$host")) candidates.add(d)
+                }
+            }
+        }
+
+        var unlocked = false
+        for (c in candidates) {
+            val key = "unlock_$c"
+            val expiryMs = prefs.getLong(key, 0L)
+            if (expiryMs == 0L) continue
+            if (now < expiryMs) unlocked = true
+            else prefs.edit().remove(key).apply()    // expired — clean up
+        }
+        return unlocked
     }
 
     // ── Cooldown check + trigger ──────────────────────────────────────────────

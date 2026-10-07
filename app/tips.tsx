@@ -26,7 +26,7 @@ const TIPS = [
   {
     icon: 'unlock',
     title: 'Spend points for a temporary unlock',
-    body: "Genuinely need a blocked app? Points buy 10 minutes of access. It's there for real needs, not for talking yourself past every craving.",
+    body: "Genuinely need a blocked app? Points buy 20 minutes of access. It's there for real needs, not for talking yourself past every craving.",
   },
   {
     icon: 'lock',

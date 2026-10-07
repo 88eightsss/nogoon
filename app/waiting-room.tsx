@@ -178,7 +178,8 @@ export default function WaitingRoomScreen() {
         recordGamePlayed(pts, params.gameName.toLowerCase().replace(/\s+/g, '_'));
       }
     }
-    router.replace('/(tabs)');
+    // Blocking flow goes home; a Calm-tab visit returns to the Calm tab it came from.
+    router.replace(fromGate ? '/(tabs)' : '/(tabs)/calm');
   };
 
   return (

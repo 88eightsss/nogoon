@@ -1268,13 +1268,10 @@ export const useUserStore = create<UserState>()(
                 state.blockedApps.length === 0 && !useModesStore.getState().baseSnapshot && Array.isArray(p.blocked_apps)
                   ? (p.blocked_apps as string[])
                   : state.blockedApps,
-              // A brand-new account also has a (zeroed) profile row, so a row alone
-              // proves nothing — only real progress marks someone as a returning user
-              // who shouldn't be walked through onboarding again.
-              hasOnboarded:
-                state.hasOnboarded ||
-                (p.points ?? 0) > 0 || (p.xp ?? 0) > 0 || (p.streak ?? 0) > 0 ||
-                (p.games_played ?? 0) > 0 || (p.walk_away_count ?? 0) > 0,
+              // hasOnboarded is deliberately NOT derived from cloud progress: a fresh
+              // install always goes through the full intro + palette pick, even for an
+              // existing account. Only completeOnboarding() flips it (so a kill
+              // part-way through setup no longer counts as finished either).
             };
           });
         }
@@ -1304,7 +1301,6 @@ export const useUserStore = create<UserState>()(
               ...state.blocklist,
               ...blocklistResult.data.map((r: { domain: string }) => r.domain),
             ])).filter((d) => !stillPending.has(d)),
-            hasOnboarded: state.hasOnboarded || blocklistResult.data.length > 0,
           }));
         }
 
@@ -1392,6 +1388,17 @@ export const useUserStore = create<UserState>()(
     {
       name: 'nogoon-user-store', // Key used in SecureStore
       storage: secureStorage,
+      // Bump `version` and add a step below whenever a persisted field is
+      // renamed, removed or changes shape, so installs updating from an older
+      // build keep their data instead of loading something half-compatible.
+      version: 1,
+      migrate: (persisted: any, fromVersion: number) => {
+        // v0 -> v1: no shape change; this just stamps existing installs.
+        if (fromVersion < 1) {
+          return persisted;
+        }
+        return persisted;
+      },
       // Only persist the data fields, not the async action functions
       partialize: (state) => ({
         name: state.name,

@@ -30,7 +30,7 @@ export default function ResetPasswordScreen() {
   const COLORS = useThemedColors();
   const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   const { email: emailParam } = useLocalSearchParams<{ email?: string }>();
-  const { confirmPasswordReset } = useAuthStore();
+  const { confirmPasswordReset, requestPasswordReset } = useAuthStore();
 
   const [email, setEmail]         = useState(emailParam ?? '');
   const [code, setCode]           = useState('');
@@ -39,6 +39,25 @@ export default function ResetPasswordScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading]     = useState(false);
   const [error, setError]         = useState<string | null>(null);
+  const [resent, setResent]       = useState(false);
+  const [resending, setResending] = useState(false);
+
+  const handleResend = async () => {
+    setError(null);
+    setResent(false);
+    if (!email.trim() || !email.includes('@')) {
+      setError('Enter your email above so we know where to send a new code.');
+      return;
+    }
+    setResending(true);
+    const err = await requestPasswordReset(email.trim());
+    setResending(false);
+    if (err) {
+      setError(err.message);
+      return;
+    }
+    setResent(true);
+  };
 
   const handleReset = async () => {
     setError(null);
@@ -178,6 +197,12 @@ export default function ResetPasswordScreen() {
                 <Text style={styles.submitButtonText}>Reset password</Text>
               )}
             </Pressable>
+
+            <Pressable style={styles.resendBtn} onPress={handleResend} disabled={resending} hitSlop={8}>
+              <Text style={styles.resendText}>
+                {resending ? 'Sending...' : resent ? 'New code sent. Check your email.' : "Didn't get a code? Send a new one"}
+              </Text>
+            </Pressable>
           </View>
 
         </ScrollView>
@@ -269,5 +294,7 @@ const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
     marginTop: SPACING.sm,
   },
   submitButtonLoading: { opacity: 0.7 },
+  resendBtn: { alignSelf: 'center', marginTop: SPACING.sm, padding: SPACING.xs },
+  resendText: { fontFamily: FONTS.bodyMedium, fontSize: 13, color: COLORS.indigoBright },
   submitButtonText: { fontFamily: FONTS.bodyBold, fontSize: 16, color: COLORS.background },
 });

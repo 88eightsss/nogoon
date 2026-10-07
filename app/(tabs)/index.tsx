@@ -27,14 +27,18 @@ export default function HomeScreen() {
   const streak         = useUserStore((s) => s.streak);
   const longestStreak  = useUserStore((s) => s.longestStreak);
   const walkAwayCount  = useUserStore((s) => s.walkAwayCount);
-  const weeklyActivity = useUserStore((s) => s.weeklyActivity);
+  const dailyGames     = useUserStore((s) => s.dailyGames);
   const openCounts     = useUserStore((s) => s.openCounts);
   const openCountDate  = useUserStore((s) => s.openCountDate);
   const blocklist      = useUserStore((s) => s.blocklist);
   const blockedApps    = useUserStore((s) => s.blockedApps);
 
-  const gamesToday = weeklyActivity?.[6] ?? 0;
-  const gamesWeek  = (weeklyActivity ?? []).reduce((a, b) => a + b, 0);
+  // Date-keyed counts roll over by themselves at midnight (weeklyActivity[6] doesn't).
+  const gamesToday = dailyGames?.[getLocalDateKey()] ?? 0;
+  const gamesWeek  = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    return dailyGames?.[getLocalDateKey(d)] ?? 0;
+  }).reduce((a, b) => a + b, 0);
   const gateStopsToday = openCountDate === getLocalDateKey()
     ? Object.values(openCounts ?? {}).reduce((a, b) => a + b, 0)
     : 0;
