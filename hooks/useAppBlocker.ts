@@ -21,6 +21,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Platform, NativeModules, AppState } from 'react-native';
 import * as IntentLauncher from 'expo-intent-launcher';
 import { useUserStore } from '@/stores/useUserStore';
+import { useDisclosureStore } from '@/stores/useDisclosureStore';
 import type { BlockingStatus } from '@/utils/blockingStatus';
 
 // The native module registered by AppBlockerPackage.kt
@@ -221,7 +222,7 @@ export function useAppBlocker() {
   // Uses the native module first (most reliable), falls back to expo-intent-launcher
   // (which works even if the custom module isn't registered). This way the settings
   // button always works no matter what.
-  const openSettings = useCallback(async () => {
+  const openAccessibilityNow = useCallback(async () => {
     if (hasNativeModule) {
       try {
         await AppBlocker.openAccessibilitySettings();
@@ -240,6 +241,19 @@ export function useAppBlocker() {
       console.warn('Could not open accessibility settings via fallback:', e);
     }
   }, [hasNativeModule]);
+
+  // Google Play requires a prominent disclosure + consent BEFORE sending users to
+  // Accessibility settings. Every "Enable" / "Fix" button goes through this: the
+  // disclosure (components/AccessibilityDisclosure.tsx) opens first and settings
+  // only open if the user agrees. If the service is already on, there is nothing
+  // to consent to, so go straight through.
+  const openSettings = useCallback(() => {
+    if (serviceEnabled) {
+      openAccessibilityNow();
+      return;
+    }
+    useDisclosureStore.getState().request(() => { openAccessibilityNow(); });
+  }, [serviceEnabled, openAccessibilityNow]);
 
   // ── Battery optimization helpers ───────────────────────────────────────────
   // Android can kill the Accessibility Service in the background if battery

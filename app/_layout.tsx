@@ -53,6 +53,7 @@ Notifications.setNotificationHandler({
 });
 import { useNativeSync } from '@/hooks/useNativeSync';
 import { useTheme } from '@/hooks/useTheme';
+import { AccessibilityDisclosure } from '@/components/AccessibilityDisclosure';
 import { isLightColor } from '@/utils/colorLuminance';
 
 // ─── Error Boundary ─────────────────────────────────────────────────────────── //
@@ -444,6 +445,8 @@ export default function RootLayout() {
             }}
           />
         </Stack>
+        {/* Play-required disclosure shown before opening Accessibility settings */}
+        <AccessibilityDisclosure />
       </SafeAreaProvider>
     </ErrorBoundary>
   );
