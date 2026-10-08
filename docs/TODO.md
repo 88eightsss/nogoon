@@ -13,6 +13,7 @@
 - Fresh installs always run the full onboarding/palette intro; the cloud no longer marks a user onboarded.
 - Home snapshot shows real numbers; Me tab shows version + build; user store has `version`/`migrate`.
 - Play-required Accessibility prominent disclosure + consent screen before any Enable/Fix button opens Android settings (`components/AccessibilityDisclosure.tsx`, `stores/useDisclosureStore.ts`, wired in `hooks/useAppBlocker.ts`). Re-record the Play prominent-disclosure video to show it.
+- Onboarding "Enable app blocking" button gently breathes (components/Breathe.tsx) to draw the eye on a text-heavy screen; respects reduce-motion.
 - Calm "Set just now" label, waiting-room exit returns to Calm, reset-password resend, gate calm screen scrolls on small phones.
 
 ## Smaller items

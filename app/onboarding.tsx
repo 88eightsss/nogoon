@@ -40,6 +40,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Breathe } from '@/components/Breathe';
 import { useUserStore } from '@/stores/useUserStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useThemeStore } from '@/stores/useThemeStore';
@@ -539,9 +540,11 @@ export default function OnboardingScreen() {
                 {serviceEnabled ? (
                   <Feather name="check-circle" size={28} color={COLORS.green} />
                 ) : (
-                  <Pressable style={styles.setupEnableButton} onPress={openSettings}>
-                    <Text style={styles.setupEnableButtonText}>Enable</Text>
-                  </Pressable>
+                  <Breathe>
+                    <Pressable style={styles.setupEnableButton} onPress={openSettings}>
+                      <Text style={styles.setupEnableButtonText}>Enable</Text>
+                    </Pressable>
+                  </Breathe>
                 )}
               </View>
 
