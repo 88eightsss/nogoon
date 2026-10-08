@@ -2,9 +2,9 @@
 
 ## Phantom features (built, but unreachable or half-wired) — on hold
 - Accountability partner: code + `notify-partner` function exist, no entry point in the UI.
-- Dead Reckoning, Ad Wall, Paywall screens: no route/entry leads to them.
-- Cold Turkey, `blockSchedule`, `gameDuration`, `intentionGoal`, `dailyWalkAwayGoal`: state exists, no UI.
-- `triggerCounts` recorded but never displayed.
+- Ad Wall, Paywall screens: no route/entry leads to them.
+- `blockSchedule` (Modes + Curfew already cover schedules), `gameDuration`, `intentionGoal`, `dailyWalkAwayGoal`: state exists, no UI.
+- `triggerCounts` duplicates `reflectionCounts` (already shown in Insights).
 - `checkResetStruggling` never called.
 - "AI suggestions coming soon" teaser.
 
@@ -15,6 +15,10 @@
 - Play-required Accessibility prominent disclosure + consent screen before any Enable/Fix button opens Android settings (`components/AccessibilityDisclosure.tsx`, `stores/useDisclosureStore.ts`, wired in `hooks/useAppBlocker.ts`). Re-record the Play prominent-disclosure video to show it.
 - Onboarding "Enable app blocking" button gently breathes (components/Breathe.tsx) to draw the eye on a text-heavy screen; respects reduce-motion.
 - Calm "Set just now" label, waiting-room exit returns to Calm, reset-password resend, gate calm screen scrolls on small phones.
+
+- Progressive unlocks are OFF (`PROGRESSIVE_UNLOCKS = false` in stores/useProgressStore.ts): all features open from day one; the dev unlock toggle is hidden.
+- Cold Turkey toggle in Me (48h wait + typed phrase to turn off); Dead Reckoning reachable from the Calm tab.
+- "What now?" button uses the theme accent instead of the companion stage color (was red on some stages).
 
 ## Smaller items
 - Insights/Journal route isn't gated by the tutorial CTA.

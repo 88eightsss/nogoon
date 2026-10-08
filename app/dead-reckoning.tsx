@@ -93,6 +93,7 @@ export default function DeadReckoningScreen() {
   // Diff framing
   const diff = prevPred !== null ? actualOpens - prevPred : 0;
   const diffLabel =
+    prevPred === null ? 'No guess to compare against.' :
     diff === 0 ? 'Exactly on target.' :
     diff > 0   ? `${diff} more than you predicted.` :
                  `${Math.abs(diff)} fewer than you predicted.`;
@@ -232,7 +233,7 @@ export default function DeadReckoningScreen() {
           </View>
 
           {prevPred === null && (
-            <Text style={styles.subtitle}>No prediction was made this morning.</Text>
+            <Text style={styles.subtitle}>You didn't make a guess this morning. Open this before 5pm tomorrow to try one.</Text>
           )}
         </View>
 

@@ -66,6 +66,14 @@ const TOOLS: Tool[] = [
     route:     '/bubbles',
   },
   {
+    id:        'deadreckoning',
+    icon:      'compass',
+    iconColor: '#7c3aed',
+    title:     'Dead Reckoning',
+    subtitle:  'Guess your urges today, then see the real number',
+    route:     '/dead-reckoning',
+  },
+  {
     id:        'insights',
     icon:      'bar-chart-2',
     iconColor: '#0277BD',

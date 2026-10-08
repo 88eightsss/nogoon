@@ -542,16 +542,7 @@ export function HomeCompanion() {
     computeDay();
   }, []);
 
-  // ── "What now?" glow — tinted a little with the current companion's color ──
-  const [mascotColor, setMascotColor] = useState<string | null>(null);
-  useEffect(() => {
-    AsyncStorage.getItem(MASCOT_STORAGE_KEY).then((v) => {
-      const charId = (v !== null ? Number(v) : 0) as 0 | 1 | 2;
-      const stage = getGoonStage(walkAwayCount);
-      setMascotColor(CHAR_COLORS[charId][stage][1]);
-    });
-  }, [walkAwayCount]);
-
+  // ── "What now?" glow — theme accent (see the button below) ──
   const glowPulse = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     const loop = Animated.loop(
@@ -646,20 +637,22 @@ export function HomeCompanion() {
                 <Text style={[styles.nudgeText, { color: colors.background }]}>Try this next</Text>
               </View>
             )}
-            {mascotColor && (
+            {/* Tinted with the theme accent, not the companion's stage color — some
+                stages are a harsh red that made this button look like an error. */}
+            {(
               <Animated.View
                 pointerEvents="none"
                 style={[
                   styles.suggestGlow,
                   {
-                    backgroundColor: mascotColor,
+                    backgroundColor: colors.accent,
                     opacity: glowPulse.interpolate({ inputRange: [0, 1], outputRange: [0.12, 0.30] }),
                   },
                 ]}
               />
             )}
             <Pressable
-              style={[styles.suggestBtn, { borderColor: mascotColor ?? colors.cardBorder }]}
+              style={[styles.suggestBtn, { borderColor: colors.accent + '66' }]}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 setShowSheet(true);

@@ -33,7 +33,7 @@ import { NETWORK_SHIELD_ENABLED } from '@/constants/features';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { GoonSprite, getGoonStage } from '@/components/home/GoonMascot';
 import { type CharacterId } from '@/stores/usePetStore';
-import { useUnlockedFeatures, lockHint, useProgressStore } from '@/stores/useProgressStore';
+import { useUnlockedFeatures, lockHint, useProgressStore, PROGRESSIVE_UNLOCKS } from '@/stores/useProgressStore';
 import { PageGuide } from '@/components/PageGuide';
 import Constants from 'expo-constants';
 import { TimeStepper } from '@/components/TimeStepper';
@@ -389,12 +389,17 @@ export default function MeScreen() {
     setWindDownEnabled, setWindDownHour,
     isBricked, enableBricked, requestDisableBricked, cancelDisableBricked, brickedDisableRequestedAt,
     startFocusSession, endFocusSession, focusSessionEnd,
+    isColdTurkey, coldTurkeyDisableRequestedAt, enableColdTurkey, requestDisableColdTurkey,
+    cancelDisableColdTurkey, confirmDisableColdTurkey,
     curfewEnabled, curfewStart, curfewEnd, setCurfew,
     preferWaitingRoom, setPreferWaitingRoom,
   } = useUserStore();
 
   const { signOut, deleteAccount } = useAuthStore();
   const [showDelete, setShowDelete] = useState(false);
+  const [showColdOff, setShowColdOff] = useState(false);
+  const [coldText, setColdText] = useState('');
+  const COLD_PHRASE = 'TURN IT OFF';
   const [deleteText, setDeleteText] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -494,6 +499,47 @@ export default function MeScreen() {
     setDeleting(false);
     if (err) setDeleteError(err);
     // On success the auth listener routes to the sign-in screen.
+  };
+
+  // Cold Turkey: the strictest setting. No unlock path at all (it also switches
+  // Hard Mode on). Turning it off takes a 48-hour wait AND typing a phrase, so a
+  // weak moment can't undo a decision made on a strong one.
+  const coldTurkeyConfirm = () => {
+    const WAIT = 48 * 3600000;
+    if (isColdTurkey && coldTurkeyDisableRequestedAt) {
+      const left = WAIT - (Date.now() - coldTurkeyDisableRequestedAt);
+      if (left <= 0) { setColdText(''); setShowColdOff(true); return; }
+      const hrs = Math.floor(left / 3600000);
+      const mins = Math.ceil((left % 3600000) / 60000);
+      Alert.alert(
+        'Cold Turkey is turning off',
+        `You can finish turning it off in about ${hrs}h ${mins}m. Or keep it on.`,
+        [
+          { text: 'Keep waiting', style: 'cancel' },
+          { text: 'Keep it on', onPress: cancelDisableColdTurkey },
+        ]
+      );
+      return;
+    }
+    if (isColdTurkey) {
+      Alert.alert(
+        'Turn off Cold Turkey?',
+        'You\'ll have to wait 48 hours, then type a phrase to confirm. Until then nothing can be unlocked.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Start the 48 hours', style: 'destructive', onPress: requestDisableColdTurkey },
+        ]
+      );
+      return;
+    }
+    Alert.alert(
+      'Start Cold Turkey?',
+      'Blocked apps and sites can\'t be unlocked at all. No points, no waiting, no override. Hard Mode turns on with it. To end it you must ask, wait 48 hours, and type a phrase. This is for when you really mean it.',
+      [
+        { text: 'Not now', style: 'cancel' },
+        { text: 'Start Cold Turkey', style: 'destructive', onPress: enableColdTurkey },
+      ]
+    );
   };
 
   const hardModeConfirm = () => {
@@ -778,6 +824,23 @@ export default function MeScreen() {
             <Switch
               value={isBricked}
               onValueChange={hardModeConfirm}
+              trackColor={{ false: colors.border, true: colors.danger }}
+              thumbColor="#fff"
+            />
+          </View>
+
+          {/* Cold Turkey — strictest tier above Hard Mode */}
+          <View style={[ctrlStyles.row, { borderBottomColor: colors.border }]}>
+            <Feather name="slash" size={16} color={isColdTurkey ? colors.danger : colors.accent} />
+            <View style={{ flex: 1 }}>
+              <Text style={[ctrlStyles.label, { color: isColdTurkey ? colors.danger : colors.text }]}>Cold Turkey</Text>
+              <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>
+                {isColdTurkey && coldTurkeyDisableRequestedAt ? 'Turning off: 48 hour wait' : 'No unlocks at all. Takes 48 hours to turn off'}
+              </Text>
+            </View>
+            <Switch
+              value={isColdTurkey}
+              onValueChange={coldTurkeyConfirm}
               trackColor={{ false: colors.border, true: colors.danger }}
               thumbColor="#fff"
             />
@@ -1098,6 +1161,7 @@ export default function MeScreen() {
               {`${Constants.expoConfig?.version ?? '1.0.0'} (build ${Constants.expoConfig?.android?.versionCode ?? '?'})`}
             </Text>
           </View>
+          {PROGRESSIVE_UNLOCKS && (
           <View style={[ctrlStyles.row, { borderBottomColor: colors.border }]}>
             <Feather name="unlock" size={16} color={colors.accent} />
             <View style={{ flex: 1 }}>
@@ -1114,6 +1178,7 @@ export default function MeScreen() {
               thumbColor="#fff"
             />
           </View>
+          )}
           <Pressable
             style={[ctrlStyles.row, { borderBottomWidth: 0 }]}
             onPress={signOutConfirm}
@@ -1178,6 +1243,48 @@ export default function MeScreen() {
                 }}
               >
                 <Text style={{ color: '#fff', fontFamily: FONTS.bodyBold, fontSize: 15 }}>{deleting ? 'Deleting…' : 'Delete forever'}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      <Modal visible={showColdOff} transparent animationType="fade" onRequestClose={() => setShowColdOff(false)}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <View style={[modalStyles.overlay, { backgroundColor: colors.overlay, justifyContent: 'center', paddingHorizontal: SPACING.lg }]}>
+          <View style={{ backgroundColor: colors.surface, borderColor: colors.cardBorder, borderWidth: 1, borderRadius: RADIUS.lg, padding: SPACING.lg, gap: SPACING.md }}>
+            <Text style={{ color: colors.text, fontFamily: FONTS.bodyBold, fontSize: 18 }}>Finish turning off Cold Turkey</Text>
+            <Text style={{ color: colors.textMuted, fontFamily: FONTS.body, fontSize: 14, lineHeight: 20 }}>
+              Your 48 hours are up. Type the phrase below to confirm. Hard Mode stays on until you turn it off separately.
+            </Text>
+            <Text style={{ color: colors.text, fontFamily: FONTS.body, fontSize: 13 }}>Type {COLD_PHRASE} to confirm.</Text>
+            <TextInput
+              value={coldText}
+              onChangeText={setColdText}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              placeholder={COLD_PHRASE}
+              placeholderTextColor={colors.textMuted}
+              style={{ borderWidth: 1, borderColor: colors.border, borderRadius: RADIUS.md, padding: SPACING.md, color: colors.text, fontFamily: FONTS.body, fontSize: 16 }}
+            />
+            <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
+              <Pressable
+                onPress={() => setShowColdOff(false)}
+                style={{ flex: 1, alignItems: 'center', padding: SPACING.md, borderRadius: RADIUS.md, borderWidth: 1, borderColor: colors.border }}
+              >
+                <Text style={{ color: colors.text, fontFamily: FONTS.bodyBold, fontSize: 15 }}>Keep it on</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => { confirmDisableColdTurkey(); setShowColdOff(false); }}
+                disabled={coldText.trim().toUpperCase() !== COLD_PHRASE}
+                style={{
+                  flex: 1, alignItems: 'center', padding: SPACING.md, borderRadius: RADIUS.md,
+                  backgroundColor: colors.danger,
+                  opacity: coldText.trim().toUpperCase() !== COLD_PHRASE ? 0.4 : 1,
+                }}
+              >
+                <Text style={{ color: '#fff', fontFamily: FONTS.bodyBold, fontSize: 15 }}>Turn it off</Text>
               </Pressable>
             </View>
           </View>

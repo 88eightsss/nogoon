@@ -15,6 +15,11 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUserStore } from './useUserStore';
 
+// Progressive unlocking is OFF: every feature is available from the first launch.
+// Flip to true to bring back the walk-away drip-feed (lock hints, "X unlocked!"
+// toasts and the Me-tab "Unlock everything now" switch all key off this flag).
+export const PROGRESSIVE_UNLOCKS = false;
+
 export type FeatureId = 'fullArcade' | 'insights' | 'journal' | 'organizerMode';
 
 export type UnlockRule = {
@@ -70,7 +75,7 @@ export const useProgressStore = create<ProgressState>()(
 );
 
 export function isUnlocked(id: FeatureId, walkAwayCount: number, forceUnlockAll: boolean): boolean {
-  if (forceUnlockAll) return true;
+  if (!PROGRESSIVE_UNLOCKS || forceUnlockAll) return true;
   return walkAwayCount >= RULES_BY_ID[id].threshold;
 }
 
@@ -89,9 +94,10 @@ export function useUnlockedFeatures() {
     UNLOCK_RULES.filter((r) => isUnlocked(r.id, walkAwayCount, forceUnlockAll)).map((r) => r.id)
   );
 
-  const newlyUnlocked = UNLOCK_RULES.filter(
-    (r) => unlocked.has(r.id) && !seenUnlocks.includes(r.id)
-  );
+  // No "just unlocked" announcements when nothing is ever locked.
+  const newlyUnlocked = !PROGRESSIVE_UNLOCKS
+    ? []
+    : UNLOCK_RULES.filter((r) => unlocked.has(r.id) && !seenUnlocks.includes(r.id));
 
   return { unlocked, newlyUnlocked, markSeen: markUnlockSeen, walkAwayCount };
 }

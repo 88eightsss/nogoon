@@ -382,6 +382,7 @@ interface UserState {
   // Cold Turkey actions
   enableColdTurkey: () => void;
   requestDisableColdTurkey: () => void; // starts 48hr countdown
+  cancelDisableColdTurkey: () => void;  // user changed their mind during the wait
   confirmDisableColdTurkey: () => void; // called after 48hrs + phrase verified
 
   // Curfew / sleep mode
@@ -887,6 +888,8 @@ export const useUserStore = create<UserState>()(
 
       requestDisableColdTurkey: () =>
         set({ coldTurkeyDisableRequestedAt: Date.now() }),
+
+      cancelDisableColdTurkey: () => set({ coldTurkeyDisableRequestedAt: null }),
 
       // Only called from settings after 48hrs have elapsed AND the user has
       // typed the confirmation phrase. UI enforces both checks before calling.
