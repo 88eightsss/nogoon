@@ -305,15 +305,33 @@ export default function ArcadeScreen() {
     }
   }, [gameParam]);
 
+  // Back arrow lives in the header (not floating over the game). The ref keeps
+  // the handler fresh without re-registering the header every render.
+  const backRef = useRef<() => void>(() => {});
+
   // Dynamic header color — matches the active game's color identity
   useEffect(() => {
     if (activeGame) {
       const game = ALL_GAMES.find((g) => g.id === activeGame);
       if (game) {
-        navigation.setOptions({ headerTintColor: game.color, title: game.name });
+        navigation.setOptions({
+          headerTintColor: game.color,
+          title: game.name,
+          headerLeft: () => (
+            <Pressable
+              onPress={() => backRef.current()}
+              hitSlop={12}
+              style={{ paddingHorizontal: SPACING.md }}
+              accessibilityRole="button"
+              accessibilityLabel="Back to Arcade"
+            >
+              <Feather name="arrow-left" size={22} color={game.color} />
+            </Pressable>
+          ),
+        });
       }
     } else {
-      navigation.setOptions({ headerTintColor: COLORS.arcade, title: 'Arcade' });
+      navigation.setOptions({ headerTintColor: COLORS.arcade, title: 'Arcade', headerLeft: undefined });
     }
   }, [activeGame, navigation, COLORS]);
 
@@ -330,6 +348,7 @@ export default function ArcadeScreen() {
 
   const handleBack      = () => { setFinishedGame(null); setActiveGame(null); };
   const handlePlayAgain = () => { if (finishedGame) handlePlay(finishedGame.id as GameId); };
+  backRef.current = handleBack;
 
   // ── Active game renders ───────────────────────────────────────────────────
   if (activeGame) {
@@ -358,10 +377,6 @@ export default function ArcadeScreen() {
       return (
         <View style={{ flex: 1 }}>
           {gameNode}
-          {/* Back button — arcade only, never shown during gate/blocking flow */}
-          <Pressable style={styles.arcadeBackBtn} onPress={handleBack} hitSlop={12}>
-            <Feather name="arrow-left" size={20} color="rgba(255,255,255,0.85)" />
-          </Pressable>
         </View>
       );
     }
@@ -841,16 +856,4 @@ const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   backButtonText: { fontFamily: FONTS.body, fontSize: 15, color: COLORS.textMuted },
 
   // ── In-game back button (arcade only) ─────────────────────────────────────
-  arcadeBackBtn: {
-    position:        'absolute',
-    top:             52,
-    left:            SPACING.lg,
-    width:           40,
-    height:          40,
-    borderRadius:    RADIUS.full,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    alignItems:      'center',
-    justifyContent:  'center',
-    zIndex:             999,
-  },
 });
