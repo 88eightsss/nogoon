@@ -15,9 +15,11 @@ import {
   Modal,
   Switch,
   Alert,
+  Easing,
+  PanResponder,
+  AccessibilityInfo,
+  useWindowDimensions,
   LayoutChangeEvent,
-  NativeSyntheticEvent,
-  NativeScrollEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
@@ -132,158 +134,321 @@ function GameInfoModal({ game, onClose, onPlay, styles, COLORS }: {
   );
 }
 
-// ─── Game card ────────────────────────────────────────────────────────────────
+// ─── Game row ─────────────────────────────────────────────────────────────────
+// No play button: the whole row is the tap target. Rows settle in one by one
+// when their board becomes the active one.
 
-function ArcadeGameCard({ game, onPlay, onInfo, locked, lockMessage, styles }: {
+function ArcadeGameRow({ game, index, active, onPlay, onInfo, locked, lockMessage, accent, styles, COLORS }: {
   game: GameMeta;
+  index: number;
+  active: boolean;
   onPlay: (id: GameId) => void;
   onInfo: (game: GameMeta) => void;
   locked?: boolean;
   lockMessage?: string;
-  styles: ReturnType<typeof makeStyles>;
-}) {
-  const scale = useRef(new Animated.Value(1)).current;
-  return (
-    <Pressable
-      onPressIn={() => { if (!locked) Animated.timing(scale, { toValue: 0.96, duration: 70, useNativeDriver: true }).start(); }}
-      onPressOut={() => { if (!locked) Animated.spring(scale, { toValue: 1, damping: 12, useNativeDriver: true }).start(); }}
-      onPress={() => {
-        if (locked) {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          Alert.alert('Still locked', lockMessage ?? 'Keep walking away to unlock this.');
-          return;
-        }
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        onPlay(game.id as GameId);
-      }}
-      style={styles.cardPressable}
-    >
-      <Animated.View
-        style={[
-          styles.gameCard,
-          { borderColor: game.color + '40' },
-          { transform: [{ scale }] },
-          locked && styles.gameCardLocked,
-        ]}
-      >
-        <Text style={styles.gameEmoji}>{locked ? '🔒' : game.emoji}</Text>
-        <View style={styles.gameInfo}>
-          <View style={styles.gameNameRow}>
-            <Text style={styles.gameName}>{game.name}</Text>
-            {game.category === 'awareness' && !locked && (
-              <View style={[styles.experienceBadge, { backgroundColor: game.color + '22', borderColor: game.color + '55' }]}>
-                <Text style={[styles.experienceBadgeText, { color: game.color }]}>Awareness</Text>
-              </View>
-            )}
-            {locked && (
-              <View style={styles.lockedBadge}>
-                <Text style={styles.lockedBadgeText}>{lockMessage}</Text>
-              </View>
-            )}
-          </View>
-          <Text style={styles.gameDescription}>{game.description}</Text>
-          {!locked && <Text style={[styles.gameTagline, { color: game.color }]}>{game.tagline}</Text>}
-        </View>
-        {!locked && (
-          <Pressable
-            onPress={(e) => { e.stopPropagation(); onInfo(game); }}
-            hitSlop={10}
-            style={styles.infoBtn}
-          >
-            <Feather name="info" size={20} color={game.color + 'aa'} />
-          </Pressable>
-        )}
-      </Animated.View>
-    </Pressable>
-  );
-}
-
-// ─── Game deck ────────────────────────────────────────────────────────────────
-// One category = one deck of cards. Swipe sideways, or use the ‹ › buttons at
-// the right of the title ("2 / 5"); the buttons wrap around. The screen keeps
-// each deck's position so coming back from a game lands on the same card.
-
-function GameDeck({ label, games, index, onIndex, renderCard, styles, COLORS }: {
-  label: string;
-  games: readonly GameMeta[];
-  index: number;
-  onIndex: (i: number) => void;
-  renderCard: (game: GameMeta) => React.ReactNode;
+  accent: string;
   styles: ReturnType<typeof makeStyles>;
   COLORS: ArcadeColors;
 }) {
-  const scrollRef = useRef<ScrollView>(null);
-  const [viewport, setViewport] = useState(0);
-  // Each page is a little narrower than the viewport so the next card peeks in
-  // from the right edge — the visual hint that the deck can be swiped.
-  const PEEK = 26;
-  const width = viewport > 0 ? viewport - PEEK : 0;   // one page = snap distance
-  const count = games.length;
-  const current = Math.min(Math.max(index, 0), count - 1);
+  const scale  = useRef(new Animated.Value(1)).current;
+  const reveal = useRef(new Animated.Value(0)).current;
 
-  // Jump (no animation) to the remembered card once we know the deck's width.
   useEffect(() => {
-    if (width > 0 && current > 0) scrollRef.current?.scrollTo({ x: current * width, animated: false });
+    Animated.timing(
+      reveal,
+      active
+        ? { toValue: 1, duration: 900, delay: index * 90 + 120, easing: Easing.out(Easing.cubic), useNativeDriver: true }
+        : { toValue: 0, duration: 250, useNativeDriver: true },
+    ).start();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewport]);
-
-  // While a button-driven scroll animates (e.g. wrapping 4/4 → 1/4) the
-  // counter must not flicker through the in-between cards.
-  const programmatic = useRef(false);
-
-  const goTo = (i: number) => {
-    const next = (i + count) % count;
-    Haptics.selectionAsync();
-    programmatic.current = true;
-    setTimeout(() => { programmatic.current = false; }, 500);
-    scrollRef.current?.scrollTo({ x: next * width, animated: true });
-    onIndex(next);
-  };
-
-  // Follow the finger: the counter updates as soon as a swipe crosses to the
-  // next card (and again on settle, as a backstop).
-  const syncFromScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    if (width <= 0 || programmatic.current) return;
-    const i = Math.min(Math.max(Math.round(e.nativeEvent.contentOffset.x / width), 0), count - 1);
-    if (i !== current) onIndex(i);
-  };
+  }, [active]);
 
   return (
-    <View>
-      <View style={styles.deckHeader}>
-        <Text style={styles.sectionLabelInline}>{label}</Text>
-        {count > 1 && (
-          <View style={styles.deckNav}>
-            <Pressable style={styles.deckNavBtn} onPress={() => goTo(current - 1)} hitSlop={8} accessibilityLabel={`Previous ${label} game`}>
-              <Feather name="chevron-left" size={18} color={COLORS.textPrimary} />
-            </Pressable>
-            <Text style={styles.deckCounter}>{current + 1} / {count}</Text>
-            <Pressable style={styles.deckNavBtn} onPress={() => goTo(current + 1)} hitSlop={8} accessibilityLabel={`Next ${label} game`}>
-              <Feather name="chevron-right" size={18} color={COLORS.textPrimary} />
-            </Pressable>
+    <Animated.View
+      style={{
+        opacity: reveal,
+        transform: [{ translateY: reveal.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }],
+      }}
+    >
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={locked ? `${game.name}, locked` : `Play ${game.name}`}
+        onPressIn={() => { if (!locked) Animated.timing(scale, { toValue: 0.97, duration: 70, useNativeDriver: true }).start(); }}
+        onPressOut={() => { if (!locked) Animated.spring(scale, { toValue: 1, damping: 12, useNativeDriver: true }).start(); }}
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          if (locked) {
+            Alert.alert('Still locked', lockMessage ?? 'Keep walking away to unlock this.');
+            return;
+          }
+          onPlay(game.id as GameId);
+        }}
+      >
+        <Animated.View
+          style={[
+            styles.gameRow,
+            { transform: [{ scale }] },
+            locked && styles.gameRowLocked,
+          ]}
+        >
+          <View style={[styles.gameChip, { backgroundColor: accent + '22' }]}>
+            <Text style={styles.gameChipEmoji}>{locked ? '🔒' : game.emoji}</Text>
           </View>
+          <View style={styles.gameInfo}>
+            <Text style={styles.gameName} numberOfLines={1}>{game.name}</Text>
+            <Text style={styles.gameBlurb} numberOfLines={1}>
+              {locked ? (lockMessage ?? 'Locked') : game.tagline}
+            </Text>
+          </View>
+          {!locked && (
+            <Pressable
+              onPress={() => onInfo(game)}
+              hitSlop={10}
+              style={styles.infoBtn}
+              accessibilityLabel={`How to play ${game.name}`}
+            >
+              <Feather name="info" size={17} color={COLORS.textMuted} />
+            </Pressable>
+          )}
+        </Animated.View>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+// ─── Board pager ──────────────────────────────────────────────────────────────
+// One category = one board (a whole card with all its games). Swipe the card up
+// or down and the next board drifts in while the old one fades out, slowly.
+// ▲ ▼ and "n / N" fade in when you touch the card and fade away again; the dot
+// rail on the right always shows which board you're on.
+//
+// A single animated position (pos, in boards) drives the drag, the buttons and
+// the settle, so what you see while dragging is exactly what plays on release.
+// Only three boards are mounted: previous, current, next.
+
+const BOARD_ICON: Record<GameCategory, string> = {
+  calm: '🌬️', puzzle: '🧩', reflex: '👾', skill: '🎯', awareness: '👁️',
+};
+const SETTLE_MS = 900;   // full-board crossfade; a half-way drag takes half that
+const mod = (a: number, n: number) => ((a % n) + n) % n;
+
+type Board = { key: GameCategory; label: string; games: readonly GameMeta[] };
+
+function BoardCard({ board, index, total, active, animStyle, front, navOp, navOn, onStep, onPlay, onInfo, locked, lockMessage, accent, styles, COLORS }: {
+  board: Board; index: number; total: number; active: boolean;
+  animStyle?: any; front: boolean;
+  navOp: Animated.Value; navOn: boolean; onStep: (d: number) => void;
+  onPlay: (id: GameId) => void; onInfo: (g: GameMeta) => void;
+  locked: boolean; lockMessage?: string; accent: string;
+  styles: ReturnType<typeof makeStyles>; COLORS: ArcadeColors;
+}) {
+  const [viewH, setViewH] = useState(0);
+  const [contentH, setContentH] = useState(0);
+  const overflow = contentH > viewH + 1 && viewH > 0;
+  return (
+    <Animated.View
+      pointerEvents={front ? 'auto' : 'none'}
+      style={[StyleSheet.absoluteFill, styles.boardCard, { zIndex: active ? 3 : 2 }, animStyle]}
+    >
+      <View style={styles.boardHead}>
+        <View style={styles.boardTitle}>
+          <View style={[styles.boardIcon, { backgroundColor: accent + '22' }]}>
+            <Text style={styles.boardIconEmoji}>{BOARD_ICON[board.key]}</Text>
+          </View>
+          <View>
+            <Text style={styles.boardName}>{board.label}</Text>
+            <Text style={styles.boardMeta}>{board.games.length} games</Text>
+          </View>
+        </View>
+        {total > 1 && (
+          <Animated.View style={[styles.boardNav, { opacity: navOp }]} pointerEvents={navOn ? 'auto' : 'none'}>
+            <Pressable style={styles.deckNavBtn} onPress={() => onStep(-1)} hitSlop={8} accessibilityLabel="Previous board">
+              <Feather name="chevron-up" size={18} color={COLORS.textPrimary} />
+            </Pressable>
+            <Text style={styles.deckCounter}>{index + 1} / {total}</Text>
+            <Pressable style={styles.deckNavBtn} onPress={() => onStep(1)} hitSlop={8} accessibilityLabel="Next board">
+              <Feather name="chevron-down" size={18} color={COLORS.textPrimary} />
+            </Pressable>
+          </Animated.View>
         )}
       </View>
       <ScrollView
-        ref={scrollRef}
-        horizontal
-        snapToInterval={width || undefined}
-        snapToAlignment="start"
-        decelerationRate="fast"
-        disableIntervalMomentum
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingRight: PEEK }}
-        onLayout={(e: LayoutChangeEvent) => setViewport(e.nativeEvent.layout.width)}
-        onScroll={syncFromScroll}
-        onMomentumScrollEnd={syncFromScroll}
-        scrollEventThrottle={16}
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.boardGames}
+        scrollEnabled={overflow}
+        showsVerticalScrollIndicator={false}
+        nestedScrollEnabled
+        onLayout={(e: LayoutChangeEvent) => setViewH(e.nativeEvent.layout.height)}
+        onContentSizeChange={(_w, h) => setContentH(h)}
       >
-        {games.map((game) => (
-          <View key={game.id} style={{ width: width || '100%', paddingRight: SPACING.sm, justifyContent: 'center' }}>
-            {renderCard(game)}
-          </View>
+        {board.games.map((g, k) => (
+          <ArcadeGameRow
+            key={g.id}
+            game={g}
+            index={k}
+            active={active}
+            onPlay={onPlay}
+            onInfo={onInfo}
+            locked={locked}
+            lockMessage={lockMessage}
+            accent={accent}
+            styles={styles}
+            COLORS={COLORS}
+          />
         ))}
       </ScrollView>
+    </Animated.View>
+  );
+}
+
+function BoardPager({ boards, lockedFor, lockMessage, onPlay, onInfo, accent, styles, COLORS }: {
+  boards: Board[];
+  lockedFor: (key: GameCategory) => boolean;
+  lockMessage?: string;
+  onPlay: (id: GameId) => void;
+  onInfo: (g: GameMeta) => void;
+  accent: string;
+  styles: ReturnType<typeof makeStyles>;
+  COLORS: ArcadeColors;
+}) {
+  const n = boards.length;
+  const multi = n >= 3;
+  const [H, setH]         = useState(0);
+  const [base, setBase]   = useState(0);          // settled board (absolute, can go negative)
+  const [target, setTarget] = useState(0);        // board that is more than half-way in
+  const [navOn, setNavOn] = useState(false);
+  const pos     = useRef(new Animated.Value(0)).current;
+  const navOp   = useRef(new Animated.Value(0)).current;
+  const baseRef = useRef(0);
+  const posRef  = useRef(0);
+  const tgtRef  = useRef(0);
+  const busy    = useRef(false);
+  const Hr      = useRef(0);
+  const reduce  = useRef(false);
+  const navTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  Hr.current = H;
+
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled().then((v) => { reduce.current = v; }).catch(() => {});
+    const id = pos.addListener(({ value }) => {
+      posRef.current = value;
+      const t = mod(Math.round(value), n);
+      if (t !== tgtRef.current) { tgtRef.current = t; setTarget(t); }
+    });
+    return () => {
+      pos.removeListener(id);
+      if (navTimer.current) clearTimeout(navTimer.current);
+    };
+  }, [pos, n]);
+
+  const showNav = () => {
+    if (!multi) return;
+    setNavOn(true);
+    Animated.timing(navOp, { toValue: 1, duration: 300, useNativeDriver: true }).start();
+    if (navTimer.current) clearTimeout(navTimer.current);
+    navTimer.current = setTimeout(() => {
+      Animated.timing(navOp, { toValue: 0, duration: 700, useNativeDriver: true }).start(() => setNavOn(false));
+    }, 2400);
+  };
+
+  const settle = (goal: number) => {
+    if (!multi || busy.current) return;
+    busy.current = true;
+    const b = baseRef.current;
+    const dist = Math.abs(b + goal - posRef.current);
+    const dur = reduce.current ? 0 : SETTLE_MS * Math.max(dist, 0.35);
+    if (goal !== 0) Haptics.selectionAsync();
+    Animated.timing(pos, {
+      toValue: b + goal,
+      duration: dur,
+      easing: Easing.inOut(Easing.sin),
+      useNativeDriver: true,
+    }).start(() => {
+      baseRef.current = b + goal;
+      setBase(b + goal);
+      busy.current = false;
+    });
+  };
+
+  const pan = useRef(PanResponder.create({
+    onStartShouldSetPanResponder: () => false,
+    onMoveShouldSetPanResponder: (_e, g) =>
+      multi && !busy.current && Math.abs(g.dy) > 8 && Math.abs(g.dy) > Math.abs(g.dx) * 1.2,
+    onPanResponderGrant: () => showNav(),
+    onPanResponderMove: (_e, g) => {
+      const v = Math.max(-1, Math.min(1, -g.dy / (Hr.current * 0.75)));
+      pos.setValue(baseRef.current + v * 0.92);
+    },
+    onPanResponderRelease: (_e, g) => {
+      const p = posRef.current - baseRef.current;
+      settle(p > 0.22 || g.vy < -0.6 ? 1 : p < -0.22 || g.vy > 0.6 ? -1 : 0);
+    },
+    onPanResponderTerminate: () => settle(0),
+  })).current;
+
+  // previous / current / next, each with its own drift + cross-fade ramp.
+  // x = how far a board is from centre, in boards: 0 centred, +1 waiting below, -1 gone above.
+  const mounted = useMemo(() => {
+    const MID = 0.536;   // (1 - 0.5) ^ 0.9: both boards half-visible mid-way
+    const ramp = (slot: -1 | 0 | 1) => {
+      if (!multi || H === 0) return undefined;
+      const r3 = [base - 1, base, base + 1];
+      const r5 = [base - 1, base - 0.5, base, base + 0.5, base + 1];
+      const ty = slot === 0 ? [H * 0.34, 0, -H * 0.34] : slot === 1 ? [H * 0.68, H * 0.34, 0] : [0, -H * 0.34, -H * 0.68];
+      const op = slot === 0 ? [0, MID, 1, MID, 0] : slot === 1 ? [0, 0, 0, MID, 1] : [1, MID, 0, 0, 0];
+      const sc = slot === 0 ? [0.955, 1, 0.955] : slot === 1 ? [0.955, 0.955, 1] : [1, 0.955, 0.955];
+      return {
+        opacity: pos.interpolate({ inputRange: r5, outputRange: op, extrapolate: 'clamp' }),
+        transform: [
+          { translateY: pos.interpolate({ inputRange: r3, outputRange: ty, extrapolate: 'clamp' }) },
+          { scale: pos.interpolate({ inputRange: r3, outputRange: sc, extrapolate: 'clamp' }) },
+        ],
+      };
+    };
+    if (!multi) return [{ i: 0, slot: 0 as const, style: undefined }];
+    return ([-1, 0, 1] as const).map((slot) => ({ i: mod(base + slot, n), slot, style: ramp(slot) }));
+  }, [base, H, n, multi, pos]);
+
+  const front = mod(base, n);
+
+  return (
+    <View
+      style={styles.pager}
+      onLayout={(e: LayoutChangeEvent) => setH(e.nativeEvent.layout.height)}
+      onTouchStart={showNav}
+      {...(multi ? pan.panHandlers : {})}
+    >
+      {H > 0 && mounted.map(({ i, slot, style }) => (
+        <BoardCard
+          key={boards[i].key}
+          board={boards[i]}
+          index={i}
+          total={n}
+          active={multi ? target === i : true}
+          animStyle={style}
+          front={slot === 0}
+          navOp={navOp}
+          navOn={navOn && i === front}
+          onStep={settle}
+          onPlay={onPlay}
+          onInfo={onInfo}
+          locked={lockedFor(boards[i].key)}
+          lockMessage={lockMessage}
+          accent={accent}
+          styles={styles}
+          COLORS={COLORS}
+        />
+      ))}
+      {multi && (
+        <View style={styles.dotRail} pointerEvents="none">
+          {boards.map((b, i) => (
+            <View
+              key={b.key}
+              style={[styles.dot, i === target && { backgroundColor: accent, height: 15, opacity: 0.9 }]}
+            />
+          ))}
+        </View>
+      )}
     </View>
   );
 }
@@ -300,7 +465,8 @@ export default function ArcadeScreen() {
   const fullArcadeUnlocked = unlocked.has('fullArcade');
 
   const [showAll, setShowAll]           = useState(false);
-  const [deckIdx, setDeckIdx]           = useState<Record<string, number>>({});
+  const [sheet, setSheet]             = useState<'gate' | 'calm' | null>(null);
+  const { height: winH }              = useWindowDimensions();
   const calmOnly = categoryParam === 'calm' && !showAll;
   const [activeGame, setActiveGame]     = useState<GameId | null>(null);
   const [finishedGame, setFinishedGame] = useState<GameMeta | null>(null);
@@ -405,14 +571,42 @@ export default function ArcadeScreen() {
 
   // ── Game list ─────────────────────────────────────────────────────────────
 
+  const LABELS: Record<GameCategory, string> = {
+    calm: 'Calm', puzzle: 'Puzzle', reflex: 'Reflex', skill: 'Skill', awareness: 'Awareness',
+  };
+  const boards: Board[] = ((calmOnly
+    ? ['calm']
+    : ['calm', 'puzzle', 'reflex', 'skill', 'awareness']) as GameCategory[])
+    .map((key) => ({ key, label: LABELS[key], games: getGamesByCategory(key) }))
+    .filter((b) => b.games.length > 0);
+
+  const gateOn = GATE_GAMES.length - disabledGateGames.filter((id) => GATE_GAMES.some((g) => g.id === id)).length;
+  const calmOn = enabledCalmGateGames.filter((id) => CALM_GAMES.some((g) => g.id === id)).length;
+
+  const renderToggles = (
+    list: readonly GameMeta[],
+    isOn: (id: string) => boolean,
+    toggle: (id: any) => void,
+  ) => list.map((game, idx) => {
+    const enabled = isOn(game.id);
+    return (
+      <View key={game.id} style={[styles.gateToggleRow, idx !== list.length - 1 && styles.gateToggleDivider]}>
+        <Text style={styles.gateToggleEmoji}>{game.emoji}</Text>
+        <Text style={[styles.gateToggleName, !enabled && styles.gateToggleNameOff]}>{game.name}</Text>
+        <Switch
+          value={enabled}
+          onValueChange={() => toggle(game.id)}
+          trackColor={{ false: COLORS.surface, true: COLORS.green + '66' }}
+          thumbColor={enabled ? COLORS.green : COLORS.textMuted}
+        />
+      </View>
+    );
+  });
+
   return (
     <>
     <SafeAreaView style={styles.safe}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={styles.screen}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Arcade</Text>
           <Text style={styles.headerSubtitle}>
@@ -420,7 +614,7 @@ export default function ArcadeScreen() {
           </Text>
         </View>
 
-        {calmOnly ? (
+        {calmOnly && (
           <View>
             <View style={styles.calmBanner}>
               <Feather name="wind" size={16} color={COLORS.warning} />
@@ -428,154 +622,82 @@ export default function ArcadeScreen() {
                 Showing calm games only — lower stimulation, easier to step away from.
               </Text>
             </View>
-            <Pressable
-              style={styles.seeAllBtn}
-              onPress={() => setShowAll(true)}
-            >
+            <Pressable style={styles.seeAllBtn} onPress={() => setShowAll(true)}>
               <Text style={styles.seeAllText}>See all {ALL_GAMES.length} games →</Text>
             </Pressable>
           </View>
-        ) : (
-          <View style={styles.freeCallout}>
-            <Feather name="zap" size={18} color={COLORS.arcade} />
-            <Text style={styles.freeCalloutText}>
-              <Text style={styles.freeHighlight}>{ALL_GAMES.length} games</Text>
-              {' '}included with NoGoon.
-            </Text>
+        )}
+
+        <BoardPager
+          key={calmOnly ? 'calm' : 'all'}
+          boards={boards}
+          lockedFor={(k) => k !== 'calm' && !fullArcadeUnlocked}
+          lockMessage={fullArcadeUnlocked ? undefined : lockHint('fullArcade')}
+          onPlay={handlePlay}
+          onInfo={setInfoGame}
+          accent={liveColors.accent}
+          styles={styles}
+          COLORS={COLORS}
+        />
+
+        {/* Intercept settings stay pinned under the pager; each opens a sheet */}
+        {!calmOnly && (
+          <View style={styles.pinned}>
+            <Pressable style={styles.pinRow} onPress={() => setSheet('gate')} accessibilityRole="button">
+              <Text style={styles.pinName}>Intercept games</Text>
+              <Text style={styles.pinCount}>{gateOn} on  ›</Text>
+            </Pressable>
+            <Pressable style={styles.pinRow} onPress={() => setSheet('calm')} accessibilityRole="button">
+              <Text style={styles.pinName}>Calm games in intercepts</Text>
+              <Text style={styles.pinCount}>{calmOn} on  ›</Text>
+            </Pressable>
           </View>
         )}
 
-        {/* Categorized game sections */}
-        {(
-          (calmOnly
-            ? [{ key: 'calm' as GameCategory, label: 'Calm' }]
-            : [
-                { key: 'calm',      label: 'Calm' },
-                { key: 'puzzle',    label: 'Puzzle' },
-                { key: 'reflex',    label: 'Reflex' },
-                { key: 'skill',     label: 'Skill' },
-                { key: 'awareness', label: 'Awareness' },
-              ]
-          ) as { key: GameCategory; label: string }[]
-        ).map(({ key, label }) => {
-          const games = getGamesByCategory(key);
-          if (games.length === 0) return null;
-          const sectionLocked = key !== 'calm' && !fullArcadeUnlocked;
-          return (
-            <React.Fragment key={key}>
-              <GameDeck
-                label={label}
-                games={games}
-                index={deckIdx[key] ?? 0}
-                onIndex={(i) => setDeckIdx((d) => ({ ...d, [key]: i }))}
-                styles={styles}
-                COLORS={COLORS}
-                renderCard={(game) => (
-                  <ArcadeGameCard
-                    game={game}
-                    onPlay={handlePlay}
-                    onInfo={setInfoGame}
-                    locked={sectionLocked}
-                    lockMessage={sectionLocked ? lockHint('fullArcade') : undefined}
-                    styles={styles}
-                  />
-                )}
-              />
-
-            </React.Fragment>
-          );
-        })}
-
-        {/* Game info modal */}
-        {infoGame && (
-          <GameInfoModal
-            game={infoGame}
-            onClose={() => setInfoGame(null)}
-            onPlay={handlePlay}
-            styles={styles}
-            COLORS={COLORS}
-          />
-        )}
-
-        {/* Gate intercept game toggles */}
-        {!calmOnly && (
-          <>
-            <Text style={[styles.sectionLabel, { marginTop: SPACING.xl }]}>
-              Intercept games  ·  {GATE_GAMES.length - disabledGateGames.filter(id => GATE_GAMES.some(g => g.id === id)).length} on
-            </Text>
-            <View style={styles.gateToggleCard}>
-              <Text style={styles.gateToggleHint}>
-                Choose which games can pop up when you hit a blocker.
-                Turn off games you don't enjoy.
-              </Text>
-              {GATE_GAMES.map((game, idx) => {
-                const enabled = !disabledGateGames.includes(game.id);
-                const isLast  = idx === GATE_GAMES.length - 1;
-                return (
-                  <View
-                    key={game.id}
-                    style={[
-                      styles.gateToggleRow,
-                      !isLast && styles.gateToggleDivider,
-                    ]}
-                  >
-                    <Text style={styles.gateToggleEmoji}>{game.emoji}</Text>
-                    <Text style={[styles.gateToggleName, !enabled && styles.gateToggleNameOff]}>
-                      {game.name}
-                    </Text>
-                    <Switch
-                      value={enabled}
-                      onValueChange={() => toggleGateGame(game.id)}
-                      trackColor={{ false: COLORS.surface, true: COLORS.green + '66' }}
-                      thumbColor={enabled ? COLORS.green : COLORS.textMuted}
-                    />
-                  </View>
-                );
-              })}
-            </View>
-
-            <Text style={[styles.sectionLabel, { marginTop: SPACING.lg }]}>
-              Calm games in intercepts  ·  {enabledCalmGateGames.filter(id => CALM_GAMES.some(g => g.id === id)).length} on
-            </Text>
-            <View style={styles.gateToggleCard}>
-              <Text style={styles.gateToggleHint}>
-                Calm games sit out of blocker intercepts by default. Flip one on
-                here if you'd like it to be able to pop up there too.
-              </Text>
-              {CALM_GAMES.map((game, idx) => {
-                const enabled = enabledCalmGateGames.includes(game.id);
-                const isLast  = idx === CALM_GAMES.length - 1;
-                return (
-                  <View
-                    key={game.id}
-                    style={[
-                      styles.gateToggleRow,
-                      !isLast && styles.gateToggleDivider,
-                    ]}
-                  >
-                    <Text style={styles.gateToggleEmoji}>{game.emoji}</Text>
-                    <Text style={[styles.gateToggleName, !enabled && styles.gateToggleNameOff]}>
-                      {game.name}
-                    </Text>
-                    <Switch
-                      value={enabled}
-                      onValueChange={() => toggleCalmGateGame(game.id)}
-                      trackColor={{ false: COLORS.surface, true: COLORS.green + '66' }}
-                      thumbColor={enabled ? COLORS.green : COLORS.textMuted}
-                    />
-                  </View>
-                );
-              })}
-            </View>
-          </>
-        )}
-
-        {/* Medium rectangle ad below the game list */}
-        <AdBanner size="mediumRectangle" style={{ marginTop: SPACING.md }} />
-
-        <View style={{ height: SPACING.xxl }} />
-      </ScrollView>
+        {/* Only on taller screens, so the boards keep their room */}
+        {winH >= 760 && <AdBanner size="banner" style={{ marginTop: SPACING.xs }} />}
+      </View>
     </SafeAreaView>
+
+    {/* Game info modal */}
+    {infoGame && (
+      <GameInfoModal
+        game={infoGame}
+        onClose={() => setInfoGame(null)}
+        onPlay={handlePlay}
+        styles={styles}
+        COLORS={COLORS}
+      />
+    )}
+
+    {/* Intercept toggles sheet */}
+    <Modal transparent visible={sheet !== null} animationType="slide" onRequestClose={() => setSheet(null)}>
+      <Pressable style={styles.modalBackdrop} onPress={() => setSheet(null)}>
+        <Pressable style={[styles.modalSheet, { borderColor: COLORS.cardBorder, maxHeight: '82%' }]} onPress={() => {}}>
+          <View style={styles.modalHeader}>
+            <Text style={[styles.modalName, { flex: 1, fontSize: 20 }]}>
+              {sheet === 'calm' ? 'Calm games in intercepts' : 'Intercept games'}  ·  {sheet === 'calm' ? calmOn : gateOn} on
+            </Text>
+            <Pressable onPress={() => setSheet(null)} hitSlop={12} accessibilityLabel="Close">
+              <Feather name="x" size={20} color={COLORS.textMuted} />
+            </Pressable>
+          </View>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            <View style={styles.gateToggleCard}>
+              <Text style={styles.gateToggleHint}>
+                {sheet === 'calm'
+                  ? "Calm games sit out of blocker intercepts by default. Flip one on here if you'd like it to be able to pop up there too."
+                  : "Choose which games can pop up when you hit a blocker. Turn off games you don't enjoy."}
+              </Text>
+              {sheet === 'calm'
+                ? renderToggles(CALM_GAMES, (id) => enabledCalmGateGames.includes(id as any), toggleCalmGateGame)
+                : renderToggles(GATE_GAMES, (id) => !disabledGateGames.includes(id as any), toggleGateGame)}
+            </View>
+          </ScrollView>
+        </Pressable>
+      </Pressable>
+    </Modal>
+
     <PageGuide
       page="arcade"
       icon="zap"
@@ -659,28 +781,44 @@ const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
     marginBottom:  SPACING.xs,
   },
 
-  cardPressable: { width: '100%' },
+  screen: {
+    flex: 1,
+    paddingHorizontal: SPACING.lg,
+    paddingTop:        SPACING.lg,
+    paddingBottom:     SPACING.sm,
+    gap:               SPACING.sm,
+  },
 
-  // Game deck header: category title left, ‹ n / N › right
-  deckHeader: {
-    flexDirection:  'row',
-    alignItems:     'center',
-    justifyContent: 'space-between',
-    marginTop:      SPACING.md,
-    marginBottom:   SPACING.xs,
+  // Board pager: one board visible at a time, boards drift + cross-fade
+  pager: {
+    flex: 1,
+    minHeight: 260,
+    borderRadius: RADIUS.xl,
+    overflow: 'hidden',
   },
-  sectionLabelInline: {
-    fontFamily:    FONTS.mono,
-    fontSize:      11,
-    color:         COLORS.textMuted,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
+  boardCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius:    RADIUS.xl,
+    borderWidth:     1,
+    borderColor:     COLORS.cardBorder,
+    paddingTop:      SPACING.lg,
+    paddingHorizontal: SPACING.md,
+    paddingBottom:   SPACING.sm,
+    gap:             SPACING.md,
   },
-  deckNav:     { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
+  boardHead:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 2 },
+  boardTitle: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
+  boardIcon:  { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.cardBorder },
+  boardIconEmoji: { fontSize: 21 },
+  boardName:  { fontFamily: FONTS.display, fontSize: 22, color: COLORS.textPrimary },
+  boardMeta:  { fontFamily: FONTS.mono, fontSize: 10.5, letterSpacing: 0.8, color: COLORS.textMuted, textTransform: 'uppercase', marginTop: 4 },
+  boardNav:   { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
+  boardGames: { gap: 7, paddingBottom: SPACING.xs },
+
   deckNavBtn:  {
     width: 30, height: 30, borderRadius: 15,
     alignItems: 'center', justifyContent: 'center',
-    backgroundColor: COLORS.surface,
+    backgroundColor: COLORS.background,
     borderWidth: 1, borderColor: COLORS.cardBorder,
   },
   deckCounter: {
@@ -688,43 +826,42 @@ const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
     minWidth: 40, textAlign: 'center', fontVariant: ['tabular-nums'],
   },
 
-  gameCard: {
+  dotRail: {
+    position: 'absolute', right: 3, top: 0, bottom: 0,
+    justifyContent: 'center', alignItems: 'center', gap: 7, zIndex: 10,
+  },
+  dot: { width: 4, height: 4, borderRadius: 2, backgroundColor: COLORS.textMuted, opacity: 0.35 },
+
+  // Game rows: the whole row is the button
+  gameRow: {
     flexDirection:   'row',
     alignItems:      'center',
-    backgroundColor: COLORS.surface,
-    borderRadius:    RADIUS.lg,
+    backgroundColor: COLORS.background,
+    borderRadius:    16,
     borderWidth:     1,
-    padding:         SPACING.md,
+    borderColor:     COLORS.cardBorder,
+    paddingVertical: 8,
+    paddingHorizontal: SPACING.md,
     gap:             SPACING.md,
-    position:        'relative',
   },
-  gameCardLocked: {
-    opacity: 0.55,
-  },
-  lockedBadge: {
-    paddingHorizontal: 7,
-    paddingVertical:   2,
-    borderRadius:       6,
-    borderWidth:         1,
-    borderColor:  COLORS.textMuted + '55',
-    backgroundColor: COLORS.textMuted + '18',
-  },
-  lockedBadgeText: {
-    fontFamily:    FONTS.bodyMedium,
-    fontSize:      10,
-    letterSpacing: 0.3,
-    color:         COLORS.textMuted,
-  },
+  gameRowLocked: { opacity: 0.55 },
+  gameChip:      { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  gameChipEmoji: { fontSize: 18 },
+  gameInfo:      { flex: 1, gap: 3 },
+  gameName:      { fontFamily: FONTS.bodyBold, fontSize: 14.5, color: COLORS.textPrimary },
+  gameBlurb:     { fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.textMuted },
+  infoBtn:       { padding: 4 },
 
-  gameEmoji:       { fontSize: 36, width: 46, textAlign: 'center' },
-  gameInfo:        { flex: 1, gap: 2 },
-  gameNameRow:     { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
-  gameName:        { fontFamily: FONTS.bodyBold, fontSize: 16, color: COLORS.textPrimary },
-  experienceBadge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, borderWidth: 1 },
-  experienceBadgeText: { fontFamily: FONTS.bodyMedium, fontSize: 10, letterSpacing: 0.3 },
-  gameDescription: { fontFamily: FONTS.body,     fontSize: 13, color: COLORS.textSecondary, lineHeight: 18 },
-  gameTagline:     { fontFamily: FONTS.mono,     fontSize: 10, letterSpacing: 0.5, marginTop: 2 },
-  infoBtn:         { padding: 4 },
+  // Pinned intercept rows
+  pinned:  { gap: 6 },
+  pinRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: 11, paddingHorizontal: SPACING.md,
+    backgroundColor: COLORS.surface, borderRadius: 14,
+    borderWidth: 1, borderColor: COLORS.cardBorder,
+  },
+  pinName:  { fontFamily: FONTS.bodyBold, fontSize: 12.5, color: COLORS.textPrimary },
+  pinCount: { fontFamily: FONTS.mono, fontSize: 11, color: COLORS.textMuted },
 
   // ── Gate toggle section ───────────────────────────────────────────────────
   gateToggleCard: {
