@@ -227,17 +227,25 @@ function GameDeck({ label, games, index, onIndex, renderCard, styles, COLORS }: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewport]);
 
+  // While a button-driven scroll animates (e.g. wrapping 4/4 → 1/4) the
+  // counter must not flicker through the in-between cards.
+  const programmatic = useRef(false);
+
   const goTo = (i: number) => {
     const next = (i + count) % count;
     Haptics.selectionAsync();
+    programmatic.current = true;
+    setTimeout(() => { programmatic.current = false; }, 500);
     scrollRef.current?.scrollTo({ x: next * width, animated: true });
     onIndex(next);
   };
 
-  const onSettle = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    if (width <= 0) return;
-    const i = Math.round(e.nativeEvent.contentOffset.x / width);
-    if (i !== current) onIndex(Math.min(Math.max(i, 0), count - 1));
+  // Follow the finger: the counter updates as soon as a swipe crosses to the
+  // next card (and again on settle, as a backstop).
+  const syncFromScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (width <= 0 || programmatic.current) return;
+    const i = Math.min(Math.max(Math.round(e.nativeEvent.contentOffset.x / width), 0), count - 1);
+    if (i !== current) onIndex(i);
   };
 
   return (
@@ -266,7 +274,8 @@ function GameDeck({ label, games, index, onIndex, renderCard, styles, COLORS }: 
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingRight: PEEK }}
         onLayout={(e: LayoutChangeEvent) => setViewport(e.nativeEvent.layout.width)}
-        onMomentumScrollEnd={onSettle}
+        onScroll={syncFromScroll}
+        onMomentumScrollEnd={syncFromScroll}
         scrollEventThrottle={16}
       >
         {games.map((game) => (
