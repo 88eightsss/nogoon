@@ -51,9 +51,37 @@ import { NETWORK_SHIELD_ENABLED } from '@/constants/features';
 import { useNotificationListener } from '@/hooks/useNotificationListener';
 import { COLORS as SLIDE_COLORS, FONTS } from '@/constants/Colors';
 import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
+import { useTheme } from '@/hooks/useTheme';
+import { isLightColor, readableOn } from '@/utils/colorLuminance';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { GoonSprite, CHAR_COLORS } from '@/components/home/GoonMascot';
 import type { CharacterId } from '@/stores/usePetStore';
+
+// ─── Enable button ───────────────────────────────────────────────────────────
+// Every pending setup row gets the same gently-breathing button. Its colors are
+// derived from the live theme (accent nudged until it has real contrast on the
+// card, text black/white by luminance) so it stays readable on all palettes.
+function EnableButton({ label, onPress, disabled, bg, fg, style, textStyle }: {
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+  bg: string;
+  fg: string;
+  style: any;
+  textStyle: any;
+}) {
+  return (
+    <Breathe active={!disabled}>
+      <Pressable
+        style={[style, { backgroundColor: bg, borderWidth: 1.5, borderColor: fg + '55' }]}
+        onPress={onPress}
+        disabled={disabled}
+      >
+        <Text style={[textStyle, { color: fg }]}>{label}</Text>
+      </Pressable>
+    </Breathe>
+  );
+}
 
 const COMPANION_NAMES: Record<CharacterId, string> = { 0: 'Buddy', 1: 'Nova', 2: 'Rex' };
 const COMPANION_TAGS: Record<CharacterId, string> = {
@@ -121,6 +149,13 @@ const SITE_SUGGESTIONS = [
 export default function OnboardingScreen() {
   const COLORS = useThemedColors();
   const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
+  const { colors: liveColors } = useTheme();
+  // Button fill: the theme accent, nudged until it clearly stands out from the
+  // card it sits on; label color flips black/white to match.
+  const btn = useMemo(() => {
+    const bg = readableOn(liveColors.accent, liveColors.surface, 3);
+    return { bg, fg: isLightColor(bg) ? '#111111' : '#FFFFFF' };
+  }, [liveColors.accent, liveColors.surface]);
   const { setName, completeOnboarding, addSite, blockedApps, setBlockedApps } = useUserStore();
   const { user } = useAuthStore();
   const {
@@ -167,14 +202,18 @@ export default function OnboardingScreen() {
   }, [serviceEnabled, requestNotificationPermission]);
 
   const [step, setStep]                   = useState(0);
-  const { themeId, setTheme, setThemeBrightness } = useThemeStore();
-  // The palette cards preview each theme in its native look (Forest/Mocha are
-  // light, the rest dark), but the app renders whatever the brightness dial
-  // says — which defaults to Dark. Without syncing the dial, picking a light
-  // card gave the user that theme's DARK variant, i.e. not what they picked.
+  const { themeId, setTheme, setThemeBrightness, themeBrightness } = useThemeStore();
+  // Dark/Light switch on the palette screen. Starts from whatever the app is
+  // showing right now (Dark by default) and re-themes the whole screen live.
+  // It only exists on this one intro step; afterwards it lives in Me → Theme.
+  const [mode, setMode] = useState<'dark' | 'light'>(themeBrightness >= 50 ? 'light' : 'dark');
+  const chooseMode = (m: 'dark' | 'light') => {
+    setMode(m);
+    setThemeBrightness(m === 'light' ? 100 : 0);
+  };
   const applyPalette = (id: (typeof THEME_ORDER)[number]) => {
     setTheme(id);
-    setThemeBrightness(THEMES[id].nativeMode === 'light' ? 100 : 0);
+    setThemeBrightness(mode === 'light' ? 100 : 0);
   };
   const [palettePicked, setPalettePicked] = useState(false);
   // The sign-up form already asked for a name — reuse it instead of asking again.
@@ -329,10 +368,31 @@ export default function OnboardingScreen() {
               Choose the look that feels right. You can change it any time in Me.
             </Text>
 
+            {/* One-time Dark / Light switch — flips the whole screen live */}
+            <View style={styles.modeSwitch}>
+              {(['dark', 'light'] as const).map((m) => {
+                const on = mode === m;
+                return (
+                  <Pressable
+                    key={m}
+                    style={[styles.modeOption, on && { backgroundColor: btn.bg }]}
+                    onPress={() => chooseMode(m)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: on }}
+                  >
+                    <Feather name={m === 'dark' ? 'moon' : 'sun'} size={16} color={on ? btn.fg : COLORS.textSecondary} />
+                    <Text style={[styles.modeOptionText, { color: on ? btn.fg : COLORS.textSecondary }]}>
+                      {m === 'dark' ? 'Dark' : 'Light'}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
             <View style={styles.paletteGrid}>
               {THEME_ORDER.map((id) => {
                 const triad = THEMES[id];
-                const pal = triad[triad.nativeMode];
+                const pal = triad[mode];
                 const active = id === themeId;
                 return (
                   <Pressable
@@ -363,8 +423,8 @@ export default function OnboardingScreen() {
               })}
             </View>
 
-            <Pressable style={styles.finishButton} onPress={() => { applyPalette(themeId); setPalettePicked(true); }}>
-              <Text style={styles.finishButtonText}>Continue →</Text>
+            <Pressable style={[styles.finishButton, { backgroundColor: btn.bg }]} onPress={() => { applyPalette(themeId); setPalettePicked(true); }}>
+              <Text style={[styles.finishButtonText, { color: btn.fg }]}>Continue →</Text>
             </Pressable>
 
             <Pressable onPress={goBack}>
@@ -540,11 +600,8 @@ export default function OnboardingScreen() {
                 {serviceEnabled ? (
                   <Feather name="check-circle" size={28} color={COLORS.green} />
                 ) : (
-                  <Breathe>
-                    <Pressable style={styles.setupEnableButton} onPress={openSettings}>
-                      <Text style={styles.setupEnableButtonText}>Enable</Text>
-                    </Pressable>
-                  </Breathe>
+                  <EnableButton label="Enable" onPress={openSettings} bg={btn.bg} fg={btn.fg}
+                    style={styles.setupEnableButton} textStyle={styles.setupEnableButtonText} />
                 )}
               </View>
 
@@ -583,8 +640,8 @@ export default function OnboardingScreen() {
                 {batteryExempt ? (
                   <Feather name="check-circle" size={28} color={COLORS.green} />
                 ) : (
-                  <Pressable
-                    style={styles.setupEnableButton}
+                  <EnableButton label="Enable" bg={btn.bg} fg={btn.fg}
+                    style={styles.setupEnableButton} textStyle={styles.setupEnableButtonText}
                     onPress={() => {
                       // Opens the real exemption dialog (native module, with an
                       // expo-intent-launcher fallback baked into the hook).
@@ -593,10 +650,7 @@ export default function OnboardingScreen() {
                       // user comes back, so the checkmark only appears once
                       // Android confirms the exemption actually took.
                       openBatterySettings();
-                    }}
-                  >
-                    <Text style={styles.setupEnableButtonText}>Enable</Text>
-                  </Pressable>
+                    }} />
                 )}
               </View>
 
@@ -621,13 +675,8 @@ export default function OnboardingScreen() {
                 {vpnActive ? (
                   <Feather name="check-circle" size={28} color={COLORS.green} />
                 ) : (
-                  <Pressable
-                    style={styles.setupEnableButton}
-                    onPress={startVpn}
-                    disabled={vpnLoading}
-                  >
-                    <Text style={styles.setupEnableButtonText}>{vpnLoading ? '…' : 'Enable'}</Text>
-                  </Pressable>
+                  <EnableButton label={vpnLoading ? '…' : 'Enable'} onPress={startVpn} disabled={vpnLoading}
+                    bg={btn.bg} fg={btn.fg} style={styles.setupEnableButton} textStyle={styles.setupEnableButtonText} />
                 )}
               </View>
 
@@ -648,13 +697,9 @@ export default function OnboardingScreen() {
                 {notifGranted && notifEnabled ? (
                   <Feather name="check-circle" size={28} color={COLORS.green} />
                 ) : (
-                  <Pressable
-                    style={styles.setupEnableButton}
-                    onPress={() => (notifGranted ? toggleNotif(true) : openNotifSettings())}
-                    disabled={notifLoading}
-                  >
-                    <Text style={styles.setupEnableButtonText}>{notifLoading ? '…' : 'Enable'}</Text>
-                  </Pressable>
+                  <EnableButton label={notifLoading ? '…' : 'Enable'}
+                    onPress={() => (notifGranted ? toggleNotif(true) : openNotifSettings())} disabled={notifLoading}
+                    bg={btn.bg} fg={btn.fg} style={styles.setupEnableButton} textStyle={styles.setupEnableButtonText} />
                 )}
               </View>
 
@@ -672,9 +717,8 @@ export default function OnboardingScreen() {
                         <Text style={styles.setupRowSub}>Your device brand has its own, separate from Android's. Also try locking NoGoon in your recent apps.</Text>
                       </View>
                     </View>
-                    <Pressable style={styles.setupEnableButton} onPress={openOemAutostartSettings}>
-                      <Text style={styles.setupEnableButtonText}>Open</Text>
-                    </Pressable>
+                    <EnableButton label="Open" onPress={openOemAutostartSettings}
+                      bg={btn.bg} fg={btn.fg} style={styles.setupEnableButton} textStyle={styles.setupEnableButtonText} />
                   </View>
                 </>
               )}
@@ -684,10 +728,10 @@ export default function OnboardingScreen() {
             {/* Continue button — moves into the main app. This is where
                 onboarding actually completes (see handleExitSetup above). */}
             <Pressable
-              style={styles.setupContinueButton}
+              style={[styles.setupContinueButton, { backgroundColor: btn.bg }]}
               onPress={handleContinueSetup}
             >
-              <Text style={styles.setupContinueText}>Continue to NoGoon →</Text>
+              <Text style={[styles.setupContinueText, { color: btn.fg }]}>Continue to NoGoon →</Text>
             </Pressable>
 
             {/* Skip link for users who want to configure later — still
@@ -1033,6 +1077,25 @@ const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
     textAlign: 'center',
     marginBottom: SPACING.sm,
   },
+  modeSwitch: {
+    flexDirection: 'row',
+    alignSelf: 'center',
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.full ?? 999,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
+    padding: 4,
+    marginBottom: SPACING.sm,
+  },
+  modeOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 18,
+    borderRadius: 999,
+  },
+  modeOptionText: { fontFamily: FONTS.bodyBold, fontSize: 14 },
   paletteGrid: {
     width: '100%',
     flexDirection: 'row',

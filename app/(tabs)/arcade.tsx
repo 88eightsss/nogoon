@@ -15,6 +15,9 @@ import {
   Modal,
   Switch,
   Alert,
+  LayoutChangeEvent,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
@@ -195,6 +198,79 @@ function ArcadeGameCard({ game, onPlay, onInfo, locked, lockMessage, styles }: {
   );
 }
 
+// ─── Game deck ────────────────────────────────────────────────────────────────
+// One category = one deck of cards. Swipe sideways, or use the ‹ › buttons at
+// the right of the title ("2 / 5"); the buttons wrap around. The screen keeps
+// each deck's position so coming back from a game lands on the same card.
+
+function GameDeck({ label, games, index, onIndex, renderCard, styles, COLORS }: {
+  label: string;
+  games: readonly GameMeta[];
+  index: number;
+  onIndex: (i: number) => void;
+  renderCard: (game: GameMeta) => React.ReactNode;
+  styles: ReturnType<typeof makeStyles>;
+  COLORS: ArcadeColors;
+}) {
+  const scrollRef = useRef<ScrollView>(null);
+  const [width, setWidth] = useState(0);
+  const count = games.length;
+  const current = Math.min(Math.max(index, 0), count - 1);
+
+  // Jump (no animation) to the remembered card once we know the deck's width.
+  useEffect(() => {
+    if (width > 0 && current > 0) scrollRef.current?.scrollTo({ x: current * width, animated: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [width]);
+
+  const goTo = (i: number) => {
+    const next = (i + count) % count;
+    Haptics.selectionAsync();
+    scrollRef.current?.scrollTo({ x: next * width, animated: true });
+    onIndex(next);
+  };
+
+  const onSettle = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (width <= 0) return;
+    const i = Math.round(e.nativeEvent.contentOffset.x / width);
+    if (i !== current) onIndex(Math.min(Math.max(i, 0), count - 1));
+  };
+
+  return (
+    <View>
+      <View style={styles.deckHeader}>
+        <Text style={styles.sectionLabelInline}>{label}</Text>
+        {count > 1 && (
+          <View style={styles.deckNav}>
+            <Pressable style={styles.deckNavBtn} onPress={() => goTo(current - 1)} hitSlop={8} accessibilityLabel={`Previous ${label} game`}>
+              <Feather name="chevron-left" size={18} color={COLORS.textPrimary} />
+            </Pressable>
+            <Text style={styles.deckCounter}>{current + 1} / {count}</Text>
+            <Pressable style={styles.deckNavBtn} onPress={() => goTo(current + 1)} hitSlop={8} accessibilityLabel={`Next ${label} game`}>
+              <Feather name="chevron-right" size={18} color={COLORS.textPrimary} />
+            </Pressable>
+          </View>
+        )}
+      </View>
+      <ScrollView
+        ref={scrollRef}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)}
+        onMomentumScrollEnd={onSettle}
+        scrollEventThrottle={16}
+      >
+        {games.map((game) => (
+          <View key={game.id} style={{ width: width || '100%', justifyContent: 'center' }}>
+            {renderCard(game)}
+          </View>
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
 // ─── Main Arcade Screen ───────────────────────────────────────────────────────
 
 export default function ArcadeScreen() {
@@ -207,6 +283,7 @@ export default function ArcadeScreen() {
   const fullArcadeUnlocked = unlocked.has('fullArcade');
 
   const [showAll, setShowAll]           = useState(false);
+  const [deckIdx, setDeckIdx]           = useState<Record<string, number>>({});
   const calmOnly = categoryParam === 'calm' && !showAll;
   const [activeGame, setActiveGame]     = useState<GameId | null>(null);
   const [finishedGame, setFinishedGame] = useState<GameMeta | null>(null);
@@ -354,18 +431,24 @@ export default function ArcadeScreen() {
           const sectionLocked = key !== 'calm' && !fullArcadeUnlocked;
           return (
             <React.Fragment key={key}>
-              <Text style={styles.sectionLabel}>{label}  ·  {games.length}</Text>
-              {games.map((game) => (
-                <ArcadeGameCard
-                  key={game.id}
-                  game={game}
-                  onPlay={handlePlay}
-                  onInfo={setInfoGame}
-                  locked={sectionLocked}
-                  lockMessage={sectionLocked ? lockHint('fullArcade') : undefined}
-                  styles={styles}
-                />
-              ))}
+              <GameDeck
+                label={label}
+                games={games}
+                index={deckIdx[key] ?? 0}
+                onIndex={(i) => setDeckIdx((d) => ({ ...d, [key]: i }))}
+                styles={styles}
+                COLORS={COLORS}
+                renderCard={(game) => (
+                  <ArcadeGameCard
+                    game={game}
+                    onPlay={handlePlay}
+                    onInfo={setInfoGame}
+                    locked={sectionLocked}
+                    lockMessage={sectionLocked ? lockHint('fullArcade') : undefined}
+                    styles={styles}
+                  />
+                )}
+              />
 
               {/* Calm games don't interrupt blockers by default — they're meant
                   for unhurried practice, not a race to get back in. This lets
@@ -547,6 +630,33 @@ const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   },
 
   cardPressable: { width: '100%' },
+
+  // Game deck header: category title left, ‹ n / N › right
+  deckHeader: {
+    flexDirection:  'row',
+    alignItems:     'center',
+    justifyContent: 'space-between',
+    marginTop:      SPACING.md,
+    marginBottom:   SPACING.xs,
+  },
+  sectionLabelInline: {
+    fontFamily:    FONTS.mono,
+    fontSize:      11,
+    color:         COLORS.textMuted,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  deckNav:     { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
+  deckNavBtn:  {
+    width: 30, height: 30, borderRadius: 15,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: COLORS.surface,
+    borderWidth: 1, borderColor: COLORS.cardBorder,
+  },
+  deckCounter: {
+    fontFamily: FONTS.mono, fontSize: 12, color: COLORS.textSecondary,
+    minWidth: 40, textAlign: 'center', fontVariant: ['tabular-nums'],
+  },
 
   gameCard: {
     flexDirection:   'row',
