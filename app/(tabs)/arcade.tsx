@@ -213,7 +213,11 @@ function GameDeck({ label, games, index, onIndex, renderCard, styles, COLORS }: 
   COLORS: ArcadeColors;
 }) {
   const scrollRef = useRef<ScrollView>(null);
-  const [width, setWidth] = useState(0);
+  const [viewport, setViewport] = useState(0);
+  // Each page is a little narrower than the viewport so the next card peeks in
+  // from the right edge — the visual hint that the deck can be swiped.
+  const PEEK = 26;
+  const width = viewport > 0 ? viewport - PEEK : 0;   // one page = snap distance
   const count = games.length;
   const current = Math.min(Math.max(index, 0), count - 1);
 
@@ -221,7 +225,7 @@ function GameDeck({ label, games, index, onIndex, renderCard, styles, COLORS }: 
   useEffect(() => {
     if (width > 0 && current > 0) scrollRef.current?.scrollTo({ x: current * width, animated: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [width]);
+  }, [viewport]);
 
   const goTo = (i: number) => {
     const next = (i + count) % count;
@@ -255,14 +259,18 @@ function GameDeck({ label, games, index, onIndex, renderCard, styles, COLORS }: 
       <ScrollView
         ref={scrollRef}
         horizontal
-        pagingEnabled
+        snapToInterval={width || undefined}
+        snapToAlignment="start"
+        decelerationRate="fast"
+        disableIntervalMomentum
         showsHorizontalScrollIndicator={false}
-        onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)}
+        contentContainerStyle={{ paddingRight: PEEK }}
+        onLayout={(e: LayoutChangeEvent) => setViewport(e.nativeEvent.layout.width)}
         onMomentumScrollEnd={onSettle}
         scrollEventThrottle={16}
       >
         {games.map((game) => (
-          <View key={game.id} style={{ width: width || '100%', justifyContent: 'center' }}>
+          <View key={game.id} style={{ width: width || '100%', paddingRight: SPACING.sm, justifyContent: 'center' }}>
             {renderCard(game)}
           </View>
         ))}
