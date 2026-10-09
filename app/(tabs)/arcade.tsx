@@ -450,42 +450,6 @@ export default function ArcadeScreen() {
                 )}
               />
 
-              {/* Calm games don't interrupt blockers by default — they're meant
-                  for unhurried practice, not a race to get back in. This lets
-                  someone opt a specific one in if they'd rather it show up
-                  there too. Off unless you turn it on. */}
-              {key === 'calm' && !calmOnly && (
-                <View style={styles.gateToggleCard}>
-                  <Text style={styles.gateToggleHint}>
-                    Calm games sit out of blocker intercepts by default. Flip one on
-                    here if you'd like it to be able to pop up there too.
-                  </Text>
-                  {CALM_GAMES.map((game, idx) => {
-                    const enabled = enabledCalmGateGames.includes(game.id);
-                    const isLast  = idx === CALM_GAMES.length - 1;
-                    return (
-                      <View
-                        key={game.id}
-                        style={[
-                          styles.gateToggleRow,
-                          !isLast && styles.gateToggleDivider,
-                        ]}
-                      >
-                        <Text style={styles.gateToggleEmoji}>{game.emoji}</Text>
-                        <Text style={[styles.gateToggleName, !enabled && styles.gateToggleNameOff]}>
-                          {game.name}
-                        </Text>
-                        <Switch
-                          value={enabled}
-                          onValueChange={() => toggleCalmGateGame(game.id)}
-                          trackColor={{ false: COLORS.surface, true: COLORS.green + '66' }}
-                          thumbColor={enabled ? COLORS.green : COLORS.textMuted}
-                        />
-                      </View>
-                    );
-                  })}
-                </View>
-              )}
             </React.Fragment>
           );
         })}
@@ -530,6 +494,40 @@ export default function ArcadeScreen() {
                     <Switch
                       value={enabled}
                       onValueChange={() => toggleGateGame(game.id)}
+                      trackColor={{ false: COLORS.surface, true: COLORS.green + '66' }}
+                      thumbColor={enabled ? COLORS.green : COLORS.textMuted}
+                    />
+                  </View>
+                );
+              })}
+            </View>
+
+            <Text style={[styles.sectionLabel, { marginTop: SPACING.lg }]}>
+              Calm games in intercepts  ·  {enabledCalmGateGames.filter(id => CALM_GAMES.some(g => g.id === id)).length} on
+            </Text>
+            <View style={styles.gateToggleCard}>
+              <Text style={styles.gateToggleHint}>
+                Calm games sit out of blocker intercepts by default. Flip one on
+                here if you'd like it to be able to pop up there too.
+              </Text>
+              {CALM_GAMES.map((game, idx) => {
+                const enabled = enabledCalmGateGames.includes(game.id);
+                const isLast  = idx === CALM_GAMES.length - 1;
+                return (
+                  <View
+                    key={game.id}
+                    style={[
+                      styles.gateToggleRow,
+                      !isLast && styles.gateToggleDivider,
+                    ]}
+                  >
+                    <Text style={styles.gateToggleEmoji}>{game.emoji}</Text>
+                    <Text style={[styles.gateToggleName, !enabled && styles.gateToggleNameOff]}>
+                      {game.name}
+                    </Text>
+                    <Switch
+                      value={enabled}
+                      onValueChange={() => toggleCalmGateGame(game.id)}
                       trackColor={{ false: COLORS.surface, true: COLORS.green + '66' }}
                       thumbColor={enabled ? COLORS.green : COLORS.textMuted}
                     />
