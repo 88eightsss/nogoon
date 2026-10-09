@@ -61,7 +61,7 @@ import type { CharacterId } from '@/stores/usePetStore';
 // Every pending setup row gets the same gently-breathing button. Its colors are
 // derived from the live theme (accent nudged until it has real contrast on the
 // card, text black/white by luminance) so it stays readable on all palettes.
-function EnableButton({ label, onPress, disabled, bg, fg, style, textStyle }: {
+function EnableButton({ label, onPress, disabled, bg, fg, style, textStyle, delay = 0 }: {
   label: string;
   onPress: () => void;
   disabled?: boolean;
@@ -69,9 +69,10 @@ function EnableButton({ label, onPress, disabled, bg, fg, style, textStyle }: {
   fg: string;
   style: any;
   textStyle: any;
+  delay?: number;
 }) {
   return (
-    <Breathe active={!disabled}>
+    <Breathe active={!disabled} delay={delay}>
       <Pressable
         style={[style, { backgroundColor: bg, borderWidth: 1.5, borderColor: fg + '55' }]}
         onPress={onPress}
@@ -553,7 +554,7 @@ export default function OnboardingScreen() {
                       return (
                         <Pressable
                           key={domain}
-                          style={[styles.chip, selected && styles.chipSelected]}
+                          style={[styles.chip, selected && { borderColor: btn.bg, backgroundColor: btn.bg + '22' }]}
                           onPress={() =>
                             setSelectedDomains((prev) => {
                               const next = new Set(prev);
@@ -564,7 +565,7 @@ export default function OnboardingScreen() {
                           }
                         >
                           <Text style={styles.chipEmoji}>{emoji}</Text>
-                          <Text style={[styles.chipName, selected && styles.chipNameSelected]}>
+                          <Text style={[styles.chipName, selected && { color: btn.bg }]}>
                             {name}
                           </Text>
                         </Pressable>
@@ -572,11 +573,11 @@ export default function OnboardingScreen() {
                     })}
                   </View>
                   <Pressable
-                    style={[styles.chipAddBtn, selectedDomains.size === 0 && { opacity: 0.4 }]}
+                    style={[styles.chipAddBtn, { backgroundColor: btn.bg }, selectedDomains.size === 0 && { opacity: 0.4 }]}
                     disabled={selectedDomains.size === 0}
                     onPress={handleAddSelected}
                   >
-                    <Text style={styles.chipAddBtnText}>
+                    <Text style={[styles.chipAddBtnText, { color: btn.fg }]}>
                       Block {selectedDomains.size} site{selectedDomains.size === 1 ? '' : 's'} →
                     </Text>
                   </Pressable>
@@ -600,7 +601,7 @@ export default function OnboardingScreen() {
                 {serviceEnabled ? (
                   <Feather name="check-circle" size={28} color={COLORS.green} />
                 ) : (
-                  <EnableButton label="Enable" onPress={openSettings} bg={btn.bg} fg={btn.fg}
+                  <EnableButton delay={0} label="Enable" onPress={openSettings} bg={btn.bg} fg={btn.fg}
                     style={styles.setupEnableButton} textStyle={styles.setupEnableButtonText} />
                 )}
               </View>
@@ -640,7 +641,7 @@ export default function OnboardingScreen() {
                 {batteryExempt ? (
                   <Feather name="check-circle" size={28} color={COLORS.green} />
                 ) : (
-                  <EnableButton label="Enable" bg={btn.bg} fg={btn.fg}
+                  <EnableButton delay={450} label="Enable" bg={btn.bg} fg={btn.fg}
                     style={styles.setupEnableButton} textStyle={styles.setupEnableButtonText}
                     onPress={() => {
                       // Opens the real exemption dialog (native module, with an
@@ -675,7 +676,7 @@ export default function OnboardingScreen() {
                 {vpnActive ? (
                   <Feather name="check-circle" size={28} color={COLORS.green} />
                 ) : (
-                  <EnableButton label={vpnLoading ? '…' : 'Enable'} onPress={startVpn} disabled={vpnLoading}
+                  <EnableButton delay={900} label={vpnLoading ? '…' : 'Enable'} onPress={startVpn} disabled={vpnLoading}
                     bg={btn.bg} fg={btn.fg} style={styles.setupEnableButton} textStyle={styles.setupEnableButtonText} />
                 )}
               </View>
@@ -697,7 +698,7 @@ export default function OnboardingScreen() {
                 {notifGranted && notifEnabled ? (
                   <Feather name="check-circle" size={28} color={COLORS.green} />
                 ) : (
-                  <EnableButton label={notifLoading ? '…' : 'Enable'}
+                  <EnableButton delay={1350} label={notifLoading ? '…' : 'Enable'}
                     onPress={() => (notifGranted ? toggleNotif(true) : openNotifSettings())} disabled={notifLoading}
                     bg={btn.bg} fg={btn.fg} style={styles.setupEnableButton} textStyle={styles.setupEnableButtonText} />
                 )}
@@ -717,7 +718,7 @@ export default function OnboardingScreen() {
                         <Text style={styles.setupRowSub}>Your device brand has its own, separate from Android's. Also try locking NoGoon in your recent apps.</Text>
                       </View>
                     </View>
-                    <EnableButton label="Open" onPress={openOemAutostartSettings}
+                    <EnableButton delay={1800} label="Open" onPress={openOemAutostartSettings}
                       bg={btn.bg} fg={btn.fg} style={styles.setupEnableButton} textStyle={styles.setupEnableButtonText} />
                   </View>
                 </>

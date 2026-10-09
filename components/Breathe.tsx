@@ -10,12 +10,14 @@ import { Animated, Easing, AccessibilityInfo } from 'react-native';
 
 type Props = {
   active?: boolean;
+  /** ms to wait before the first breath — lets a group of buttons ripple instead of pulsing in lockstep. */
+  delay?: number;
   /** Peak scale at the top of the breath. Keep it small (1.04 - 1.08). */
   to?: number;
   children: ReactNode;
 };
 
-export function Breathe({ active = true, to = 1.07, children }: Props) {
+export function Breathe({ active = true, to = 1.07, delay = 0, children }: Props) {
   const scale = useRef(new Animated.Value(1)).current;
   const [reduceMotion, setReduceMotion] = useState(false);
 
@@ -35,9 +37,9 @@ export function Breathe({ active = true, to = 1.07, children }: Props) {
         Animated.delay(600),   // short rest between breaths so it reads calm, not frantic
       ])
     );
-    loop.start();
-    return () => { loop.stop(); scale.setValue(1); };
-  }, [active, reduceMotion, to, scale]);
+    const timer = setTimeout(() => loop.start(), delay);
+    return () => { clearTimeout(timer); loop.stop(); scale.setValue(1); };
+  }, [active, reduceMotion, to, delay, scale]);
 
   return <Animated.View style={{ transform: [{ scale }] }}>{children}</Animated.View>;
 }
