@@ -649,6 +649,98 @@ function crossoverEase(t: number, k = 9): number {
   return (raw - min) / (max - min);
 }
 
+
+// ─── Legibility guard ─────────────────────────────────────────────────────────
+// Blending Grey → Light passes through mid-tones where text and background are
+// both mid-grey, which reads blurry. After the blend, every text color and
+// border is nudged (toward white or black, whichever needs the least change,
+// keeping its tint) until it clears a contrast floor against the actual
+// blended backgrounds. Colors still travel smoothly with the dial; they just
+// never wash out.
+
+const WHITE: RGBA = { r: 255, g: 255, b: 255, a: 1 };
+const BLACK: RGBA = { r: 0, g: 0, b: 0, a: 1 };
+
+function relLum(c: RGBA): number {
+  const f = (v: number) => {
+    const x = v / 255;
+    return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * f(c.r) + 0.7152 * f(c.g) + 0.0722 * f(c.b);
+}
+function over(fg: RGBA, bg: RGBA): RGBA {
+  return {
+    r: fg.r * fg.a + bg.r * (1 - fg.a),
+    g: fg.g * fg.a + bg.g * (1 - fg.a),
+    b: fg.b * fg.a + bg.b * (1 - fg.a),
+    a: 1,
+  };
+}
+function ratio(a: RGBA, b: RGBA): number {
+  const la = relLum(a), lb = relLum(b);
+  const hi = Math.max(la, lb), lo = Math.min(la, lb);
+  return (hi + 0.05) / (lo + 0.05);
+}
+function mixRGBA(a: RGBA, b: RGBA, t: number): RGBA {
+  return {
+    r: a.r + (b.r - a.r) * t,
+    g: a.g + (b.g - a.g) * t,
+    b: a.b + (b.b - a.b) * t,
+    a: a.a,
+  };
+}
+function toHex(c: RGBA): string {
+  const h = (x: number) => Math.max(0, Math.min(255, Math.round(x))).toString(16).padStart(2, '0');
+  return `#${h(c.r)}${h(c.g)}${h(c.b)}`;
+}
+
+function ensureText(fg: string, bgs: RGBA[], min: number): string {
+  const c = parseColor(fg);
+  const worst = (x: RGBA) => Math.min(...bgs.map((b) => ratio(over(x, b), b)));
+  if (worst(c) >= min) return fg;
+  let best: { t: number; col: RGBA } | null = null;
+  for (const target of [WHITE, BLACK]) {
+    for (let t = 0.05; t <= 1.0001; t += 0.05) {
+      const m = mixRGBA(c, target, t);
+      if (worst(m) >= min) {
+        if (!best || t < best.t) best = { t, col: m };
+        break;
+      }
+    }
+  }
+  if (best) return toHex(best.col);
+  // Nothing clears the floor (mid-grey on mid-grey): take the better extreme.
+  return toHex(worst(WHITE) >= worst(BLACK) ? WHITE : BLACK);
+}
+
+function ensureBorder(fg: string, bgs: RGBA[], min: number): string {
+  const c = parseColor(fg);
+  const worst = (x: RGBA) => Math.min(...bgs.map((b) => ratio(over(x, b), b)));
+  if (worst(c) >= min) return fg;
+  const polar = Math.min(...bgs.map(relLum)) > 0.4 ? BLACK : WHITE;
+  for (let a = c.a; a <= 0.7001; a += 0.05) {
+    for (let t = 0; t <= 0.8001; t += 0.2) {
+      const m = { ...mixRGBA(c, polar, t), a };
+      if (worst(m) >= min) return `rgba(${Math.round(m.r)},${Math.round(m.g)},${Math.round(m.b)},${a.toFixed(2)})`;
+    }
+  }
+  return `rgba(${polar.r},${polar.g},${polar.b},0.55)`;
+}
+
+function legible(p: ThemePalette): ThemePalette {
+  const bgs = [parseColor(p.background), parseColor(p.surface), parseColor(p.surfaceHigh)];
+  const out: ThemePalette = { ...p };
+  out.text          = ensureText(p.text,          bgs, 8);
+  out.textSecondary = ensureText(p.textSecondary, bgs, 5);
+  out.textMuted     = ensureText(p.textMuted,     bgs, 3.6);
+  // Identity / semantic colors double as text and icon tints
+  (['accent', 'accentBright', 'protect', 'calm', 'arcade', 'me', 'danger', 'warning', 'success'] as const)
+    .forEach((k) => { out[k] = ensureText(p[k], bgs, 3); });
+  out.border     = ensureBorder(p.border,     bgs.slice(0, 2), 1.5);
+  out.cardBorder = ensureBorder(p.cardBorder, bgs.slice(0, 2), 1.8);
+  return out;
+}
+
 // Percent on each side of 50 that stays pure Grey — a flat, unblended anchor
 // instead of pure math, so "Grey mode" is a real, recognizable stop.
 const GREY_PLATEAU = 10;
@@ -659,13 +751,15 @@ export function resolveThemePalette(themeId: ThemeId, brightness: number): Theme
   const loEnd = 50 - GREY_PLATEAU;
   const hiStart = 50 + GREY_PLATEAU;
 
+  let blended: ThemePalette;
   if (pct <= loEnd) {
-    return lerpPalette(triad.dark, triad.grey, smoothEase(pct / loEnd));
+    blended = lerpPalette(triad.dark, triad.grey, smoothEase(pct / loEnd));
+  } else if (pct >= hiStart) {
+    blended = lerpPalette(triad.grey, triad.light, crossoverEase((pct - hiStart) / (100 - hiStart)));
+  } else {
+    blended = triad.grey;
   }
-  if (pct >= hiStart) {
-    return lerpPalette(triad.grey, triad.light, crossoverEase((pct - hiStart) / (100 - hiStart)));
-  }
-  return triad.grey;
+  return legible(blended);
 }
 
 // Label for the brightness dial readout — mirrors the prototype.
