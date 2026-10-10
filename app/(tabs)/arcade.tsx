@@ -138,9 +138,11 @@ function GameInfoModal({ game, onClose, onPlay, styles, COLORS }: {
 // No play button: the whole row is the tap target. Rows settle in one by one
 // when their board becomes the active one.
 
-function ArcadeGameRow({ game, index, active, onPlay, onInfo, locked, lockMessage, accent, styles, COLORS }: {
+function ArcadeGameRow({ game, index, rowH, compact, active, onPlay, onInfo, locked, lockMessage, accent, styles, COLORS }: {
   game: GameMeta;
   index: number;
+  rowH?: number;
+  compact?: boolean;
   active: boolean;
   onPlay: (id: GameId) => void;
   onInfo: (game: GameMeta) => void;
@@ -187,6 +189,7 @@ function ArcadeGameRow({ game, index, active, onPlay, onInfo, locked, lockMessag
         <Animated.View
           style={[
             styles.gameRow,
+            rowH ? { height: rowH, paddingVertical: 0 } : null,
             { transform: [{ scale }] },
             locked && styles.gameRowLocked,
           ]}
@@ -196,9 +199,11 @@ function ArcadeGameRow({ game, index, active, onPlay, onInfo, locked, lockMessag
           </View>
           <View style={styles.gameInfo}>
             <Text style={styles.gameName} numberOfLines={1}>{game.name}</Text>
-            <Text style={styles.gameBlurb} numberOfLines={1}>
-              {locked ? (lockMessage ?? 'Locked') : game.tagline}
-            </Text>
+            {!compact && (
+              <Text style={styles.gameBlurb} numberOfLines={1}>
+                {locked ? (lockMessage ?? 'Locked') : game.tagline}
+              </Text>
+            )}
           </View>
           {!locked && (
             <Pressable
@@ -234,8 +239,9 @@ const mod = (a: number, n: number) => ((a % n) + n) % n;
 
 type Board = { key: GameCategory; label: string; games: readonly GameMeta[] };
 
-function BoardCard({ board, index, total, active, animStyle, front, navOp, navOn, onStep, onPlay, onInfo, locked, lockMessage, accent, styles, COLORS }: {
+function BoardCard({ board, index, total, active, onOverflow, animStyle, front, navOp, navOn, onStep, onPlay, onInfo, locked, lockMessage, accent, styles, COLORS }: {
   board: Board; index: number; total: number; active: boolean;
+  onOverflow?: (o: boolean) => void;
   animStyle?: any; front: boolean;
   navOp: Animated.Value; navOn: boolean; onStep: (d: number) => void;
   onPlay: (id: GameId) => void; onInfo: (g: GameMeta) => void;
@@ -244,7 +250,14 @@ function BoardCard({ board, index, total, active, animStyle, front, navOp, navOn
 }) {
   const [viewH, setViewH] = useState(0);
   const [contentH, setContentH] = useState(0);
-  const overflow = contentH > viewH + 1 && viewH > 0;
+  // Rows shrink to fit (the one-line blurb drops out below 48) so every game is
+  // visible without an inner scroll; the list only scrolls on very short screens.
+  const GAP = 7, NATURAL = 54, MIN_ROW = 38;
+  const count = board.games.length;
+  const fitH = viewH > 0 ? Math.floor((viewH - GAP * (count - 1) - SPACING.xs) / count) : NATURAL;
+  const rowH = Math.max(MIN_ROW, Math.min(NATURAL, fitH));
+  const overflow = viewH > 0 && fitH < MIN_ROW && contentH > viewH + 1;
+  useEffect(() => { if (active) onOverflow?.(overflow); }, [active, overflow]);  // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <Animated.View
       pointerEvents={front ? 'auto' : 'none'}
@@ -286,6 +299,8 @@ function BoardCard({ board, index, total, active, animStyle, front, navOp, navOn
             key={g.id}
             game={g}
             index={k}
+            rowH={rowH}
+            compact={rowH < 48}
             active={active}
             onPlay={onPlay}
             onInfo={onInfo}
@@ -323,6 +338,7 @@ function BoardPager({ boards, lockedFor, lockMessage, onPlay, onInfo, accent, st
   const posRef  = useRef(0);
   const tgtRef  = useRef(0);
   const busy    = useRef(false);
+  const listScrolls = useRef(false);   // short screen: the board's list scrolls, so don't capture its drags
   const Hr      = useRef(0);
   const reduce  = useRef(false);
   const navTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -372,6 +388,11 @@ function BoardPager({ boards, lockedFor, lockMessage, onPlay, onInfo, accent, st
 
   const pan = useRef(PanResponder.create({
     onStartShouldSetPanResponder: () => false,
+    // Capture phase: the pager gets vertical drags before the rows or the
+    // inner list do, so swiping DOWN (previous board) works from anywhere on
+    // the card exactly like swiping up.
+    onMoveShouldSetPanResponderCapture: (_e, g) =>
+      multi && !busy.current && !listScrolls.current && Math.abs(g.dy) > 8 && Math.abs(g.dy) > Math.abs(g.dx) * 1.2,
     onMoveShouldSetPanResponder: (_e, g) =>
       multi && !busy.current && Math.abs(g.dy) > 8 && Math.abs(g.dy) > Math.abs(g.dx) * 1.2,
     onPanResponderGrant: () => showNav(),
@@ -425,6 +446,7 @@ function BoardPager({ boards, lockedFor, lockMessage, onPlay, onInfo, accent, st
           index={i}
           total={n}
           active={multi ? target === i : true}
+          onOverflow={(o) => { listScrolls.current = o; }}
           animStyle={style}
           front={slot === 0}
           navOp={navOp}
