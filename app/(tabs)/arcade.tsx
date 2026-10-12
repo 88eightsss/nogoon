@@ -4,7 +4,7 @@
 //  13 exclusive games, all free.
 // ═══════════════════════════════════════════════════════════════════════════
 
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -22,7 +22,7 @@ import {
   LayoutChangeEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useNavigation } from 'expo-router';
+import { useLocalSearchParams, useNavigation, useFocusEffect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
@@ -494,6 +494,14 @@ export default function ArcadeScreen() {
   const [finishedGame, setFinishedGame] = useState<GameMeta | null>(null);
   const [infoGame, setInfoGame]         = useState<GameMeta | null>(null);
   const navigation = useNavigation();
+
+  // The Home "Games" shortcut opens Arcade with category=calm. Tab params stick,
+  // so without this the tab stays calm-only (one board, no swipe) on every later
+  // visit. Clear them when the tab loses focus.
+  useFocusEffect(useCallback(() => () => {
+    (navigation as any).setParams?.({ category: undefined, game: undefined });
+    setShowAll(false);
+  }, [navigation]));
 
   // Auto-launch if navigated here with a specific game (e.g. from Daily Challenge)
   useEffect(() => {
