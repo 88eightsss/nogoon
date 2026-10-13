@@ -18,9 +18,12 @@ import { HomeOrganizer } from '@/components/home/HomeOrganizer';
 import { PageGuide, type PageGuideStat } from '@/components/PageGuide';
 import { useUserStore, getMinutesSaved } from '@/stores/useUserStore';
 import { getLocalDateKey } from '@/utils/date';
+import { usePackStore } from '@/stores/usePackStore';
+import { MyPage } from '@/components/page/MyPage';
 
 export default function HomeScreen() {
   const { homeMode } = useThemeStore();
+  const newHome = usePackStore((s) => s.newHome);
   const { colors } = useTheme();
 
   // Live numbers for the first-visit "Your daily snapshot" bubble.
@@ -56,7 +59,7 @@ export default function HomeScreen() {
 
   return (
     <>
-      {homeMode === 'organizer' ? <HomeOrganizer /> : <HomeCompanion />}
+      {newHome ? <MyPage /> : homeMode === 'organizer' ? <HomeOrganizer /> : <HomeCompanion />}
       <PageGuide
         page="home"
         icon="home"

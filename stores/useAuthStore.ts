@@ -18,6 +18,7 @@ import { useModesStore } from '@/stores/useModesStore';
 import { useBubblesStore } from '@/stores/useBubblesStore';
 import { useProgressStore } from '@/stores/useProgressStore';
 import { usePetStore } from '@/stores/usePetStore';
+import { usePackStore } from '@/stores/usePackStore';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -83,6 +84,8 @@ async function wipeLocal() {
     useBubblesStore.setState(useBubblesStore.getInitialState(), true);
     useProgressStore.setState(useProgressStore.getInitialState(), true);
     usePetStore.setState(usePetStore.getInitialState(), true);
+    // Personal gate note, unlocked skins and the new-My-Page switch belong to the account too.
+    usePackStore.setState(usePackStore.getInitialState(), true);
 
     // The Android service reads its own copy of the lists, which would otherwise keep
     // gating the old account's apps with nobody signed in. A self-imposed lock
@@ -109,7 +112,7 @@ async function wipeLocal() {
         'nogoon_whatnow_nudge_shown', 'nogoon_organizer_edit_hint_seen',
       ];
       const keys = (await AsyncStorage.getAllKeys()).filter(
-        (k) => k.startsWith('@nogoon_') || k.includes('dead-reckoning') || k.includes('dead_reckoning') || loose.includes(k)
+        (k) => k.startsWith('@nogoon_') || k.startsWith('nogoon_feed_') || k.includes('dead-reckoning') || k.includes('dead_reckoning') || loose.includes(k)
       );
       if (keys.length > 0) await AsyncStorage.multiRemove(keys);
     } catch (e) {

@@ -1042,6 +1042,14 @@ export default function MeScreen() {
               ))}
             </View>
           </View>
+          <Pressable
+            style={[ctrlStyles.row, { borderBottomColor: colors.border }]}
+            onPress={() => router.push('/customize' as any)}
+          >
+            <Feather name="star" size={16} color={colors.accent} />
+            <Text style={[ctrlStyles.label, { color: colors.text, flex: 1 }]}>Customize (skins, My Page, gate note)</Text>
+            <Feather name="chevron-right" size={16} color={colors.textMuted} />
+          </Pressable>
           {/* Brightness slider — no ctrlStyles.row, custom layout */}
           <View style={{ borderTopWidth: 0 }}>
             <View style={{

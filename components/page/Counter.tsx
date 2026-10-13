@@ -1,0 +1,76 @@
+// Day-streak counter, three looks: plain card, flip tiles (Tokyo), visitor counter (Webcore).
+
+import { View, Text, StyleSheet } from 'react-native';
+import { useTheme } from '@/hooks/useTheme';
+import { FONTS } from '@/constants/Colors';
+import { SPACING } from '@/constants/Spacing';
+import type { PackManifest } from '@/constants/packs';
+
+export const LANDMARKS = [7, 14, 30, 50, 100, 200, 365, 500, 777, 1000];
+
+export function nextLandmark(d: number): { next: number; prev: number } {
+  const next = LANDMARKS.find((n) => n > d) ?? d + 1;
+  const prev = [0, ...LANDMARKS].filter((n) => n <= d).pop() ?? 0;
+  return { next, prev };
+}
+
+export function Counter({ pack, days }: { pack: PackManifest; days: number }) {
+  const { colors, cardStyle } = useTheme();
+  const look = pack.parts.page.look;
+  const { next, prev } = nextLandmark(days);
+  const digits = String(Math.min(days, 9999)).padStart(4, '0').split('');
+  const left = next - days;
+  const caption = `Next landmark is day ${next}, ${left} day${left === 1 ? '' : 's'} away.`;
+  const pct = Math.max(0, Math.min(1, (days - prev) / Math.max(1, next - prev)));
+
+  const kind = pack.parts.page.counter;
+  return (
+    <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+      <Text style={[styles.title, { color: colors.text }]}>
+        {kind === 'visitor' ? 'Visitor counter' : 'Day streak'}
+      </Text>
+
+      {kind === 'plain' && (
+        <Text style={[styles.big, { color: colors.accent }]}>{days}</Text>
+      )}
+
+      {kind === 'tiles' && (
+        <View style={styles.row}>
+          {digits.map((d, i) => (
+            <View key={i} style={styles.tile}>
+              <Text style={styles.tileText}>{d}</Text>
+              <View style={styles.tileSeam} />
+            </View>
+          ))}
+        </View>
+      )}
+
+      {kind === 'visitor' && (
+        <View style={[styles.visitor, { backgroundColor: look.lcdBg ?? '#000', borderTopColor: look.lo ?? '#808080', borderLeftColor: look.lo ?? '#808080', borderRightColor: look.hi ?? '#fff', borderBottomColor: look.hi ?? '#fff' }]}>
+          <Text style={[styles.visitorLabel, { color: look.lcdInk ?? '#33ff66' }]}>YOU ARE VISITOR No.</Text>
+          <Text style={[styles.visitorDigits, { color: look.lcdInk ?? '#33ff66' }]}>{digits.join(' ')}</Text>
+        </View>
+      )}
+
+      <Text style={[styles.caption, { color: colors.textSecondary }]}>{caption}</Text>
+      <View style={[styles.bar, { backgroundColor: colors.border }]}>
+        <View style={{ width: `${pct * 100}%`, height: '100%', backgroundColor: colors.accent }} />
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  card:    { padding: SPACING.md, gap: SPACING.sm },
+  title:   { fontFamily: FONTS.bodyBold, fontSize: 15 },
+  big:     { fontFamily: FONTS.display, fontSize: 44 },
+  row:     { flexDirection: 'row', gap: 6 },
+  tile:    { flex: 1, height: 52, borderRadius: 8, backgroundColor: '#23232c', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  tileText:{ fontFamily: FONTS.monoBold, fontSize: 32, color: '#f5f1e8' },
+  tileSeam:{ position: 'absolute', left: 0, right: 0, top: '50%', height: 1.5, backgroundColor: 'rgba(0,0,0,0.7)' },
+  visitor: { borderWidth: 2, paddingVertical: 8, paddingHorizontal: 12, alignItems: 'center', gap: 2 },
+  visitorLabel:  { fontFamily: FONTS.mono, fontSize: 11, letterSpacing: 1 },
+  visitorDigits: { fontFamily: FONTS.monoBold, fontSize: 30, letterSpacing: 4 },
+  caption: { fontFamily: FONTS.body, fontSize: 12.5 },
+  bar:     { height: 6, borderRadius: 6, overflow: 'hidden' },
+});

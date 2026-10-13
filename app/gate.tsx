@@ -77,6 +77,7 @@ import { useThemeStore } from '@/stores/useThemeStore';
 import { useAdInterstitial } from '@/components/ads/AdInterstitial';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GoonSprite, getGoonStage } from '@/components/home/GoonMascot';
+import { PackGateCard } from '@/components/page/PackGateCard';
 import { usePetStore, getPetMood, getPetSpeech, type CharacterId } from '@/stores/usePetStore';
 
 // ─── Rapid re-entry options ────────────────────────────────────────────────────
@@ -1278,6 +1279,9 @@ function NoGoonScreen() {
         <Text style={[styles.calmTitle, { color: C.textPrimary }]}>
           Take a breath.
         </Text>
+
+        {/* Your pack's note / fortune (renders nothing for Core with no note) */}
+        <PackGateCard />
 
         {/* Context line — personal, not punishing */}
         {contextLine ? (

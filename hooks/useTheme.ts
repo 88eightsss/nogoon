@@ -19,7 +19,9 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useMemo } from 'react';
-import { BORDERS, ThemePalette, BorderConfig, resolveThemePalette } from '@/constants/Themes';
+import { BORDERS, ThemePalette, BorderConfig, resolveThemePalette, resolveTriadPalette } from '@/constants/Themes';
+import { packTriad } from '@/constants/packs';
+import { useActivePack } from '@/hooks/usePack';
 import { useThemeStore } from '@/stores/useThemeStore';
 
 export type ThemeHook = {
@@ -41,10 +43,13 @@ export type ThemeHook = {
 
 export function useTheme(): ThemeHook {
   const { themeId, borderId, strugglingMode, setStruggling, themeBrightness } = useThemeStore();
+  // An active pack with a theme part overrides the user's own theme/border; Core has none.
+  const pack = useActivePack();
 
   return useMemo(() => {
-    const colors = resolveThemePalette(themeId, themeBrightness);
-    const border = BORDERS[borderId];
+    const triad  = packTriad(pack);
+    const colors = triad ? resolveTriadPalette(triad, themeBrightness) : resolveThemePalette(themeId, themeBrightness);
+    const border = BORDERS[pack.parts.shape?.borderId ?? borderId];
 
     const radius = border.radius; // each style now owns a real radius value directly
 
@@ -67,5 +72,5 @@ export function useTheme(): ThemeHook {
       setStruggling,
       cardStyle,
     };
-  }, [themeId, borderId, strugglingMode, setStruggling, themeBrightness]);
+  }, [themeId, borderId, strugglingMode, setStruggling, themeBrightness, pack]);
 }

@@ -1,0 +1,219 @@
+// ─── My Page — the new Home ────────────────────────────────────────────────────
+//
+// Shown instead of HomeCompanion/HomeOrganizer when the "new My Page" switch is on
+// (Me → Customize). Everything on it is real data from the existing stores; the
+// active pack only changes how it is dressed (frame, counter, stamps, colors).
+// Calm, Arcade, Breathe, Journal and Brain Bubbles are one tap away below.
+
+import { useCallback, useRef, useState } from 'react';
+import { ScrollView, View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
+import { Feather } from '@expo/vector-icons';
+import { router } from 'expo-router';
+import * as Haptics from 'expo-haptics';
+import { useTheme } from '@/hooks/useTheme';
+import { useActivePack } from '@/hooks/usePack';
+import { usePackStore } from '@/stores/usePackStore';
+import { useUserStore, getMinutesSaved } from '@/stores/useUserStore';
+import { getGoonStage } from '@/components/home/GoonMascot';
+import { getLocalDateKey } from '@/utils/date';
+import { FONTS } from '@/constants/Colors';
+import { SPACING } from '@/constants/Spacing';
+import { getPack } from '@/constants/packs';
+import { Habitat, type HabitatAction } from './Habitat';
+import { Counter } from './Counter';
+import { Stamps } from './Stamps';
+import { Marquee } from './Marquee';
+import { useCharacter, CHARACTER_LABELS } from './useCharacter';
+import { useFocusEffect } from 'expo-router';
+
+type FeatherName = React.ComponentProps<typeof Feather>['name'];
+
+const REACTIONS: Record<HabitatAction, { face: string; line: string }> = {
+  feed: { face: '(｡•́‿•̀｡)', line: 'Yum. Thank you for the walk.' },
+  play: { face: 'ヽ(´▽`)/', line: 'Round two of not scrolling?' },
+  pet:  { face: '(´∀｀*) ♡', line: 'You are doing the thing.' },
+};
+const SAY = [
+  'Rest up. I will keep watch.',
+  'I am waking up. Thanks for walking away.',
+  'You walked away a lot. Proud of you.',
+  'Nothing gets past us today.',
+  'Look how far we have come.',
+];
+
+const LINKS: { icon: FeatherName; label: string; go: () => void }[] = [
+  { icon: 'zap',          label: 'Take a break', go: () => router.push('/(tabs)/arcade' as any) },
+  { icon: 'wind',         label: 'Breathe',      go: () => router.push('/breathe' as any) },
+  { icon: 'book-open',    label: 'Journal',      go: () => router.push('/journal' as any) },
+  { icon: 'edit-3',       label: 'Bubbles',      go: () => router.push('/bubbles' as any) },
+  { icon: 'bar-chart-2',  label: 'Insights',     go: () => router.push('/insights' as any) },
+  { icon: 'award',        label: 'Milestones',   go: () => router.push('/milestones' as any) },
+];
+
+export function MyPage() {
+  const { colors, cardStyle } = useTheme();
+  const pack = useActivePack();
+  const char = useCharacter();
+
+  const name          = useUserStore((s) => s.name);
+  const streak        = useUserStore((s) => s.streak);
+  const longestStreak = useUserStore((s) => s.longestStreak);
+  const walkAways     = useUserStore((s) => s.walkAwayCount);
+  const blocklist     = useUserStore((s) => s.blocklist);
+  const blockedApps   = useUserStore((s) => s.blockedApps);
+  const storeIntention    = useUserStore((s) => s.dailyIntention);
+  const intentionDate     = useUserStore((s) => s.intentionDate);
+  const setDailyIntention = useUserStore((s) => s.setDailyIntention);
+
+  const unlockedIds   = usePackStore((s) => s.unlockedIds);
+  const seenUnlockIds = usePackStore((s) => s.seenUnlockIds);
+  const checkStreakUnlocks = usePackStore((s) => s.checkStreakUnlocks);
+  const tapUnlock     = usePackStore((s) => s.tapUnlock);
+  const markUnlockSeen = usePackStore((s) => s.markUnlockSeen);
+  const setActivePack = usePackStore((s) => s.setActivePack);
+
+  const stage = getGoonStage(walkAways);
+  const petName = CHARACTER_LABELS[char];
+  const [react, setReact] = useState<{ face: string; line: string } | null>(null);
+
+  // Hatch: a 7-day streak (or the code, or the secret tap) opens hidden packs.
+  useFocusEffect(useCallback(() => { checkStreakUnlocks(longestStreak); }, [checkStreakUnlocks, longestStreak]));
+  const newPacks = unlockedIds.filter((id) => !seenUnlockIds.includes(id) && getPack(id).id === id && id !== 'core');
+
+  // Secret: tap the greeting 7 times quickly.
+  const taps = useRef({ n: 0, t: 0 });
+  const onGreeting = () => {
+    const now = Date.now();
+    taps.current = { n: now - taps.current.t < 1500 ? taps.current.n + 1 : 1, t: now };
+    if (taps.current.n >= 7) {
+      taps.current.n = 0;
+      if (tapUnlock()) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+  };
+
+  const today = getLocalDateKey();
+  const intention = intentionDate === today ? storeIntention : '';
+  const [draft, setDraft] = useState<string | null>(null);
+
+  const saved = getMinutesSaved(walkAways);
+  const savedLabel = saved >= 60 ? `~${Math.round(saved / 60)} hrs` : `~${saved} min`;
+
+  const look = pack.parts.page.look;
+  const mono = FONTS.mono;
+
+  return (
+    <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <Pressable onPress={onGreeting}>
+        <Text style={[styles.hello, { color: colors.text }]}>
+          {name ? `Welcome back, ${name}` : 'Welcome back'}
+        </Text>
+        <Text style={[styles.sub, { color: colors.textSecondary }]}>
+          {petName} kept watch. {savedLabel} reclaimed so far.
+        </Text>
+      </Pressable>
+
+      {pack.parts.page.marquee ? (
+        <Marquee text={pack.parts.page.marquee} color={look.lcdInk ?? '#33ff66'} bg={look.lcdBg ?? '#000'} font={mono} />
+      ) : null}
+
+      {newPacks.map((id) => {
+        const p = getPack(id);
+        return (
+          <View key={id} style={[styles.card, cardStyle, { backgroundColor: colors.accentDim, borderColor: colors.accent }]}>
+            <Text style={[styles.cardTitle, { color: colors.text }]}>New skin unlocked: {p.name}</Text>
+            <Text style={[styles.cardBody, { color: colors.textSecondary }]}>{p.tagline}</Text>
+            <View style={styles.row}>
+              <Pressable
+                style={[styles.btn, { backgroundColor: colors.accent }]}
+                onPress={() => { setActivePack(id); markUnlockSeen(id); }}
+              >
+                <Text style={[styles.btnText, { color: colors.background }]}>Try it</Text>
+              </Pressable>
+              <Pressable style={[styles.btn, { borderColor: colors.border, borderWidth: 1 }]} onPress={() => markUnlockSeen(id)}>
+                <Text style={[styles.btnText, { color: colors.textSecondary }]}>Later</Text>
+              </Pressable>
+            </View>
+          </View>
+        );
+      })}
+
+      <Habitat
+        pack={pack} char={char} stage={stage} petName={petName}
+        streak={streak} walkAways={walkAways}
+        onAction={(a) => setReact(REACTIONS[a])}
+      />
+      <View style={styles.mood}>
+        {pack.parts.page.frame === 'egg' && <Text style={[styles.face, { color: colors.text }]}>{react?.face ?? '(´• ω •`)'}</Text>}
+        <Text style={[styles.moodLine, { color: colors.textSecondary }]}>{react?.line ?? `${petName}: ${SAY[stage]}`}</Text>
+      </View>
+
+      <Counter pack={pack} days={streak} />
+
+      <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+        <Text style={[styles.cardTitle, { color: colors.text }]}>Today's intention</Text>
+        <TextInput
+          style={[styles.input, { color: colors.text, borderColor: colors.border }]}
+          value={draft ?? intention}
+          onChangeText={setDraft}
+          onBlur={() => { if (draft !== null) { setDailyIntention(draft.trim()); setDraft(null); } }}
+          placeholder="What are you choosing instead?"
+          placeholderTextColor={colors.textMuted}
+          returnKeyType="done"
+          maxLength={120}
+        />
+      </View>
+
+      <Stamps pack={pack} best={longestStreak} />
+
+      <Pressable
+        onPress={() => router.push('/(tabs)/blocklist' as any)}
+        style={[styles.card, cardStyle, styles.row, { backgroundColor: colors.surface, borderColor: colors.cardBorder, alignItems: 'center' }]}
+      >
+        <Feather name="shield" size={18} color={colors.protect} />
+        <Text style={[styles.cardBody, { color: colors.text, flex: 1 }]}>
+          {blocklist.length} site{blocklist.length === 1 ? '' : 's'} · {blockedApps.length} app{blockedApps.length === 1 ? '' : 's'} guarded
+        </Text>
+        <Feather name="chevron-right" size={18} color={colors.textMuted} />
+      </Pressable>
+
+      <View style={styles.links}>
+        {LINKS.map((l) => (
+          <Pressable
+            key={l.label}
+            onPress={l.go}
+            style={({ pressed }) => [styles.link, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder, opacity: pressed ? 0.7 : 1 }]}
+          >
+            <Feather name={l.icon} size={20} color={colors.accent} />
+            <Text style={[styles.linkText, { color: colors.text }]}>{l.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+
+      <Pressable onPress={() => router.push('/customize' as any)} style={styles.customize}>
+        <Feather name="sliders" size={14} color={colors.textMuted} />
+        <Text style={[styles.customizeText, { color: colors.textMuted }]}>Customize this page</Text>
+      </Pressable>
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  content: { padding: SPACING.lg, gap: SPACING.md, paddingBottom: SPACING.huge },
+  hello:   { fontFamily: FONTS.display, fontSize: 26 },
+  sub:     { fontFamily: FONTS.body, fontSize: 13, marginTop: 2 },
+  mood:    { alignItems: 'center', gap: 2 },
+  face:    { fontFamily: FONTS.body, fontSize: 22 },
+  moodLine:{ fontFamily: FONTS.body, fontSize: 13, textAlign: 'center' },
+  card:    { padding: SPACING.md, gap: SPACING.sm },
+  cardTitle:{ fontFamily: FONTS.bodyBold, fontSize: 15 },
+  cardBody:{ fontFamily: FONTS.body, fontSize: 13.5 },
+  row:     { flexDirection: 'row', gap: SPACING.sm },
+  btn:     { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 999 },
+  btnText: { fontFamily: FONTS.bodyBold, fontSize: 13 },
+  input:   { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, fontFamily: FONTS.body, fontSize: 14 },
+  links:   { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
+  link:    { width: '31.5%', alignItems: 'center', paddingVertical: SPACING.md, gap: 6 },
+  linkText:{ fontFamily: FONTS.bodyMedium, fontSize: 12 },
+  customize: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: SPACING.md },
+  customizeText: { fontFamily: FONTS.body, fontSize: 12.5 },
+});

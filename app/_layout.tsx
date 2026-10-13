@@ -364,6 +364,14 @@ export default function RootLayout() {
 
           {/* Impulse journal history */}
           <Stack.Screen
+            name="customize"
+            options={{
+              presentation: 'modal',
+              animation: 'slide_from_bottom',
+            }}
+          />
+
+          <Stack.Screen
             name="journal"
             options={{
               presentation: 'modal',

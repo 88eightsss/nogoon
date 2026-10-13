@@ -746,7 +746,15 @@ function legible(p: ThemePalette): ThemePalette {
 const GREY_PLATEAU = 10;
 
 export function resolveThemePalette(themeId: ThemeId, brightness: number): ThemePalette {
-  const triad = THEMES[themeId];
+  return resolveTriadPalette(THEMES[themeId], brightness);
+}
+
+// Same blend, for any dark/grey/light triad. Packs (constants/packs) build their
+// own triads and resolve them here so they get the exact same dial + contrast guard.
+export function resolveTriadPalette(
+  triad: Pick<ThemeTriad, 'dark' | 'grey' | 'light'>,
+  brightness: number,
+): ThemePalette {
   const pct = Math.max(0, Math.min(100, brightness));
   const loEnd = 50 - GREY_PLATEAU;
   const hiStart = 50 + GREY_PLATEAU;

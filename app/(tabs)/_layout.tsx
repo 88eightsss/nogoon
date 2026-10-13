@@ -28,7 +28,10 @@ import { Pressable, View, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeStore } from '@/stores/useThemeStore';
 import { useUserStore } from '@/stores/useUserStore';
-import { resolveThemePalette } from '@/constants/Themes';
+import { resolveThemePalette, resolveTriadPalette } from '@/constants/Themes';
+import { packTriad } from '@/constants/packs';
+import { useActivePack } from '@/hooks/usePack';
+import { usePackStore } from '@/stores/usePackStore';
 import { FONTS } from '@/constants/Colors';
 
 type FeatherName = React.ComponentProps<typeof Feather>['name'];
@@ -36,7 +39,10 @@ type FeatherName = React.ComponentProps<typeof Feather>['name'];
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const { themeId, themeBrightness } = useThemeStore();
-  const colors = resolveThemePalette(themeId, themeBrightness);
+  const pack = useActivePack();
+  const newHome = usePackStore((s) => s.newHome);
+  const triad = packTriad(pack);
+  const colors = triad ? resolveTriadPalette(triad, themeBrightness) : resolveThemePalette(themeId, themeBrightness);
   const requestGuideReopen = useUserStore((s) => s.requestGuideReopen);
 
   // Tab definitions use live theme colors — updates whenever theme changes.
@@ -93,6 +99,19 @@ export default function TabsLayout() {
     },
   ];
 
+  // New layout (beta switch in Me → Customize): My Page, Protect, Feed, Me. Calm and
+  // Arcade stay as routes (reachable from My Page) but leave the tab bar; the old
+  // layout hides Feed instead.
+  const FEED_TAB = {
+    name: 'feed', title: 'Feed', icon: 'mail' as FeatherName,
+    color: colors.calm, pillBg: colors.warningDim, guidePage: 'feed',
+  };
+  const byName = (n: string) => [...TABS, FEED_TAB].find((x) => x.name === n)!;
+  const visible = newHome
+    ? ['index', 'blocklist', 'feed', 'profile'].map(byName).map((x) => (x.name === 'index' ? { ...x, title: 'My Page' } : x))
+    : TABS;
+  const hiddenTabs = newHome ? ['calm', 'arcade'] : ['feed'];
+
   return (
     <Tabs
       screenOptions={{
@@ -110,7 +129,7 @@ export default function TabsLayout() {
         tabBarShowLabel: true,
       }}
     >
-      {TABS.map((tab) => (
+      {visible.map((tab) => (
         <Tabs.Screen
           key={tab.name}
           name={tab.name}
@@ -172,6 +191,9 @@ export default function TabsLayout() {
             ),
           }}
         />
+      ))}
+      {hiddenTabs.map((n) => (
+        <Tabs.Screen key={n} name={n} options={{ href: null, title: n.charAt(0).toUpperCase() + n.slice(1) }} />
       ))}
     </Tabs>
   );
