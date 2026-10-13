@@ -18,11 +18,12 @@ import { getGoonStage } from '@/components/home/GoonMascot';
 import { getLocalDateKey } from '@/utils/date';
 import { FONTS } from '@/constants/Colors';
 import { SPACING } from '@/constants/Spacing';
-import { getPack } from '@/constants/packs';
 import { Habitat, type HabitatAction } from './Habitat';
 import { Counter } from './Counter';
 import { Stamps } from './Stamps';
 import { Marquee } from './Marquee';
+import { PaperBackground } from './PaperBackground';
+import { useFloatVisible } from './FloatingCompanion';
 import { useCharacter, CHARACTER_LABELS } from './useCharacter';
 import { useFocusEffect } from 'expo-router';
 
@@ -65,12 +66,10 @@ export function MyPage() {
   const intentionDate     = useUserStore((s) => s.intentionDate);
   const setDailyIntention = useUserStore((s) => s.setDailyIntention);
 
-  const unlockedIds   = usePackStore((s) => s.unlockedIds);
-  const seenUnlockIds = usePackStore((s) => s.seenUnlockIds);
   const checkStreakUnlocks = usePackStore((s) => s.checkStreakUnlocks);
   const tapUnlock     = usePackStore((s) => s.tapUnlock);
-  const markUnlockSeen = usePackStore((s) => s.markUnlockSeen);
-  const setActivePack = usePackStore((s) => s.setActivePack);
+  const paperOverride = usePackStore((s) => s.paperOverride);
+  const floatVisible = useFloatVisible();
 
   const stage = getGoonStage(walkAways);
   const petName = CHARACTER_LABELS[char];
@@ -78,7 +77,6 @@ export function MyPage() {
 
   // Hatch: a 7-day streak (or the code, or the secret tap) opens hidden packs.
   useFocusEffect(useCallback(() => { checkStreakUnlocks(longestStreak); }, [checkStreakUnlocks, longestStreak]));
-  const newPacks = unlockedIds.filter((id) => !seenUnlockIds.includes(id) && getPack(id).id === id && id !== 'core');
 
   // Secret: tap the greeting 7 times quickly.
   const taps = useRef({ n: 0, t: 0 });
@@ -101,8 +99,13 @@ export function MyPage() {
   const look = pack.parts.page.look;
   const mono = FONTS.mono;
 
+  const paper = paperOverride !== 'auto' ? paperOverride : (pack.parts.page.paper ?? 'none');
+  const paperBase = paper !== 'none' && pack.parts.page.look.paper ? pack.parts.page.look.paper : colors.background;
+
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <View style={{ flex: 1, backgroundColor: paperBase }}>
+    <PaperBackground paper={paper} line={pack.parts.page.look.rule ?? colors.border} margin={pack.parts.page.look.margin} />
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Pressable onPress={onGreeting}>
         <Text style={[styles.hello, { color: colors.text }]}>
           {name ? `Welcome back, ${name}` : 'Welcome back'}
@@ -116,36 +119,23 @@ export function MyPage() {
         <Marquee text={pack.parts.page.marquee} color={look.lcdInk ?? '#33ff66'} bg={look.lcdBg ?? '#000'} font={mono} />
       ) : null}
 
-      {newPacks.map((id) => {
-        const p = getPack(id);
-        return (
-          <View key={id} style={[styles.card, cardStyle, { backgroundColor: colors.accentDim, borderColor: colors.accent }]}>
-            <Text style={[styles.cardTitle, { color: colors.text }]}>New skin unlocked: {p.name}</Text>
-            <Text style={[styles.cardBody, { color: colors.textSecondary }]}>{p.tagline}</Text>
-            <View style={styles.row}>
-              <Pressable
-                style={[styles.btn, { backgroundColor: colors.accent }]}
-                onPress={() => { setActivePack(id); markUnlockSeen(id); }}
-              >
-                <Text style={[styles.btnText, { color: colors.background }]}>Try it</Text>
-              </Pressable>
-              <Pressable style={[styles.btn, { borderColor: colors.border, borderWidth: 1 }]} onPress={() => markUnlockSeen(id)}>
-                <Text style={[styles.btnText, { color: colors.textSecondary }]}>Later</Text>
-              </Pressable>
-            </View>
+      {pack.parts.page.frame === 'corner' ? (
+        <Text style={[styles.cornerHint, { color: colors.textMuted }]}>
+          {floatVisible ? `${petName} is in the corner. Drag them anywhere, tap to say hi.` : `${petName} is resting. Turn them back on in Customize.`}
+        </Text>
+      ) : (
+        <>
+          <Habitat
+            pack={pack} char={char} stage={stage} petName={petName}
+            streak={streak} walkAways={walkAways}
+            onAction={(a) => setReact(REACTIONS[a])}
+          />
+          <View style={styles.mood}>
+            {pack.parts.page.frame === 'egg' && <Text style={[styles.face, { color: colors.text }]}>{react?.face ?? '(´• ω •`)'}</Text>}
+            <Text style={[styles.moodLine, { color: colors.textSecondary }]}>{react?.line ?? `${petName}: ${SAY[stage]}`}</Text>
           </View>
-        );
-      })}
-
-      <Habitat
-        pack={pack} char={char} stage={stage} petName={petName}
-        streak={streak} walkAways={walkAways}
-        onAction={(a) => setReact(REACTIONS[a])}
-      />
-      <View style={styles.mood}>
-        {pack.parts.page.frame === 'egg' && <Text style={[styles.face, { color: colors.text }]}>{react?.face ?? '(´• ω •`)'}</Text>}
-        <Text style={[styles.moodLine, { color: colors.textSecondary }]}>{react?.line ?? `${petName}: ${SAY[stage]}`}</Text>
-      </View>
+        </>
+      )}
 
       <Counter pack={pack} days={streak} />
 
@@ -194,6 +184,7 @@ export function MyPage() {
         <Text style={[styles.customizeText, { color: colors.textMuted }]}>Customize this page</Text>
       </Pressable>
     </ScrollView>
+    </View>
   );
 }
 
@@ -201,6 +192,7 @@ const styles = StyleSheet.create({
   content: { padding: SPACING.lg, gap: SPACING.md, paddingBottom: SPACING.huge },
   hello:   { fontFamily: FONTS.display, fontSize: 26 },
   sub:     { fontFamily: FONTS.body, fontSize: 13, marginTop: 2 },
+  cornerHint: { fontFamily: FONTS.body, fontSize: 12.5, textAlign: 'center' },
   mood:    { alignItems: 'center', gap: 2 },
   face:    { fontFamily: FONTS.body, fontSize: 22 },
   moodLine:{ fontFamily: FONTS.body, fontSize: 13, textAlign: 'center' },

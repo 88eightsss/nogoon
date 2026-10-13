@@ -6,13 +6,14 @@ import { validatePack } from './validate';
 import { CORE_PACK } from './core';
 import { WEBCORE_PACK } from './webcore';
 import { TOKYO_PACK } from './tokyo';
+import { NOTEBOOK_PACK } from './notebook';
 
 export * from './types';
-export { CORE_PACK, WEBCORE_PACK, TOKYO_PACK };
+export { CORE_PACK, WEBCORE_PACK, TOKYO_PACK, NOTEBOOK_PACK };
 export { packTriad } from './theme';
 export { validatePack };
 
-export const PACKS: PackManifest[] = [CORE_PACK, WEBCORE_PACK, TOKYO_PACK]
+export const PACKS: PackManifest[] = [CORE_PACK, NOTEBOOK_PACK, WEBCORE_PACK, TOKYO_PACK]
   .map((p) => (p.id === 'core' ? p : validatePack(p)))
   .filter((p): p is PackManifest => p !== null);
 

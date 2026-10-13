@@ -1,7 +1,7 @@
 import type { PackManifest } from './types';
 
-// Tokyo: Japanese-adjacent. English carries the meaning; kanji are decoration
-// (stamps, charms, fortune names). Hidden until unlocked: 7-day streak, the code
+// Tokyo: Japanese-adjacent. English carries the meaning; brush-style icons
+// (components/page/GlyphIcon) stand in for kanji, so no Japanese text is shipped. Hidden until unlocked: 7-day streak, the code
 // TOKYO, or the secret tap on the My Page greeting.
 export const TOKYO_PACK: PackManifest = {
   format: 1,
@@ -39,21 +39,21 @@ export const TOKYO_PACK: PackManifest = {
 
 export type Voice = 'gentle' | 'hype' | 'dry';
 
-// Omikuji fortunes: the gate line, one slip per gate. 4 fortunes x 3 voices.
-export const FORTUNES: { kanji: string; number: string; meaning: string; lines: Record<Voice, string> }[] = [
-  { kanji: '大吉', number: '第三番', meaning: 'great blessing', lines: {
+// Omikuji-style fortunes: the gate line, one slip per gate. 4 fortunes x 3 voices.
+export const FORTUNES: { glyph: 'sun' | 'blossom' | 'leaf' | 'sprout'; meaning: string; lines: Record<Voice, string> }[] = [
+  { glyph: 'sun', meaning: 'great blessing', lines: {
     gentle: 'Today leans your way. Whatever you came here to escape will keep.',
     hype:   'Absolute S-tier day. Close the app and go collect the win.',
     dry:    'Good luck, statistically. The feed is not part of it.' } },
-  { kanji: '中吉', number: '第七番', meaning: 'middle blessing', lines: {
+  { glyph: 'blossom', meaning: 'middle blessing', lines: {
     gentle: 'A steady day. One quiet minute now helps the whole afternoon.',
     hype:   'You are mid-quest. Do not pick up the side-scroll.',
     dry:    'Fortune says: fine. So is not opening this.' } },
-  { kanji: '小吉', number: '第十二番', meaning: 'small blessing', lines: {
+  { glyph: 'leaf', meaning: 'small blessing', lines: {
     gentle: 'A small good thing is close. Step away and you will find it.',
     hype:   'Tiny blessing, huge dub. Take it.',
     dry:    'Small luck. Still bigger than whatever is in that app.' } },
-  { kanji: '末吉', number: '第二十番', meaning: 'future blessing', lines: {
+  { glyph: 'sprout', meaning: 'future blessing', lines: {
     gentle: 'Good fortune comes later. It tends to, for people who wait.',
     hype:   'Slow start, legendary ending. Trust the arc.',
     dry:    'Luck arrives late. So does regret, if you open it.' } },

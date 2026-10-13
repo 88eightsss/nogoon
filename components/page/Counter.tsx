@@ -1,6 +1,7 @@
 // Day-streak counter, three looks: plain card, flip tiles (Tokyo), visitor counter (Webcore).
 
 import { View, Text, StyleSheet } from 'react-native';
+import Svg, { Line } from 'react-native-svg';
 import { useTheme } from '@/hooks/useTheme';
 import { FONTS } from '@/constants/Colors';
 import { SPACING } from '@/constants/Spacing';
@@ -12,6 +13,30 @@ export function nextLandmark(d: number): { next: number; prev: number } {
   const next = LANDMARKS.find((n) => n > d) ?? d + 1;
   const prev = [0, ...LANDMARKS].filter((n) => n <= d).pop() ?? 0;
   return { next, prev };
+}
+
+// Tally marks in groups of five (four strokes and a slash), capped so it stays tidy.
+function Tally({ n, color }: { n: number; color: string }) {
+  const MAX = 25;
+  const shown = Math.min(n, MAX);
+  const groups = Math.ceil(shown / 5);
+  const extra = n - shown;
+  return (
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
+      {Array.from({ length: groups }, (_, g) => {
+        const inGroup = Math.min(5, shown - g * 5);
+        return (
+          <Svg key={g} width={34} height={28}>
+            {Array.from({ length: Math.min(4, inGroup) }, (_, i) => (
+              <Line key={i} x1={5 + i * 7} y1={3} x2={5 + i * 7 + (i % 2 ? 0.8 : -0.4)} y2={25} stroke={color} strokeWidth={2.2} strokeLinecap="round" />
+            ))}
+            {inGroup === 5 && <Line x1={1} y1={21} x2={32} y2={6} stroke={color} strokeWidth={2.2} strokeLinecap="round" />}
+          </Svg>
+        );
+      })}
+      {extra > 0 && <Text style={{ color, fontFamily: FONTS.body, fontSize: 13 }}>+{extra}</Text>}
+    </View>
+  );
 }
 
 export function Counter({ pack, days }: { pack: PackManifest; days: number }) {
@@ -32,6 +57,13 @@ export function Counter({ pack, days }: { pack: PackManifest; days: number }) {
 
       {kind === 'plain' && (
         <Text style={[styles.big, { color: colors.accent }]}>{days}</Text>
+      )}
+
+      {kind === 'notebook' && (
+        <View style={{ gap: 6 }}>
+          <Text style={[styles.big, { color: look.ink ?? colors.accent }]}>Day {days}</Text>
+          <Tally n={days} color={look.ink ?? colors.accent} />
+        </View>
       )}
 
       {kind === 'tiles' && (

@@ -7,10 +7,11 @@
 
 import type { BorderId } from '@/constants/Themes';
 
-export type HabitatFrame = 'box' | 'egg' | 'window';
-export type CounterLook  = 'plain' | 'tiles' | 'visitor';
-export type StampLook    = 'chip' | 'hanko' | 'badge';
-export type GateStyle    = 'plain' | 'shrine' | 'dialog';
+export type HabitatFrame = 'box' | 'egg' | 'window' | 'corner';  // corner = companion floats as a movable widget, no box on the page
+export type CounterLook  = 'plain' | 'tiles' | 'visitor' | 'notebook';
+export type StampLook    = 'chip' | 'hanko' | 'badge' | 'checklist';
+export type GateStyle    = 'plain' | 'shrine' | 'dialog' | 'sticky';
+export type PaperStyle   = 'none' | 'ruled' | 'grid' | 'dots';
 
 // Key colors for one brightness anchor. The rest of a ThemePalette is derived
 // (constants/packs/theme.ts) and the contrast guard in Themes.ts still runs.
@@ -44,6 +45,12 @@ export type PackLook = {
   pane?:       string;  // window content pane
   hi?:         string;  // bevel highlight
   lo?:         string;  // bevel shadow
+  paper?:      string;  // notebook page
+  rule?:       string;  // notebook lines
+  margin?:     string;  // notebook margin line
+  ink?:        string;  // notebook pen
+  sticky?:     string;  // sticky note
+  stickyInk?:  string;
 };
 
 export type PackUnlock = {
@@ -69,6 +76,7 @@ export interface PackManifest {
       stamps:   StampLook;
       gate:     GateStyle;
       marquee?: string;
+      paper?:   PaperStyle;
       look:     PackLook;
     };
   };

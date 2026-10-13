@@ -9,7 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
-import { usePackStore, GATE_NOTE_MAX, type GateVoice } from '@/stores/usePackStore';
+import { usePackStore, GATE_NOTE_MAX, DEFAULT_COMPANION_POS, type GateVoice, type FloatMode, type CompanionSize, type PaperChoice } from '@/stores/usePackStore';
 import { availablePacks } from '@/constants/packs';
 import { FONTS } from '@/constants/Colors';
 import { SPACING } from '@/constants/Spacing';
@@ -17,6 +17,36 @@ import { SPACING } from '@/constants/Spacing';
 const VOICES: { id: GateVoice; label: string }[] = [
   { id: 'gentle', label: 'Gentle' }, { id: 'hype', label: 'Hype' }, { id: 'dry', label: 'Dry' },
 ];
+const FLOAT_MODES: { id: FloatMode; label: string }[] = [
+  { id: 'auto', label: 'Auto' }, { id: 'on', label: 'On' }, { id: 'off', label: 'Off' },
+];
+const SIZES: { id: CompanionSize; label: string }[] = [
+  { id: 'sm', label: 'S' }, { id: 'md', label: 'M' }, { id: 'lg', label: 'L' },
+];
+const PAPERS: { id: PaperChoice; label: string }[] = [
+  { id: 'auto', label: 'Skin default' }, { id: 'ruled', label: 'Ruled' }, { id: 'grid', label: 'Grid' },
+  { id: 'dots', label: 'Dots' }, { id: 'none', label: 'Plain' },
+];
+const ACCENTS = ['#2F4E8F', '#C2410C', '#15803D', '#7C3AED', '#DB2777', '#0E7490', '#CA8A04', '#E11D48'];
+
+function Chips<T extends string>({ items, value, onChange, colors }: {
+  items: { id: T; label: string }[]; value: T; onChange: (v: T) => void;
+  colors: { accent: string; accentDim: string; border: string; textSecondary: string };
+}) {
+  return (
+    <View style={styles.voices}>
+      {items.map((v) => (
+        <Pressable
+          key={v.id}
+          onPress={() => onChange(v.id)}
+          style={[styles.voice, { borderColor: value === v.id ? colors.accent : colors.border, backgroundColor: value === v.id ? colors.accentDim : 'transparent' }]}
+        >
+          <Text style={[styles.btnText, { color: value === v.id ? colors.accent : colors.textSecondary }]}>{v.label}</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
 
 export default function CustomizeScreen() {
   const { colors, cardStyle } = useTheme();
@@ -30,6 +60,17 @@ export default function CustomizeScreen() {
   const setGateNote   = usePackStore((s) => s.setGateNote);
   const gateVoice     = usePackStore((s) => s.gateVoice);
   const setGateVoice  = usePackStore((s) => s.setGateVoice);
+  const floatMode        = usePackStore((s) => s.floatMode);
+  const setFloatMode     = usePackStore((s) => s.setFloatMode);
+  const companionSize    = usePackStore((s) => s.companionSize);
+  const setCompanionSize = usePackStore((s) => s.setCompanionSize);
+  const companionSnap    = usePackStore((s) => s.companionSnap);
+  const setCompanionSnap = usePackStore((s) => s.setCompanionSnap);
+  const setCompanionPos  = usePackStore((s) => s.setCompanionPos);
+  const accentOverride   = usePackStore((s) => s.accentOverride);
+  const setAccentOverride = usePackStore((s) => s.setAccentOverride);
+  const paperOverride    = usePackStore((s) => s.paperOverride);
+  const setPaperOverride = usePackStore((s) => s.setPaperOverride);
 
   const [code, setCode] = useState('');
   const [codeMsg, setCodeMsg] = useState('');
@@ -89,7 +130,7 @@ export default function CustomizeScreen() {
         })}
         {!newHome && (
           <Text style={[styles.hint, { color: colors.textMuted }]}>
-            Skins recolor the whole app. Frames, counters and stamps show on the new My Page.
+            Skins recolor the whole app. Frames, counters, stamps and paper show on the new My Page. Hidden skins show a hatching egg on Home once you unlock one.
           </Text>
         )}
 
@@ -112,6 +153,47 @@ export default function CustomizeScreen() {
             </Pressable>
           </View>
           {codeMsg ? <Text style={[styles.body, { color: colors.textSecondary }]}>{codeMsg}</Text> : null}
+        </View>
+
+        <Text style={[styles.section, { color: colors.textMuted }]}>Your companion</Text>
+        <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+          <Text style={[styles.body, { color: colors.textSecondary }]}>
+            A small floating buddy you can drag anywhere. Auto turns it on with the Notebook skin and keeps the big habitat off your page.
+          </Text>
+          <Chips items={FLOAT_MODES} value={floatMode} onChange={setFloatMode} colors={colors} />
+          <Text style={[styles.body, { color: colors.textSecondary }]}>Size</Text>
+          <Chips items={SIZES} value={companionSize} onChange={setCompanionSize} colors={colors} />
+          <View style={styles.rowBetween}>
+            <Text style={[styles.body, { color: colors.textSecondary, flex: 1 }]}>Snap to the nearest corner when you let go</Text>
+            <Switch value={companionSnap} onValueChange={setCompanionSnap} trackColor={{ false: colors.border, true: colors.accent }} thumbColor="#fff" />
+          </View>
+          <Pressable onPress={() => setCompanionPos(DEFAULT_COMPANION_POS)} hitSlop={8}>
+            <Text style={[styles.btnText, { color: colors.accent }]}>Reset position</Text>
+          </Pressable>
+        </View>
+
+        <Text style={[styles.section, { color: colors.textMuted }]}>Colour & paper</Text>
+        <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+          <Text style={[styles.body, { color: colors.textSecondary }]}>Accent colour</Text>
+          <View style={styles.voices}>
+            <Pressable
+              onPress={() => setAccentOverride('')}
+              style={[styles.voice, { borderColor: accentOverride === '' ? colors.accent : colors.border }]}
+              accessibilityLabel="Use the skin's own accent"
+            >
+              <Text style={[styles.btnText, { color: accentOverride === '' ? colors.accent : colors.textSecondary }]}>Skin</Text>
+            </Pressable>
+            {ACCENTS.map((c) => (
+              <Pressable
+                key={c}
+                onPress={() => setAccentOverride(c)}
+                accessibilityLabel={`Accent ${c}`}
+                style={[styles.dot, { backgroundColor: c, borderColor: accentOverride === c ? colors.text : 'transparent' }]}
+              />
+            ))}
+          </View>
+          <Text style={[styles.body, { color: colors.textSecondary }]}>Page paper</Text>
+          <Chips items={PAPERS} value={paperOverride} onChange={setPaperOverride} colors={colors} />
         </View>
 
         <Text style={[styles.section, { color: colors.textMuted }]}>Your note at the gate</Text>
@@ -163,6 +245,7 @@ const styles = StyleSheet.create({
   noteInput: { minHeight: 76, textAlignVertical: 'top' },
   btn:     { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 999 },
   btnText: { fontFamily: FONTS.bodyBold, fontSize: 13 },
-  voices:  { flexDirection: 'row', gap: SPACING.sm },
+  voices:  { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm, alignItems: 'center' },
+  dot:     { width: 30, height: 30, borderRadius: 15, borderWidth: 2 },
   voice:   { borderWidth: 1.5, borderRadius: 999, paddingVertical: 7, paddingHorizontal: 16 },
 });

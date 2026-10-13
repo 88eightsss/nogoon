@@ -15,6 +15,12 @@ import {
 export type GateVoice = 'gentle' | 'hype' | 'dry';
 export const GATE_NOTE_MAX = 140;
 
+export type FloatMode = 'auto' | 'on' | 'off';          // auto = floating only for 'corner' skins
+export type CompanionSize = 'sm' | 'md' | 'lg';
+export type PaperChoice = 'auto' | 'none' | 'ruled' | 'grid' | 'dots';
+export type CompanionPos = { x: number; y: number };    // 0..1 within the usable screen area
+export const DEFAULT_COMPANION_POS: CompanionPos = { x: 0.85, y: 0.82 };
+
 interface PackState {
   activePackId: string;
   unlockedIds:  string[];       // hidden packs the user has opened
@@ -22,6 +28,12 @@ interface PackState {
   newHome:      boolean;        // new My Page + 4-tab layout (beta switch)
   gateNote:     string;         // personal note shown on the gate
   gateVoice:    GateVoice;
+  floatMode:    FloatMode;
+  companionSize: CompanionSize;
+  companionSnap: boolean;
+  companionPos: CompanionPos;
+  accentOverride: string;       // '' = use the skin's own accent
+  paperOverride: PaperChoice;
 
   setActivePack: (id: string) => void;
   unlockPack:    (id: string) => void;
@@ -32,6 +44,12 @@ interface PackState {
   setNewHome:    (on: boolean) => void;
   setGateNote:   (text: string) => void;
   setGateVoice:  (v: GateVoice) => void;
+  setFloatMode:  (m: FloatMode) => void;
+  setCompanionSize: (s: CompanionSize) => void;
+  setCompanionSnap: (on: boolean) => void;
+  setCompanionPos: (p: CompanionPos) => void;
+  setAccentOverride: (hex: string) => void;
+  setPaperOverride: (p: PaperChoice) => void;
 }
 
 export const usePackStore = create<PackState>()(
@@ -43,6 +61,12 @@ export const usePackStore = create<PackState>()(
       newHome: false,
       gateNote: '',
       gateVoice: 'gentle',
+      floatMode: 'auto',
+      companionSize: 'md',
+      companionSnap: true,
+      companionPos: DEFAULT_COMPANION_POS,
+      accentOverride: '',
+      paperOverride: 'auto',
 
       setActivePack: (id) => {
         const p = PACKS.find((x) => x.id === id);
@@ -82,6 +106,12 @@ export const usePackStore = create<PackState>()(
       setNewHome: (on) => set({ newHome: on }),
       setGateNote: (text) => set({ gateNote: text.slice(0, GATE_NOTE_MAX) }),
       setGateVoice: (v) => set({ gateVoice: v }),
+      setFloatMode: (m) => set({ floatMode: m }),
+      setCompanionSize: (s) => set({ companionSize: s }),
+      setCompanionSnap: (on) => set({ companionSnap: on }),
+      setCompanionPos: (p) => set({ companionPos: { x: Math.max(0, Math.min(1, p.x)), y: Math.max(0, Math.min(1, p.y)) } }),
+      setAccentOverride: (hex) => set({ accentOverride: /^#[0-9a-fA-F]{6}$/.test(hex) ? hex : '' }),
+      setPaperOverride: (p) => set({ paperOverride: p }),
     }),
     {
       name: 'nogoon-pack-store',
@@ -94,6 +124,12 @@ export const usePackStore = create<PackState>()(
         newHome: s.newHome,
         gateNote: s.gateNote,
         gateVoice: s.gateVoice,
+        floatMode: s.floatMode,
+        companionSize: s.companionSize,
+        companionSnap: s.companionSnap,
+        companionPos: s.companionPos,
+        accentOverride: s.accentOverride,
+        paperOverride: s.paperOverride,
       }),
     }
   )

@@ -4,10 +4,11 @@
 import type { PackManifest } from './types';
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
-const FRAMES  = ['box', 'egg', 'window'];
-const COUNTERS = ['plain', 'tiles', 'visitor'];
-const STAMPS  = ['chip', 'hanko', 'badge'];
-const GATES   = ['plain', 'shrine', 'dialog'];
+const FRAMES  = ['box', 'egg', 'window', 'corner'];
+const COUNTERS = ['plain', 'tiles', 'visitor', 'notebook'];
+const STAMPS  = ['chip', 'hanko', 'badge', 'checklist'];
+const GATES   = ['plain', 'shrine', 'dialog', 'sticky'];
+const PAPERS  = ['none', 'ruled', 'grid', 'dots'];
 const BORDERS = ['none', 'sharp', 'soft', 'pixel', 'glow', 'laced'];
 const COLOR_KEYS = ['background', 'surface', 'surfaceHigh', 'accent', 'accentBright', 'text', 'textSecondary', 'textMuted'];
 const OPT_COLOR_KEYS = ['protect', 'calm', 'arcade', 'me'];
@@ -37,6 +38,7 @@ export function validatePack(input: unknown): PackManifest | null {
   const p = parts.page;
   if (!FRAMES.includes(p.frame) || !COUNTERS.includes(p.counter) || !STAMPS.includes(p.stamps) || !GATES.includes(p.gate)) return null;
   if (p.marquee !== undefined && !str(p.marquee, 120)) return null;
+  if (p.paper !== undefined && !PAPERS.includes(p.paper)) return null;
   if (!isObj(p.look)) return null;
   if (!Object.values(p.look).every((v) => typeof v === 'string' && HEX.test(v))) return null;
   if (parts.theme !== undefined) {

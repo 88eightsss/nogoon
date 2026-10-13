@@ -14,6 +14,7 @@ import { FORTUNES } from '@/constants/packs/tokyo';
 import { FONTS } from '@/constants/Colors';
 import { SPACING } from '@/constants/Spacing';
 import { PackSprite } from './PackSprite';
+import { GlyphIcon } from './GlyphIcon';
 import { useCharacter } from './useCharacter';
 
 export function PackGateCard() {
@@ -33,6 +34,14 @@ export function PackGateCard() {
       <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
         <Text style={[styles.label, { color: colors.textMuted }]}>A note from you</Text>
         <Text style={[styles.note, { color: colors.text }]}>{note}</Text>
+      </View>
+    );
+  }
+
+  if (gate === 'sticky') {
+    return (
+      <View style={[styles.sticky, { backgroundColor: look.sticky ?? '#FFE98A' }]}>
+        <Text style={[styles.stickyText, { color: look.stickyInk ?? '#4A3F10' }]}>{note || 'Note to self: you made this gate for a reason.'}</Text>
       </View>
     );
   }
@@ -71,13 +80,13 @@ export function PackGateCard() {
       </Svg>
       <View style={styles.shrineRow}>
         <View style={[styles.ema, { backgroundColor: wood }]}>
-          <Text style={[styles.emaLabel, { color: woodInk }]}>絵馬</Text>
+          <GlyphIcon name="torii" size={20} color={woodInk} weight={4} />
           <PackSprite char={char} stage={getGoonStage(walkAways)} cell={4} />
           <Text style={[styles.emaNote, { color: woodInk }]}>{note || 'Write a note to future you in Customize.'}</Text>
         </View>
         <View style={styles.omi}>
           <View style={[styles.omiStripe, { backgroundColor: mark }]} />
-          {[...fortune.kanji].map((c, i) => <Text key={i} style={[styles.omiKanji, { color: mark }]}>{c}</Text>)}
+          <GlyphIcon name={fortune.glyph} size={34} color={mark} />
           <Text style={styles.omiMeaning}>{fortune.meaning}</Text>
         </View>
       </View>
@@ -90,6 +99,9 @@ const styles = StyleSheet.create({
   card:  { padding: SPACING.md, gap: 4, alignSelf: 'stretch' },
   label: { fontFamily: FONTS.bodyMedium, fontSize: 11.5, letterSpacing: 0.4 },
   note:  { fontFamily: FONTS.body, fontSize: 15, lineHeight: 21 },
+
+  sticky:  { alignSelf: 'stretch', padding: SPACING.lg, borderRadius: 2, transform: [{ rotate: '-1.5deg' }], shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
+  stickyText: { fontFamily: FONTS.body, fontSize: 16, lineHeight: 23 },
 
   win:     { alignSelf: 'stretch', borderWidth: 2, borderRightColor: '#404040', borderBottomColor: '#404040', padding: 3, gap: 6 },
   winTitle:{ height: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 6 },
@@ -107,7 +119,6 @@ const styles = StyleSheet.create({
   emaNote:   { fontFamily: FONTS.body, fontSize: 13.5, textAlign: 'center', lineHeight: 19 },
   omi:       { width: 64, backgroundColor: '#fbf7ee', borderRadius: 3, borderWidth: 1, borderColor: '#d9d0bd', alignItems: 'center', paddingBottom: 8, overflow: 'hidden' },
   omiStripe: { height: 8, alignSelf: 'stretch', marginBottom: 6 },
-  omiKanji:  { fontFamily: FONTS.bodyBold, fontSize: 26, lineHeight: 28 },
   omiMeaning:{ fontFamily: FONTS.body, fontSize: 8.5, color: '#6a5d4b', textAlign: 'center', marginTop: 4, paddingHorizontal: 3 },
   fortuneLine: { fontFamily: FONTS.body, fontSize: 13.5, textAlign: 'center', lineHeight: 19, paddingHorizontal: SPACING.sm },
 });

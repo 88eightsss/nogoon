@@ -25,11 +25,11 @@
 import { Tabs } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { Pressable, View, Text } from 'react-native';
+import { FloatingCompanion } from '@/components/page/FloatingCompanion';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeStore } from '@/stores/useThemeStore';
 import { useUserStore } from '@/stores/useUserStore';
-import { resolveThemePalette, resolveTriadPalette } from '@/constants/Themes';
-import { packTriad } from '@/constants/packs';
+import { resolveSkinPalette } from '@/constants/packs/resolve';
 import { useActivePack } from '@/hooks/usePack';
 import { usePackStore } from '@/stores/usePackStore';
 import { FONTS } from '@/constants/Colors';
@@ -41,8 +41,8 @@ export default function TabsLayout() {
   const { themeId, themeBrightness } = useThemeStore();
   const pack = useActivePack();
   const newHome = usePackStore((s) => s.newHome);
-  const triad = packTriad(pack);
-  const colors = triad ? resolveTriadPalette(triad, themeBrightness) : resolveThemePalette(themeId, themeBrightness);
+  const accentOverride = usePackStore((s) => s.accentOverride);
+  const colors = resolveSkinPalette(themeId, themeBrightness, pack, accentOverride);
   const requestGuideReopen = useUserStore((s) => s.requestGuideReopen);
 
   // Tab definitions use live theme colors — updates whenever theme changes.
@@ -113,6 +113,7 @@ export default function TabsLayout() {
   const hiddenTabs = newHome ? ['calm', 'arcade'] : ['feed'];
 
   return (
+    <View style={{ flex: 1 }}>
     <Tabs
       screenOptions={{
         headerShown: true,
@@ -196,5 +197,7 @@ export default function TabsLayout() {
         <Tabs.Screen key={n} name={n} options={{ href: null, title: n.charAt(0).toUpperCase() + n.slice(1) }} />
       ))}
     </Tabs>
+    <FloatingCompanion />
+    </View>
   );
 }

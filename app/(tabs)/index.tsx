@@ -20,6 +20,7 @@ import { useUserStore, getMinutesSaved } from '@/stores/useUserStore';
 import { getLocalDateKey } from '@/utils/date';
 import { usePackStore } from '@/stores/usePackStore';
 import { MyPage } from '@/components/page/MyPage';
+import { HatchHost } from '@/components/page/HatchHost';
 
 export default function HomeScreen() {
   const { homeMode } = useThemeStore();
@@ -59,6 +60,7 @@ export default function HomeScreen() {
 
   return (
     <>
+      <HatchHost />
       {newHome ? <MyPage /> : homeMode === 'organizer' ? <HomeOrganizer /> : <HomeCompanion />}
       <PageGuide
         page="home"

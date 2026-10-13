@@ -12,11 +12,11 @@ const toRgb = (hex: string): RGB => {
 };
 const toHex = ({ r, g, b }: RGB) =>
   '#' + [r, g, b].map((v) => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, '0')).join('');
-const mix = (a: string, b: string, t: number) => {
+export const mix = (a: string, b: string, t: number) => {
   const x = toRgb(a), y = toRgb(b);
   return toHex({ r: x.r + (y.r - x.r) * t, g: x.g + (y.g - x.g) * t, b: x.b + (y.b - x.b) * t });
 };
-const rgba = (hex: string, a: number) => {
+export const rgba = (hex: string, a: number) => {
   const { r, g, b } = toRgb(hex);
   return `rgba(${r},${g},${b},${a})`;
 };
@@ -68,4 +68,12 @@ export function packTriad(pack: PackManifest): Pick<ThemeTriad, 'dark' | 'grey' 
   };
   cache.set(key, triad);
   return triad;
+}
+
+// Re-tints any triad (a pack's or a built-in theme's) with the user's own accent color.
+export function withAccent<T extends Pick<ThemeTriad, 'dark' | 'grey' | 'light'>>(triad: T, accent: string): T {
+  const tint = (p: ThemePalette): ThemePalette => ({
+    ...p, accent, accentBright: mix(accent, '#ffffff', 0.35), accentDim: rgba(accent, 0.15),
+  });
+  return { ...triad, dark: tint(triad.dark), grey: tint(triad.grey), light: tint(triad.light) };
 }

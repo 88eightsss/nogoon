@@ -1,22 +1,18 @@
 // ─── PositiveNewsCard ─────────────────────────────────────────────────────── //
 //
 // Shown as a reward after a successful walk-away.
-// Calls the 'positive-news' Supabase edge function which fetches real
-// headlines via NewsAPI and rewrites the most uplifting one using Claude.
+// Pulls one story from today's curated batch (feed_items), falling back to the
+// 'positive-news' edge function. See lib/dailyGood.ts.
 
 import { useEffect, useState, useMemo } from 'react';
 import { View, Text, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { supabase } from '@/lib/supabase';
+import { getOneGood, type GoodItem } from '@/lib/dailyGood';
 import { FONTS } from '@/constants/Colors';
 import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 
-type NewsItem = {
-  headline: string;
-  summary: string;
-  source: string;
-};
+type NewsItem = GoodItem;
 
 type Props = {
   onDone: () => void;
@@ -30,12 +26,8 @@ export function PositiveNewsCard({ onDone }: Props) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.functions
-      .invoke('positive-news')
-      .then(({ data, error: err }) => {
-        if (err || !data?.headline) setError(true);
-        else setNews(data as NewsItem);
-      })
+    getOneGood()
+      .then((item) => { if (item) setNews(item); else setError(true); })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, []);
