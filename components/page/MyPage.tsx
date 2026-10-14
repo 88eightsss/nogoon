@@ -3,7 +3,8 @@
 // Shown instead of HomeCompanion/HomeOrganizer when the "new My Page" switch is on
 // (Me → Customize). Everything on it is real data from the existing stores; the
 // active pack only changes how it is dressed (frame, counter, stamps, colors).
-// Calm, Arcade, Breathe, Journal and Brain Bubbles are one tap away below.
+// Order: function first (day count, protection, "I'm tempted"), flair second (companion,
+// stamps). Journal / Bubbles / Insights live in the Feed tab; the pencil opens Customize.
 
 import { useCallback, useRef, useState } from 'react';
 import { ScrollView, View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
@@ -26,6 +27,10 @@ import { PaperBackground } from './PaperBackground';
 import { useFloatVisible } from './FloatingCompanion';
 import { useCharacter, CHARACTER_LABELS } from './useCharacter';
 import { useFocusEffect } from 'expo-router';
+import { useAppBlocker } from '@/hooks/useAppBlocker';
+import { describeBlockingStatus } from '@/utils/blockingStatus';
+import { TemptedSheet } from './TemptedSheet';
+import { StyleCard } from './StyleCard';
 
 type FeatherName = React.ComponentProps<typeof Feather>['name'];
 
@@ -43,12 +48,9 @@ const SAY = [
 ];
 
 const LINKS: { icon: FeatherName; label: string; go: () => void }[] = [
-  { icon: 'zap',          label: 'Take a break', go: () => router.push('/(tabs)/arcade' as any) },
-  { icon: 'wind',         label: 'Breathe',      go: () => router.push('/breathe' as any) },
-  { icon: 'book-open',    label: 'Journal',      go: () => router.push('/journal' as any) },
-  { icon: 'edit-3',       label: 'Bubbles',      go: () => router.push('/bubbles' as any) },
-  { icon: 'bar-chart-2',  label: 'Insights',     go: () => router.push('/insights' as any) },
-  { icon: 'award',        label: 'Milestones',   go: () => router.push('/milestones' as any) },
+  { icon: 'award', label: 'Milestones',   go: () => router.push('/milestones' as any) },
+  { icon: 'zap',   label: 'Take a break', go: () => router.push('/(tabs)/arcade' as any) },
+  { icon: 'moon',  label: 'Calm',         go: () => router.push('/(tabs)/calm' as any) },
 ];
 
 export function MyPage() {
@@ -70,6 +72,9 @@ export function MyPage() {
   const tapUnlock     = usePackStore((s) => s.tapUnlock);
   const paperOverride = usePackStore((s) => s.paperOverride);
   const floatVisible = useFloatVisible();
+  const { blockingStatus, openSettings } = useAppBlocker();
+  const status = describeBlockingStatus(blockingStatus, colors);
+  const [tempted, setTempted] = useState(false);
 
   const stage = getGoonStage(walkAways);
   const petName = CHARACTER_LABELS[char];
@@ -106,18 +111,58 @@ export function MyPage() {
     <View style={{ flex: 1, backgroundColor: paperBase }}>
     <PaperBackground paper={paper} line={pack.parts.page.look.rule ?? colors.border} margin={pack.parts.page.look.margin} />
     <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <Pressable onPress={onGreeting}>
-        <Text style={[styles.hello, { color: colors.text }]}>
-          {name ? `Welcome back, ${name}` : 'Welcome back'}
-        </Text>
-        <Text style={[styles.sub, { color: colors.textSecondary }]}>
-          {petName} kept watch. {savedLabel} reclaimed so far.
-        </Text>
-      </Pressable>
+      <View style={styles.headRow}>
+        <Pressable onPress={onGreeting} style={{ flex: 1 }}>
+          <Text style={[styles.hello, { color: colors.text }]}>
+            {name ? `Welcome back, ${name}` : 'Welcome back'}
+          </Text>
+          <Text style={[styles.sub, { color: colors.textSecondary }]}>
+            {savedLabel} reclaimed so far.
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={() => router.push('/customize' as any)}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel="Customize this page"
+          style={[styles.pencil, { borderColor: colors.border }]}
+        >
+          <Feather name="edit-2" size={16} color={colors.textSecondary} />
+        </Pressable>
+      </View>
 
       {pack.parts.page.marquee ? (
         <Marquee text={pack.parts.page.marquee} color={look.lcdInk ?? '#33ff66'} bg={look.lcdBg ?? '#000'} font={mono} />
       ) : null}
+
+      <Counter pack={pack} days={streak} />
+
+      <Pressable
+        onPress={() => (blockingStatus === 'off' ? openSettings() : router.push('/(tabs)/blocklist' as any))}
+        style={[styles.card, cardStyle, styles.row, { backgroundColor: colors.surface, borderColor: colors.cardBorder, alignItems: 'center' }]}
+        accessibilityRole="button"
+      >
+        <Feather name="shield" size={18} color={status.color} />
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.cardBody, { color: colors.text }]}>{status.label}</Text>
+          <Text style={[styles.cardMeta, { color: colors.textMuted }]}>
+            {blocklist.length} site{blocklist.length === 1 ? '' : 's'} · {blockedApps.length} app{blockedApps.length === 1 ? '' : 's'} guarded
+          </Text>
+        </View>
+        <Feather name="chevron-right" size={18} color={colors.textMuted} />
+      </Pressable>
+
+      <Pressable
+        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setTempted(true); }}
+        style={({ pressed }) => [styles.tempted, { backgroundColor: colors.accent, opacity: pressed ? 0.85 : 1 }]}
+        accessibilityRole="button"
+        accessibilityLabel="I'm tempted"
+      >
+        <Text style={styles.temptedText}>I'm tempted</Text>
+        <Text style={styles.temptedSub}>Tap here first. We'll get through it.</Text>
+      </Pressable>
+
+      <StyleCard />
 
       {pack.parts.page.frame === 'corner' ? (
         <Text style={[styles.cornerHint, { color: colors.textMuted }]}>
@@ -137,8 +182,6 @@ export function MyPage() {
         </>
       )}
 
-      <Counter pack={pack} days={streak} />
-
       <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
         <Text style={[styles.cardTitle, { color: colors.text }]}>Today's intention</Text>
         <TextInput
@@ -155,17 +198,6 @@ export function MyPage() {
 
       <Stamps pack={pack} best={longestStreak} />
 
-      <Pressable
-        onPress={() => router.push('/(tabs)/blocklist' as any)}
-        style={[styles.card, cardStyle, styles.row, { backgroundColor: colors.surface, borderColor: colors.cardBorder, alignItems: 'center' }]}
-      >
-        <Feather name="shield" size={18} color={colors.protect} />
-        <Text style={[styles.cardBody, { color: colors.text, flex: 1 }]}>
-          {blocklist.length} site{blocklist.length === 1 ? '' : 's'} · {blockedApps.length} app{blockedApps.length === 1 ? '' : 's'} guarded
-        </Text>
-        <Feather name="chevron-right" size={18} color={colors.textMuted} />
-      </Pressable>
-
       <View style={styles.links}>
         {LINKS.map((l) => (
           <Pressable
@@ -178,18 +210,20 @@ export function MyPage() {
           </Pressable>
         ))}
       </View>
-
-      <Pressable onPress={() => router.push('/customize' as any)} style={styles.customize}>
-        <Feather name="sliders" size={14} color={colors.textMuted} />
-        <Text style={[styles.customizeText, { color: colors.textMuted }]}>Customize this page</Text>
-      </Pressable>
     </ScrollView>
+    <TemptedSheet visible={tempted} onClose={() => setTempted(false)} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   content: { padding: SPACING.lg, gap: SPACING.md, paddingBottom: SPACING.huge },
+  headRow: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.sm },
+  pencil:  { width: 34, height: 34, borderRadius: 17, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  tempted: { borderRadius: 18, paddingVertical: 18, alignItems: 'center', gap: 2 },
+  temptedText: { fontFamily: FONTS.display, fontSize: 22, color: '#fff' },
+  temptedSub: { fontFamily: FONTS.body, fontSize: 12.5, color: '#ffffffcc' },
+  cardMeta: { fontFamily: FONTS.body, fontSize: 12, marginTop: 1 },
   hello:   { fontFamily: FONTS.display, fontSize: 26 },
   sub:     { fontFamily: FONTS.body, fontSize: 13, marginTop: 2 },
   cornerHint: { fontFamily: FONTS.body, fontSize: 12.5, textAlign: 'center' },
@@ -204,8 +238,6 @@ const styles = StyleSheet.create({
   btnText: { fontFamily: FONTS.bodyBold, fontSize: 13 },
   input:   { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, fontFamily: FONTS.body, fontSize: 14 },
   links:   { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
-  link:    { width: '31.5%', alignItems: 'center', paddingVertical: SPACING.md, gap: 6 },
+  link:    { width: '31.5%', flexGrow: 1, alignItems: 'center', paddingVertical: SPACING.md, gap: 6 },
   linkText:{ fontFamily: FONTS.bodyMedium, fontSize: 12 },
-  customize: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: SPACING.md },
-  customizeText: { fontFamily: FONTS.body, fontSize: 12.5 },
 });

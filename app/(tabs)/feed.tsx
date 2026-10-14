@@ -13,6 +13,17 @@ import { getTodaysGood, type GoodItem } from '@/lib/dailyGood';
 import { FONTS } from '@/constants/Colors';
 import { SPACING } from '@/constants/Spacing';
 
+const PROMPTS = [
+  "What's one thing you did instead of scrolling?",
+  'What were you really looking for the last time you reached for your phone?',
+  'Name one thing that went right today, however small.',
+  'What would you like to be doing with the time you got back?',
+  'Who could you message today who would be glad to hear from you?',
+  'What does your body need right now?',
+  'What is one thing you are proud of this week?',
+];
+const todaysPrompt = () => PROMPTS[Math.floor(Date.now() / 86400000) % PROMPTS.length];
+
 export default function FeedScreen() {
   const { colors, cardStyle } = useTheme();
   const [items, setItems] = useState<GoodItem[]>([]);
@@ -67,9 +78,17 @@ export default function FeedScreen() {
         </View>
       )}
 
-      <Text style={[styles.section, { color: colors.textMuted }]}>Write it out</Text>
+      <Text style={[styles.section, { color: colors.textMuted }]}>Your turn</Text>
+      <Pressable
+        onPress={() => router.push('/journal' as any)}
+        style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder, minHeight: 0 }]}
+        accessibilityRole="button"
+      >
+        <Text style={[styles.headline, styles.headlineSmall, { color: colors.text }]}>{todaysPrompt()}</Text>
+        <Text style={[styles.btnText, { color: colors.accent }]}>Write it down</Text>
+      </Pressable>
       {[
-        { icon: 'book-open' as const, label: 'Journal', body: 'Log an urge or a win.', go: () => router.push('/journal' as any) },
+        { icon: 'book-open' as const, label: 'Journal', body: 'Log an urge or a win. Everything you write stays here.', go: () => router.push('/journal' as any) },
         { icon: 'edit-3' as const,    label: 'Brain Bubbles', body: 'Dump the noise onto a canvas.', go: () => router.push('/bubbles' as any) },
         { icon: 'bar-chart-2' as const, label: 'Insights', body: 'Your patterns, kindly told.', go: () => router.push('/insights' as any) },
       ].map((r) => (

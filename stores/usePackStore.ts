@@ -25,7 +25,8 @@ interface PackState {
   activePackId: string;
   unlockedIds:  string[];       // hidden packs the user has opened
   seenUnlockIds: string[];      // unlocks the user has already been told about
-  newHome:      boolean;        // new My Page + 4-tab layout (beta switch)
+  newHome:      boolean;        // new My Page + 4-tab layout (on by default, can be switched off)
+  styleCardDismissed: boolean;  // the "make this page yours" card on My Page
   gateNote:     string;         // personal note shown on the gate
   gateVoice:    GateVoice;
   floatMode:    FloatMode;
@@ -42,6 +43,7 @@ interface PackState {
   tapUnlock:     () => PackManifest | null;
   markUnlockSeen: (id: string) => void;
   setNewHome:    (on: boolean) => void;
+  dismissStyleCard: () => void;
   setGateNote:   (text: string) => void;
   setGateVoice:  (v: GateVoice) => void;
   setFloatMode:  (m: FloatMode) => void;
@@ -58,7 +60,8 @@ export const usePackStore = create<PackState>()(
       activePackId: 'core',
       unlockedIds: [],
       seenUnlockIds: [],
-      newHome: false,
+      newHome: true,
+      styleCardDismissed: false,
       gateNote: '',
       gateVoice: 'gentle',
       floatMode: 'auto',
@@ -104,6 +107,7 @@ export const usePackStore = create<PackState>()(
 
       markUnlockSeen: (id) => set((s) => (s.seenUnlockIds.includes(id) ? s : { seenUnlockIds: [...s.seenUnlockIds, id] })),
       setNewHome: (on) => set({ newHome: on }),
+      dismissStyleCard: () => set({ styleCardDismissed: true }),
       setGateNote: (text) => set({ gateNote: text.slice(0, GATE_NOTE_MAX) }),
       setGateVoice: (v) => set({ gateVoice: v }),
       setFloatMode: (m) => set({ floatMode: m }),
@@ -122,6 +126,7 @@ export const usePackStore = create<PackState>()(
         unlockedIds: s.unlockedIds,
         seenUnlockIds: s.seenUnlockIds,
         newHome: s.newHome,
+        styleCardDismissed: s.styleCardDismissed,
         gateNote: s.gateNote,
         gateVoice: s.gateVoice,
         floatMode: s.floatMode,

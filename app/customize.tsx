@@ -1,6 +1,6 @@
 // ─── Customize ────────────────────────────────────────────────────────────────
 //
-// One place for: the new My Page switch (beta), skins (packs), a pack code, and the
+// One place for: the new My Page switch , skins (packs), a pack code, and the
 // personal note shown at the gate. Hidden packs only appear after they are unlocked.
 
 import { useState } from 'react';
@@ -95,9 +95,9 @@ export default function CustomizeScreen() {
         <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
           <View style={styles.rowBetween}>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.cardTitle, { color: colors.text }]}>New My Page (beta)</Text>
+              <Text style={[styles.cardTitle, { color: colors.text }]}>New My Page</Text>
               <Text style={[styles.body, { color: colors.textSecondary }]}>
-                Your page, a Feed tab, and Protect. Calm and Arcade move into "Take a break" on My Page. Turn it off any time.
+                Protection and "I'm tempted" up top, your companion below, and good news and journaling in the Feed tab. Turn it off any time for the classic home.
               </Text>
             </View>
             <Switch
