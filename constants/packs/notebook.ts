@@ -9,27 +9,27 @@ export const NOTEBOOK_PACK: PackManifest = {
   id: 'notebook',
   name: 'Notebook',
   tagline: 'Quiet paper. Your companion waits in the corner.',
-  version: 1,
+  version: 2,
   hidden: false,
   parts: {
     theme: {
       nativeMode: 'light',
       dark: {
-        background: '#1E2321', surface: '#262C29', surfaceHigh: '#2F3733',
-        accent: '#9CC7FF', accentBright: '#C5E0FF',
-        text: '#ECEFEA', textSecondary: '#B9C2BC', textMuted: '#8A958E',
+        background: '#13203A', surface: '#1B2A47', surfaceHigh: '#243558',
+        accent: '#8EC5FF', accentBright: '#BBDDFF',
+        text: '#EAF2FF', textSecondary: '#B4C6E4', textMuted: '#8499BD',
       },
       light: {
-        background: '#F6F1E3', surface: '#FBF8EE', surfaceHigh: '#FFFFFF',
-        accent: '#2F4E8F', accentBright: '#4A6DB3',
-        text: '#27272F', textSecondary: '#4A4A57', textMuted: '#6B6B7E',
+        background: '#EEF5FF', surface: '#FFFFFF', surfaceHigh: '#FFF9DB',
+        accent: '#1B62C2', accentBright: '#3A82E0',
+        text: '#12233D', textSecondary: '#24385A', textMuted: '#566F8D',
       },
     },
     shape: { borderId: 'soft' },
     page: {
       frame: 'corner', counter: 'notebook', stamps: 'checklist', gate: 'sticky', paper: 'ruled',
       look: {
-        paper: '#FBF8EE', rule: '#C9D6EE', margin: '#E39A9A', ink: '#2F4E8F',
+        paper: '#FFFFFF', rule: '#CFE0F5', margin: '#FF8A80', ink: '#1B62C2',
         sticky: '#FFE98A', stickyInk: '#4A3F10',
       },
     },

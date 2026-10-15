@@ -36,7 +36,7 @@ const PAPERS: { id: PaperChoice; label: string }[] = [
   { id: 'auto', label: 'Skin default' }, { id: 'ruled', label: 'Ruled' }, { id: 'grid', label: 'Grid' },
   { id: 'dots', label: 'Dots' }, { id: 'none', label: 'Plain' },
 ];
-const ACCENTS = ['#2F4E8F', '#C2410C', '#15803D', '#7C3AED', '#DB2777', '#0E7490', '#CA8A04', '#E11D48'];
+const ACCENTS = ['#1B62C2', '#0B7A44', '#FF6F61', '#7A3FD1', '#12A37F', '#DB2777', '#C2410C', '#CA8A04'];
 
 function Chips<T extends string>({ items, value, onChange, colors }: {
   items: { id: T; label: string }[]; value: T; onChange: (v: T) => void;

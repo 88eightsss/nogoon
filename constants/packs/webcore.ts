@@ -7,7 +7,7 @@ export const WEBCORE_PACK: PackManifest = {
   id: 'webcore',
   name: 'Webcore',
   tagline: 'Your own early-2000s homepage',
-  version: 1,
+  version: 2,
   hidden: false,
   parts: {
     theme: {
@@ -19,9 +19,9 @@ export const WEBCORE_PACK: PackManifest = {
         protect: '#33FFE0', calm: '#FFB366', arcade: '#C79BFF', me: '#66C2FF',
       },
       light: {
-        background: '#C0C0C0', surface: '#DFDFDF', surfaceHigh: '#FFFFFF',
-        accent: '#000080', accentBright: '#1A1AA6',
-        text: '#111111', textSecondary: '#33334D', textMuted: '#55556B',
+        background: '#BCD6F7', surface: '#E3EEFC', surfaceHigh: '#FFFFFF',
+        accent: '#1B3FA0', accentBright: '#3560D0',
+        text: '#0F1730', textSecondary: '#2B3556', textMuted: '#4A5678',
       },
     },
     shape: { borderId: 'sharp' },
@@ -29,8 +29,8 @@ export const WEBCORE_PACK: PackManifest = {
       frame: 'window', counter: 'visitor', stamps: 'badge', gate: 'dialog',
       marquee: '*** welcome to my page *** you are doing great *** no goon zone ***',
       look: {
-        winBg: '#C0C0C0', winTitle: '#000080', winTitleText: '#FFFFFF', pane: '#008080',
-        lcdBg: '#000000', lcdInk: '#33FF66', hi: '#FFFFFF', lo: '#808080', mark: '#000080',
+        winBg: '#C9DCF6', winTitle: '#1B3FA0', winTitleText: '#FFFFFF', pane: '#0FA68A',
+        lcdBg: '#000000', lcdInk: '#33FF66', hi: '#FFFFFF', lo: '#6F86B0', mark: '#1B3FA0',
       },
     },
   },
