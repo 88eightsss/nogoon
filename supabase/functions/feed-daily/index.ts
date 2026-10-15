@@ -79,6 +79,12 @@ async function askClaude(key: string, prompt: string, maxTokens = 900): Promise<
 // ── Wikipedia: "curious" (most read) + "world" (in the news) ─────────────────────────────────
 const SKIP_TITLES = /^(Main_Page|Special:|Wikipedia:|Portal:|Help:|File:|Category:|Template:|Talk:|Deaths_in_)/;
 
+// One upsert cannot touch the same (day, url) twice, and a model may pick the same story twice.
+function uniqueByUrl<T extends { url: string }>(rows: T[]): T[] {
+  const seen = new Set<string>();
+  return rows.filter((r) => (seen.has(r.url) ? false : (seen.add(r.url), true)));
+}
+
 async function wikiRows(key: string, day: string): Promise<Row[]> {
   // Yesterday (UTC): the day with complete pageview data.
   const y = new Date(Date.now() - 86400000);
@@ -119,7 +125,7 @@ async function wikiRows(key: string, day: string): Promise<Row[]> {
       if (n && p.headline && p.summary) out.push({ day, rank, headline: String(p.headline).slice(0, 140), summary: String(p.summary).slice(0, 400), source: 'Wikipedia', url: n.url!, category: 'world', section: 'world' });
     });
   }
-  return out;
+  return uniqueByUrl(out);
 }
 
 serve(async (req: Request) => {
@@ -179,14 +185,14 @@ serve(async (req: Request) => {
     const picks = JSON.parse(arr[0]) as { i: number; headline: string; summary: string; category?: string }[];
 
     const day = new Date().toISOString().slice(0, 10);
-    const rows = picks.slice(0, PICK).flatMap((p, rank) => {
+    const rows = uniqueByUrl(picks.slice(0, PICK).flatMap((p, rank) => {
       const c = pool[p.i];
       if (!c || !p.headline || !p.summary) return [];
       return [{
         day, rank, headline: p.headline.slice(0, 140), summary: p.summary.slice(0, 400),
         source: c.source, url: c.link, category: p.category ?? 'good', section: 'good',
       }];
-    });
+    }));
     if (rows.length === 0) throw new Error('no usable picks');
 
     const { error } = await admin.from('feed_items').upsert(rows, { onConflict: 'day,url' });
