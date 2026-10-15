@@ -5,6 +5,7 @@
 // CHAR_COLORS for existing importers.
 
 import type { CharacterId } from '@/stores/usePetStore';
+import { NEW_CHAR_COLORS, NEW_GRIDS, NEW_CHAR_NAMES } from './spritesNew';
 
 export type GoonStage = 0 | 1 | 2 | 3 | 4;
 
@@ -16,7 +17,7 @@ export type Pixel = 0 | 1 | 2 | 3 | 4;
 
 // ─── Color palettes per character ────────────────────────────────────────────
 
-export const CHAR_COLORS: Record<CharacterId, Record<GoonStage, Record<number, string>>> = {
+const BASE_COLORS: Record<0 | 1 | 2, Record<GoonStage, Record<number, string>>> = {
   // Buddy — slate → blue → green → purple → orange
   0: {
     0: { 1: '#94a3b8', 2: '#334155', 3: '#e2e8f0', 4: '#f8fafc' },
@@ -45,7 +46,7 @@ export const CHAR_COLORS: Record<CharacterId, Record<GoonStage, Record<number, s
 
 // ─── Sprite grids ─────────────────────────────────────────────────────────────
 
-export const GRIDS: Record<CharacterId, Record<GoonStage, Pixel[][]>> = {
+const BASE_GRIDS: Record<0 | 1 | 2, Record<GoonStage, Pixel[][]>> = {
 
   // ── Buddy — round friendly blob ─────────────────────────────────────────────
   0: {
@@ -269,3 +270,44 @@ export const GRIDS: Record<CharacterId, Record<GoonStage, Pixel[][]>> = {
     ],
   },
 };
+
+// ─── All companions (original three + Mochi, Sprout, Morel, Byte, Tama) ─────
+
+export const CHAR_COLORS: Record<CharacterId, Record<GoonStage, Record<number, string>>> = {
+  ...BASE_COLORS,
+  ...NEW_CHAR_COLORS,
+};
+
+export const GRIDS: Record<CharacterId, Record<GoonStage, Pixel[][]>> = {
+  ...BASE_GRIDS,
+  ...NEW_GRIDS,
+};
+
+export const ALL_CHARACTER_IDS: CharacterId[] = [0, 1, 2, 3, 4, 5, 6, 7];
+
+export function isCharacterId(n: unknown): n is CharacterId {
+  return typeof n === 'number' && Number.isInteger(n) && n >= 0 && n <= 7;
+}
+
+export const CHARACTER_NAMES: Record<CharacterId, string> = {
+  0: 'Buddy',
+  1: 'Nova',
+  2: 'Rex',
+  ...NEW_CHAR_NAMES,
+};
+
+export const CHARACTER_TAGS: Record<CharacterId, string> = {
+  0: 'Friendly · Grows with you',
+  1: 'Cosmic · Floats above it all',
+  2: 'Bold · Dragon energy',
+  3: 'Soft · Squishy comfort',
+  4: 'Leafy · Patient grower',
+  5: 'Quirky · Quiet forager',
+  6: 'Digital · Loves a streak',
+  7: 'Classic · Needs your care',
+};
+
+/** Neutral accent for a companion's first stage, used by pickers and the gate. */
+export function characterAccent(id: CharacterId): string {
+  return CHAR_COLORS[id][0][1];
+}

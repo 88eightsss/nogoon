@@ -24,6 +24,10 @@ import {
   Anybody_700Bold,
 } from '@expo-google-fonts/anybody';
 import {
+  BricolageGrotesque_600SemiBold,
+  BricolageGrotesque_700Bold,
+} from '@expo-google-fonts/bricolage-grotesque';
+import {
   DMSans_400Regular,
   DMSans_500Medium,
   DMSans_700Bold,
@@ -186,6 +190,8 @@ export default function RootLayout() {
   const [fontsLoaded] = useFonts({
     Anybody_400Regular,
     Anybody_700Bold,
+    BricolageGrotesque_600SemiBold,
+    BricolageGrotesque_700Bold,
     DMSans_400Regular,
     DMSans_500Medium,
     DMSans_700Bold,

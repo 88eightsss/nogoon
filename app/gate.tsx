@@ -79,6 +79,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GoonSprite, getGoonStage } from '@/components/home/GoonMascot';
 import { PackGateCard } from '@/components/page/PackGateCard';
 import { usePetStore, getPetMood, getPetSpeech, type CharacterId } from '@/stores/usePetStore';
+import { CHARACTER_NAMES } from '@/constants/sprites';
 
 // ─── Rapid re-entry options ────────────────────────────────────────────────────
 // Single empathy question on rapid re-entry. No mocking, no multi-slide cycle.
@@ -126,6 +127,11 @@ const COMPANION_ACCENT: Record<CharacterId, string> = {
   0: '#7c3aed', // purple
   1: '#0277BD', // blue
   2: '#2E7D32', // green
+  3: '#D6457E', // pink
+  4: '#1F9D55', // leaf green
+  5: '#C9402B', // morel red
+  6: '#2B6FD6', // pixel blue
+  7: '#D9822B', // amber
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -346,7 +352,7 @@ function NoGoonScreen() {
         const id = parseInt(stored, 10) as CharacterId;
         setGateCharacter(id);
         const petName = await AsyncStorage.getItem(`@nogoon_pet_name_${id}`);
-        setGatePetName(petName ?? 'Buddy');
+        setGatePetName(petName ?? CHARACTER_NAMES[id] ?? 'Buddy');
       }
     })();
   }, []);

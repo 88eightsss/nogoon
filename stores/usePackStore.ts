@@ -17,6 +17,7 @@ export const GATE_NOTE_MAX = 140;
 
 export type FloatMode = 'auto' | 'on' | 'off';          // auto = floating only for 'corner' skins
 export type CompanionSize = 'sm' | 'md' | 'lg';
+export type DayDisplay = 'number' | 'mascot' | 'hidden';   // how My Page shows the day count
 export type PaperChoice = 'auto' | 'none' | 'ruled' | 'grid' | 'dots';
 export type CompanionPos = { x: number; y: number };    // 0..1 within the usable screen area
 export const DEFAULT_COMPANION_POS: CompanionPos = { x: 0.85, y: 0.82 };
@@ -44,6 +45,8 @@ interface PackState {
   markUnlockSeen: (id: string) => void;
   setNewHome:    (on: boolean) => void;
   dismissStyleCard: () => void;
+  dayDisplay:   DayDisplay;
+  setDayDisplay: (d: DayDisplay) => void;
   showWorldNews: boolean;       // opt-in: major-news section in the Briefing (off by default)
   setShowWorldNews: (v: boolean) => void;
   setGateNote:   (text: string) => void;
@@ -110,6 +113,8 @@ export const usePackStore = create<PackState>()(
       markUnlockSeen: (id) => set((s) => (s.seenUnlockIds.includes(id) ? s : { seenUnlockIds: [...s.seenUnlockIds, id] })),
       setNewHome: (on) => set({ newHome: on }),
       dismissStyleCard: () => set({ styleCardDismissed: true }),
+      dayDisplay: 'number',
+      setDayDisplay: (d) => set({ dayDisplay: d }),
       showWorldNews: false,
       setShowWorldNews: (v) => set({ showWorldNews: v }),
       setGateNote: (text) => set({ gateNote: text.slice(0, GATE_NOTE_MAX) }),
@@ -131,6 +136,7 @@ export const usePackStore = create<PackState>()(
         seenUnlockIds: s.seenUnlockIds,
         newHome: s.newHome,
         styleCardDismissed: s.styleCardDismissed,
+        dayDisplay: s.dayDisplay,
         showWorldNews: s.showWorldNews,
         gateNote: s.gateNote,
         gateVoice: s.gateVoice,

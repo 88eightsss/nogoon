@@ -33,13 +33,14 @@ import { NETWORK_SHIELD_ENABLED } from '@/constants/features';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { GoonSprite, getGoonStage } from '@/components/home/GoonMascot';
 import { type CharacterId } from '@/stores/usePetStore';
+import { CHARACTER_NAMES, ALL_CHARACTER_IDS } from '@/constants/sprites';
 import { useUnlockedFeatures, lockHint, useProgressStore, PROGRESSIVE_UNLOCKS } from '@/stores/useProgressStore';
 import { PageGuide } from '@/components/PageGuide';
 import Constants from 'expo-constants';
 import { TimeStepper } from '@/components/TimeStepper';
 
 // ─── Companion defaults ───────────────────────────────────────────────────────
-const DEFAULT_COMPANION_NAMES: Record<CharacterId, string> = { 0: 'Buddy', 1: 'Nova', 2: 'Rex' };
+const DEFAULT_COMPANION_NAMES: Record<CharacterId, string> = CHARACTER_NAMES;
 
 // ─── Time saved calculation ───────────────────────────────────────────────────
 // Formats getMinutesSaved(walkAwayCount) — ~20 min per walk-away, see useUserStore.
@@ -457,7 +458,7 @@ export default function MeScreen() {
   useEffect(() => {
     (async () => {
       const names = { ...DEFAULT_COMPANION_NAMES };
-      for (const id of [0, 1, 2] as const) {
+      for (const id of ALL_CHARACTER_IDS) {
         const stored = await AsyncStorage.getItem(`@nogoon_pet_name_${id}`);
         if (stored) names[id] = stored;
       }
@@ -638,12 +639,12 @@ export default function MeScreen() {
         <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Companions</Text>
 
         <View style={[ctrlStyles.board, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
-          {([0, 1, 2] as const).map((id, idx) => (
+          {ALL_CHARACTER_IDS.map((id, idx) => (
             <View
               key={id}
               style={[
                 ctrlStyles.row,
-                idx < 2 ? { borderBottomColor: colors.border } : { borderBottomWidth: 0 },
+                idx < ALL_CHARACTER_IDS.length - 1 ? { borderBottomColor: colors.border } : { borderBottomWidth: 0 },
               ]}
             >
               <GoonSprite char={id} stage={companionStage} size={0.4} />

@@ -1,10 +1,8 @@
 // ─── New mascots: Mochi, Sprout, Morel, Byte, Tama ────────────────────────────
 //
-// Data only, NOT wired into the picker or stores yet (CharacterId is still 0 | 1 | 2).
-// Same format as constants/sprites.ts: 10x12 grids, pixel values 0 = empty, 1 = body,
-// 2 = dark (eyes), 3 = accent, 4 = highlight / sparkle. Five stages per mascot:
-// 0 dormant, 1 hatchling, 2 grown, 3 glowing, 4 evolved. Draft art, to be polished.
-// Wiring them in means widening CharacterId (stores/usePetStore.ts) and the picker.
+// Wired in through constants/sprites.ts (CharacterId is 0-7). Same format as sprites.ts:
+// 10x12 grids, pixel values 0 = empty, 1 = body, 2 = dark (eyes), 3 = accent, 4 = highlight.
+// Five stages per mascot: 0 dormant, 1 hatchling, 2 grown, 3 glowing, 4 evolved. Draft art.
 
 import type { GoonStage, Pixel } from './sprites';
 

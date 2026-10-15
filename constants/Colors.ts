@@ -16,9 +16,9 @@
 
 export const COLORS = {
   // ── Backgrounds ──────────────────────────────────────────────────────────────
-  background:  '#EEEEEC',           // Warm neutral gray — every screen bg
-  surface:     '#F6F6F4',           // Warm off-white — cards, panels, inputs
-  surfaceHigh: '#EAEAE7',           // Slightly elevated — selected cards, modals
+  background:  '#EAF5FF',           // Sky mist — every screen bg
+  surface:     '#FFFFFF',           // White — cards, panels, inputs
+  surfaceHigh: '#D6E8FF',           // Cloud blue — selected cards, modals
 
   // ── Brand accents ─────────────────────────────────────────────────────────────
   indigo:      '#1B5E20',           // Deep forest green — dark brand anchor
@@ -32,7 +32,7 @@ export const COLORS = {
   arcade:      '#6D28D9',           // Purple — Arcade card, distinct from all tabs
   arcadeDim:   'rgba(109,40,217,0.10)',
 
-  cyan:        '#0277BD',           // Calm blue — Profile, info, insights
+  cyan:        '#1B62C2',           // Calm blue — Profile, info, insights
   cyanDim:     'rgba(2,119,189,0.10)',
 
   // SUCCESS + brand green. Checkmarks, streak badges, correct answers.
@@ -47,13 +47,13 @@ export const COLORS = {
   hotPink:     '#AD1457',           // Deep berry — critical alerts, blocking disabled
 
   // ── Text ─────────────────────────────────────────────────────────────────────
-  textPrimary:   '#1A2E1A',         // Near-black with green tint — easy on the eyes
-  textSecondary: '#4A6741',         // Medium sage — subtitles, labels
-  textMuted:     '#6B8F65',         // Light sage — hints, timestamps, placeholders
+  textPrimary:   '#12233D',         // Midnight ink
+  textSecondary: '#24385A',         // Deep blue-slate — subtitles, labels
+  textMuted:     '#566F8D',         // Slate blue — hints, timestamps, placeholders
 
   // ── UI chrome ─────────────────────────────────────────────────────────────────
-  border:     '#C8E6C9',            // Light green border
-  cardBorder: '#B0D9B0',            // Slightly stronger card border
+  border:     '#D3E6F5',            // Pale sky border
+  cardBorder: '#C7DFF2',            // Slightly stronger card border
   overlay:    'rgba(27,46,27,0.85)',// Dark green modal overlay
 } as const;
 
@@ -62,8 +62,8 @@ export const COLORS = {
 // These names must exactly match what's registered in useFonts() in app/_layout.tsx.
 
 export const FONTS = {
-  display:       'Anybody_700Bold',
-  displayRegular:'Anybody_400Regular',
+  display:       'BricolageGrotesque_700Bold',
+  displayRegular:'BricolageGrotesque_600SemiBold',
   body:          'DMSans_400Regular',
   bodyMedium:    'DMSans_500Medium',
   bodyBold:      'DMSans_700Bold',

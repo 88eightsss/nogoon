@@ -4,12 +4,18 @@
 // personal note shown at the gate. Hidden packs only appear after they are unlocked.
 
 import { useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { STORAGE_KEY } from '@/components/home/GoonMascot';
+import { PackSprite } from '@/components/page/PackSprite';
+import { useCharacter } from '@/components/page/useCharacter';
+import { ALL_CHARACTER_IDS, CHARACTER_NAMES, CHAR_COLORS } from '@/constants/sprites';
+import type { CharacterId } from '@/stores/usePetStore';
 import { View, Text, TextInput, Pressable, ScrollView, Switch, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
-import { usePackStore, GATE_NOTE_MAX, DEFAULT_COMPANION_POS, type GateVoice, type FloatMode, type CompanionSize, type PaperChoice } from '@/stores/usePackStore';
+import { usePackStore, GATE_NOTE_MAX, DEFAULT_COMPANION_POS, type GateVoice, type FloatMode, type CompanionSize, type PaperChoice, type DayDisplay } from '@/stores/usePackStore';
 import { availablePacks } from '@/constants/packs';
 import { FONTS } from '@/constants/Colors';
 import { SPACING } from '@/constants/Spacing';
@@ -22,6 +28,9 @@ const FLOAT_MODES: { id: FloatMode; label: string }[] = [
 ];
 const SIZES: { id: CompanionSize; label: string }[] = [
   { id: 'sm', label: 'S' }, { id: 'md', label: 'M' }, { id: 'lg', label: 'L' },
+];
+const DAY_DISPLAYS: { id: DayDisplay; label: string }[] = [
+  { id: 'number', label: 'Big number' }, { id: 'mascot', label: 'On the mascot' }, { id: 'hidden', label: 'Hidden' },
 ];
 const PAPERS: { id: PaperChoice; label: string }[] = [
   { id: 'auto', label: 'Skin default' }, { id: 'ruled', label: 'Ruled' }, { id: 'grid', label: 'Grid' },
@@ -62,6 +71,15 @@ export default function CustomizeScreen() {
   const setGateNote   = usePackStore((s) => s.setGateNote);
   const gateVoice     = usePackStore((s) => s.gateVoice);
   const setGateVoice  = usePackStore((s) => s.setGateVoice);
+  const dayDisplay       = usePackStore((s) => s.dayDisplay);
+  const setDayDisplay    = usePackStore((s) => s.setDayDisplay);
+  const savedChar        = useCharacter();
+  const [pickedChar, setPickedChar] = useState<CharacterId | null>(null);
+  const activeChar = pickedChar ?? savedChar;
+  const chooseChar = (id: CharacterId) => {
+    setPickedChar(id);
+    AsyncStorage.setItem(STORAGE_KEY, String(id)).catch(() => {});
+  };
   const floatMode        = usePackStore((s) => s.floatMode);
   const setFloatMode     = usePackStore((s) => s.setFloatMode);
   const companionSize    = usePackStore((s) => s.companionSize);
@@ -176,6 +194,32 @@ export default function CustomizeScreen() {
 
         <Text style={[styles.section, { color: colors.textMuted }]}>Your companion</Text>
         <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            {ALL_CHARACTER_IDS.map((id) => {
+              const on = id === activeChar;
+              const tint = CHAR_COLORS[id][0][1];
+              return (
+                <Pressable
+                  key={id}
+                  onPress={() => chooseChar(id)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: on }}
+                  accessibilityLabel={CHARACTER_NAMES[id]}
+                  style={{
+                    flexBasis: '22%', flexGrow: 1, alignItems: 'center', paddingVertical: 8, gap: 4,
+                    borderRadius: 14, borderWidth: on ? 2 : 1,
+                    borderColor: on ? colors.accent : colors.border,
+                    backgroundColor: on ? tint + '22' : 'transparent',
+                  }}
+                >
+                  <PackSprite char={id} stage={2} cell={4} />
+                  <Text style={[styles.body, { color: on ? colors.accent : colors.textSecondary, fontSize: 12 }]}>{CHARACTER_NAMES[id]}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <Text style={[styles.body, { color: colors.textSecondary }]}>Day count</Text>
+          <Chips items={DAY_DISPLAYS} value={dayDisplay} onChange={setDayDisplay} colors={colors} />
           <Text style={[styles.body, { color: colors.textSecondary }]}>
             A small floating buddy you can drag anywhere. Auto turns it on with the Notebook skin and keeps the big habitat off your page.
           </Text>

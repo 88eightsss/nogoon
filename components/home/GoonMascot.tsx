@@ -23,7 +23,7 @@
 import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, Animated, Pressable, Modal, TextInput,
-  Switch, KeyboardAvoidingView, Platform,
+  Switch, KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
 import Svg, { Rect } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -61,17 +61,7 @@ const NEXT_AT: Record<GoonStage, number | null> = {
 // ─── Character types ──────────────────────────────────────────────────────────
 // CharacterId is defined in usePetStore and re-exported from there.
 
-const CHARACTER_NAMES: Record<CharacterId, string> = {
-  0: 'Buddy',
-  1: 'Nova',
-  2: 'Rex',
-};
-
-const CHARACTER_TAGLINES: Record<CharacterId, string> = {
-  0: 'Friendly · Grows with you',
-  1: 'Cosmic · Floats above it all',
-  2: 'Bold · Dragon energy',
-};
+const CHARACTER_TAGLINES = CHARACTER_TAGS;
 
 export const STORAGE_KEY = '@nogoon_goon_character';
 const CUSTOM_SPEECH_KEY  = '@nogoon_pet_speech';
@@ -114,7 +104,7 @@ export function usePetPokeGate() {
 const CELL = 8;
 
 // Sprite data lives in constants/sprites.ts (shared with the pack system).
-import { CHAR_COLORS, GRIDS } from '@/constants/sprites';
+import { CHAR_COLORS, GRIDS, CHARACTER_NAMES, CHARACTER_TAGS, ALL_CHARACTER_IDS, isCharacterId } from '@/constants/sprites';
 export { CHAR_COLORS };
 
 // ─── Sprite renderer ──────────────────────────────────────────────────────────
@@ -265,8 +255,9 @@ function CharacterPicker({ onPick }: { onPick: (id: CharacterId) => void }) {
           <Text style={pickerStyles.title}>Choose Your Companion</Text>
           <Text style={pickerStyles.sub}>Your Goon grows as you walk away from distractions.</Text>
 
+          <ScrollView style={{ maxHeight: 440, width: '100%' }} showsVerticalScrollIndicator={false}>
           <View style={pickerStyles.row}>
-            {([0, 1, 2] as CharacterId[]).map((id) => (
+            {ALL_CHARACTER_IDS.map((id) => (
               <Pressable
                 key={id}
                 style={pickerStyles.card}
@@ -278,6 +269,7 @@ function CharacterPicker({ onPick }: { onPick: (id: CharacterId) => void }) {
               </Pressable>
             ))}
           </View>
+          </ScrollView>
         </View>
       </View>
     </Modal>
@@ -318,11 +310,13 @@ const makePickerStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
-    gap: SPACING.md,
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
     justifyContent: 'center',
   },
   card: {
-    flex: 1,
+    flexBasis: '46%',
+    flexGrow: 1,
     alignItems: 'center',
     gap: SPACING.xs,
     backgroundColor: COLORS.background,
@@ -652,7 +646,8 @@ export function GoonMascot({ walkAwayCount, onPress }: Props) {
     ]).then(async ([charVal, speechVal, statsVal, petCountVal]) => {
       petInteractionCountRef.current = petCountVal ? Number(petCountVal) : 0;
       if (charVal !== null) {
-        const charId = Number(charVal) as CharacterId;
+        const parsed = Number(charVal);
+        const charId: CharacterId = isCharacterId(parsed) ? parsed : 0;
         setCharacter(charId);
         const nameVal = await AsyncStorage.getItem(petNameKey(charId));
         setPetName(nameVal || CHARACTER_NAMES[charId]);
@@ -908,7 +903,7 @@ export function GoonMascot({ walkAwayCount, onPress }: Props) {
 
             {/* Character switcher */}
             <View style={styles.switcherRow}>
-              {([0, 1, 2] as CharacterId[]).map((id) => {
+              {ALL_CHARACTER_IDS.map((id) => {
                 const active = id === character;
                 const btnAccent = CHAR_COLORS[id][stage][1];
                 return (
@@ -989,6 +984,7 @@ const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   },
   switcherRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: SPACING.xs,
   },
   switcherBtn: {

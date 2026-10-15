@@ -20,7 +20,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export type CharacterId = 0 | 1 | 2;
+export type CharacterId = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 // ── Decay/restore constants ────────────────────────────────────────────────────
 
@@ -51,7 +51,17 @@ const DEFAULT_CHAR_STATS: CharStats = {
   0: { ...DEFAULT_STATS },
   1: { ...DEFAULT_STATS },
   2: { ...DEFAULT_STATS },
+  3: { ...DEFAULT_STATS },
+  4: { ...DEFAULT_STATS },
+  5: { ...DEFAULT_STATS },
+  6: { ...DEFAULT_STATS },
+  7: { ...DEFAULT_STATS },
 };
+
+/** Stats for a character; installs that predate a mascot have no entry for it yet. */
+function statsOf(stats: Partial<CharStats>, id: CharacterId): PetStats {
+  return stats[id] ?? { hunger: 70, happiness: 80, energy: 100, lastSyncAt: Date.now() };
+}
 
 interface PetState {
   stats: CharStats;
@@ -80,7 +90,7 @@ export const usePetStore = create<PetState>()(
       stats: DEFAULT_CHAR_STATS,
 
       syncDecay: (charId) => {
-        const char = get().stats[charId];
+        const char = statsOf(get().stats, charId);
         const now = Date.now();
         const hoursElapsed = (now - char.lastSyncAt) / 3_600_000;
         if (hoursElapsed < 0.01) return;
@@ -100,15 +110,15 @@ export const usePetStore = create<PetState>()(
 
       feedPet: (charId) => {
         get().syncDecay(charId);
-        const char = get().stats[charId];
+        const char = statsOf(get().stats, charId);
         if (char.hunger >= 100) return false;
         set((s) => ({
           stats: {
             ...s.stats,
             [charId]: {
-              ...s.stats[charId],
-              hunger:    clamp(s.stats[charId].hunger    + FEED_HUNGER_RESTORE,  0, 100),
-              happiness: clamp(s.stats[charId].happiness + FEED_HAPPINESS_BONUS, 0, 100),
+              ...statsOf(s.stats, charId),
+              hunger:    clamp(statsOf(s.stats, charId).hunger    + FEED_HUNGER_RESTORE,  0, 100),
+              happiness: clamp(statsOf(s.stats, charId).happiness + FEED_HAPPINESS_BONUS, 0, 100),
             },
           },
         }));
@@ -121,8 +131,8 @@ export const usePetStore = create<PetState>()(
           stats: {
             ...s.stats,
             [charId]: {
-              ...s.stats[charId],
-              happiness: clamp(s.stats[charId].happiness + PET_HAPPINESS_RESTORE, 0, 100),
+              ...statsOf(s.stats, charId),
+              happiness: clamp(statsOf(s.stats, charId).happiness + PET_HAPPINESS_RESTORE, 0, 100),
             },
           },
         }));
@@ -130,15 +140,15 @@ export const usePetStore = create<PetState>()(
 
       playWithPet: (charId) => {
         get().syncDecay(charId);
-        const char = get().stats[charId];
+        const char = statsOf(get().stats, charId);
         if (char.energy < PLAY_ENERGY_COST) return false;
         set((s) => ({
           stats: {
             ...s.stats,
             [charId]: {
-              ...s.stats[charId],
-              energy:    clamp(s.stats[charId].energy    - PLAY_ENERGY_COST,       0, 100),
-              happiness: clamp(s.stats[charId].happiness + PLAY_HAPPINESS_RESTORE, 0, 100),
+              ...statsOf(s.stats, charId),
+              energy:    clamp(statsOf(s.stats, charId).energy    - PLAY_ENERGY_COST,       0, 100),
+              happiness: clamp(statsOf(s.stats, charId).happiness + PLAY_HAPPINESS_RESTORE, 0, 100),
             },
           },
         }));
@@ -158,6 +168,11 @@ export const usePetStore = create<PetState>()(
       name: 'nogoon-pet-v2',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (s) => ({ stats: s.stats }),
+      // Older installs only persisted stats for ids 0-2; keep defaults for the rest.
+      merge: (persisted, current) => ({
+        ...current,
+        stats: { ...current.stats, ...((persisted as { stats?: Partial<CharStats> } | undefined)?.stats ?? {}) },
+      }),
     },
   ),
 );

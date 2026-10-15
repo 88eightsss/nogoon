@@ -21,6 +21,7 @@ import { FONTS } from '@/constants/Colors';
 import { SPACING } from '@/constants/Spacing';
 import { Habitat, type HabitatAction } from './Habitat';
 import { Counter } from './Counter';
+import { MascotCount } from './MascotCount';
 import { Stamps } from './Stamps';
 import { Marquee } from './Marquee';
 import { PaperBackground } from './PaperBackground';
@@ -35,6 +36,9 @@ import { useEffect } from 'react';
 import { StyleCard } from './StyleCard';
 
 type FeatherName = React.ComponentProps<typeof Feather>['name'];
+
+const SUN = '#FFC21A';
+const INK = '#12233D';
 
 const REACTIONS: Record<HabitatAction, { face: string; line: string }> = {
   feed: { face: '(｡•́‿•̀｡)', line: 'Yum. Thank you for the walk.' },
@@ -59,6 +63,7 @@ export function MyPage() {
   const { colors, cardStyle } = useTheme();
   const pack = useActivePack();
   const char = useCharacter();
+  const dayDisplay = usePackStore((s) => s.dayDisplay);
 
   const name          = useUserStore((s) => s.name);
   const streak        = useUserStore((s) => s.streak);
@@ -139,7 +144,11 @@ export function MyPage() {
         <Marquee text={pack.parts.page.marquee} color={look.lcdInk ?? '#33ff66'} bg={look.lcdBg ?? '#000'} font={mono} />
       ) : null}
 
-      <Counter pack={pack} days={streak} />
+      {dayDisplay === 'mascot' ? (
+        <MascotCount char={char} stage={stage} days={streak} name={CHARACTER_LABELS[char]} />
+      ) : dayDisplay === 'number' ? (
+        <Counter pack={pack} days={streak} />
+      ) : null}
 
       <Pressable
         onPress={() => (blockingStatus === 'off' ? openSettings() : router.push('/(tabs)/blocklist' as any))}
@@ -158,7 +167,7 @@ export function MyPage() {
 
       <Pressable
         onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setTempted(true); }}
-        style={({ pressed }) => [styles.tempted, { backgroundColor: colors.accent, opacity: pressed ? 0.85 : 1 }]}
+        style={({ pressed }) => [styles.tempted, { backgroundColor: SUN, opacity: pressed ? 0.85 : 1 }]}
         accessibilityRole="button"
         accessibilityLabel="I'm tempted"
       >
@@ -237,9 +246,9 @@ const styles = StyleSheet.create({
   content: { padding: SPACING.lg, gap: SPACING.md, paddingBottom: SPACING.huge },
   headRow: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.sm },
   pencil:  { width: 34, height: 34, borderRadius: 17, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
-  tempted: { borderRadius: 18, paddingVertical: 18, alignItems: 'center', gap: 2 },
-  temptedText: { fontFamily: FONTS.display, fontSize: 22, color: '#fff' },
-  temptedSub: { fontFamily: FONTS.body, fontSize: 12.5, color: '#ffffffcc' },
+  tempted: { borderRadius: 18, paddingVertical: 18, alignItems: 'center', gap: 2, borderBottomWidth: 3, borderBottomColor: '#D99E00' },
+  temptedText: { fontFamily: FONTS.display, fontSize: 22, color: INK },
+  temptedSub: { fontFamily: FONTS.body, fontSize: 12.5, color: '#12233Dcc' },
   cardMeta: { fontFamily: FONTS.body, fontSize: 12, marginTop: 1 },
   hello:   { fontFamily: FONTS.display, fontSize: 26 },
   sub:     { fontFamily: FONTS.body, fontSize: 13, marginTop: 2 },

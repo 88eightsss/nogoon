@@ -56,6 +56,7 @@ import { isLightColor, readableOn } from '@/utils/colorLuminance';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { GoonSprite, CHAR_COLORS } from '@/components/home/GoonMascot';
 import type { CharacterId } from '@/stores/usePetStore';
+import { CHARACTER_NAMES, CHARACTER_TAGS, ALL_CHARACTER_IDS } from '@/constants/sprites';
 
 // ─── Enable button ───────────────────────────────────────────────────────────
 // Every pending setup row gets the same gently-breathing button. Its colors are
@@ -84,12 +85,8 @@ function EnableButton({ label, onPress, disabled, bg, fg, style, textStyle, dela
   );
 }
 
-const COMPANION_NAMES: Record<CharacterId, string> = { 0: 'Buddy', 1: 'Nova', 2: 'Rex' };
-const COMPANION_TAGS: Record<CharacterId, string> = {
-  0: 'Friendly · Grows with you',
-  1: 'Cosmic · Floats above it all',
-  2: 'Bold · Dragon energy',
-};
+const COMPANION_NAMES = CHARACTER_NAMES;
+const COMPANION_TAGS = CHARACTER_TAGS;
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -448,11 +445,11 @@ export default function OnboardingScreen() {
           >
             <Text style={styles.companionTitle}>Choose your{'\n'}companion</Text>
             <Text style={styles.companionSub}>
-              They grow as you walk away from distractions. You can have all three — but pick your starter.
+              They grow as you walk away from distractions. You can have them all, but pick your starter.
             </Text>
 
             <View style={styles.companionRow}>
-              {([0, 1, 2] as CharacterId[]).map((id) => {
+              {ALL_CHARACTER_IDS.map((id) => {
                 const active = id === selectedChar;
                 const accent = CHAR_COLORS[id][0][1];
                 return (
@@ -1005,11 +1002,13 @@ const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   },
   companionRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: SPACING.sm,
     width: '100%',
   },
   companionCard: {
-    flex: 1,
+    flexBasis: '22%',
+    flexGrow: 1,
     alignItems: 'center',
     backgroundColor: COLORS.surface,
     borderRadius: RADIUS.md,
