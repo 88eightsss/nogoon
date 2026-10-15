@@ -78,9 +78,15 @@ export function Counter({ pack, days }: { pack: PackManifest; days: number }) {
       )}
 
       {kind === 'visitor' && (
-        <View style={[styles.visitor, { backgroundColor: look.lcdBg ?? '#000', borderTopColor: look.lo ?? '#808080', borderLeftColor: look.lo ?? '#808080', borderRightColor: look.hi ?? '#fff', borderBottomColor: look.hi ?? '#fff' }]}>
+        <View style={[styles.visitor, { backgroundColor: look.lcdBg ?? '#0B1020' }]}>
           <Text style={[styles.visitorLabel, { color: look.lcdInk ?? '#33ff66' }]}>YOU ARE VISITOR No.</Text>
-          <Text style={[styles.visitorDigits, { color: look.lcdInk ?? '#33ff66' }]}>{digits.join(' ')}</Text>
+          <View style={styles.row}>
+            {digits.map((d, i) => (
+              <View key={i} style={[styles.vCell, { borderColor: (look.lcdInk ?? '#33ff66') + '55' }]}>
+                <Text style={[styles.visitorDigits, { color: look.lcdInk ?? '#33ff66', textShadowColor: look.lcdInk ?? '#33ff66' }]}>{d}</Text>
+              </View>
+            ))}
+          </View>
         </View>
       )}
 
@@ -100,9 +106,10 @@ const styles = StyleSheet.create({
   tile:    { flex: 1, height: 52, borderRadius: 8, backgroundColor: '#23232c', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   tileText:{ fontFamily: FONTS.monoBold, fontSize: 32, color: '#f5f1e8' },
   tileSeam:{ position: 'absolute', left: 0, right: 0, top: '50%', height: 1.5, backgroundColor: 'rgba(0,0,0,0.7)' },
-  visitor: { borderWidth: 2, paddingVertical: 8, paddingHorizontal: 12, alignItems: 'center', gap: 2 },
-  visitorLabel:  { fontFamily: FONTS.mono, fontSize: 11, letterSpacing: 1 },
-  visitorDigits: { fontFamily: FONTS.monoBold, fontSize: 30, letterSpacing: 4 },
+  visitor: { borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12, alignItems: 'center', gap: 6 },
+  visitorLabel:  { fontFamily: FONTS.mono, fontSize: 10.5, letterSpacing: 1.2 },
+  vCell:   { flex: 1, borderWidth: 1, borderRadius: 8, alignItems: 'center', paddingVertical: 4, backgroundColor: 'rgba(255,255,255,0.05)' },
+  visitorDigits: { fontFamily: FONTS.monoBold, fontSize: 28, textShadowRadius: 8, textShadowOffset: { width: 0, height: 0 } },
   caption: { fontFamily: FONTS.body, fontSize: 12.5 },
   bar:     { height: 6, borderRadius: 6, overflow: 'hidden' },
 });

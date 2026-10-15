@@ -11,6 +11,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { FONTS } from '@/constants/Colors';
 import { SPACING } from '@/constants/Spacing';
 import { PackSprite } from './PackSprite';
+import { WinFrame, WinPane, WinStatus } from './WinChrome';
 import type { PackManifest } from '@/constants/packs';
 import type { CharacterId } from '@/stores/usePetStore';
 import type { GoonStage } from '@/constants/sprites';
@@ -121,34 +122,18 @@ function Egg({ pack, char, stage, streak, hop, doHop }: Inner) {
 // ── Webcore window ──────────────────────────────────────────────────────────
 function Win({ pack, char, stage, petName, streak, walkAways, hop, doHop }: Inner) {
   const look = pack.parts.page.look;
-  const hi = look.hi ?? '#ffffff';
-  const lo = look.lo ?? '#808080';
   return (
-    <View style={[styles.win, { backgroundColor: look.winBg ?? '#C0C0C0', borderTopColor: hi, borderLeftColor: hi }]}>
-      <View style={[styles.winTitle, { backgroundColor: look.winTitle ?? '#000080' }]}>
-        <Text style={[styles.winTitleText, { color: look.winTitleText ?? '#fff' }]}>{petName.toLowerCase()}.exe</Text>
-        <View style={styles.winBtns}>
-          {['_', '□', '×'].map((g) => (
-            <View key={g} style={[styles.winBtn, { backgroundColor: look.winBg ?? '#C0C0C0', borderTopColor: hi, borderLeftColor: hi }]}>
-              <Text style={styles.winBtnText}>{g}</Text>
-            </View>
-          ))}
-        </View>
-      </View>
-      <Pressable
-        onPress={() => doHop('pet')}
-        style={[styles.winPane, { backgroundColor: look.pane ?? '#008080', borderTopColor: lo, borderLeftColor: lo, borderRightColor: hi, borderBottomColor: hi }]}
-        accessibilityLabel={`Pet ${petName}`}
-      >
-        <Animated.View style={{ transform: [{ translateY: hop }] }}>
-          <PackSprite char={char} stage={stage} cell={9} />
-        </Animated.View>
-        <Text style={styles.winPaneText}>{STAGE_NAMES[stage]}</Text>
+    <WinFrame look={look} title={`${petName.toLowerCase()}.exe`}>
+      <Pressable onPress={() => doHop('pet')} accessibilityLabel={`Pet ${petName}`}>
+        <WinPane color={look.pane ?? '#0FA68A'}>
+          <Animated.View style={{ transform: [{ translateY: hop }] }}>
+            <PackSprite char={char} stage={stage} cell={9} />
+          </Animated.View>
+          <Text style={styles.winPaneText}>{STAGE_NAMES[stage]}</Text>
+        </WinPane>
       </Pressable>
-      <View style={[styles.winStatus, { borderTopColor: lo, borderLeftColor: lo, borderRightColor: hi, borderBottomColor: hi }]}>
-        <Text style={styles.winStatusText}>Day {streak}  |  {walkAways} walk-away{walkAways === 1 ? '' : 's'}</Text>
-      </View>
-    </View>
+      <WinStatus text={`Day ${streak}  |  ${walkAways} walk-away${walkAways === 1 ? '' : 's'}`} />
+    </WinFrame>
   );
 }
 
@@ -170,14 +155,5 @@ const styles = StyleSheet.create({
   eggBtn:  { width: 34, height: 34, borderRadius: 17, borderWidth: 2, borderColor: 'rgba(0,0,0,0.22)', alignItems: 'center', justifyContent: 'center' },
   eggBtnText: { fontFamily: FONTS.monoBold, fontSize: 12, color: '#333' },
 
-  win:      { borderWidth: 2, borderRightColor: '#404040', borderBottomColor: '#404040', padding: 3, gap: 3 },
-  winTitle: { height: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 6, paddingRight: 2 },
-  winTitleText: { fontFamily: FONTS.monoBold, fontSize: 12 },
-  winBtns:  { flexDirection: 'row', gap: 2 },
-  winBtn:   { width: 18, height: 16, borderWidth: 2, borderRightColor: '#404040', borderBottomColor: '#404040', alignItems: 'center', justifyContent: 'center' },
-  winBtnText: { fontFamily: FONTS.monoBold, fontSize: 10, color: '#111', lineHeight: 12 },
-  winPane:  { borderWidth: 2, alignItems: 'center', paddingVertical: 16, gap: 8 },
   winPaneText: { fontFamily: FONTS.mono, fontSize: 12, color: '#ffffff' },
-  winStatus: { borderWidth: 1, paddingHorizontal: 6, paddingVertical: 3 },
-  winStatusText: { fontFamily: FONTS.mono, fontSize: 11, color: '#111111' },
 });

@@ -14,6 +14,7 @@ import { FORTUNES } from '@/constants/packs/tokyo';
 import { FONTS } from '@/constants/Colors';
 import { SPACING } from '@/constants/Spacing';
 import { PackSprite } from './PackSprite';
+import { WinFrame } from './WinChrome';
 import { GlyphIcon } from './GlyphIcon';
 import { useCharacter } from './useCharacter';
 
@@ -47,22 +48,17 @@ export function PackGateCard() {
   }
 
   if (gate === 'dialog') {
-    const hi = look.hi ?? '#fff';
-    const lo = look.lo ?? '#808080';
+    const accent = look.winTitle ?? '#1B3FA0';
     return (
-      <View style={[styles.win, { backgroundColor: look.winBg ?? '#C0C0C0', borderTopColor: hi, borderLeftColor: hi }]}>
-        <View style={[styles.winTitle, { backgroundColor: look.winTitle ?? '#000080' }]}>
-          <Text style={[styles.winTitleText, { color: look.winTitleText ?? '#fff' }]}>Hold on a moment</Text>
-          <Text style={[styles.winTitleText, { color: look.winTitleText ?? '#fff' }]}>×</Text>
-        </View>
+      <WinFrame look={look} title="Hold on a moment" buttons="close">
         <View style={styles.winBody}>
-          <Text style={[styles.winIcon, { color: look.winTitle ?? '#000080' }]}>?</Text>
+          <Text style={[styles.winIcon, { color: accent }]}>?</Text>
           <Text style={styles.winText}>{note || 'You made this gate. Are you sure you want to open it?'}</Text>
         </View>
-        <View style={[styles.winOk, { borderTopColor: hi, borderLeftColor: hi, borderRightColor: lo, borderBottomColor: lo }]}>
+        <View style={[styles.winOk, { backgroundColor: accent }]}>
           <Text style={styles.winOkText}>OK</Text>
         </View>
-      </View>
+      </WinFrame>
     );
   }
 
@@ -103,14 +99,11 @@ const styles = StyleSheet.create({
   sticky:  { alignSelf: 'stretch', padding: SPACING.lg, borderRadius: 2, transform: [{ rotate: '-1.5deg' }], shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
   stickyText: { fontFamily: FONTS.body, fontSize: 16, lineHeight: 23 },
 
-  win:     { alignSelf: 'stretch', borderWidth: 2, borderRightColor: '#404040', borderBottomColor: '#404040', padding: 3, gap: 6 },
-  winTitle:{ height: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 6 },
-  winTitleText: { fontFamily: FONTS.monoBold, fontSize: 12 },
   winBody: { flexDirection: 'row', gap: 10, padding: 8, alignItems: 'center' },
   winIcon: { fontFamily: FONTS.monoBold, fontSize: 28 },
   winText: { flex: 1, fontFamily: FONTS.mono, fontSize: 12.5, color: '#111', lineHeight: 18 },
-  winOk:   { alignSelf: 'center', width: 70, borderWidth: 2, borderRightColor: '#404040', borderBottomColor: '#404040', alignItems: 'center', paddingVertical: 3, marginBottom: 4 },
-  winOkText: { fontFamily: FONTS.monoBold, fontSize: 12, color: '#111' },
+  winOk:   { alignSelf: 'center', minWidth: 84, borderRadius: 999, alignItems: 'center', paddingVertical: 6, paddingHorizontal: 18, marginBottom: 4 },
+  winOkText: { fontFamily: FONTS.monoBold, fontSize: 12.5, color: '#ffffff' },
 
   shrine:    { alignItems: 'center', gap: 8, alignSelf: 'stretch' },
   shrineRow: { flexDirection: 'row', gap: 10, alignItems: 'stretch' },

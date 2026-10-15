@@ -1,13 +1,13 @@
 import type { PackManifest } from './types';
 
-// Webcore: Neocities/Geocities-era personal page. Silver bevelled windows, navy
-// title bars, a visitor counter, 88x31-style badges and a marquee.
+// Webcore: Neocities/Geocities-era personal page, modernised: glossy rounded windows,
+// bright title bars, a glowing visitor counter, 88x31-style badges and a marquee.
 export const WEBCORE_PACK: PackManifest = {
   format: 1,
   id: 'webcore',
   name: 'Webcore',
-  tagline: 'Your own early-2000s homepage',
-  version: 2,
+  tagline: 'Your early-2000s homepage, glossed up',
+  version: 3,
   hidden: false,
   parts: {
     theme: {
@@ -19,18 +19,18 @@ export const WEBCORE_PACK: PackManifest = {
         protect: '#33FFE0', calm: '#FFB366', arcade: '#C79BFF', me: '#66C2FF',
       },
       light: {
-        background: '#BCD6F7', surface: '#E3EEFC', surfaceHigh: '#FFFFFF',
-        accent: '#1B3FA0', accentBright: '#3560D0',
+        background: '#CFE3FB', surface: '#EEF5FE', surfaceHigh: '#FFFFFF',
+        accent: '#2457D6', accentBright: '#4B7BEA',
         text: '#0F1730', textSecondary: '#2B3556', textMuted: '#4A5678',
       },
     },
-    shape: { borderId: 'sharp' },
+    shape: { borderId: 'soft' },
     page: {
       frame: 'window', counter: 'visitor', stamps: 'badge', gate: 'dialog',
-      marquee: '*** welcome to my page *** you are doing great *** no goon zone ***',
+      marquee: '★ welcome to my page ★ you are doing great ★ no goon zone ★',
       look: {
-        winBg: '#C9DCF6', winTitle: '#1B3FA0', winTitleText: '#FFFFFF', pane: '#0FA68A',
-        lcdBg: '#000000', lcdInk: '#33FF66', hi: '#FFFFFF', lo: '#6F86B0', mark: '#1B3FA0',
+        winBg: '#DCEAFC', winTitle: '#2457D6', winTitleText: '#FFFFFF', pane: '#12A98E',
+        lcdBg: '#0B1226', lcdInk: '#4DFFA6', hi: '#FFFFFF', lo: '#6F86B0', mark: '#2457D6',
       },
     },
   },

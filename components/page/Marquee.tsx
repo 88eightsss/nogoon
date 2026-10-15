@@ -34,5 +34,5 @@ export function Marquee({ text, color, bg, font }: { text: string; color: string
 }
 
 const styles = StyleSheet.create({
-  wrap: { height: 24, overflow: 'hidden', justifyContent: 'center' },
+  wrap: { height: 28, borderRadius: 14, overflow: 'hidden', justifyContent: 'center' },
 });

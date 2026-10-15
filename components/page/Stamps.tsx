@@ -18,7 +18,7 @@ export const STAMPS: { n: number; glyph: GlyphName; label: string }[] = [
   { n: 30, glyph: 'mountain', label: '30 days' },
   { n: 60, glyph: 'wave',     label: '60 days' },
 ];
-const BADGE_BG = ['#000080', '#800000', '#006400', '#800080', '#806000', '#006666'];
+const BADGE_BG = ['#1B62C2', '#E8503A', '#0B7A44', '#7A3FD1', '#D98A00', '#0FA68A'];
 
 export function Stamps({ pack, best }: { pack: PackManifest; best: number }) {
   const { colors, cardStyle } = useTheme();
@@ -75,12 +75,9 @@ export function Stamps({ pack, best }: { pack: PackManifest; best: number }) {
                 <View key={s.n} style={styles.cell2}>
                   <View style={[
                     styles.badge,
-                    {
-                      backgroundColor: earned ? BADGE_BG[i % BADGE_BG.length] : '#808080',
-                      borderTopColor: look.hi ?? '#fff', borderLeftColor: look.hi ?? '#fff',
-                      borderRightColor: look.lo ?? '#404040', borderBottomColor: look.lo ?? '#404040',
-                    },
+                    { backgroundColor: earned ? BADGE_BG[i % BADGE_BG.length] : '#8A9BB5' },
                   ]}>
+                    <View style={styles.badgeGloss} pointerEvents="none" />
                     <Text style={styles.badgeText}>{earned ? `${s.label.toUpperCase()} CLEAN` : 'LOCKED'}</Text>
                   </View>
                 </View>
@@ -111,7 +108,8 @@ const styles = StyleSheet.create({
   hanko: { width: 54, height: 54, borderWidth: 3, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   dot:   { fontFamily: FONTS.bodyBold, fontSize: 19 },
   sub:   { fontFamily: FONTS.body, fontSize: 10.5 },
-  badge: { width: 88, height: 31, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  badge: { width: 88, height: 31, borderRadius: 7, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.7)', borderBottomWidth: 3, borderBottomColor: 'rgba(0,0,40,0.28)', overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  badgeGloss: { position: 'absolute', left: 0, right: 0, top: 0, height: '48%', backgroundColor: 'rgba(255,255,255,0.22)' },
   badgeText: { fontFamily: FONTS.monoBold, fontSize: 8.5, color: '#ffffff', letterSpacing: 0.5 },
   chip:  { borderWidth: 1.5, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
   chipText: { fontFamily: FONTS.bodyMedium, fontSize: 12 },
