@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Advertise on the NoGoon Wall</title>
+<meta name="description" content="Buy a spot on the NoGoon Wall: a finite board of 3,000 tiles inside a calm, anti-doomscroll app. Flat curve pricing, reviewed by hand.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ground:#EAF5FF; --card:#FFFFFF; --cloud:#D6E8FF; --ink:#12233D; --ink2:#24385A; --muted:#566F8D;
+  --line:#C7DFF2; --sky:#1B62C2; --meadow:#0B7A44; --mint:#D3F2E0; --sun:#FFC21A; --coral:#E8503A;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --ground:#0E1A2E; --card:#16263F; --cloud:#1F3556; --ink:#EAF2FF; --ink2:#B4C6E4; --muted:#8CA2C6;
+         --line:#2A4266; --sky:#7DB2FF; --meadow:#4CD08B; --mint:#12372A; --sun:#FFC21A; --coral:#FF8A78; }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:'DM Sans',system-ui,sans-serif;line-height:1.5}
+.wrap{max-width:980px;margin:0 auto;padding:32px 16px 72px;display:flex;flex-direction:column;gap:28px}
+h1,h2{font-family:'Bricolage Grotesque',system-ui,sans-serif;letter-spacing:-.4px;margin:0;text-wrap:balance}
+h1{font-size:clamp(30px,6vw,48px);line-height:1.05}
+h2{font-size:22px}
+.eyebrow{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--sky)}
+p{margin:0;color:var(--ink2);max-width:62ch}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:14px}
+.stats{display:flex;flex-wrap:wrap;gap:8px 20px;font-size:14px;color:var(--ink2)}
+.stats b{color:var(--ink)}
+.board{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--cloud)}
+canvas{display:block;cursor:crosshair}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+label{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:700;color:var(--ink2)}
+input,select,textarea{font:inherit;font-weight:400;color:var(--ink);background:var(--ground);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-height:42px}
+input[type=color]{padding:3px;min-height:42px}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible{outline:3px solid var(--sky);outline-offset:2px}
+.quote{background:var(--mint);border-radius:12px;padding:14px 16px;font-size:15px}
+.quote b{font-family:'Bricolage Grotesque',sans-serif;font-size:22px}
+.btns{display:flex;flex-wrap:wrap;gap:10px}
+button{font:inherit;font-weight:700;border:0;border-radius:999px;padding:12px 22px;cursor:pointer}
+.pay{background:var(--meadow);color:#fff}
+.alt{background:transparent;color:var(--ink);border:1px solid var(--line)}
+button:disabled{opacity:.5;cursor:not-allowed}
+.msg{font-size:14px;min-height:20px}
+.err{color:var(--coral)} .ok{color:var(--meadow)}
+.banner{background:var(--sun);color:#12233D;border-radius:12px;padding:12px 16px;font-weight:700}
+.check{flex-direction:row;align-items:flex-start;gap:10px;font-weight:400}
+.check input{min-height:0;margin-top:4px}
+ul{margin:0;padding-left:20px;color:var(--ink2);display:flex;flex-direction:column;gap:6px}
+.hp{position:absolute;left:-9999px}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header style="display:flex;flex-direction:column;gap:12px">
+    <div class="eyebrow">NoGoon · The Wall</div>
+    <h1>A small, finite board in a calm app</h1>
+    <p>NoGoon helps people step away from doomscrolling. The Wall is the one place in it where companies can be seen: 3,000 tiles, each labelled Sponsored, on a screen people choose to open. Never in the gate, never tracked.</p>
+    <div id="paidBanner" class="banner" hidden>Payment received. We review every tile by hand before it goes live, and refund you in full if we cannot approve it.</div>
+  </header>
+
+  <section class="card" aria-labelledby="pick">
+    <h2 id="pick">1. Pick your tiles</h2>
+    <div class="stats" id="stats" aria-live="polite">Loading the wall…</div>
+    <div class="board" id="boardWrap"><canvas id="board" aria-label="The wall. Click a tile to place the top-left corner of your banner." role="img"></canvas></div>
+    <div class="row">
+      <label>Width in tiles (1 to 10)<input id="w" type="number" min="1" max="10" value="4"></label>
+      <label>Height in tiles (1 to 10)<input id="h" type="number" min="1" max="10" value="2"></label>
+      <label>Term<select id="months">
+        <option value="1">1 month</option>
+        <option value="3">3 months (10% off)</option>
+        <option value="12">12 months (25% off)</option>
+      </select></label>
+    </div>
+    <div class="quote" id="quote" aria-live="polite">Click the wall to place your banner.</div>
+    <p style="font-size:14px;color:var(--muted)">Price per tile rises smoothly as the wall fills, so early tiles cost the least. No bidding. The price you see is the price you pay for your whole term.</p>
+  </section>
+
+  <section class="card" aria-labelledby="fill">
+    <h2 id="fill">2. Fill in your tile</h2>
+    <form id="form" autocomplete="on">
+      <div class="row">
+        <label>Company name<input id="company" maxlength="40" required></label>
+        <label>One line (optional)<input id="headline" maxlength="60" placeholder="What you do, in a few words"></label>
+        <label>Link (https://)<input id="url" type="url" placeholder="https://" required></label>
+        <label>Logo image link (optional, https)<input id="image_url" type="url" placeholder="https://"></label>
+        <label>Tile colour<input id="color" type="color" value="#1B62C2"></label>
+        <label>Category<select id="category" required>
+          <option value="">Choose…</option>
+          <option value="food_drink">Food and non-alcoholic drink</option>
+          <option value="local_business">Local business</option>
+          <option value="health_wellness">Health and wellness</option>
+          <option value="books_media">Books, music and film</option>
+          <option value="education">Education</option>
+          <option value="tech_tools">Tech and tools</option>
+          <option value="art_craft">Art and craft</option>
+          <option value="services">Services</option>
+          <option value="nonprofit">Non-profit</option>
+          <option value="other">Something else</option>
+        </select></label>
+        <label>Email (receipt and review updates)<input id="email" type="email" autocomplete="email" required></label>
+      </div>
+      <input class="hp" id="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <label class="check" style="margin-top:12px"><input id="agree" type="checkbox"> <span>My ad is not adult, gambling, dating, alcohol, crypto, or a social or short-video app, and everything in it is true.</span></label>
+      <div class="msg" id="msg" role="alert"></div>
+      <div class="btns">
+        <button class="pay" id="payBtn" type="submit" disabled>Pay with card</button>
+        <button class="alt" id="inqBtn" type="button">Send an inquiry instead</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="card" aria-labelledby="rules">
+    <h2 id="rules">How it works</h2>
+    <ul>
+      <li>Card payment is handled by Stripe. We never see your card.</li>
+      <li>Every tile is reviewed by hand before it goes live. If we cannot approve it, you are refunded in full.</li>
+      <li>Not accepted: adult, gambling, dating, alcohol, crypto, social and short-video apps, and anything misleading.</li>
+      <li>Tiles are labelled Sponsored. Tapping one opens your link in the browser. The app reports no tracking data to you, and uses none to place you.</li>
+      <li>NoGoon is new. We do not quote audience numbers we cannot back up; early tiles are priced for that.</li>
+      <li>Rather be invoiced? Use "Send an inquiry instead" and we will reply by email.</li>
+    </ul>
+  </section>
+</main>
+
+<script>
+(() => {
+  const SB = 'https://hadcagughbyouagwpdhq.supabase.co';
+  const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhhZGNhZ3VnaGJ5b3VhZ3dwZGhxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1ODkwNDcsImV4cCI6MjA5MTE2NTA0N30.mymHV-dateubiZ_VT_ZEe_a3pUIk23uoqqXCcMZqIR4';
+  const H = { apikey: KEY, Authorization: 'Bearer ' + KEY, 'Content-Type': 'application/json' };
+  const $ = (id) => document.getElementById(id);
+  const money = (c) => '$' + (c / 100).toFixed(2);
+  const cv = $('board'), ctx = cv.getContext('2d');
+  let stats = null, tiles = [], pos = null, free = null, cell = 12;
+
+  if (new URLSearchParams(location.search).get('paid')) $('paidBanner').hidden = false;
+
+  const rpc = (fn, args) => fetch(SB + '/rest/v1/rpc/' + fn, { method: 'POST', headers: H, body: JSON.stringify(args || {}) }).then((r) => r.json());
+  const dims = () => ({ w: Math.min(10, Math.max(1, +$('w').value || 1)), h: Math.min(10, Math.max(1, +$('h').value || 1)) });
+
+  function ink(hex) {
+    const n = parseInt(hex.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255;
+    return (0.299 * r + 0.587 * g + 0.114 * b) > 150 ? '#12233D' : '#FFFFFF';
+  }
+
+  function draw() {
+    if (!stats) return;
+    const css = getComputedStyle(document.documentElement);
+    const wrapW = $('boardWrap').clientWidth;
+    cell = Math.max(8, Math.floor(wrapW / stats.cols));
+    const W = cell * stats.cols, Hh = cell * stats.rows, dpr = window.devicePixelRatio || 1;
+    cv.width = W * dpr; cv.height = Hh * dpr; cv.style.width = W + 'px'; cv.style.height = Hh + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, Hh);
+    ctx.strokeStyle = css.getPropertyValue('--line'); ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = 0; i <= stats.cols; i++) { ctx.moveTo(i * cell + .5, 0); ctx.lineTo(i * cell + .5, Hh); }
+    for (let j = 0; j <= stats.rows; j++) { ctx.moveTo(0, j * cell + .5); ctx.lineTo(W, j * cell + .5); }
+    ctx.stroke();
+    ctx.font = '600 ' + Math.max(8, Math.min(12, cell - 2)) + 'px DM Sans, sans-serif'; ctx.textBaseline = 'middle';
+    for (const t of tiles) {
+      ctx.fillStyle = t.color; ctx.fillRect(t.x * cell + 1, t.y * cell + 1, t.w * cell - 1, t.h * cell - 1);
+      if (t.w * cell > 26) {
+        ctx.save(); ctx.beginPath(); ctx.rect(t.x * cell + 1, t.y * cell + 1, t.w * cell - 2, t.h * cell - 2); ctx.clip();
+        ctx.fillStyle = ink(t.color); ctx.fillText(t.company, t.x * cell + 4, t.y * cell + (t.h * cell) / 2); ctx.restore();
+      }
+    }
+    if (pos) {
+      const d = dims();
+      ctx.lineWidth = 2; ctx.strokeStyle = free === false ? css.getPropertyValue('--coral') : css.getPropertyValue('--meadow');
+      ctx.fillStyle = free === false ? 'rgba(232,80,58,.25)' : 'rgba(11,122,68,.25)';
+      ctx.fillRect(pos.x * cell, pos.y * cell, d.w * cell, d.h * cell);
+      ctx.strokeRect(pos.x * cell + 1, pos.y * cell + 1, d.w * cell - 2, d.h * cell - 2);
+    }
+  }
+
+  let qTimer;
+  function requote() {
+    clearTimeout(qTimer);
+    if (!pos || !stats) { $('payBtn').disabled = true; return; }
+    qTimer = setTimeout(async () => {
+      const d = dims();
+      try {
+        const q = await rpc('wall_quote', { p_x: pos.x, p_y: pos.y, p_w: d.w, p_h: d.h, p_months: +$('months').value });
+        if (q.message) throw new Error(q.message);
+        free = q.free; draw();
+        if (!q.free) { $('quote').innerHTML = 'Some of those tiles are taken, or run off the wall. Pick another spot.'; $('payBtn').disabled = true; return; }
+        $('quote').innerHTML = q.tiles + ' tile' + (q.tiles === 1 ? '' : 's') + ' at your spot: <b>' + money(q.total_cents) + '</b> for ' + q.months + ' month' + (q.months === 1 ? '' : 's') +
+          (q.discount_pct ? ' (' + q.discount_pct + '% off)' : '') + '. That is ' + money(q.per_month_cents) + ' a month before any discount.';
+        $('payBtn').disabled = false;
+      } catch (e) { $('quote').textContent = 'Could not price that right now. Try again.'; $('payBtn').disabled = true; }
+    }, 150);
+  }
+
+  cv.addEventListener('click', (e) => {
+    const r = cv.getBoundingClientRect(), d = dims();
+    pos = { x: Math.min(stats.cols - d.w, Math.max(0, Math.floor((e.clientX - r.left) / cell))), y: Math.min(stats.rows - d.h, Math.max(0, Math.floor((e.clientY - r.top) / cell))) };
+    free = null; draw(); requote();
+  });
+  ['w', 'h', 'months'].forEach((id) => $(id).addEventListener('input', () => {
+    if (pos && stats) { const d = dims(); pos.x = Math.min(pos.x, stats.cols - d.w); pos.y = Math.min(pos.y, stats.rows - d.h); }
+    free = null; draw(); requote();
+  }));
+  window.addEventListener('resize', draw);
+  $('agree').addEventListener('change', () => {});
+
+  async function load() {
+    try {
+      stats = await rpc('wall_stats');
+      tiles = await fetch(SB + '/rest/v1/wall_public?select=*', { headers: H }).then((r) => r.json());
+      if (!Array.isArray(tiles)) tiles = [];
+      $('stats').innerHTML = '<span><b>' + stats.sold.toLocaleString() + '</b> of <b>' + stats.total.toLocaleString() + '</b> tiles taken</span>' +
+        '<span>Right now: <b>' + money(stats.unit_cents_now) + '</b> per tile per month</span>' +
+        '<span>Full wall: ' + money(stats.top_cents) + ' per tile per month</span>';
+      draw();
+    } catch (e) { $('stats').textContent = 'Could not load the wall. Refresh to try again.'; }
+  }
+
+  function say(text, cls) { $('msg').className = 'msg ' + (cls || ''); $('msg').textContent = text; }
+  async function call(body) {
+    const r = await fetch(SB + '/functions/v1/wall', { method: 'POST', headers: H, body: JSON.stringify(body) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || 'Something went wrong. Try again.');
+    return j;
+  }
+
+  $('form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!pos) return say('Click the wall to pick your tiles first.', 'err');
+    const d = dims();
+    $('payBtn').disabled = true; say('Reserving your tiles…');
+    try {
+      const { url } = await call({
+        action: 'checkout', x: pos.x, y: pos.y, w: d.w, h: d.h, months: +$('months').value,
+        company: $('company').value, headline: $('headline').value, url: $('url').value, image_url: $('image_url').value,
+        color: $('color').value, category: $('category').value, email: $('email').value, agree: $('agree').checked, website: $('website').value,
+      });
+      location.href = url;
+    } catch (err) { say(err.message, 'err'); $('payBtn').disabled = false; }
+  });
+
+  $('inqBtn').addEventListener('click', async () => {
+    const company = $('company').value, email = $('email').value;
+    if (company.trim().length < 2 || !/^[^@ ]+@[^@ ]+\.[^@ ]+$/.test(email)) return say('Add your company name and email above, then tap again.', 'err');
+    const d = dims();
+    const note = pos ? 'Interested in ' + d.w + 'x' + d.h + ' tiles at (' + pos.x + ',' + pos.y + ') for ' + $('months').value + ' month(s). ' : '';
+    try {
+      await call({ action: 'inquiry', company, email, message: note + ($('headline').value || ''), website: $('website').value });
+      say('Thanks. We will email you to arrange an invoice.', 'ok');
+    } catch (err) { say(err.message, 'err'); }
+  });
+
+  load();
+})();
+</script>
+</body>
+</html>

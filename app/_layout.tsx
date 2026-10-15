@@ -394,6 +394,9 @@ export default function RootLayout() {
             }}
           />
 
+          {/* The Wall — finite sponsor board, opened on purpose from the Briefing */}
+          <Stack.Screen name="wall" options={{ animation: 'slide_from_right' }} />
+
           {/* Personal milestones / achievement badges */}
           <Stack.Screen
             name="milestones"

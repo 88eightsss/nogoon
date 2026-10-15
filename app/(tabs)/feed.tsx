@@ -123,6 +123,7 @@ export default function FeedScreen() {
         { icon: 'book-open' as const, label: 'Journal', body: 'Log an urge or a win. Everything you write stays here.', go: () => router.push('/journal' as any) },
         { icon: 'edit-3' as const,    label: 'Brain Bubbles', body: 'Dump the noise onto a canvas.', go: () => router.push('/bubbles' as any) },
         { icon: 'bar-chart-2' as const, label: 'Insights', body: 'Your patterns, kindly told.', go: () => router.push('/insights' as any) },
+        { icon: 'grid' as const,      label: 'The Wall', body: 'Sponsored. Local businesses and makers. Only when you choose to look.', go: () => router.push('/wall' as any) },
       ].map((r) => (
         <Pressable
           key={r.label}
