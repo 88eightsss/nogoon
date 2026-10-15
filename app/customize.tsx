@@ -51,6 +51,8 @@ function Chips<T extends string>({ items, value, onChange, colors }: {
 export default function CustomizeScreen() {
   const { colors, cardStyle } = useTheme();
   const newHome       = usePackStore((s) => s.newHome);
+  const showWorldNews = usePackStore((s) => s.showWorldNews);
+  const setShowWorldNews = usePackStore((s) => s.setShowWorldNews);
   const setNewHome    = usePackStore((s) => s.setNewHome);
   const activePackId  = usePackStore((s) => s.activePackId);
   const unlockedIds   = usePackStore((s) => s.unlockedIds);
@@ -103,6 +105,23 @@ export default function CustomizeScreen() {
             <Switch
               value={newHome}
               onValueChange={setNewHome}
+              trackColor={{ false: colors.border, true: colors.accent }}
+              thumbColor="#fff"
+            />
+          </View>
+        </View>
+
+        <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+          <View style={styles.rowBetween}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.cardTitle, { color: colors.text }]}>Major news in your briefing</Text>
+              <Text style={[styles.body, { color: colors.textSecondary }]}>
+                A short, calm summary of the biggest stories, a few items a day, then it ends. Off by default.
+              </Text>
+            </View>
+            <Switch
+              value={showWorldNews}
+              onValueChange={setShowWorldNews}
               trackColor={{ false: colors.border, true: colors.accent }}
               thumbColor="#fff"
             />

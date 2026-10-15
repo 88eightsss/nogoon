@@ -30,6 +30,8 @@ import { useFocusEffect } from 'expo-router';
 import { useAppBlocker } from '@/hooks/useAppBlocker';
 import { describeBlockingStatus } from '@/utils/blockingStatus';
 import { TemptedSheet } from './TemptedSheet';
+import { getTodaysGood, type GoodItem } from '@/lib/dailyGood';
+import { useEffect } from 'react';
 import { StyleCard } from './StyleCard';
 
 type FeatherName = React.ComponentProps<typeof Feather>['name'];
@@ -75,6 +77,8 @@ export function MyPage() {
   const { blockingStatus, openSettings } = useAppBlocker();
   const status = describeBlockingStatus(blockingStatus, colors);
   const [tempted, setTempted] = useState(false);
+  const [topGood, setTopGood] = useState<GoodItem | null>(null);
+  useEffect(() => { getTodaysGood().then((l) => setTopGood(l[0] ?? null)).catch(() => {}); }, []);
 
   const stage = getGoonStage(walkAways);
   const petName = CHARACTER_LABELS[char];
@@ -160,6 +164,19 @@ export function MyPage() {
       >
         <Text style={styles.temptedText}>I'm tempted</Text>
         <Text style={styles.temptedSub}>Tap here first. We'll get through it.</Text>
+      </Pressable>
+
+      <Pressable
+        onPress={() => router.push('/(tabs)/feed' as any)}
+        style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
+        accessibilityRole="button"
+        accessibilityLabel="Open today's briefing"
+      >
+        <Text style={[styles.cardMeta, { color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.6 }]}>Today's briefing</Text>
+        <Text style={[styles.cardTitle, { color: colors.text }]} numberOfLines={2}>
+          {topGood?.headline ?? 'Good news, what the world is curious about, and a prompt to write.'}
+        </Text>
+        <Text style={[styles.cardMeta, { color: colors.accent }]}>Open briefing</Text>
       </Pressable>
 
       <StyleCard />

@@ -57,7 +57,7 @@ import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { useTheme } from '@/hooks/useTheme';
 import { PageGuide } from '@/components/PageGuide';
 import { SPACING, RADIUS } from '@/constants/Spacing';
-import { ALL_GAMES, GATE_GAMES, CALM_GAMES, getGamesByCategory, type GameCategory, type GameMeta, type GameId } from '@/constants/games';
+import { ALL_GAMES, GATE_GAMES, CALM_GAMES, getGamesByCategory, isFeatured, FEATURED_GAME_IDS, type GameCategory, type GameMeta, type GameId } from '@/constants/games';
 import { AdBanner } from '@/components/ads/AdBanner';
 import { useThemeStore } from '@/stores/useThemeStore';
 import { useUnlockedFeatures, lockHint } from '@/stores/useProgressStore';
@@ -487,6 +487,7 @@ export default function ArcadeScreen() {
   const fullArcadeUnlocked = unlocked.has('fullArcade');
 
   const [showAll, setShowAll]           = useState(false);
+  const [showMore, setShowMore]         = useState(false);   // false = the short featured list
   const [sheet, setSheet]             = useState<'gate' | 'calm' | null>(null);
   const { height: winH }              = useWindowDimensions();
   const calmOnly = categoryParam === 'calm' && !showAll;
@@ -607,7 +608,7 @@ export default function ArcadeScreen() {
   const boards: Board[] = ((calmOnly
     ? ['calm']
     : ['calm', 'puzzle', 'reflex', 'skill', 'awareness']) as GameCategory[])
-    .map((key) => ({ key, label: LABELS[key], games: getGamesByCategory(key) }))
+    .map((key) => ({ key, label: LABELS[key], games: getGamesByCategory(key).filter((g) => showMore || calmOnly || isFeatured(g.id)) }))
     .filter((b) => b.games.length > 0);
 
   const gateOn = GATE_GAMES.length - disabledGateGames.filter((id) => GATE_GAMES.some((g) => g.id === id)).length;
@@ -659,7 +660,7 @@ export default function ArcadeScreen() {
         )}
 
         <BoardPager
-          key={calmOnly ? 'calm' : 'all'}
+          key={`${calmOnly ? 'calm' : 'all'}-${showMore ? 'more' : 'short'}`}
           boards={boards}
           lockedFor={(k) => k !== 'calm' && !fullArcadeUnlocked}
           lockMessage={fullArcadeUnlocked ? undefined : lockHint('fullArcade')}
@@ -669,6 +670,14 @@ export default function ArcadeScreen() {
           styles={styles}
           COLORS={COLORS}
         />
+
+        {!calmOnly && (
+          <Pressable style={styles.seeAllBtn} onPress={() => setShowMore((v) => !v)} accessibilityRole="button">
+            <Text style={styles.seeAllText}>
+              {showMore ? 'Show fewer games' : `More games (${ALL_GAMES.length - FEATURED_GAME_IDS.length}) →`}
+            </Text>
+          </Pressable>
+        )}
 
         {/* Intercept settings stay pinned under the pager; each opens a sheet */}
         {!calmOnly && (

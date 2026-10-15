@@ -44,6 +44,8 @@ interface PackState {
   markUnlockSeen: (id: string) => void;
   setNewHome:    (on: boolean) => void;
   dismissStyleCard: () => void;
+  showWorldNews: boolean;       // opt-in: major-news section in the Briefing (off by default)
+  setShowWorldNews: (v: boolean) => void;
   setGateNote:   (text: string) => void;
   setGateVoice:  (v: GateVoice) => void;
   setFloatMode:  (m: FloatMode) => void;
@@ -108,6 +110,8 @@ export const usePackStore = create<PackState>()(
       markUnlockSeen: (id) => set((s) => (s.seenUnlockIds.includes(id) ? s : { seenUnlockIds: [...s.seenUnlockIds, id] })),
       setNewHome: (on) => set({ newHome: on }),
       dismissStyleCard: () => set({ styleCardDismissed: true }),
+      showWorldNews: false,
+      setShowWorldNews: (v) => set({ showWorldNews: v }),
       setGateNote: (text) => set({ gateNote: text.slice(0, GATE_NOTE_MAX) }),
       setGateVoice: (v) => set({ gateVoice: v }),
       setFloatMode: (m) => set({ floatMode: m }),
@@ -127,6 +131,7 @@ export const usePackStore = create<PackState>()(
         seenUnlockIds: s.seenUnlockIds,
         newHome: s.newHome,
         styleCardDismissed: s.styleCardDismissed,
+        showWorldNews: s.showWorldNews,
         gateNote: s.gateNote,
         gateVoice: s.gateVoice,
         floatMode: s.floatMode,

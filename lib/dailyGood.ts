@@ -10,20 +10,31 @@ import { supabase } from '@/lib/supabase';
 import { getLocalDateKey } from '@/utils/date';
 
 export type GoodItem = { headline: string; summary: string; source: string; url?: string };
+export type Briefing = { good: GoodItem[]; curious: GoodItem[]; world: GoodItem[] };
 
-const cacheKey = () => `nogoon_feed_${getLocalDateKey()}`;
+const cacheKey = () => `nogoon_brief_${getLocalDateKey()}`;
+const EMPTY: Briefing = { good: [], curious: [], world: [] };
 
-async function fromTable(): Promise<GoodItem[]> {
-  const { data, error } = await supabase
-    .from('feed_items')
-    .select('headline, summary, source, url, day, rank')
-    .order('day', { ascending: false })
-    .order('rank', { ascending: true })
-    .limit(20);
-  if (error || !data?.length) return [];
-  const latest = data[0].day;                      // newest day that has items (today, or yesterday as a fallback)
-  return data.filter((r) => r.day === latest).slice(0, 5)
-    .map((r) => ({ headline: r.headline, summary: r.summary, source: r.source ?? '', url: r.url }));
+type Row = { headline: string; summary: string; source: string | null; url: string; day: string; rank: number; section?: string };
+const toItem = (r: Row): GoodItem => ({ headline: r.headline, summary: r.summary, source: r.source ?? '', url: r.url });
+
+async function fromTable(): Promise<Briefing> {
+  // `section` exists after the 20261015 migration; fall back to the old shape if it does not.
+  let res = await supabase.from('feed_items').select('headline, summary, source, url, day, rank, section')
+    .order('day', { ascending: false }).order('rank', { ascending: true }).limit(40);
+  if (res.error) {
+    res = await supabase.from('feed_items').select('headline, summary, source, url, day, rank')
+      .order('day', { ascending: false }).order('rank', { ascending: true }).limit(20) as typeof res;
+  }
+  const data = res.data as Row[] | null;
+  if (res.error || !data?.length) return EMPTY;
+  // Newest day that has good news (today, or yesterday as a fallback); other sections use their own newest day.
+  const newest = (section: string) => {
+    const rows = data.filter((r) => (r.section ?? 'good') === section);
+    if (!rows.length) return [] as GoodItem[];
+    return rows.filter((r) => r.day === rows[0].day).slice(0, section === 'good' ? 5 : 4).map(toItem);
+  };
+  return { good: newest('good'), curious: newest('curious'), world: newest('world') };
 }
 
 async function fromFunction(): Promise<GoodItem[]> {
@@ -32,22 +43,26 @@ async function fromFunction(): Promise<GoodItem[]> {
   return [{ headline: data.headline, summary: data.summary ?? '', source: data.source ?? '' }];
 }
 
-/** Today's good things (1–5). Empty array means nothing could be loaded. */
-export async function getTodaysGood(): Promise<GoodItem[]> {
+/** Today's briefing (all sections, cached per local day). Sections can be empty. */
+export async function getTodaysBriefing(): Promise<Briefing> {
   try {
     const cached = await AsyncStorage.getItem(cacheKey());
     if (cached) {
-      const parsed = JSON.parse(cached);
-      const list = (Array.isArray(parsed) ? parsed : [parsed]) as GoodItem[];   // old cache held a single object
-      if (list.length) return list;
+      const b = JSON.parse(cached) as Briefing;
+      if (b?.good?.length || b?.curious?.length || b?.world?.length) return { ...EMPTY, ...b };
     }
   } catch { /* ignore bad cache */ }
 
-  let items: GoodItem[] = [];
-  try { items = await fromTable(); } catch { /* fall through */ }
-  if (!items.length) { try { items = await fromFunction(); } catch { /* fall through */ } }
-  if (items.length) AsyncStorage.setItem(cacheKey(), JSON.stringify(items)).catch(() => {});
-  return items;
+  let b: Briefing = EMPTY;
+  try { b = await fromTable(); } catch { /* fall through */ }
+  if (!b.good.length) { try { b = { ...b, good: await fromFunction() }; } catch { /* fall through */ } }
+  if (b.good.length || b.curious.length || b.world.length) AsyncStorage.setItem(cacheKey(), JSON.stringify(b)).catch(() => {});
+  return b;
+}
+
+/** Today's good things (1–5). Empty array means nothing could be loaded. */
+export async function getTodaysGood(): Promise<GoodItem[]> {
+  return (await getTodaysBriefing()).good;
 }
 
 /** A single item, for the walk-away reward card. Rotates through today's list. */

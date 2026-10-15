@@ -253,6 +253,17 @@ export const GATE_GAMES = ALL_GAMES.filter((g) => g.category !== 'awareness' && 
  *  can opt individual ones in via toggleCalmGateGame / enabledCalmGateGames. */
 export const CALM_GAMES = ALL_GAMES.filter((g) => g.category === 'calm');
 
+/** The short list shown by default. Everything else is still in the app under "More games"
+ *  (and every game stays available to the intercept pool); this only trims what you browse. */
+export const FEATURED_GAME_IDS: readonly string[] = [
+  'breathing', 'grounding', 'intention', 'warp',      // calm: the mission
+  'twentyfortyeight', 'memory',                        // puzzle
+  'snakegame',                                         // reflex
+  'stack',                                             // skill
+  'spotsponsored',                                     // awareness: ad literacy
+];
+export const isFeatured = (id: string) => FEATURED_GAME_IDS.includes(id);
+
 /** Games grouped by category — for arcade.tsx section rendering. */
 export function getGamesByCategory(cat: GameCategory): readonly GameMeta[] {
   return ALL_GAMES.filter((g) => g.category === cat);

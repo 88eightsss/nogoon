@@ -99,16 +99,16 @@ export default function TabsLayout() {
     },
   ];
 
-  // New layout (beta switch in Me → Customize): My Page, Protect, Feed, Me. Calm and
+  // New layout (switch in Me → Customize): Today, Protect, Briefing, Me. Calm and
   // Arcade stay as routes (reachable from My Page) but leave the tab bar; the old
   // layout hides Feed instead.
   const FEED_TAB = {
-    name: 'feed', title: 'Feed', icon: 'mail' as FeatherName,
+    name: 'feed', title: 'Briefing', icon: 'sunrise' as FeatherName,
     color: colors.calm, pillBg: colors.warningDim, guidePage: 'feed',
   };
   const byName = (n: string) => [...TABS, FEED_TAB].find((x) => x.name === n)!;
   const visible = newHome
-    ? ['index', 'blocklist', 'feed', 'profile'].map(byName).map((x) => (x.name === 'index' ? { ...x, title: 'My Page' } : x))
+    ? ['index', 'blocklist', 'feed', 'profile'].map(byName).map((x) => (x.name === 'index' ? { ...x, title: 'Today' } : x))
     : TABS;
   const hiddenTabs = newHome ? ['calm', 'arcade'] : ['feed'];
 

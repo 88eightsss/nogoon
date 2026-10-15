@@ -1,15 +1,19 @@
-// ─── Feed — one good thing a day ──────────────────────────────────────────────
+// ─── Briefing — the calm daily replacement for the feed ───────────────────────
 //
-// A calm destination tab (new layout only). Shows today's finite batch (up to five) of
-// positive stories from the `feed_items` table, with a link out to each source. Falls back to
-// the older `positive-news` function. Cached per day. Journal and Brain Bubbles live here too.
+// A finite, once-a-day destination (new layout only). Sections, each with a hard cap:
+//   Good news          up to 5 uplifting stories
+//   What people are looking up   up to 4 most-read topics (Wikipedia), described in plain words
+//   Major news         up to 4 calm summaries, ONLY if the user opted in (Me > Customize)
+//   Your turn          a journal prompt, then Journal / Brain Bubbles / Insights
+// Every item links to its source. When the sections end, the briefing ends.
 
 import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, View, Text, Pressable, ActivityIndicator, Linking, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
-import { getTodaysGood, type GoodItem } from '@/lib/dailyGood';
+import { getTodaysBriefing, type Briefing, type GoodItem } from '@/lib/dailyGood';
+import { usePackStore } from '@/stores/usePackStore';
 import { FONTS } from '@/constants/Colors';
 import { SPACING } from '@/constants/Spacing';
 
@@ -26,51 +30,79 @@ const todaysPrompt = () => PROMPTS[Math.floor(Date.now() / 86400000) % PROMPTS.l
 
 export default function FeedScreen() {
   const { colors, cardStyle } = useTheme();
-  const [items, setItems] = useState<GoodItem[]>([]);
+  const showWorldNews = usePackStore((s) => s.showWorldNews);
+  const [brief, setBrief] = useState<Briefing>({ good: [], curious: [], world: [] });
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true); setFailed(false);
-    const list = await getTodaysGood();
-    setItems(list);
-    setFailed(list.length === 0);
+    const b = await getTodaysBriefing();
+    setBrief(b);
+    setFailed(b.good.length + b.curious.length + b.world.length === 0);
     setLoading(false);
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
+  const open = (url?: string) => { if (url) Linking.openURL(url).catch(() => {}); };
+
+  const Story = ({ item, big }: { item: GoodItem; big?: boolean }) => (
+    <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder, minHeight: 0 }]}>
+      <Text style={[styles.headline, !big && styles.headlineSmall, { color: colors.text }]}>{item.headline}</Text>
+      <Text style={[styles.body, { color: colors.textSecondary }]}>{item.summary}</Text>
+      <View style={styles.sourceRow}>
+        {item.source ? <Text style={[styles.source, { color: colors.textMuted }]}>{item.source}</Text> : <View />}
+        {item.url ? (
+          <Pressable onPress={() => open(item.url)} hitSlop={8} accessibilityRole="link" accessibilityLabel={`Read more from ${item.source}`}>
+            <Text style={[styles.btnText, { color: colors.accent }]}>Read more</Text>
+          </Pressable>
+        ) : null}
+      </View>
+    </View>
+  );
+
+  const Section = ({ title, hint, items }: { title: string; hint?: string; items: GoodItem[] }) => (
+    items.length === 0 ? null : (
+      <View style={{ gap: SPACING.sm }}>
+        <View>
+          <Text style={[styles.section, { color: colors.textMuted }]}>{title}</Text>
+          {hint ? <Text style={[styles.sub, { color: colors.textMuted }]}>{hint}</Text> : null}
+        </View>
+        {items.map((it, i) => <Story key={`${it.headline}-${i}`} item={it} big={title === 'Good news' && i === 0} />)}
+      </View>
+    )
+  );
+
+  const total = brief.good.length + brief.curious.length + (showWorldNews ? brief.world.length : 0);
+
   return (
     <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={styles.content}>
-      <Text style={[styles.title, { color: colors.text }]}>One good thing today</Text>
-      <Text style={[styles.sub, { color: colors.textSecondary }]}>A small batch arrives each day. When it's done, it's done.</Text>
+      <Text style={[styles.title, { color: colors.text }]}>Today's briefing</Text>
+      <Text style={[styles.sub, { color: colors.textSecondary }]}>A small batch, once a day. When it's done, it's done.</Text>
 
       {loading && (
         <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
           <ActivityIndicator color={colors.accent} />
         </View>
       )}
-      {!loading && items.map((item, i) => (
-        <View key={`${item.headline}-${i}`} style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
-          <Text style={[styles.headline, i > 0 && styles.headlineSmall, { color: colors.text }]}>{item.headline}</Text>
-          <Text style={[styles.body, { color: colors.textSecondary }]}>{item.summary}</Text>
-          <View style={styles.sourceRow}>
-            {item.source ? <Text style={[styles.source, { color: colors.textMuted }]}>{item.source}</Text> : <View />}
-            {item.url ? (
-              <Pressable onPress={() => Linking.openURL(item.url!).catch(() => {})} hitSlop={8} accessibilityRole="link" accessibilityLabel={`Read the full story from ${item.source}`}>
-                <Text style={[styles.btnText, { color: colors.accent }]}>Read more</Text>
-              </Pressable>
-            ) : null}
-          </View>
-        </View>
-      ))}
-      {!loading && items.length > 0 && (
+
+      {!loading && <Section title="Good news" items={brief.good} />}
+      {!loading && <Section title="What people are looking up" hint="The topics the world got curious about yesterday." items={brief.curious} />}
+      {!loading && showWorldNews && <Section title="Major news" hint="Calm and factual. A few items, then it ends." items={brief.world} />}
+      {!loading && !showWorldNews && (
+        <Pressable onPress={() => router.push('/customize' as any)} accessibilityRole="button">
+          <Text style={[styles.sub, { color: colors.textMuted }]}>Major news is off. You can add a short, calm summary in Customize.</Text>
+        </Pressable>
+      )}
+
+      {!loading && total > 0 && (
         <Text style={[styles.sub, { color: colors.textMuted, textAlign: 'center' }]}>That's everything for today. See you tomorrow.</Text>
       )}
       {!loading && failed && (
         <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
           <Text style={[styles.body, { color: colors.textSecondary }]}>
-            Couldn't fetch today's good news. Good things are still happening out there, and you're protecting your time.
+            Couldn't fetch today's briefing. Good things are still happening out there, and you're protecting your time.
           </Text>
           <Pressable onPress={load} style={[styles.btn, { borderColor: colors.border }]}>
             <Text style={[styles.btnText, { color: colors.text }]}>Try again</Text>

@@ -19,6 +19,12 @@
 //
 // Deploy with --no-verify-jwt (the cron secret is the gate): supabase functions deploy feed-daily --no-verify-jwt
 //
+// Briefing sections (one run writes all three; each is independent, so one failing never blocks the others):
+//   good    — positive RSS stories (above)
+//   curious — most-read Wikipedia articles of yesterday: what people are looking up
+//   world   — Wikipedia "In the news": a calm, factual look at major events (shown only if the user opts in)
+// Wikipedia data comes from the free Wikimedia Feed API (api.wikimedia.org/feed/v1). Be polite: one call a day, with a User-Agent.
+//
 // Before shipping, check each feed's terms. We store a headline, our own one-to-two sentence
 // summary, the outlet name and a link back. We never copy article text.
 
@@ -55,6 +61,67 @@ function parseRss(xml: string, source: string): Candidate[] {
   });
 }
 
+type Row = { day: string; rank: number; headline: string; summary: string; source: string; url: string; category: string; section: 'good' | 'curious' | 'world' };
+
+async function askClaude(key: string, prompt: string, maxTokens = 900): Promise<any[]> {
+  const ai = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+    body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: maxTokens, messages: [{ role: 'user', content: prompt }] }),
+  });
+  if (!ai.ok) throw new Error(`Anthropic ${ai.status}`);
+  const text: string = (await ai.json()).content?.[0]?.text ?? '';
+  const arr = text.match(/\[[\s\S]*\]/);
+  if (!arr) throw new Error('unparseable model output');
+  return JSON.parse(arr[0]);
+}
+
+// ── Wikipedia: "curious" (most read) + "world" (in the news) ─────────────────────────────────
+const SKIP_TITLES = /^(Main_Page|Special:|Wikipedia:|Portal:|Help:|File:|Category:|Template:|Talk:|Deaths_in_)/;
+
+async function wikiRows(key: string, day: string): Promise<Row[]> {
+  // Yesterday (UTC): the day with complete pageview data.
+  const y = new Date(Date.now() - 86400000);
+  const path = `${y.getUTCFullYear()}/${String(y.getUTCMonth() + 1).padStart(2, '0')}/${String(y.getUTCDate()).padStart(2, '0')}`;
+  const res = await fetch(`https://api.wikimedia.org/feed/v1/wikipedia/en/featured/${path}`, {
+    headers: { 'User-Agent': 'NoGoonFeed/1.0 (contact via the NoGoon app listing)' },
+  });
+  if (!res.ok) throw new Error(`wikimedia ${res.status}`);
+  const feed = await res.json();
+  const out: Row[] = [];
+
+  const read = (feed?.mostread?.articles ?? []).filter((a: any) => a?.titles?.canonical && !SKIP_TITLES.test(a.titles.canonical)).slice(0, 25);
+  if (read.length >= 5) {
+    const list = read.map((a: any, i: number) => `${i}. ${a.normalizedtitle ?? a.title} — ${(a.description ?? a.extract ?? '').slice(0, 160)}`).join('\n');
+    const picks = await askClaude(key,
+      `These are the most-read Wikipedia articles yesterday:\n${list}\n\nChoose up to 4 that show what people are genuinely curious about. ` +
+      `Skip anything sexual, graphic, about a person's death or crime, or that is only a celebrity gossip hook. ` +
+      `For each, write a headline under 9 words and one plain sentence (in your own words) on why people may be looking it up or what it is. ` +
+      `Respond ONLY with JSON: [{"i": <number>, "headline": "...", "summary": "..."}]`, 700);
+    picks.slice(0, 4).forEach((p, rank) => {
+      const a = read[p.i];
+      const url = a?.content_urls?.desktop?.page;
+      if (a && url && p.headline && p.summary) out.push({ day, rank, headline: String(p.headline).slice(0, 140), summary: String(p.summary).slice(0, 400), source: 'Wikipedia', url, category: 'curious', section: 'curious' });
+    });
+  }
+
+  const news = (feed?.news ?? []).slice(0, 8)
+    .map((n: any) => ({ story: strip(n?.story ?? ''), url: n?.links?.[0]?.content_urls?.desktop?.page as string | undefined }))
+    .filter((n: any) => n.story && n.url);
+  if (news.length >= 2) {
+    const list = news.map((n: any, i: number) => `${i}. ${n.story}`).join('\n');
+    const picks = await askClaude(key,
+      `Major news items today (from Wikipedia "In the news"):\n${list}\n\nWrite a calm briefing of up to 4 of these. For each: a neutral headline under 10 words and one or two plain sentences ` +
+      `saying what happened and, if known, what is being done. No graphic detail, no speculation, no casualty counts beyond what is essential, no loaded words, no opinion. ` +
+      `Skip an item if it cannot be told calmly. Respond ONLY with JSON: [{"i": <number>, "headline": "...", "summary": "..."}]`, 800);
+    picks.slice(0, 4).forEach((p, rank) => {
+      const n = news[p.i];
+      if (n && p.headline && p.summary) out.push({ day, rank, headline: String(p.headline).slice(0, 140), summary: String(p.summary).slice(0, 400), source: 'Wikipedia', url: n.url!, category: 'world', section: 'world' });
+    });
+  }
+  return out;
+}
+
 serve(async (req: Request) => {
   const secret = Deno.env.get('CRON_SECRET');
   if (!secret || req.headers.get('x-cron-secret') !== secret) {
@@ -63,6 +130,19 @@ serve(async (req: Request) => {
   try {
     const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY');
     if (!anthropicKey) throw new Error('ANTHROPIC_API_KEY missing');
+    const admin = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
+    const today = new Date().toISOString().slice(0, 10);
+
+    // Wikipedia sections run first and independently; a failure is logged, never fatal.
+    let wikiStored = 0;
+    try {
+      const wr = await wikiRows(anthropicKey, today);
+      if (wr.length) {
+        const { error: werr } = await admin.from('feed_items').upsert(wr, { onConflict: 'day,url' });
+        if (werr) throw werr;
+        wikiStored = wr.length;
+      }
+    } catch (e) { console.error('[feed-daily:wiki]', e); }
 
     const settled = await Promise.allSettled(
       FEEDS.map(async (f) => {
@@ -104,16 +184,15 @@ serve(async (req: Request) => {
       if (!c || !p.headline || !p.summary) return [];
       return [{
         day, rank, headline: p.headline.slice(0, 140), summary: p.summary.slice(0, 400),
-        source: c.source, url: c.link, category: p.category ?? 'good',
+        source: c.source, url: c.link, category: p.category ?? 'good', section: 'good',
       }];
     });
     if (rows.length === 0) throw new Error('no usable picks');
 
-    const admin = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
     const { error } = await admin.from('feed_items').upsert(rows, { onConflict: 'day,url' });
     if (error) throw error;
 
-    return new Response(JSON.stringify({ day, stored: rows.length }), { headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ day, stored: rows.length, wiki: wikiStored }), { headers: { 'Content-Type': 'application/json' } });
   } catch (err) {
     console.error('[feed-daily]', err);
     return new Response(JSON.stringify({ error: 'feed-daily failed' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
