@@ -166,7 +166,7 @@ begin
 end $$;
 grant execute on function public.wall_stats() to anon, authenticated;
 grant execute on function public.wall_quote(int, int, int, int, int) to anon, authenticated;
-revoke execute on function public.wall_sold_tiles() from anon, authenticated;
+revoke execute on function public.wall_sold_tiles() from public, anon, authenticated;
 
 -- Review actions: run from the SQL editor (service role / postgres), never from clients.
 create or replace function public.wall_approve(p_id uuid) returns void

@@ -44,6 +44,10 @@ serve(async (req) => {
     case 'inquiry': {
       const company = str(body.company, 80), email = str(body.email, 120), message = str(body.message, 1000);
       if (company.length < 2 || !/^[^@ ]+@[^@ ]+\.[^@ ]+$/.test(email)) return json({ error: 'Add a company name and a valid email.' }, 400);
+      // Keep the inbox usable: a handful of inquiries per email per day.
+      const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+      const { count: recent } = await db.from('wall_inquiries').select('id', { count: 'exact', head: true }).eq('email', email).gte('created_at', since);
+      if ((recent ?? 0) >= 5) return json({ error: 'We already have your inquiries. We will reply by email.' }, 429);
       const { error } = await db.from('wall_inquiries').insert({ company, email, message });
       if (error) return json({ error: 'Could not save that. Try again.' }, 500);
       return json({ ok: true });
