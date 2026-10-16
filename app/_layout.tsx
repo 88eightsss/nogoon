@@ -399,6 +399,7 @@ export default function RootLayout() {
 
           {/* Do-it-now timer for the body offers (pushups, stretch, walk, water) */}
           <Stack.Screen name="offer-timer" options={{ animation: 'fade' }} />
+          <Stack.Screen name="elsewhere" options={{ animation: 'slide_from_right' }} />
 
           {/* Personal milestones / achievement badges */}
           <Stack.Screen

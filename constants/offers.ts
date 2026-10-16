@@ -43,6 +43,8 @@ export const OFFERS: OfferDef[] = [
   { id: 'water',   icon: 'droplet',   label: 'Drink a glass of water', sub: 'Thirst feels like restlessness',     kind: 'timer', seconds: 30,  note: 'Fill a glass. Drink it slowly.' },
   // People
   { id: 'hello',   icon: 'message-circle', label: 'Send someone a hello', sub: 'Open messages and say hi',        kind: 'sms' },
+  { id: 'nearby',  icon: 'map-pin',   label: 'Find something nearby',  sub: 'Events, classes and groups around you', kind: 'route', path: '/elsewhere' },
+  { id: 'social',  icon: 'users',     label: 'Try a calmer social app', sub: 'Places to be social without the feed', kind: 'route', path: '/elsewhere' },
   { id: 'thanks',  icon: 'heart',     label: 'Write what you are glad of', sub: 'One line in your journal',       kind: 'route', path: '/journal' },
   // Fresh mind
   { id: 'news',    icon: 'sunrise',   label: 'Read something good',    sub: "Today's briefing, a small batch",    kind: 'route', path: '/(tabs)/feed' },
@@ -68,7 +70,7 @@ export const BUNDLES: Bundle[] = [
   { id: 'smart',   name: 'Smart mix',     tagline: 'A mix that changes with the time of day. Calmer at night, curious in the morning.', icon: 'shuffle',  offers: [] },
   { id: 'reset',   name: 'Calm reset',    tagline: 'For stress and anxious scrolling.',            icon: 'wind',           offers: ['breathe', 'ground', 'wait', 'write'] },
   { id: 'move',    name: 'Move',          tagline: 'For restless and bored. Get out of your head and into your body.', icon: 'activity', offers: ['pushups', 'stretch', 'walk', 'water'] },
-  { id: 'connect', name: 'Connect',       tagline: 'For lonely scrolling. Reach for a person instead of a feed.', icon: 'users', offers: ['hello', 'thanks', 'news'] },
+  { id: 'connect', name: 'Connect',       tagline: 'For lonely scrolling. Reach for a person instead of a feed.', icon: 'users', offers: ['hello', 'nearby', 'thanks', 'social'] },
   { id: 'fresh',   name: 'Fresh mind',    tagline: 'For the "give me something new" itch.',        icon: 'sunrise',        offers: ['news', 'curious', 'game', 'kept'] },
   { id: 'make',    name: 'Make something', tagline: 'Turn the urge into words or a doodle.',       icon: 'edit-3',         offers: ['write', 'bubbles', 'thanks'] },
   { id: 'mine',    name: 'My own list',   tagline: 'Your own "instead I will…" ideas, written by you.', icon: 'star', offers: [] },

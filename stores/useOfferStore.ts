@@ -7,12 +7,15 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BUNDLES, CUSTOM_LEN, CUSTOM_MAX, type BundleId } from '@/constants/offers';
+import { PLACE_MAX } from '@/constants/elsewhere';
 
 const VALID = new Set<string>(BUNDLES.map((b) => b.id));
 
 interface OfferState {
   bundleIds: BundleId[];     // never empty; ['smart'] is the default
   custom: string[];          // the user's own "instead I will…" lines
+  place: string;             // optional town or neighbourhood for the Beyond the screen links
+  setPlace: (text: string) => void;
   toggleBundle: (id: BundleId) => void;
   addCustom: (text: string) => boolean;   // false when empty, duplicate, or the list is full
   removeCustom: (index: number) => void;
@@ -23,6 +26,8 @@ export const useOfferStore = create<OfferState>()(
     (set, get) => ({
       bundleIds: ['smart'],
       custom: [],
+      place: '',
+      setPlace: (text) => set({ place: text.slice(0, PLACE_MAX) }),
 
       toggleBundle: (id) => {
         const cur = get().bundleIds;
@@ -63,7 +68,8 @@ export const useOfferStore = create<OfferState>()(
         const p = (persisted ?? {}) as Partial<OfferState>;
         const ids = (p.bundleIds ?? []).filter((b): b is BundleId => VALID.has(b));
         const custom = (p.custom ?? []).filter((c): c is string => typeof c === 'string').slice(0, CUSTOM_MAX);
-        return { ...current, bundleIds: ids.length ? ids : current.bundleIds, custom };
+        const place = typeof p.place === 'string' ? p.place.slice(0, PLACE_MAX) : '';
+        return { ...current, bundleIds: ids.length ? ids : current.bundleIds, custom, place };
       },
     },
   ),
