@@ -20,6 +20,7 @@ import { availablePacks } from '@/constants/packs';
 import { FONTS } from '@/constants/Colors';
 import { BUNDLES, CUSTOM_LEN, CUSTOM_MAX } from '@/constants/offers';
 import { useOfferStore } from '@/stores/useOfferStore';
+import { useRoomStore } from '@/stores/useRoomStore';
 import { SPACING } from '@/constants/Spacing';
 
 const VOICES: { id: GateVoice; label: string }[] = [
@@ -46,7 +47,7 @@ const HUB: { id: CustSection; icon: ComponentProps<typeof Feather>['name']; titl
   { id: 'companion', icon: 'smile',      title: 'Your companion',       sub: 'Which one, how it floats, how big' },
   { id: 'colour',    icon: 'droplet',    title: 'Colour & paper',       sub: 'Accent colour and page background' },
   { id: 'gate',      icon: 'shield',     title: 'At the gate',          sub: 'Instead bundles, your own list, your note' },
-  { id: 'layout',    icon: 'layout',     title: 'Layout & news',        sub: 'My Page layout, news, sponsors' },
+  { id: 'layout',    icon: 'layout',     title: 'Layout & news',        sub: 'Room or plain page, news, sponsors' },
 ];
 
 function Chips<T extends string>({ items, value, onChange, colors }: {
@@ -82,6 +83,8 @@ export default function CustomizeScreen() {
   const bundleIds     = useOfferStore((s) => s.bundleIds);
   const myList        = useOfferStore((s) => s.custom);
   const toggleBundle  = useOfferStore((s) => s.toggleBundle);
+  const roomView      = useRoomStore((s) => s.roomView);
+  const setRoomView   = useRoomStore((s) => s.setRoomView);
   const showSponsors  = useOfferStore((s) => s.showSponsors);
   const setShowSponsors = useOfferStore((s) => s.setShowSponsors);
   const addMine        = useOfferStore((s) => s.addCustom);
@@ -171,6 +174,23 @@ export default function CustomizeScreen() {
 
         {section === 'layout' && (
         <>
+        <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+          <View style={styles.rowBetween}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.cardTitle, { color: colors.text }]}>Today as a room</Text>
+              <Text style={[styles.body, { color: colors.textSecondary }]}>
+                Your companion lives in a small room. Tap the window, door, corkboard, bed or dresser to go there. The room fills in as you walk away. Turn off for the plain page.
+              </Text>
+            </View>
+            <Switch
+              value={roomView}
+              onValueChange={setRoomView}
+              trackColor={{ false: colors.border, true: colors.accent }}
+              thumbColor="#fff"
+            />
+          </View>
+        </View>
+
         <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
           <View style={styles.rowBetween}>
             <View style={{ flex: 1 }}>
