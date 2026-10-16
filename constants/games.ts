@@ -291,13 +291,3 @@ export function pickRandomGame(disabledIds: string[] = [], enabledCalmIds: strin
   return active[Math.floor(Math.random() * active.length)].id as GameId;
 }
 
-/**
- * Deterministic daily game: same game for everyone on the same calendar day.
- * Rotates through all games in order.
- */
-export function getTodaysGame(): GameMeta {
-  const now   = new Date();
-  const start = new Date(now.getFullYear(), 0, 0);
-  const dayOfYear = Math.floor((now.getTime() - start.getTime()) / 86400000);
-  return ALL_GAMES[dayOfYear % ALL_GAMES.length] as GameMeta;
-}

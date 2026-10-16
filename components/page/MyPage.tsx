@@ -1,7 +1,6 @@
-// ─── My Page — the new Home ────────────────────────────────────────────────────
+// ─── My Page — Today ───────────────────────────────────────────────────────────
 //
-// Shown instead of HomeCompanion/HomeOrganizer when the "new My Page" switch is on
-// (Me → Customize). Everything on it is real data from the existing stores; the
+// The Today tab. Shows the room by default, or this plain page (Me → Customize). Everything on it is real data from the existing stores; the
 // active pack only changes how it is dressed (frame, counter, stamps, colors).
 // Order: function first (day count, protection, "I'm tempted"), flair second (companion,
 // stamps). Journal / Bubbles / Insights live in the Feed tab; the pencil opens Customize.

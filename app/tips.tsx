@@ -34,14 +34,14 @@ const TIPS = [
     body: "Turning Hard lock off takes a full day once it's on, by design — so the decision gets made in a calm moment, not a craving.",
   },
   {
-    icon: 'grid',
-    title: 'Two ways to see your Home screen',
-    body: 'Switch between the Companion view (your mascot) and Organizer mode (a customizable bubble grid) once Organizer unlocks.',
+    icon: 'home',
+    title: 'Your room or a plain page',
+    body: 'Today is a small room you can name and decorate. Prefer it plain? Switch at the bottom of Today or in Customize.',
   },
   {
     icon: 'zap',
     title: 'Jump straight to what you use most',
-    body: 'The icon row on Home — Insights, Journal, Organizer — gets you there in one tap once each one unlocks.',
+    body: 'Tap the window, door, corkboard, bed or dresser in your room to jump to that tab.',
   },
   {
     icon: 'sliders',

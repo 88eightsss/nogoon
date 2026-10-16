@@ -278,7 +278,7 @@ const LootIllustration: React.FC<{ accent: string; dim: string }> = ({ accent, d
     return () => { bounceLoop.stop(); sparkleLoop.stop(); };
   }, [bounce, sparkle]);
 
-  const items = ['🎮', '📔', '🧩']; // Arcade, Journal, Organizer
+  const items = ['🎮', '📔', '📊']; // Arcade, Journal, Insights
 
   return (
     <View style={ill.container}>
@@ -322,7 +322,7 @@ const STEPS: Step[] = [
     dimKey: 'arcadeDim' as const,
     title: 'Unlock more as you go',
     subtitle: 'Step 1 of 6',
-    body: 'Keep walking away and NoGoon opens up: the full Arcade (all 19 games), Journal, and Organizer mode for your Home screen all unlock at walk-away milestones.\n\nAnything you see locked isn\'t gone for good — it\'s waiting for you to earn it.',
+    body: 'Keep walking away and NoGoon opens up: the full Arcade (all 19 games), Insights and Journal all unlock at walk-away milestones.\n\nAnything you see locked isn\'t gone for good — it\'s waiting for you to earn it.',
     cta: { label: "See what's locked", route: '/(tabs)/arcade' },
     Illustration: LootIllustration,
   },

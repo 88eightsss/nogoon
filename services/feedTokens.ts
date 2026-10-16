@@ -35,14 +35,6 @@ async function setFeedTokens(n: number): Promise<void> {
   } catch {}
 }
 
-/** Spend one token. Returns true if successful, false if out of tokens. */
-export async function spendFeedToken(): Promise<boolean> {
-  const current = await getFeedTokens();
-  if (current <= 0) return false;
-  await setFeedTokens(current - 1);
-  return true;
-}
-
 /** Add tokens (respects cap). Returns new total. */
 export async function addFeedTokens(n: number): Promise<number> {
   const current = await getFeedTokens();
@@ -63,14 +55,6 @@ export async function getMinutesAway(): Promise<number> {
   } catch {
     return 0;
   }
-}
-
-/** Returns how many tokens are pending (earned but not yet cashed out). */
-export async function getPendingTokens(): Promise<number> {
-  const minsAway = await getMinutesAway();
-  const current  = await getFeedTokens();
-  const canEarn  = TOKEN_CAP - current;
-  return Math.min(Math.floor(minsAway / MINS_PER_TOKEN), canEarn);
 }
 
 /**

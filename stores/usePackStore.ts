@@ -26,7 +26,6 @@ interface PackState {
   activePackId: string;
   unlockedIds:  string[];       // hidden packs the user has opened
   seenUnlockIds: string[];      // unlocks the user has already been told about
-  newHome:      boolean;        // new My Page + 4-tab layout (on by default, can be switched off)
   styleCardDismissed: boolean;  // the "make this page yours" card on My Page
   gateNote:     string;         // personal note shown on the gate
   gateVoice:    GateVoice;
@@ -43,7 +42,6 @@ interface PackState {
   checkStreakUnlocks: (longestStreak: number) => PackManifest[];  // returns newly unlocked
   tapUnlock:     () => PackManifest | null;
   markUnlockSeen: (id: string) => void;
-  setNewHome:    (on: boolean) => void;
   dismissStyleCard: () => void;
   dayDisplay:   DayDisplay;
   setDayDisplay: (d: DayDisplay) => void;
@@ -65,7 +63,6 @@ export const usePackStore = create<PackState>()(
       activePackId: 'core',
       unlockedIds: [],
       seenUnlockIds: [],
-      newHome: true,
       styleCardDismissed: false,
       gateNote: '',
       gateVoice: 'gentle',
@@ -111,7 +108,6 @@ export const usePackStore = create<PackState>()(
       },
 
       markUnlockSeen: (id) => set((s) => (s.seenUnlockIds.includes(id) ? s : { seenUnlockIds: [...s.seenUnlockIds, id] })),
-      setNewHome: (on) => set({ newHome: on }),
       dismissStyleCard: () => set({ styleCardDismissed: true }),
       dayDisplay: 'number',
       setDayDisplay: (d) => set({ dayDisplay: d }),
@@ -134,7 +130,6 @@ export const usePackStore = create<PackState>()(
         activePackId: s.activePackId,
         unlockedIds: s.unlockedIds,
         seenUnlockIds: s.seenUnlockIds,
-        newHome: s.newHome,
         styleCardDismissed: s.styleCardDismissed,
         dayDisplay: s.dayDisplay,
         showWorldNews: s.showWorldNews,

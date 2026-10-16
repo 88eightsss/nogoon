@@ -40,7 +40,6 @@ export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const { themeId, themeBrightness } = useThemeStore();
   const pack = useActivePack();
-  const newHome = usePackStore((s) => s.newHome);
   const accentOverride = usePackStore((s) => s.accentOverride);
   const colors = resolveSkinPalette(themeId, themeBrightness, pack, accentOverride);
   const requestGuideReopen = useUserStore((s) => s.requestGuideReopen);
@@ -99,22 +98,19 @@ export default function TabsLayout() {
     },
   ];
 
-  // New layout (switch in Me → Customize): five tabs, one intent each —
+  // Five tabs, one intent each —
   //   Protect → set up blocking · Briefing → read the finite daily batch ·
   //   Today → status + "I'm tempted" (centre) · Unwind → do something better
   //   (urge tools, games, journal) · Me → stats and settings.
-  // Arcade stays a route (opened from Unwind, Today and the tempted sheet); the old
-  // layout hides Briefing instead.
+  // Arcade stays a route (opened from Unwind, Today and the tempted sheet).
   const FEED_TAB = {
     name: 'feed', title: 'Briefing', icon: 'sunrise' as FeatherName,
     color: colors.calm, pillBg: colors.warningDim, guidePage: 'feed',
   };
   const byName = (n: string) => [...TABS, FEED_TAB].find((x) => x.name === n)!;
-  const visible = newHome
-    ? ['blocklist', 'feed', 'index', 'calm', 'profile'].map(byName).map((x) =>
-        x.name === 'calm' ? { ...x, title: 'Unwind' } : x)
-    : TABS;
-  const hiddenTabs = newHome ? ['arcade'] : ['feed'];
+  const visible = ['blocklist', 'feed', 'index', 'calm', 'profile'].map(byName).map((x) =>
+    x.name === 'calm' ? { ...x, title: 'Unwind' } : x);
+  const hiddenTabs = ['arcade'];
 
   return (
     <View style={{ flex: 1 }}>

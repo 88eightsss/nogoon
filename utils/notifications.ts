@@ -137,36 +137,6 @@ export async function notifyTokenEarned(tokens: number, minutesOff: number): Pro
   );
 }
 
-/**
- * Fire immediately when hunger drops below 20.
- */
-export async function notifyHungerWarning(petName: string): Promise<void> {
-  await fire(
-    `${petName} is getting hungry`,
-    'Stay off your phone a bit longer to earn feed tokens.',
-  );
-}
-
-/**
- * Schedule a comeback reminder 48 hours from now.
- * Cancel it with cancelComebackReminder() when the app is opened.
- */
-export async function scheduleComebackReminder(petName: string): Promise<void> {
-  try {
-    await Notifications.cancelScheduledNotificationAsync('pet-comeback').catch(() => {});
-    const fireAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
-    await Notifications.scheduleNotificationAsync({
-      identifier: 'pet-comeback',
-      content: {
-        title: `${petName} misses you`,
-        body:  "It's been a while. Come back and check in.",
-        sound: true,
-      },
-      trigger: { date: fireAt } as any,
-    });
-  } catch {}
-}
-
 /** Cancel the comeback reminder — call on every app open. */
 export async function cancelComebackReminder(): Promise<void> {
   try {

@@ -307,7 +307,3 @@ export const CHARACTER_TAGS: Record<CharacterId, string> = {
   7: 'Classic · Needs your care',
 };
 
-/** Neutral accent for a companion's first stage, used by pickers and the gate. */
-export function characterAccent(id: CharacterId): string {
-  return CHAR_COLORS[id][0][1];
-}

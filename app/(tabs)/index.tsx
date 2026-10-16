@@ -1,9 +1,6 @@
 // ─── Home Screen — mode router ───────────────────────────────────────────────
 //
-// Two home screen modes, switched from the Me screen (Appearance → Home
-// screen): 'companion' (default) shows the mascot front and center;
-// 'organizer' shows the customizable bubble/widget grid for people who'd
-// rather not have a pet there. Actual screens live in components/home/.
+// Today is MyPage: the room (default) or the plain page. See components/page/.
 //
 // First-time users are NOT dropped into the full interactive tutorial
 // (app/tutorial.tsx) any more. Right after onboarding that was a second wall
@@ -11,20 +8,14 @@
 // small "New here?" bubble every tab has (see components/PageGuide.tsx); the
 // guide it opens links to the full tour for anyone who wants it.
 
-import { useThemeStore } from '@/stores/useThemeStore';
 import { useTheme } from '@/hooks/useTheme';
-import { HomeCompanion } from '@/components/home/HomeCompanion';
-import { HomeOrganizer } from '@/components/home/HomeOrganizer';
 import { PageGuide, type PageGuideStat } from '@/components/PageGuide';
 import { useUserStore, getMinutesSaved } from '@/stores/useUserStore';
 import { getLocalDateKey } from '@/utils/date';
-import { usePackStore } from '@/stores/usePackStore';
 import { MyPage } from '@/components/page/MyPage';
 import { HatchHost } from '@/components/page/HatchHost';
 
 export default function HomeScreen() {
-  const { homeMode } = useThemeStore();
-  const newHome = usePackStore((s) => s.newHome);
   const { colors } = useTheme();
 
   // Live numbers for the first-visit "Your daily snapshot" bubble.
@@ -61,7 +52,7 @@ export default function HomeScreen() {
   return (
     <>
       <HatchHost />
-      {newHome ? <MyPage /> : homeMode === 'organizer' ? <HomeOrganizer /> : <HomeCompanion />}
+      <MyPage />
       <PageGuide
         page="home"
         icon="home"

@@ -1,8 +1,8 @@
 // ─── Progress / Feature Unlock Store ──────────────────────────────────────────
 //
 // Gates the app's deeper features behind early, achievable walk-away
-// milestones instead of dumping all 19 games + Insights + Journal +
-// the home screen Organizer mode on a brand-new user at once. Thresholds are
+// milestones instead of dumping all 19 games + Insights + Journal on
+// a brand-new user at once. Thresholds are
 // intentionally small (single-digit to low-teens walk-aways) — these are
 // about pacing discovery over the first week or two, not the big lifetime
 // celebration milestones (10/25/50/100...) used elsewhere for the mascot
@@ -20,7 +20,7 @@ import { useUserStore } from './useUserStore';
 // toasts and the Me-tab "Unlock everything now" switch all key off this flag).
 export const PROGRESSIVE_UNLOCKS = false;
 
-export type FeatureId = 'fullArcade' | 'insights' | 'journal' | 'organizerMode';
+export type FeatureId = 'fullArcade' | 'insights' | 'journal';
 
 export type UnlockRule = {
   id:          FeatureId;
@@ -34,7 +34,6 @@ export const UNLOCK_RULES: UnlockRule[] = [
   { id: 'fullArcade',    label: 'Full Arcade',     requirement: '3 walk-aways',  threshold: 3  },
   { id: 'insights',      label: 'Insights',        requirement: '5 walk-aways',  threshold: 5  },
   { id: 'journal',       label: 'Impulse Journal', requirement: '6 walk-aways',  threshold: 6  },
-  { id: 'organizerMode', label: 'Home Organizer',  requirement: '8 walk-aways',  threshold: 8  },
 ];
 
 const RULES_BY_ID: Record<FeatureId, UnlockRule> = Object.fromEntries(

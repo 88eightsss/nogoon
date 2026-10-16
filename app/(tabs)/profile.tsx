@@ -177,23 +177,6 @@ const dotStyles = StyleSheet.create({
   },
 });
 
-const homeModeStyles = StyleSheet.create({
-  segment: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  segmentBtn: {
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 6,
-    borderRadius: RADIUS.full,
-    borderWidth: 1,
-  },
-  segmentText: {
-    fontFamily: FONTS.bodyMedium,
-    fontSize: 12,
-  },
-});
-
 // ─── Brightness slider ────────────────────────────────────────────────────────
 
 const THUMB_SIZE = 20;
@@ -394,9 +377,7 @@ export default function MeScreen() {
   const { colors, cardStyle } = useTheme();
   const {
     themeId, borderId, setTheme, setBorder,
-    showIntentionCard, showStruggleToggle, showTimeReclaimed, toggleHomeSection,
     themeBrightness, setThemeBrightness,
-    homeMode, setHomeMode,
   } = useThemeStore();
 
   const {
@@ -989,120 +970,6 @@ export default function MeScreen() {
 
         {section === 'look' && (
         <>
-        {/* ── Home Screen layout ── */}
-        <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Home Screen</Text>
-
-        <View style={[ctrlStyles.board, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
-          <View style={[ctrlStyles.row, { borderBottomColor: colors.border }]}>
-            <Feather name="layout" size={16} color={colors.accent} />
-            <View style={{ flex: 1 }}>
-              <Text style={[ctrlStyles.label, { color: colors.text }]}>Layout</Text>
-              <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>
-                {homeMode === 'organizer' ? 'Customizable widget grid' : 'Companion front and center'}
-              </Text>
-            </View>
-            <View style={homeModeStyles.segment}>
-              {(['companion', 'organizer'] as const).map((mode) => {
-                const selected = homeMode === mode;
-                const modeLocked = mode === 'organizer' && !unlocked.has('organizerMode');
-                return (
-                  <Pressable
-                    key={mode}
-                    onPress={() => {
-                      if (selected) return;
-                      if (modeLocked) {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        Alert.alert('Still locked', lockHint('organizerMode'));
-                        return;
-                      }
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setHomeMode(mode);
-                    }}
-                    style={[
-                      homeModeStyles.segmentBtn,
-                      {
-                        backgroundColor: selected ? colors.accent : 'transparent',
-                        borderColor: selected ? colors.accent : colors.border,
-                        opacity: modeLocked ? 0.5 : 1,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        homeModeStyles.segmentText,
-                        { color: selected ? '#fff' : colors.textSecondary },
-                      ]}
-                    >
-                      {mode === 'companion' ? 'Companion' : modeLocked ? 'Organizer 🔒' : 'Organizer'}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-
-          {homeMode === 'organizer' ? (
-            <Pressable
-              style={[ctrlStyles.row, { borderBottomWidth: 0 }]}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push('/layout-picker' as any);
-              }}
-            >
-              <Feather name="grid" size={16} color={colors.accent} />
-              <View style={{ flex: 1 }}>
-                <Text style={[ctrlStyles.label, { color: colors.text }]}>Change template</Text>
-                <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>
-                  Or long-press the home screen to edit bubbles directly
-                </Text>
-              </View>
-              <Feather name="chevron-right" size={16} color={colors.textMuted} />
-            </Pressable>
-          ) : (
-            <>
-              <View style={[ctrlStyles.row, { borderBottomColor: colors.border }]}>
-                <Feather name="book-open" size={16} color={colors.accent} />
-                <View style={{ flex: 1 }}>
-                  <Text style={[ctrlStyles.label, { color: colors.text }]}>Daily intention</Text>
-                  <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>Intention card on home</Text>
-                </View>
-                <Switch
-                  value={showIntentionCard}
-                  onValueChange={() => toggleHomeSection('showIntentionCard')}
-                  trackColor={{ false: colors.border, true: colors.accent }}
-                  thumbColor="#fff"
-                />
-              </View>
-              <View style={[ctrlStyles.row, { borderBottomColor: colors.border }]}>
-                <Feather name="heart" size={16} color={colors.accent} />
-                <View style={{ flex: 1 }}>
-                  <Text style={[ctrlStyles.label, { color: colors.text }]}>Struggle mode</Text>
-                  <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>"Having a hard day?" button</Text>
-                </View>
-                <Switch
-                  value={showStruggleToggle}
-                  onValueChange={() => toggleHomeSection('showStruggleToggle')}
-                  trackColor={{ false: colors.border, true: colors.accent }}
-                  thumbColor="#fff"
-                />
-              </View>
-              <View style={[ctrlStyles.row, { borderBottomWidth: 0 }]}>
-                <Feather name="clock" size={16} color={colors.accent} />
-                <View style={{ flex: 1 }}>
-                  <Text style={[ctrlStyles.label, { color: colors.text }]}>Time reclaimed</Text>
-                  <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>Hours of attention saved</Text>
-                </View>
-                <Switch
-                  value={showTimeReclaimed}
-                  onValueChange={() => toggleHomeSection('showTimeReclaimed')}
-                  trackColor={{ false: colors.border, true: colors.accent }}
-                  thumbColor="#fff"
-                />
-              </View>
-            </>
-          )}
-        </View>
-
         {/* ── Zone 4+5: Appearance (compact) ── */}
         <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Appearance</Text>
 

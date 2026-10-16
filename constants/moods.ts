@@ -17,4 +17,3 @@ export const MOOD_TAGS = [
   { id: 'Anxious',         emoji: '😰', label: 'Anxious' },
 ] as const;
 
-export type MoodTagId = (typeof MOOD_TAGS)[number]['id'];
