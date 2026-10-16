@@ -78,6 +78,7 @@ import { useAdInterstitial } from '@/components/ads/AdInterstitial';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GoonSprite, getGoonStage } from '@/components/home/GoonMascot';
 import { PackGateCard } from '@/components/page/PackGateCard';
+import { getTodaysBriefing } from '@/lib/dailyGood';
 import { usePetStore, getPetMood, getPetSpeech, type CharacterId } from '@/stores/usePetStore';
 import { CHARACTER_NAMES } from '@/constants/sprites';
 
@@ -166,7 +167,7 @@ function pickCalmGame(): GameId {
 
 // ─── Main component ────────────────────────────────────────────────────────────
 
-type Phase = 'intro' | 'followthrough' | 'rapid' | 'lockout' | 'calm' | 'friction' | 'intent' | 'nogames' | 'context' | 'pick' | 'playing' | 'override' | 'curfew';
+type Phase = 'intro' | 'followthrough' | 'rapid' | 'lockout' | 'offer' | 'calm' | 'friction' | 'intent' | 'nogames' | 'context' | 'pick' | 'playing' | 'override' | 'curfew';
 
 // The blocker can re-launch this screen for a different app while it's already
 // open (single-top). Keying on the target remounts it so the new app gets a fresh
@@ -213,6 +214,7 @@ function NoGoonScreen() {
     hasSeenGateIntro,
     markGateIntroSeen,
     logFollowThrough,
+    recordWalkAway,
   } = useUserStore();
   const { maybeShowInterstitial } = useAdInterstitial();
   const { disabledGateGames, enabledCalmGateGames } = useThemeStore();
@@ -288,7 +290,7 @@ function NoGoonScreen() {
       ? 'rapid'
       : pendingFollowThroughCommitment
       ? 'followthrough'
-      : 'calm'
+      : 'offer'
   );
   const [selectedGame, setSelectedGame] = useState<GameId | null>(null);
   const [overrideText, setOverrideText] = useState('');
@@ -300,6 +302,16 @@ function NoGoonScreen() {
   const [frictionStep,      setFrictionStep]      = useState(0);
   const [frictionCountdown, setFrictionCountdown] = useState(3);
   const [frictionBtnReady,  setFrictionBtnReady]  = useState(false);
+  // Offer phase: today's top good-news headline (cached per day; null until loaded)
+  const [offerHeadline, setOfferHeadline] = useState<string | null>(null);
+  useEffect(() => {
+    if (phase !== 'offer') return;
+    let live = true;
+    getTodaysBriefing()
+      .then((b) => { if (live) setOfferHeadline(b.good[0]?.headline ?? null); })
+      .catch(() => {});
+    return () => { live = false; };
+  }, [phase]);
 
   // ── Block schedule check — exit immediately if outside schedule window ────
   useEffect(() => {
@@ -728,7 +740,7 @@ function NoGoonScreen() {
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               markGateIntroSeen();
-              setPhase('calm');
+              setPhase('offer');
             }}
           >
             <Text style={[styles.calmContinueText, { color: C.indigoBright }]}>Got it</Text>
@@ -765,7 +777,7 @@ function NoGoonScreen() {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 logFollowThrough(pendingFollowThroughCommitment.text, displayDomain, true);
                 clearCommitment();
-                setPhase('calm');
+                setPhase('offer');
               }}
             >
               <Feather name="check" size={16} color={C.green} />
@@ -776,7 +788,7 @@ function NoGoonScreen() {
               onPress={() => {
                 logFollowThrough(pendingFollowThroughCommitment.text, displayDomain, false);
                 clearCommitment();
-                setPhase('calm');
+                setPhase('offer');
               }}
             >
               <Text style={[styles.exitText, { color: C.textMuted }]}>Not this time</Text>
@@ -1204,6 +1216,98 @@ function NoGoonScreen() {
           </Pressable>
 
         </Animated.View>
+      </SafeAreaView>
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // RENDER: Offer — the first thing people see. Give them something better to do
+  // instead of holding them up. "Keep going" still leads to the old pause, the
+  // friction steps, the game and the walk-away choice, so nothing is easier to
+  // get past than before.
+  // ══════════════════════════════════════════════════════════════════════════
+  if (phase === 'offer') {
+    type Offer = { id: string; icon: React.ComponentProps<typeof Feather>['name']; label: string; sub: string; go: () => void };
+    const breathe: Offer = {
+      id: 'breathe', icon: 'wind', label: 'Breathe for a minute', sub: 'A calm reset, then it is your call',
+      go: () => { setSelectedGame('breathing'); setPhase('context'); },
+    };
+    const quickGame: Offer = {
+      id: 'game', icon: 'zap', label: 'Play something quick', sub: 'Give your hands something to do',
+      go: () => { setSelectedGame(pickRandomGame(disabledGateGames, enabledCalmGateGames)); setPhase('context'); },
+    };
+    const goodNews: Offer = {
+      id: 'news', icon: 'sunrise', label: 'Read something good',
+      sub: offerHeadline ?? "Today's briefing: a small batch, once a day",
+      go: () => { recordWalkAway(); router.replace('/(tabs)/feed' as any); },
+    };
+    const writeLine: Offer = {
+      id: 'write', icon: 'edit-3', label: 'Write one line', sub: 'What were you hoping to feel?',
+      go: () => { recordWalkAway(); router.replace('/journal' as any); },
+    };
+    const morning = nowHour >= 5 && nowHour < 11;
+    let offers: Offer[] = isWindDown
+      ? [breathe, writeLine]
+      : morning
+      ? [goodNews, breathe, quickGame, writeLine]
+      : [breathe, quickGame, goodNews, writeLine];
+    // No-games mode skips games entirely, so only offer the things that leave the gate.
+    if (noGames) offers = offers.filter((o) => o.id === 'news' || o.id === 'write');
+
+    return (
+      <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]}>
+        <ScrollView contentContainerStyle={[styles.intentContainer, { flexGrow: 1 }]} showsVerticalScrollIndicator={false}>
+          <View style={[styles.domainPill, { backgroundColor: C.surface, borderColor: C.cardBorder }]}>
+            <Feather name={isAppBlock ? 'smartphone' : 'globe'} size={13} color={C.textMuted} />
+            <Text style={[styles.domainText, { color: C.textMuted }]}>{displayDomain}</Text>
+          </View>
+
+          <Text style={[styles.intentTitle, { color: C.textPrimary }]}>
+            How about this{'\n'}instead?
+          </Text>
+
+          {gateCharacter !== null && (
+            <View style={styles.gateCompanionRow}>
+              <GoonSprite char={gateCharacter} stage={gateStage} size={0.4} />
+              <View style={[styles.gateCompanionBubble, { borderColor: gateAccent + '55' }]}>
+                <Text style={[styles.gateCompanionText, { color: C.textSecondary }]}>{gateSpeech}</Text>
+              </View>
+            </View>
+          )}
+
+          <PackGateCard />
+
+          <View style={styles.intentOptions}>
+            {offers.map((o) => (
+              <Pressable
+                key={o.id}
+                style={({ pressed }) => [
+                  styles.intentCard,
+                  { backgroundColor: pressed ? C.surfaceHigh : C.surface, borderColor: C.cardBorder },
+                ]}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); o.go(); }}
+                accessibilityRole="button"
+                accessibilityLabel={o.label}
+              >
+                <Feather name={o.icon} size={26} color={C.indigoBright} style={{ width: 36, textAlign: 'center' }} />
+                <View style={styles.intentCardText}>
+                  <Text style={[styles.intentCardLabel, { color: C.textPrimary }]}>{o.label}</Text>
+                  <Text style={[styles.intentCardSub, { color: C.textSecondary }]} numberOfLines={2}>{o.sub}</Text>
+                </View>
+                <Feather name="chevron-right" size={18} color={C.textMuted} />
+              </Pressable>
+            ))}
+          </View>
+
+          {!isBricked && !isColdTurkey && (
+            <Pressable onPress={() => setPhase('calm')} style={styles.exitTextRow}>
+              <Text style={[styles.exitText, { color: C.textSecondary }]}>Keep going to {displayDomain}</Text>
+            </Pressable>
+          )}
+          <Pressable onPress={() => exitGate()} style={styles.exitTextRow}>
+            <Text style={[styles.exitText, { color: C.textMuted }]}>Never mind</Text>
+          </Pressable>
+        </ScrollView>
       </SafeAreaView>
     );
   }
