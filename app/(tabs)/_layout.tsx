@@ -99,18 +99,22 @@ export default function TabsLayout() {
     },
   ];
 
-  // New layout (switch in Me → Customize): Today, Protect, Briefing, Me. Calm and
-  // Arcade stay as routes (reachable from My Page) but leave the tab bar; the old
-  // layout hides Feed instead.
+  // New layout (switch in Me → Customize): five tabs, one intent each —
+  //   Protect → set up blocking · Briefing → read the finite daily batch ·
+  //   Today → status + "I'm tempted" (centre) · Unwind → do something better
+  //   (urge tools, games, journal) · Me → stats and settings.
+  // Arcade stays a route (opened from Unwind, Today and the tempted sheet); the old
+  // layout hides Briefing instead.
   const FEED_TAB = {
     name: 'feed', title: 'Briefing', icon: 'sunrise' as FeatherName,
     color: colors.calm, pillBg: colors.warningDim, guidePage: 'feed',
   };
   const byName = (n: string) => [...TABS, FEED_TAB].find((x) => x.name === n)!;
   const visible = newHome
-    ? ['index', 'blocklist', 'feed', 'profile'].map(byName).map((x) => (x.name === 'index' ? { ...x, title: 'Today' } : x))
+    ? ['blocklist', 'feed', 'index', 'calm', 'profile'].map(byName).map((x) =>
+        x.name === 'calm' ? { ...x, title: 'Unwind' } : x)
     : TABS;
-  const hiddenTabs = newHome ? ['calm', 'arcade'] : ['feed'];
+  const hiddenTabs = newHome ? ['arcade'] : ['feed'];
 
   return (
     <View style={{ flex: 1 }}>

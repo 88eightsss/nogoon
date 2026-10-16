@@ -1,7 +1,10 @@
-// ─── Calm Tab ─────────────────────────────────────────────────────────────────
+// ─── Unwind Tab (the Calm route) ──────────────────────────────────────────────
 //
-// Recovery tools hub — for when you're struggling.
-// Each row taps into its own full screen.
+// The "do something better than scroll" hub. Three groups, each row opens its own screen:
+//   Right now   Breathe, Waiting Room, Ground Yourself (urge tools)
+//   Play        Games (the Arcade, kept as its own route)
+//   Get it out  Journal, Brain Bubbles, Dead Reckoning, Insights
+// plus the nightly pre-commitment ritual at the bottom.
 // No stats, no scores — just things that help.
 //
 // Also houses the nightly pre-commitment ritual:
@@ -23,8 +26,11 @@ import { useUserStore } from '@/stores/useUserStore';
 import { PageGuide } from '@/components/PageGuide';
 import { useUnlockedFeatures, lockHint } from '@/stores/useProgressStore';
 
+type Group = 'now' | 'play' | 'out';
+
 type Tool = {
   id: string;
+  group: Group;
   icon: React.ComponentProps<typeof Feather>['name'];
   iconColor: string;
   title: string;
@@ -35,6 +41,7 @@ type Tool = {
 const TOOLS: Tool[] = [
   {
     id:        'breathe',
+    group:     'now',
     icon:      'wind',
     iconColor: '#4d8bff',
     title:     'Breathe',
@@ -43,6 +50,7 @@ const TOOLS: Tool[] = [
   },
   {
     id:        'waitingroom',
+    group:     'now',
     icon:      'clock',
     iconColor: '#0277BD',
     title:     'Waiting Room',
@@ -51,6 +59,7 @@ const TOOLS: Tool[] = [
   },
   {
     id:        'ground',
+    group:     'now',
     icon:      'anchor',
     iconColor: '#2E7D32',
     title:     'Ground Yourself',
@@ -58,7 +67,26 @@ const TOOLS: Tool[] = [
     route:     { pathname: '/breathe', params: { mode: 'grounding' } },
   },
   {
+    id:        'games',
+    group:     'play',
+    icon:      'zap',
+    iconColor: '#7c3aed',
+    title:     'Games',
+    subtitle:  'Quick and calm · give your hands something to do',
+    route:     '/(tabs)/arcade' as Href,
+  },
+  {
+    id:        'journal',
+    group:     'out',
+    icon:      'book-open',
+    iconColor: '#0277BD',
+    title:     'Journal',
+    subtitle:  'Log an urge or a win · stays on your phone',
+    route:     '/journal' as Href,
+  },
+  {
     id:        'bubbles',
+    group:     'out',
     icon:      'feather',
     iconColor: '#0ea5e9',
     title:     'Brain Bubbles',
@@ -67,6 +95,7 @@ const TOOLS: Tool[] = [
   },
   {
     id:        'deadreckoning',
+    group:     'out',
     icon:      'compass',
     iconColor: '#7c3aed',
     title:     'Dead Reckoning',
@@ -75,6 +104,7 @@ const TOOLS: Tool[] = [
   },
   {
     id:        'insights',
+    group:     'out',
     icon:      'bar-chart-2',
     iconColor: '#0277BD',
     title:     'Insights',
@@ -106,6 +136,22 @@ function ToolRow({ tool }: { tool: Tool }) {
       </View>
       <Feather name={locked ? 'lock' : 'chevron-right'} size={18} color={colors.textMuted} />
     </Pressable>
+  );
+}
+
+const GROUPS: { id: Group; title: string; hint?: string }[] = [
+  { id: 'now',  title: 'Right now',  hint: 'Urges peak and fade. Give one of these 2 minutes.' },
+  { id: 'play', title: 'Play' },
+  { id: 'out',  title: 'Get it out' },
+];
+
+function SectionLabel({ title, hint }: { title: string; hint?: string }) {
+  const { colors } = useTheme();
+  return (
+    <View style={styles.sectionHead}>
+      <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>{title}</Text>
+      {hint ? <Text style={[styles.sectionHint, { color: colors.textMuted }]}>{hint}</Text> : null}
+    </View>
   );
 }
 
@@ -221,30 +267,38 @@ export default function CalmScreen() {
 
         {/* Header */}
         <View style={styles.header}>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>For when you're struggling</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Unwind</Text>
           <Text style={[styles.headerSub, { color: colors.textSecondary }]}>
-            These tools work. Pick one and give it 2 minutes.
+            Something better to do than scroll. Pick one and give it 2 minutes.
           </Text>
         </View>
 
-        {/* Nightly commitment — above tools */}
-        <NightlyCommitmentCard />
-
-        {/* Tools */}
-        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, marginTop: SPACING.md }]}>
-          {TOOLS.map((tool, i) => (
-            <View key={tool.id}>
-              <ToolRow tool={tool} />
-              {i < TOOLS.length - 1 && <View style={[styles.divider, { backgroundColor: colors.border }]} />}
+        {GROUPS.map((g) => {
+          const tools = TOOLS.filter((t) => t.group === g.id);
+          return (
+            <View key={g.id}>
+              <SectionLabel title={g.title} hint={g.hint} />
+              <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                {tools.map((tool, i) => (
+                  <View key={tool.id}>
+                    <ToolRow tool={tool} />
+                    {i < tools.length - 1 && <View style={[styles.divider, { backgroundColor: colors.border }]} />}
+                  </View>
+                ))}
+              </View>
             </View>
-          ))}
-        </View>
+          );
+        })}
+
+        {/* Nightly commitment */}
+        <SectionLabel title="Tonight" />
+        <NightlyCommitmentCard />
 
         {/* Reminder */}
         <View style={styles.reminder}>
           <Feather name="info" size={14} color={colors.textMuted} />
           <Text style={[styles.reminderText, { color: colors.textMuted }]}>
-            Urges peak at about 90 seconds then fade. You don't have to fight them — just wait.
+            You don't have to fight an urge. Most fade on their own if you give them a few minutes.
           </Text>
         </View>
 
@@ -255,12 +309,12 @@ export default function CalmScreen() {
       page="calm"
       icon="wind"
       accent={colors.calm}
-      title="Calm"
-      hint="Tools for tough moments"
-      subtitle="For when you're struggling. No scores, just help."
+      title="Unwind"
+      hint="Something better to do than scroll"
+      subtitle="Urge tools, quick games, and places to put your thoughts. No scores, just help."
       points={[
-        { icon: 'wind',      title: 'Grounding tools',   body: 'Quick exercises that calm the urge in under 2 minutes.' },
-        { icon: 'clock',     title: 'Waiting Room',      body: 'Sit with the urge and watch it pass.' },
+        { icon: 'wind',      title: 'Right now',         body: 'Breathe, ground yourself or sit it out. Under 2 minutes.' },
+        { icon: 'zap',       title: 'Play',              body: 'Quick, calm games when your hands need something to do.' },
         { icon: 'moon',      title: "Tonight's rule",    body: 'A nightly commitment that shows up if you hit a block.' },
       ]}
     />
@@ -286,6 +340,23 @@ const styles = StyleSheet.create({
   },
   headerSub: {
     ...TYPE.body,
+  },
+
+  sectionHead: {
+    marginTop: SPACING.lg,
+    marginBottom: SPACING.sm,
+    paddingHorizontal: 2,
+  },
+  sectionTitle: {
+    fontFamily: FONTS.bodyMedium,
+    fontSize: 12,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
+  sectionHint: {
+    fontFamily: FONTS.body,
+    fontSize: 12,
+    marginTop: 2,
   },
 
   // ── Nightly card ────────────────────────────────────────────────────────────

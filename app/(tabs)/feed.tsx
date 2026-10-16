@@ -4,7 +4,7 @@
 //   Good news          up to 5 uplifting stories
 //   What people are looking up   up to 4 most-read topics (Wikipedia), described in plain words
 //   Major news         up to 4 calm summaries, ONLY if the user opted in (Me > Customize)
-//   Your turn          a journal prompt, then Journal / Brain Bubbles / Insights
+//   Your turn          a journal prompt, Journal, and The Wall (Bubbles, Insights, games live in Unwind)
 // Every item links to its source. When the sections end, the briefing ends.
 
 import { useCallback, useEffect, useState } from 'react';
@@ -121,8 +121,6 @@ export default function FeedScreen() {
       </Pressable>
       {[
         { icon: 'book-open' as const, label: 'Journal', body: 'Log an urge or a win. Everything you write stays here.', go: () => router.push('/journal' as any) },
-        { icon: 'edit-3' as const,    label: 'Brain Bubbles', body: 'Dump the noise onto a canvas.', go: () => router.push('/bubbles' as any) },
-        { icon: 'bar-chart-2' as const, label: 'Insights', body: 'Your patterns, kindly told.', go: () => router.push('/insights' as any) },
         { icon: 'grid' as const,      label: 'The Wall', body: 'Sponsored. Local businesses and makers. Only when you choose to look.', go: () => router.push('/wall' as any) },
       ].map((r) => (
         <Pressable
