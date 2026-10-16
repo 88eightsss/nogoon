@@ -13,7 +13,10 @@ import Svg, { Rect } from 'react-native-svg';
 import { router, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { FONTS } from '@/constants/Colors';
-import { ROOM_W, ROOM_H, ROOM_DAY, ROOM_NIGHT, ROOM_HOTSPOTS, ROOM_COMPANION, roomRects, roomLevel } from '@/constants/room';
+import { ROOM_W, ROOM_H, ROOM_HOTSPOTS, ROOM_COMPANION, roomRects, roomLevel, buildPalette } from '@/constants/room';
+import { useRoomStore } from '@/stores/useRoomStore';
+import { useTheme } from '@/hooks/useTheme';
+import { Feather } from '@expo/vector-icons';
 import type { GoonStage } from '@/constants/sprites';
 import type { CharacterId } from '@/stores/usePetStore';
 import { PackSprite } from './PackSprite';
@@ -29,25 +32,48 @@ const SAY = [
 
 type Spot = { key: string; label: string; a11y: string; box: { x: number; y: number; w: number; h: number }; chip: { x: number; y: number }; go: () => void };
 
+/** The name line above the room, with a way into decorating it. */
+export function RoomTitle() {
+  const { colors } = useTheme();
+  const name = useRoomStore((s) => s.roomName);
+  return (
+    <Pressable
+      onPress={() => { Haptics.selectionAsync().catch(() => {}); router.push({ pathname: '/customize', params: { section: 'room' } } as any); }}
+      accessibilityRole="button"
+      accessibilityLabel={`${name || 'Your room'}. Decorate your room.`}
+      style={styles.title}
+      hitSlop={6}
+    >
+      <Text style={[styles.titleText, { color: colors.text }]} numberOfLines={1}>{name.trim() || 'Your room'}</Text>
+      <Feather name="edit-2" size={13} color={colors.textMuted} />
+      <Text style={[styles.titleLink, { color: colors.textMuted }]}>Decorate</Text>
+    </Pressable>
+  );
+}
+
 export function RoomScene({
   char, stage, streak, walkAways, headline, showSponsors, petName,
+  interactive = true, forceNight, showTicker = true, maxWidth = 460, outerPad = 32,
 }: {
   char: CharacterId; stage: GoonStage; streak: number; walkAways: number;
   headline: string | null; showSponsors: boolean; petName: string;
+  interactive?: boolean; forceNight?: boolean; showTicker?: boolean; maxWidth?: number; outerPad?: number;
 }) {
   const { width } = useWindowDimensions();
   const border = 4;
-  const W = Math.min(width - 32, 460) - border * 2;
+  const W = Math.min(width - outerPad, maxWidth) - border * 2;
   const k = W / ROOM_W;
   const H = Math.round(ROOM_H * k);
 
   // Day or night follows the clock, and is checked again whenever Today comes back into view.
   const [hour, setHour] = useState(() => new Date().getHours());
   useFocusEffect(useCallback(() => { setHour(new Date().getHours()); }, []));
-  const night = hour >= 20 || hour < 6;
-  const p = night ? ROOM_NIGHT : ROOM_DAY;
+  const night = forceNight ?? (hour >= 20 || hour < 6);
+  const look = useRoomStore((st) => st.look);
+  const decor = useRoomStore((st) => st.decor);
+  const p = buildPalette(look, night);
   const level = roomLevel(walkAways);
-  const rects = roomRects(p, level);
+  const rects = roomRects(p, level, decor);
 
   const [say, setSay] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -89,7 +115,7 @@ export function RoomScene({
           })}
         </Svg>
 
-        {spots.map((s) => (
+        {interactive && spots.map((s) => (
           <Pressable
             key={s.key}
             onPress={s.go}
@@ -99,43 +125,52 @@ export function RoomScene({
           />
         ))}
 
-        <Pressable
+        {interactive ? <Pressable
           onPress={talk}
           accessibilityRole="button"
           accessibilityLabel={`${petName}, your companion. Tap to hear from them.`}
           style={{ position: 'absolute', left: sx, top: sy, width: spriteW, height: spriteH }}
         >
           <PackSprite char={char} stage={stage} cell={cell} />
-        </Pressable>
+        </Pressable> : (
+          <View style={{ position: 'absolute', left: sx, top: sy, width: spriteW, height: spriteH }} pointerEvents="none">
+            <PackSprite char={char} stage={stage} cell={cell} />
+          </View>
+        )}
 
-        {night && !say ? <Text style={[styles.zzz, { left: sx + spriteW - 4, top: sy - 8, color: '#EAF2FF' }]} accessibilityElementsHidden>z Z</Text> : null}
+        {interactive && night && !say ? <Text style={[styles.zzz, { left: sx + spriteW - 4, top: sy - 8, color: '#EAF2FF' }]} accessibilityElementsHidden>z Z</Text> : null}
         {say ? (
           <View style={[styles.bubble, { left: Math.max(6, Math.min(W - 186, sx + spriteW / 2 - 90)), top: Math.max(4, sy - 40) }]} pointerEvents="none">
             <Text style={styles.bubbleText}>{say}</Text>
           </View>
         ) : null}
 
-        <View style={styles.dayRow} pointerEvents="none">
+        {interactive && <View style={styles.dayRow} pointerEvents="none">
           <View style={[styles.chip, { position: 'relative', borderColor: p.boxInk }]}>
             <Text style={[styles.chipText, { color: '#12233D', fontSize: 11 }]}>DAY {Math.max(1, streak)}</Text>
           </View>
-        </View>
+        </View>}
 
-        {spots.map((s) => (
+        {interactive && spots.map((s) => (
           <View key={`c${s.key}`} style={[styles.chip, { left: s.chip.x * k, top: s.chip.y * k, borderColor: p.boxInk }]} pointerEvents="none">
             <Text style={[styles.chipText, { color: '#12233D' }]}>{s.label.toUpperCase()}</Text>
           </View>
         ))}
       </View>
 
-      <View style={{ backgroundColor: lcd, paddingHorizontal: 6, paddingVertical: 4 }}>
-        <Marquee text={`NEWS ▸ ${news}`} color={p.lcdInk} bg={lcd} font={FONTS.mono} />
-      </View>
+      {showTicker ? (
+        <View style={{ backgroundColor: lcd, paddingHorizontal: 6, paddingVertical: 4 }}>
+          <Marquee text={`NEWS ▸ ${news}`} color={p.lcdInk} bg={lcd} font={FONTS.mono} />
+        </View>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  title:  { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 4 },
+  titleText: { fontFamily: FONTS.display, fontSize: 18, flexShrink: 1 },
+  titleLink: { fontFamily: FONTS.body, fontSize: 12, marginLeft: 'auto' },
   box:    { borderWidth: 4, borderRadius: 10, overflow: 'hidden', alignSelf: 'center', shadowOffset: { width: 0, height: 5 }, shadowOpacity: 1, shadowRadius: 0, elevation: 4 },
   chip:   { position: 'absolute', backgroundColor: '#FFFFFF', borderWidth: 2, borderRadius: 3, paddingHorizontal: 5, paddingVertical: 2 },
   chipText: { fontFamily: FONTS.monoBold, fontSize: 9, letterSpacing: 0.4 },

@@ -35,7 +35,7 @@ import { getTodaysGood, type GoodItem } from '@/lib/dailyGood';
 import { useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StyleCard } from './StyleCard';
-import { RoomScene } from './RoomScene';
+import { RoomScene, RoomTitle } from './RoomScene';
 import { useRoomStore } from '@/stores/useRoomStore';
 import { useOfferStore } from '@/stores/useOfferStore';
 
@@ -158,10 +158,13 @@ export function MyPage() {
       </View>
 
       {roomView ? (
+        <>
+        <RoomTitle />
         <RoomScene
           char={char} stage={stage} streak={streak} walkAways={walkAways}
           headline={topGood?.headline ?? null} showSponsors={showSponsors} petName={petName}
         />
+        </>
       ) : (
         <>
         {pack.parts.page.marquee ? (

@@ -13,14 +13,18 @@ import type { CharacterId } from '@/stores/usePetStore';
 import { View, Text, TextInput, Pressable, ScrollView, Switch, StyleSheet, BackHandler } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
 import { usePackStore, GATE_NOTE_MAX, DEFAULT_COMPANION_POS, type GateVoice, type FloatMode, type CompanionSize, type PaperChoice, type DayDisplay } from '@/stores/usePackStore';
 import { availablePacks } from '@/constants/packs';
 import { FONTS } from '@/constants/Colors';
 import { BUNDLES, CUSTOM_LEN, CUSTOM_MAX } from '@/constants/offers';
 import { useOfferStore } from '@/stores/useOfferStore';
-import { useRoomStore } from '@/stores/useRoomStore';
+import { useRoomStore, ROOM_NAME_MAX } from '@/stores/useRoomStore';
+import { RoomScene } from '@/components/page/RoomScene';
+import { LOOK_PARTS, ROOM_SWATCHES, DECOR_UNLOCK, type DecorKey } from '@/constants/room';
+import { useUserStore } from '@/stores/useUserStore';
+import { getGoonStage } from '@/components/home/GoonMascot';
 import { SPACING } from '@/constants/Spacing';
 
 const VOICES: { id: GateVoice; label: string }[] = [
@@ -41,8 +45,9 @@ const PAPERS: { id: PaperChoice; label: string }[] = [
 ];
 const ACCENTS = ['#1B62C2', '#0B7A44', '#FF6F61', '#7A3FD1', '#12A37F', '#DB2777', '#C2410C', '#CA8A04'];
 
-type CustSection = 'layout' | 'skins' | 'companion' | 'gate' | 'colour';
+type CustSection = 'room' | 'layout' | 'skins' | 'companion' | 'gate' | 'colour';
 const HUB: { id: CustSection; icon: ComponentProps<typeof Feather>['name']; title: string; sub: string }[] = [
+  { id: 'room',      icon: 'home',       title: 'Your room',            sub: 'Name, colours, decor' },
   { id: 'skins',     icon: 'package',    title: 'Skins & codes',        sub: 'Pick a look, enter a pack code' },
   { id: 'companion', icon: 'smile',      title: 'Your companion',       sub: 'Which one, how it floats, how big' },
   { id: 'colour',    icon: 'droplet',    title: 'Colour & paper',       sub: 'Accent colour and page background' },
@@ -90,7 +95,18 @@ export default function CustomizeScreen() {
   const addMine        = useOfferStore((s) => s.addCustom);
   const removeMine     = useOfferStore((s) => s.removeCustom);
   const [mineDraft, setMineDraft] = useState('');
-  const [section, setSection] = useState<CustSection | null>(null);
+  const params = useLocalSearchParams<{ section?: string }>();
+  const [section, setSection] = useState<CustSection | null>(params.section === 'room' ? 'room' : null);
+  const roomName      = useRoomStore((s) => s.roomName);
+  const setRoomName   = useRoomStore((s) => s.setRoomName);
+  const look          = useRoomStore((s) => s.look);
+  const setLook       = useRoomStore((s) => s.setLook);
+  const decor         = useRoomStore((s) => s.decor);
+  const setDecor      = useRoomStore((s) => s.setDecor);
+  const resetRoom     = useRoomStore((s) => s.resetRoom);
+  const walkAways     = useUserStore((s) => s.walkAwayCount);
+  const streakNow     = useUserStore((s) => s.streak);
+  const [previewNight, setPreviewNight] = useState(false);
   useEffect(() => {
     if (!section) return;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => { setSection(null); return true; });
@@ -170,6 +186,100 @@ export default function CustomizeScreen() {
             <Text style={[styles.btnText, { color: colors.accent }]}>Customize</Text>
             <Text style={[styles.cardTitle, { color: colors.text, marginLeft: SPACING.sm }]}>{HUB.find((h) => h.id === section)?.title}</Text>
           </Pressable>
+        )}
+
+        {section === 'room' && (
+        <>
+        <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder, alignItems: 'center' }]}>
+          <RoomScene
+            char={activeChar} stage={getGoonStage(walkAways)} streak={streakNow} walkAways={walkAways}
+            headline={null} showSponsors={false} petName="" interactive={false} showTicker={false}
+            forceNight={previewNight} outerPad={96}
+          />
+          <Chips
+            items={[{ id: 'day', label: 'Day' }, { id: 'night', label: 'Night' }]}
+            value={previewNight ? 'night' : 'day'}
+            onChange={(v) => setPreviewNight(v === 'night')}
+            colors={colors}
+          />
+        </View>
+
+        <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+          <Text style={[styles.cardTitle, { color: colors.text }]}>Name</Text>
+          <TextInput
+            value={roomName}
+            onChangeText={setRoomName}
+            maxLength={ROOM_NAME_MAX}
+            placeholder="Your room"
+            placeholderTextColor={colors.textMuted}
+            autoCorrect={false}
+            returnKeyType="done"
+            style={[styles.input, { color: colors.text, borderColor: colors.border }]}
+          />
+        </View>
+
+        <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+          <Text style={[styles.cardTitle, { color: colors.text }]}>Colours</Text>
+          {LOOK_PARTS.map(({ part, label }) => (
+            <View key={part} style={{ gap: 6 }}>
+              <Text style={[styles.hint, { color: colors.textSecondary }]}>{label}</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+                {ROOM_SWATCHES[part].map((sw) => {
+                  const on = look[part] === sw.key;
+                  return (
+                    <Pressable
+                      key={sw.key}
+                      onPress={() => setLook(part, sw.key)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${label}: ${sw.name}`}
+                      accessibilityState={{ selected: on }}
+                      hitSlop={4}
+                      style={{
+                        width: 34, height: 34, borderRadius: 17, backgroundColor: sw.a,
+                        borderWidth: on ? 3 : 1, borderColor: on ? colors.accent : colors.border,
+                      }}
+                    />
+                  );
+                })}
+              </View>
+            </View>
+          ))}
+        </View>
+
+        <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+          <Text style={[styles.cardTitle, { color: colors.text }]}>Decor</Text>
+          <Text style={[styles.hint, { color: colors.textSecondary }]}>
+            Pieces appear as you walk away. Once earned they stay, and you choose whether to show them.
+          </Text>
+          {(Object.keys(DECOR_UNLOCK) as DecorKey[]).map((k) => {
+            const u = DECOR_UNLOCK[k];
+            const locked = walkAways < u.at;
+            return (
+              <View key={k} style={styles.rowBetween}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.body, { color: locked ? colors.textMuted : colors.text }]}>{u.label}</Text>
+                  {locked && <Text style={[styles.hint, { color: colors.textMuted }]}>Unlocks at {u.at} walk-aways ({Math.max(0, u.at - walkAways)} to go)</Text>}
+                </View>
+                <Switch
+                  value={decor[k]}
+                  disabled={locked}
+                  onValueChange={(v) => setDecor(k, v)}
+                  trackColor={{ false: colors.border, true: colors.accent }}
+                  thumbColor="#fff"
+                />
+              </View>
+            );
+          })}
+        </View>
+
+        <Pressable
+          onPress={resetRoom}
+          accessibilityRole="button"
+          style={[styles.btn, { borderColor: colors.border, borderWidth: 1, backgroundColor: 'transparent' }]}
+        >
+          <Text style={[styles.btnText, { color: colors.textSecondary }]}>Reset colours and decor</Text>
+        </Pressable>
+        </>
         )}
 
         {section === 'layout' && (
