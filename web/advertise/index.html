@@ -84,6 +84,7 @@ ul{margin:0;padding-left:20px;color:var(--ink2);display:flex;flex-direction:colu
         <label>One line (optional)<input id="headline" maxlength="60" placeholder="What you do, in a few words"></label>
         <label>Link (https://)<input id="url" type="url" placeholder="https://" required></label>
         <label>Logo image link (optional, https)<input id="image_url" type="url" placeholder="https://"></label>
+        <label>Where are you? (optional)<input id="region" maxlength="40" placeholder="Town, island, or Online"></label>
         <label>Tile colour<input id="color" type="color" value="#1B62C2"></label>
         <label>Category<select id="category" required>
           <option value="">Choose…</option>
@@ -232,7 +233,7 @@ ul{margin:0;padding-left:20px;color:var(--ink2);display:flex;flex-direction:colu
     try {
       const { url } = await call({
         action: 'checkout', x: pos.x, y: pos.y, w: d.w, h: d.h, months: +$('months').value,
-        company: $('company').value, headline: $('headline').value, url: $('url').value, image_url: $('image_url').value,
+        company: $('company').value, headline: $('headline').value, url: $('url').value, image_url: $('image_url').value, region: $('region').value,
         color: $('color').value, category: $('category').value, email: $('email').value, agree: $('agree').checked, website: $('website').value,
       });
       location.href = url;

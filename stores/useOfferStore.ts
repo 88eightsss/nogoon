@@ -16,6 +16,8 @@ interface OfferState {
   custom: string[];          // the user's own "instead I will…" lines
   place: string;             // optional town or neighbourhood for the Beyond the screen links
   setPlace: (text: string) => void;
+  showSponsors: boolean;     // false hides The Wall row and the sponsor tiles in Beyond the screen
+  setShowSponsors: (on: boolean) => void;
   toggleBundle: (id: BundleId) => void;
   addCustom: (text: string) => boolean;   // false when empty, duplicate, or the list is full
   removeCustom: (index: number) => void;
@@ -27,6 +29,8 @@ export const useOfferStore = create<OfferState>()(
       bundleIds: ['smart'],
       custom: [],
       place: '',
+      showSponsors: true,
+      setShowSponsors: (on) => set({ showSponsors: on }),
       setPlace: (text) => set({ place: text.slice(0, PLACE_MAX) }),
 
       toggleBundle: (id) => {
@@ -69,7 +73,7 @@ export const useOfferStore = create<OfferState>()(
         const ids = (p.bundleIds ?? []).filter((b): b is BundleId => VALID.has(b));
         const custom = (p.custom ?? []).filter((c): c is string => typeof c === 'string').slice(0, CUSTOM_MAX);
         const place = typeof p.place === 'string' ? p.place.slice(0, PLACE_MAX) : '';
-        return { ...current, bundleIds: ids.length ? ids : current.bundleIds, custom, place };
+        return { ...current, bundleIds: ids.length ? ids : current.bundleIds, custom, place, showSponsors: p.showSponsors !== false };
       },
     },
   ),

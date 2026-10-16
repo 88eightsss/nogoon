@@ -5,7 +5,7 @@
 // opens in the browser. Nothing about the viewer is tracked or sent.
 
 import { useCallback, useEffect, useState } from 'react';
-import { View, Text, Pressable, ScrollView, Modal, Linking, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, ScrollView, Modal, Linking, StyleSheet, ActivityIndicator, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Line } from 'react-native-svg';
 import { Feather } from '@expo/vector-icons';
@@ -14,7 +14,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { FONTS } from '@/constants/Colors';
 import { SPACING } from '@/constants/Spacing';
 import { ADVERTISE_URL, WALL_CATEGORY_LABELS } from '@/constants/wall';
-import { getWall, reportTile, inkOn, type WallTile, type WallStats } from '@/lib/wall';
+import { getWall, reportTile, tapTile, inkOn, type WallTile, type WallStats } from '@/lib/wall';
 
 const CELL = 28;
 
@@ -25,6 +25,7 @@ export default function WallScreen() {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState<WallTile | null>(null);
   const [reported, setReported] = useState(false);
+  const [badImg, setBadImg] = useState<Set<string>>(new Set());
 
   const load = useCallback(async (force = false) => {
     setLoading(true);
@@ -41,6 +42,7 @@ export default function WallScreen() {
   const left = stats ? stats.total - stats.sold : 3000;
 
   const visit = async (t: WallTile) => {
+    tapTile(t.id);
     try { await Linking.openURL(t.url); } catch { /* no browser available */ }
   };
   const report = async (t: WallTile) => {
@@ -100,9 +102,19 @@ export default function WallScreen() {
                     accessibilityLabel={`Sponsored: ${t.company}`}
                     style={[styles.tile, { left: t.x * CELL + 1, top: t.y * CELL + 1, width: t.w * CELL - 2, height: t.h * CELL - 2, backgroundColor: t.color }]}
                   >
-                    <Text style={[styles.tileText, { color: inkOn(t.color) }]} numberOfLines={t.h > 1 ? 3 : 1}>
-                      {t.w * t.h === 1 ? t.company.charAt(0).toUpperCase() : t.company}
-                    </Text>
+                    {t.image_url && !badImg.has(t.id) ? (
+                      <Image
+                        source={{ uri: t.image_url }}
+                        resizeMode="contain"
+                        accessibilityIgnoresInvertColors
+                        onError={() => setBadImg((p) => new Set(p).add(t.id))}
+                        style={StyleSheet.absoluteFill}
+                      />
+                    ) : (
+                      <Text style={[styles.tileText, { color: inkOn(t.color) }]} numberOfLines={t.h > 1 ? 3 : 1}>
+                        {t.w * t.h === 1 ? t.company.charAt(0).toUpperCase() : t.company}
+                      </Text>
+                    )}
                   </Pressable>
                 ))}
               </View>

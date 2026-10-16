@@ -14,6 +14,7 @@ import { router } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
 import { getTodaysBriefing, type Briefing, type GoodItem } from '@/lib/dailyGood';
 import { usePackStore } from '@/stores/usePackStore';
+import { useOfferStore } from '@/stores/useOfferStore';
 import { FONTS } from '@/constants/Colors';
 import { SPACING } from '@/constants/Spacing';
 
@@ -29,6 +30,7 @@ const PROMPTS = [
 const todaysPrompt = () => PROMPTS[Math.floor(Date.now() / 86400000) % PROMPTS.length];
 
 export default function FeedScreen() {
+  const showSponsors = useOfferStore((s) => s.showSponsors);
   const { colors, cardStyle } = useTheme();
   const showWorldNews = usePackStore((s) => s.showWorldNews);
   const [brief, setBrief] = useState<Briefing>({ good: [], curious: [], world: [] });
@@ -122,7 +124,7 @@ export default function FeedScreen() {
       {[
         { icon: 'book-open' as const, label: 'Journal', body: 'Log an urge or a win. Everything you write stays here.', go: () => router.push('/journal' as any) },
         { icon: 'grid' as const,      label: 'The Wall', body: 'Sponsored. Local businesses and makers. Only when you choose to look.', go: () => router.push('/wall' as any) },
-      ].map((r) => (
+      ].filter((r) => showSponsors || r.label !== 'The Wall').map((r) => (
         <Pressable
           key={r.label}
           onPress={r.go}

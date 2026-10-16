@@ -6,7 +6,7 @@ import { supabase } from './supabase';
 export type WallTile = {
   id: string; x: number; y: number; w: number; h: number;
   company: string; headline: string | null; url: string; image_url: string | null;
-  color: string; category: string;
+  color: string; category: string; region: string | null;
 };
 export type WallStats = {
   cols: number; rows: number; total: number; sold: number;
@@ -22,7 +22,7 @@ export async function getWall(force = false): Promise<{ tiles: WallTile[]; stats
   if (!force && cache && Date.now() - cache.at < TTL) return cache;
   try {
     const [t, s] = await Promise.all([
-      supabase.from('wall_public').select('id,x,y,w,h,company,headline,url,image_url,color,category'),
+      supabase.from('wall_public').select('id,x,y,w,h,company,headline,url,image_url,color,category,region'),
       supabase.rpc('wall_stats'),
     ]);
     const tiles = (t.data as WallTile[] | null) ?? [];
@@ -41,6 +41,27 @@ export async function reportTile(listingId: string, reason: string): Promise<boo
   } catch {
     return false;
   }
+}
+
+/** Counts one open of a tile's link. Sends only the tile id: no user, no device. */
+export async function tapTile(listingId: string): Promise<void> {
+  try { await supabase.rpc('wall_tap', { p_id: listingId }); } catch { /* counting is best effort */ }
+}
+
+/**
+ * Up to `max` sponsors to show away from the Wall. With a place set, tiles from that place come
+ * first, then tiles that are not tied to a place; tiles from somewhere else are left out. With no
+ * place, everything is eligible. Order rotates by day so the same few do not always lead.
+ */
+export function pickSponsors(tiles: WallTile[], place: string, day: number, max = 3): WallTile[] {
+  const want = place.trim().toLowerCase();
+  const near = (t: WallTile) => !!want && !!t.region && (t.region.toLowerCase().includes(want) || want.includes(t.region.toLowerCase()));
+  const anywhere = (t: WallTile) => !t.region || /^online$|^everywhere$/i.test(t.region);
+  const pool = want ? tiles.filter((t) => near(t) || anywhere(t)) : tiles.slice();
+  pool.sort((a, b) => Number(near(b)) - Number(near(a)) || a.id.localeCompare(b.id));
+  const head = pool.filter(near), rest = pool.filter((t) => !near(t));
+  const rot = <T,>(a: T[]) => (a.length ? a.map((_, i) => a[(i + day) % a.length]) : a);
+  return [...rot(head), ...rot(rest)].slice(0, max);
 }
 
 export function inkOn(hex: string): string {

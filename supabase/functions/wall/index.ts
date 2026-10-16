@@ -69,6 +69,7 @@ serve(async (req) => {
       const x = int(body.x), y = int(body.y), w = int(body.w), h = int(body.h), months = int(body.months);
       const company = str(body.company, 40), headline = str(body.headline, 60);
       const url = str(body.url, 300), imageUrl = str(body.image_url, 300);
+      const region = str(body.region, 40);
       const color = str(body.color, 7), category = str(body.category, 40), email = str(body.email, 120);
 
       if ([x, y, w, h, months].some(Number.isNaN)) return json({ error: 'Pick your tiles first.' }, 400);
@@ -76,6 +77,7 @@ serve(async (req) => {
       if (!/^https:\/\/[^ ]+$/.test(url)) return json({ error: 'Your link must start with https://' }, 400);
       if (imageUrl && !/^https:\/\/[^ ]+$/.test(imageUrl)) return json({ error: 'The image link must start with https://' }, 400);
       if (!/^#[0-9A-Fa-f]{6}$/.test(color)) return json({ error: 'Pick a tile colour.' }, 400);
+      if (region && region.length < 2) return json({ error: 'Where are you? Use at least two letters, or leave it blank.' }, 400);
       if (!CATEGORIES.includes(category)) return json({ error: 'Pick a category from the list.' }, 400);
       if (!/^[^@ ]+@[^@ ]+\.[^@ ]+$/.test(email)) return json({ error: 'Add a valid email for your receipt.' }, 400);
       if (body.agree !== true) return json({ error: 'Please confirm your ad follows the rules.' }, 400);
@@ -93,7 +95,7 @@ serve(async (req) => {
       if (total < 50) return json({ error: 'Order is below the minimum.' }, 400);
 
       const { data: row, error: insErr } = await db.from('wall_listings').insert({
-        x, y, w, h, company, headline: headline || null, url, image_url: imageUrl || null, color, category,
+        x, y, w, h, company, headline: headline || null, url, image_url: imageUrl || null, region: region || null, color, category,
         contact_email: email, months, price_cents: total,
       }).select('id').single();
       if (insErr || !row) {

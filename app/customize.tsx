@@ -46,7 +46,7 @@ const HUB: { id: CustSection; icon: ComponentProps<typeof Feather>['name']; titl
   { id: 'companion', icon: 'smile',      title: 'Your companion',       sub: 'Which one, how it floats, how big' },
   { id: 'colour',    icon: 'droplet',    title: 'Colour & paper',       sub: 'Accent colour and page background' },
   { id: 'gate',      icon: 'shield',     title: 'At the gate',          sub: 'Instead bundles, your own list, your note' },
-  { id: 'layout',    icon: 'layout',     title: 'Layout & news',        sub: 'My Page layout, major news in the briefing' },
+  { id: 'layout',    icon: 'layout',     title: 'Layout & news',        sub: 'My Page layout, news, sponsors' },
 ];
 
 function Chips<T extends string>({ items, value, onChange, colors }: {
@@ -82,6 +82,8 @@ export default function CustomizeScreen() {
   const bundleIds     = useOfferStore((s) => s.bundleIds);
   const myList        = useOfferStore((s) => s.custom);
   const toggleBundle  = useOfferStore((s) => s.toggleBundle);
+  const showSponsors  = useOfferStore((s) => s.showSponsors);
+  const setShowSponsors = useOfferStore((s) => s.setShowSponsors);
   const addMine        = useOfferStore((s) => s.addCustom);
   const removeMine     = useOfferStore((s) => s.removeCustom);
   const [mineDraft, setMineDraft] = useState('');
@@ -194,6 +196,23 @@ export default function CustomizeScreen() {
                 A short, calm summary of the biggest stories, a few items a day, then it ends. Off by default.
               </Text>
             </View>
+
+        <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+          <View style={styles.rowBetween}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.cardTitle, { color: colors.text }]}>Show sponsors</Text>
+              <Text style={[styles.body, { color: colors.textSecondary }]}>
+                The Wall and a few local sponsors in Beyond the screen. Sponsors keep NoGoon free. Never shown at the gate. Turn off to hide them completely.
+              </Text>
+            </View>
+            <Switch
+              value={showSponsors}
+              onValueChange={setShowSponsors}
+              trackColor={{ false: colors.border, true: colors.accent }}
+              thumbColor="#fff"
+            />
+          </View>
+        </View>
             <Switch
               value={showWorldNews}
               onValueChange={setShowWorldNews}
