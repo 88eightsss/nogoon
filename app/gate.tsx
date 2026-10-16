@@ -82,7 +82,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GoonSprite, getGoonStage } from '@/components/home/GoonMascot';
 import { PackGateCard } from '@/components/page/PackGateCard';
 import { getTodaysBriefing } from '@/lib/dailyGood';
-import { usePetStore, getPetMood, getPetSpeech, type CharacterId } from '@/stores/usePetStore';
+import type { CharacterId } from '@/stores/usePetStore';
+import { moodOf, daysSinceWalkAway, gateLine } from '@/constants/mascot';
 import { CHARACTER_NAMES } from '@/constants/sprites';
 
 // ─── Rapid re-entry options ────────────────────────────────────────────────────
@@ -201,7 +202,7 @@ function NoGoonScreen() {
   const isCurfewTriggered = curfew === '1' || source === 'curfew';
 
   const {
-    isBricked, isColdTurkey, gameDuration, streak, walkAwayCount, intentionGoal, gameMode, noGames, preferWaitingRoom,
+    isBricked, isColdTurkey, gameDuration, streak, walkAwayCount, dailyWalkAways: dailyWalkAwaysMap, intentionGoal, gameMode, noGames, preferWaitingRoom,
     openCounts, openCountDate, incrementOpenCount, recordDailyGateFire,
     dailyIntention, intentionDate,
     nightlyCommitment, nightlyCommitmentSetAt,
@@ -241,7 +242,6 @@ function NoGoonScreen() {
   const onGreen = isLightColor(C.green) ? '#0b1217' : '#ffffff';
 
   // ── Companion ─────────────────────────────────────────────────────────────
-  const petStore = usePetStore();
   const [gateCharacter, setGateCharacter] = useState<CharacterId | null>(null);
   const [gatePetName,   setGatePetName]   = useState('Buddy');
 
@@ -625,9 +625,14 @@ function NoGoonScreen() {
 
   // ── Companion derived values (used in rapid + calm phases) ───────────────
   const gateStage  = getGoonStage(walkAwayCount);
-  const gateStats  = gateCharacter !== null ? petStore.stats[gateCharacter] : null;
-  const gateMood   = gateStats ? getPetMood(gateStats) : ('okay' as const);
-  const gateSpeech = getPetSpeech(gateMood, gatePetName);
+  const gateMood   = moodOf({
+    hour: nowHour,
+    walkAwaysToday: dailyWalkAwaysMap?.[getLocalDateKey()] ?? 0,
+    daysSinceWalkAway: daysSinceWalkAway(dailyWalkAwaysMap ?? {}, getLocalDateKey()),
+    protectionOff: false,   // the gate only appears because blocking is working
+    pets: 0,
+  });
+  const gateSpeech = gateLine(gateMood, gatePetName);
   const gateAccent = gateCharacter !== null ? COMPANION_ACCENT[gateCharacter] : '#7c3aed';
 
   // ══════════════════════════════════════════════════════════════════════════

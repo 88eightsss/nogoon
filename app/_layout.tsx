@@ -40,9 +40,8 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { useUserStore } from '@/stores/useUserStore';
 import { useThemeStore } from '@/stores/useThemeStore';
 import { useSubscriptionStore } from '@/stores/useSubscriptionStore';
-import { requestNotificationPermission, scheduleWeeklyRecap, walkAwaysThisWeek, cancelComebackReminder, notifyTokenEarned } from '@/utils/notifications';
+import { requestNotificationPermission, scheduleWeeklyRecap, walkAwaysThisWeek, cancelComebackReminder } from '@/utils/notifications';
 import { useAdAppOpen } from '@/components/ads/AdAppOpen';
-import { processCheckIn } from '@/services/feedTokens';
 import { useCloudSync } from '@/hooks/useCloudSync';
 
 // Without a handler Android drops notifications that arrive while the app is open,
@@ -178,11 +177,8 @@ export default function RootLayout() {
   // Full-screen ad on every app foreground (= every NoGoon intercept)
   useAdAppOpen();
 
-  // On every app open: cash out earned tokens, reset accumulation clock
+  // On every app open: the comeback reminder is no longer needed.
   useEffect(() => {
-    processCheckIn((tokens, minutesAway) => {
-      notifyTokenEarned(tokens, minutesAway).catch(() => {});
-    }).catch(() => {});
     cancelComebackReminder().catch(() => {});
   }, []);
 

@@ -120,22 +120,7 @@ function buildRecapBody(walkAways: number, streak: number): string {
   return `${walkAways} walk-away${walkAways === 1 ? '' : 's'} this week. Every one counts. 💪`;
 }
 
-// ── Pet / feed token notifications ───────────────────────────────────────────
-
-/**
- * Fire immediately when the user earns feed tokens for being off their phone.
- * Points AWAY from phone use — reinforces the reversed mechanic.
- */
-export async function notifyTokenEarned(tokens: number, minutesOff: number): Promise<void> {
-  const plural  = tokens === 1 ? 'meal' : 'meals';
-  const timeStr = minutesOff >= 60
-    ? `${Math.floor(minutesOff / 60)}h ${minutesOff % 60}m`
-    : `${minutesOff}m`;
-  await fire(
-    `+${tokens} ${plural} earned`,
-    `You were off your phone for ${timeStr}. Your companion is grateful.`,
-  );
-}
+// ── Comeback reminder ────────────────────────────────────────────────────────
 
 /** Cancel the comeback reminder — call on every app open. */
 export async function cancelComebackReminder(): Promise<void> {

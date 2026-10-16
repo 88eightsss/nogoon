@@ -1,20 +1,32 @@
 // ─── RoomScene ────────────────────────────────────────────────────────────────
 //
-// Today as one small pixel room. Tap the window for the Briefing, the door for Protect, the
-// corkboard for The Wall, the bed for Unwind, the dresser for Me. Tap your companion to hear
-// from them. The bottom tab bar still works, so nothing depends on finding an object.
+// Today as one small pixel room with a companion who lives in it.
 //
-// Day or night follows the clock. The room fills in as lifetime walk-aways grow and never
-// shrinks if a streak breaks.
+//   Tap an object  → the companion walks over and says something about it, in the mood it is in.
+//   Hold an object → a ring fills, then that tab opens. (Screen readers open it with one tap.)
+//   Tap the companion → you pet it. A few pets lift a low mood.
+//
+// The mood comes from your day (see constants/mascot.ts): sleepy at night and lying on the bed,
+// worried by the door when protection is off, proud after a walk-away, lonely at the window after
+// a few quiet days, otherwise happy or calm and wandering the rug. The bottom tab bar still works,
+// so nothing depends on finding an object.
+//
+// Day or night follows the clock. The room fills in as lifetime walk-aways grow and never shrinks.
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, useWindowDimensions } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { View, Text, Pressable, StyleSheet, Animated, Easing, AccessibilityInfo, useWindowDimensions } from 'react-native';
 import Svg, { Rect } from 'react-native-svg';
 import { router, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { FONTS } from '@/constants/Colors';
-import { ROOM_W, ROOM_H, ROOM_HOTSPOTS, ROOM_COMPANION, roomRects, roomLevel, buildPalette } from '@/constants/room';
+import { ROOM_W, ROOM_H, ROOM_HOTSPOTS, roomRects, roomLevel, buildPalette } from '@/constants/room';
+import {
+  moodOf, daysSinceWalkAway, isNight, objectLine, petLine, MOOD_HOME, MOOD_WANDER, MOOD_LABEL,
+  type Mood, type SpotKey, type StandKey,
+} from '@/constants/mascot';
 import { useRoomStore } from '@/stores/useRoomStore';
+import { useUserStore } from '@/stores/useUserStore';
+import { getLocalDateKey } from '@/utils/date';
 import { useTheme } from '@/hooks/useTheme';
 import { Feather } from '@expo/vector-icons';
 import type { GoonStage } from '@/constants/sprites';
@@ -22,15 +34,20 @@ import type { CharacterId } from '@/stores/usePetStore';
 import { PackSprite } from './PackSprite';
 import { Marquee } from './Marquee';
 
-const SAY = [
-  'Rest up. I will keep watch.',
-  'I am waking up. Thanks for walking away.',
-  'You walked away a lot. Proud of you.',
-  'Nothing gets past us today.',
-  'Look how far we have come.',
-];
+const HOLD_MS = 600;
+const BUSY_MS = 7000;
 
-type Spot = { key: string; label: string; a11y: string; box: { x: number; y: number; w: number; h: number }; chip: { x: number; y: number }; go: () => void };
+/** Where the companion stands (centre x, feet y) in room units. */
+const STAND: Record<StandKey, { cx: number; feet: number }> = {
+  rug:    { cx: 45, feet: 86 },
+  door:   { cx: 31, feet: 80 },
+  window: { cx: 45, feet: 72 },
+  board:  { cx: 62, feet: 72 },
+  bed:    { cx: 77, feet: 88 },
+  dresser:{ cx: 32, feet: 91 },
+};
+
+type Spot = { key: SpotKey; label: string; a11y: string; box: { x: number; y: number; w: number; h: number }; chip: { x: number; y: number }; go: () => void };
 
 /** The name line above the room, with a way into decorating it. */
 export function RoomTitle() {
@@ -51,41 +68,204 @@ export function RoomTitle() {
   );
 }
 
+/** One touchable object. Tap = visit, hold = open (with a filling ring). */
+function Hotspot({ box, k, label, a11y, direct, onTap, onHold }: {
+  box: Spot['box']; k: number; label: string; a11y: string; direct: boolean; onTap: () => void; onHold: () => void;
+}) {
+  const fill = useRef(new Animated.Value(0)).current;
+  const start = () => { fill.stopAnimation(); Animated.timing(fill, { toValue: 1, duration: HOLD_MS, easing: Easing.linear, useNativeDriver: false }).start(); };
+  const stop = () => { fill.stopAnimation(); Animated.timing(fill, { toValue: 0, duration: 140, useNativeDriver: false }).start(); };
+  return (
+    <Pressable
+      onPress={direct ? onHold : onTap}
+      onLongPress={direct ? undefined : () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}); onHold(); }}
+      delayLongPress={HOLD_MS}
+      onPressIn={direct ? undefined : start}
+      onPressOut={direct ? undefined : stop}
+      accessibilityRole="button"
+      accessibilityLabel={a11y}
+      accessibilityHint={direct ? undefined : `Tap to visit ${label}. Hold to open it.`}
+      style={{ position: 'absolute', left: box.x * k, top: box.y * k, width: box.w * k, height: box.h * k }}
+    >
+      <Animated.View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFill, styles.ring, { opacity: fill.interpolate({ inputRange: [0, 1], outputRange: [0, 0.5] }), borderRadius: 4 }]}
+      />
+    </Pressable>
+  );
+}
+
+/** A heart that floats up and fades, then removes itself. */
+function Heart({ x, y, delay, onDone }: { x: number; y: number; delay: number; onDone: () => void }) {
+  const t = useRef(new Animated.Value(0)).current;
+  const done = useRef(onDone);
+  done.current = onDone;
+  useEffect(() => {
+    Animated.timing(t, { toValue: 1, duration: 900, delay, easing: Easing.out(Easing.quad), useNativeDriver: true }).start(({ finished }) => { if (finished) done.current(); });
+  }, [t, delay]);
+  return (
+    <Animated.Text
+      pointerEvents="none"
+      style={[styles.heart, {
+        left: x, top: y,
+        opacity: t.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0, 1, 0] }),
+        transform: [{ translateY: t.interpolate({ inputRange: [0, 1], outputRange: [0, -26] }) }],
+      }]}
+    >{'♥'}</Animated.Text>
+  );
+}
+
 export function RoomScene({
   char, stage, streak, walkAways, headline, showSponsors, petName,
+  protectionOff = false,
   interactive = true, forceNight, showTicker = true, maxWidth = 460, outerPad = 32,
 }: {
   char: CharacterId; stage: GoonStage; streak: number; walkAways: number;
   headline: string | null; showSponsors: boolean; petName: string;
+  protectionOff?: boolean;
   interactive?: boolean; forceNight?: boolean; showTicker?: boolean; maxWidth?: number; outerPad?: number;
 }) {
+  const { colors } = useTheme();
   const { width } = useWindowDimensions();
   const border = 4;
   const W = Math.min(width - outerPad, maxWidth) - border * 2;
   const k = W / ROOM_W;
   const H = Math.round(ROOM_H * k);
+  const name = petName.trim() || 'Your companion';
 
   // Day or night follows the clock, and is checked again whenever Today comes back into view.
   const [hour, setHour] = useState(() => new Date().getHours());
-  useFocusEffect(useCallback(() => { setHour(new Date().getHours()); }, []));
-  const night = forceNight ?? (hour >= 20 || hour < 6);
+  const focused = useRef(true);
+  useFocusEffect(useCallback(() => {
+    focused.current = true;
+    setHour(new Date().getHours());
+    return () => { focused.current = false; };
+  }, []));
+  const night = forceNight ?? isNight(hour);
   const look = useRoomStore((st) => st.look);
   const decor = useRoomStore((st) => st.decor);
   const p = buildPalette(look, night);
   const level = roomLevel(walkAways);
   const rects = roomRects(p, level, decor);
 
+  // ── How the companion feels ──────────────────────────────────────────────
+  const dailyWalkAways = useUserStore((s) => s.dailyWalkAways);
+  const [pets, setPets] = useState(0);
+  const [awake, setAwake] = useState(false);          // a sleepy companion you have woken
+  const todayKey = getLocalDateKey();
+  const mood: Mood = useMemo(() => moodOf({
+    hour,
+    walkAwaysToday: dailyWalkAways?.[todayKey] ?? 0,
+    daysSinceWalkAway: daysSinceWalkAway(dailyWalkAways ?? {}, todayKey),
+    protectionOff,
+    pets,
+  }), [hour, dailyWalkAways, todayKey, protectionOff, pets]);
+  const sleeping = interactive && mood === 'sleepy' && !awake;
+
+  // ── Movement ─────────────────────────────────────────────────────────────
+  const home = STAND[interactive ? MOOD_HOME[mood] : 'rug'];
+  const cx = useRef(new Animated.Value(home.cx)).current;
+  const feet = useRef(new Animated.Value(home.feet)).current;
+  const hop = useRef(new Animated.Value(0)).current;
+  const lie = useRef(new Animated.Value(sleeping ? 1 : 0)).current;
+  const at = useRef<StandKey>(interactive ? MOOD_HOME[mood] : 'rug');
+  const busyUntil = useRef(0);
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const later = (fn: () => void, ms: number) => { const t = setTimeout(fn, ms); timers.current.push(t); return t; };
+  useEffect(() => () => { timers.current.forEach(clearTimeout); }, []);
+
+  const hopOnce = useCallback((height = 6) => {
+    Animated.sequence([
+      Animated.timing(hop, { toValue: -height, duration: 110, easing: Easing.out(Easing.quad), useNativeDriver: false }),
+      Animated.timing(hop, { toValue: 0, duration: 130, easing: Easing.in(Easing.quad), useNativeDriver: false }),
+    ]).start();
+  }, [hop]);
+
+  const walkTo = useCallback((key: StandKey) => {
+    if (at.current === key) { hopOnce(4); return; }
+    at.current = key;
+    const to = STAND[key];
+    Animated.parallel([
+      Animated.timing(cx, { toValue: to.cx, duration: 700, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
+      Animated.timing(feet, { toValue: to.feet, duration: 700, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
+      Animated.sequence([0, 1, 2].map(() => Animated.sequence([
+        Animated.timing(hop, { toValue: -4, duration: 110, useNativeDriver: false }),
+        Animated.timing(hop, { toValue: 0, duration: 120, useNativeDriver: false }),
+      ]))),
+    ]).start();
+  }, [cx, feet, hop, hopOnce]);
+
+  // Lie down on the bed to sleep, sit up when woken.
+  useEffect(() => {
+    Animated.timing(lie, { toValue: sleeping ? 1 : 0, duration: 450, easing: Easing.inOut(Easing.quad), useNativeDriver: false }).start();
+  }, [sleeping, lie]);
+
+  // Go to the place this mood calls home whenever the mood (or sleep state) changes.
+  useEffect(() => {
+    if (!interactive) return;
+    const t = later(() => walkTo(MOOD_HOME[mood]), 250);
+    return () => clearTimeout(t);
+  }, [mood, awake, interactive, walkTo]);
+
+  // Wander a little while idle, according to the mood.
+  useEffect(() => {
+    if (!interactive || sleeping) return;
+    let live = true;
+    const tick = () => {
+      if (!live) return;
+      if (focused.current && Date.now() >= busyUntil.current) {
+        const options = MOOD_WANDER[mood].filter((s) => s !== at.current);
+        if (options.length) walkTo(options[Math.floor(Math.random() * options.length)]);
+        if (mood === 'proud' || mood === 'happy') later(() => hopOnce(7), 900);
+      }
+      later(tick, 5000 + Math.random() * 4000);
+    };
+    const t = later(tick, 4000 + Math.random() * 3000);
+    return () => { live = false; clearTimeout(t); };
+  }, [mood, sleeping, interactive, walkTo, hopOnce]);
+
+  // ── Speech, hearts, petting ──────────────────────────────────────────────
   const [say, setSay] = useState<string | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
-  const talk = () => {
-    Haptics.selectionAsync().catch(() => {});
-    setSay(night ? 'Zzz. Sleep well.' : SAY[stage]);
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => setSay(null), 3500);
+  const sayTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (sayTimer.current) clearTimeout(sayTimer.current); }, []);
+  const speak = (text: string) => {
+    setSay(text);
+    busyUntil.current = Date.now() + BUSY_MS;
+    if (sayTimer.current) clearTimeout(sayTimer.current);
+    sayTimer.current = setTimeout(() => setSay(null), 3800);
+  };
+  const [hearts, setHearts] = useState<number[]>([]);
+  const heartId = useRef(0);
+  const dropHeart = useCallback((id: number) => setHearts((h) => h.filter((x) => x !== id)), []);
+
+  const petIt = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    const n = pets + 1;
+    setPets(n);
+    speak(petLine(mood, n));
+    hopOnce(8);
+    setHearts((h) => [...h, heartId.current++, heartId.current++]);
+    if (mood === 'sleepy') {
+      setAwake(true);
+      later(() => setAwake(false), 9000);
+    }
   };
 
-  const open = (path: string) => { Haptics.selectionAsync().catch(() => {}); router.navigate(path as any); };
+  const visit = (key: SpotKey) => {
+    Haptics.selectionAsync().catch(() => {});
+    speak(objectLine(mood, key));
+    if (!sleeping) walkTo(key);
+  };
+  const open = (path: string) => router.navigate(path as any);
+
+  // Screen readers can't hold, so for them one tap opens.
+  const [screenReader, setScreenReader] = useState(false);
+  useEffect(() => {
+    AccessibilityInfo.isScreenReaderEnabled().then(setScreenReader).catch(() => {});
+    const sub = AccessibilityInfo.addEventListener('screenReaderChanged', setScreenReader);
+    return () => sub.remove();
+  }, []);
+
   const H_ = ROOM_HOTSPOTS;
   const spots: Spot[] = [
     { key: 'door',    label: 'Protect',  a11y: 'Protect. The door. Opens your blocking settings.', box: H_.door,    chip: { x: 5,  y: 65 },   go: () => open('/(tabs)/blocklist') },
@@ -95,16 +275,26 @@ export function RoomScene({
     { key: 'dresser', label: 'Me',       a11y: 'Me. The dresser. Opens your settings and progress.',  box: H_.dresser, chip: { x: 5,  y: 93 },   go: () => open('/(tabs)/profile') },
   ];
 
-  const cell = Math.max(2, Math.round(ROOM_COMPANION.cells * k));
+  const cell = Math.max(2, Math.round(2 * k));
   const spriteW = 10 * cell, spriteH = 12 * cell;
-  // Centre the sprite on its slot, with its feet on the rug.
-  const sx = (ROOM_COMPANION.x + 10) * k - spriteW / 2;
-  const sy = (ROOM_COMPANION.y + 24) * k - spriteH;
+  const left = Animated.subtract(Animated.multiply(cx, k), spriteW / 2);
+  const top = Animated.subtract(Animated.multiply(feet, k), spriteH);
+  const spriteStyle = {
+    position: 'absolute' as const, left, top, width: spriteW, height: spriteH,
+    transform: [
+      { translateY: Animated.add(hop, lie.interpolate({ inputRange: [0, 1], outputRange: [0, (spriteH - spriteW) / 2] })) },
+      { rotate: lie.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '90deg'] }) },
+    ],
+  };
+  // Speech bubble and Zzz follow the standing spot, not the animation, so they stay readable.
+  const bubbleLeft = (c: number) => Math.max(6, Math.min(W - 186, c * k - 90));
+  const heartBase = { x: STAND[at.current].cx * k - 4, y: STAND[at.current].feet * k - spriteH };
 
   const lcd = p.lcdBg;
   const news = headline ? headline.toUpperCase() : 'GOOD NEWS IS ON ITS WAY';
 
   return (
+    <View>
     <View style={[styles.box, { borderColor: p.boxInk, shadowColor: p.boxInk, backgroundColor: p.wall }]} accessibilityLabel={`Your room. Day ${Math.max(1, streak)}.`}>
       <View style={{ width: W, height: H }}>
         <Svg width={W} height={H} style={StyleSheet.absoluteFill}>
@@ -116,31 +306,31 @@ export function RoomScene({
         </Svg>
 
         {interactive && spots.map((s) => (
-          <Pressable
-            key={s.key}
-            onPress={s.go}
-            accessibilityRole="button"
-            accessibilityLabel={s.a11y}
-            style={{ position: 'absolute', left: s.box.x * k, top: s.box.y * k, width: s.box.w * k, height: s.box.h * k }}
+          <Hotspot
+            key={s.key} box={s.box} k={k} label={s.label} a11y={s.a11y} direct={screenReader}
+            onTap={() => visit(s.key)} onHold={s.go}
           />
         ))}
 
-        {interactive ? <Pressable
-          onPress={talk}
-          accessibilityRole="button"
-          accessibilityLabel={`${petName}, your companion. Tap to hear from them.`}
-          style={{ position: 'absolute', left: sx, top: sy, width: spriteW, height: spriteH }}
-        >
-          <PackSprite char={char} stage={stage} cell={cell} />
-        </Pressable> : (
-          <View style={{ position: 'absolute', left: sx, top: sy, width: spriteW, height: spriteH }} pointerEvents="none">
+        <Animated.View style={spriteStyle} pointerEvents={interactive ? 'box-none' : 'none'}>
+          {interactive ? (
+            <Pressable
+              onPress={petIt}
+              accessibilityRole="button"
+              accessibilityLabel={`${name}, your companion, feeling ${MOOD_LABEL[mood]}. Tap to pet.`}
+              style={{ width: spriteW, height: spriteH }}
+            >
+              <PackSprite char={char} stage={stage} cell={cell} />
+            </Pressable>
+          ) : (
             <PackSprite char={char} stage={stage} cell={cell} />
-          </View>
-        )}
+          )}
+        </Animated.View>
 
-        {interactive && night && !say ? <Text style={[styles.zzz, { left: sx + spriteW - 4, top: sy - 8, color: '#EAF2FF' }]} accessibilityElementsHidden>z Z</Text> : null}
+        {sleeping ? <Text style={[styles.zzz, { left: STAND.bed.cx * k - 6, top: STAND.bed.feet * k - spriteW - 18, color: '#EAF2FF' }]} accessibilityElementsHidden>z Z</Text> : null}
+        {hearts.map((id, i) => <Heart key={id} x={heartBase.x + (i % 2 ? 10 : -6)} y={heartBase.y} delay={(i % 2) * 120} onDone={() => dropHeart(id)} />)}
         {say ? (
-          <View style={[styles.bubble, { left: Math.max(6, Math.min(W - 186, sx + spriteW / 2 - 90)), top: Math.max(4, sy - 40) }]} pointerEvents="none">
+          <View style={[styles.bubble, { left: bubbleLeft(STAND[at.current].cx), top: Math.max(4, STAND[at.current].feet * k - spriteH - 46) }]} pointerEvents="none">
             <Text style={styles.bubbleText}>{say}</Text>
           </View>
         ) : null}
@@ -164,6 +354,13 @@ export function RoomScene({
         </View>
       ) : null}
     </View>
+    {interactive ? (
+      <View style={styles.caption} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+        <Text style={[styles.captionMood, { color: colors.text }]}>{name} is feeling {MOOD_LABEL[mood]}</Text>
+        <Text style={[styles.captionHint, { color: colors.textMuted }]}>Tap to visit. Hold to open.</Text>
+      </View>
+    ) : null}
+    </View>
   );
 }
 
@@ -172,10 +369,15 @@ const styles = StyleSheet.create({
   titleText: { fontFamily: FONTS.display, fontSize: 18, flexShrink: 1 },
   titleLink: { fontFamily: FONTS.body, fontSize: 12, marginLeft: 'auto' },
   box:    { borderWidth: 4, borderRadius: 10, overflow: 'hidden', alignSelf: 'center', shadowOffset: { width: 0, height: 5 }, shadowOpacity: 1, shadowRadius: 0, elevation: 4 },
+  ring:   { backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: '#FFFFFF' },
   chip:   { position: 'absolute', backgroundColor: '#FFFFFF', borderWidth: 2, borderRadius: 3, paddingHorizontal: 5, paddingVertical: 2 },
   chipText: { fontFamily: FONTS.monoBold, fontSize: 9, letterSpacing: 0.4 },
   dayRow: { position: 'absolute', left: 0, right: 0, top: 4, alignItems: 'center' },
   zzz:    { position: 'absolute', fontFamily: FONTS.monoBold, fontSize: 11, opacity: 0.85 },
+  heart:  { position: 'absolute', fontSize: 14, color: '#FF6B8B' },
   bubble: { position: 'absolute', width: 180, backgroundColor: '#FFFFFF', borderColor: '#12233D', borderWidth: 2, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 5 },
   bubbleText: { fontFamily: FONTS.bodyMedium, fontSize: 12, color: '#12233D', textAlign: 'center' },
+  caption: { alignItems: 'center', gap: 2, marginTop: 10 },
+  captionMood: { fontFamily: FONTS.bodyMedium, fontSize: 13 },
+  captionHint: { fontFamily: FONTS.body, fontSize: 12 },
 });

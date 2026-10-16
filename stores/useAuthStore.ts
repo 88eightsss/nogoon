@@ -17,7 +17,6 @@ import { useUserStore } from '@/stores/useUserStore';
 import { useModesStore } from '@/stores/useModesStore';
 import { useBubblesStore } from '@/stores/useBubblesStore';
 import { useProgressStore } from '@/stores/useProgressStore';
-import { usePetStore } from '@/stores/usePetStore';
 import { usePackStore } from '@/stores/usePackStore';
 import { useOfferStore } from '@/stores/useOfferStore';
 import { useRoomStore } from '@/stores/useRoomStore';
@@ -85,7 +84,6 @@ async function wipeLocal() {
     // so reset them in memory too (private brain-bubble text, pet stats, unlock toasts).
     useBubblesStore.setState(useBubblesStore.getInitialState(), true);
     useProgressStore.setState(useProgressStore.getInitialState(), true);
-    usePetStore.setState(usePetStore.getInitialState(), true);
     // Personal gate note, unlocked skins and the new-My-Page switch belong to the account too.
     usePackStore.setState(usePackStore.getInitialState(), true);
     // Their own "instead I will…" list is personal too.

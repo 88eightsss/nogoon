@@ -164,6 +164,7 @@ export function MyPage() {
         <RoomScene
           char={char} stage={stage} streak={streak} walkAways={walkAways}
           headline={topGood?.headline ?? null} showSponsors={showSponsors} petName={petName}
+          protectionOff={blockingStatus === 'off' || blockingStatus === 'empty'}
         />
         </>
       ) : (

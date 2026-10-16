@@ -146,9 +146,6 @@ export const ROOM_HOTSPOTS = {
   dresser:{ x: 4,  y: 64, w: 22, h: 28 },
 } as const;
 
-/** Where the companion stands: top-left of a 10 x 12 sprite drawn at 2 units per cell. */
-export const ROOM_COMPANION = { x: 35, y: 62, cells: 2 } as const;
-
 export function roomRects(p: RoomPalette, level: RoomLevel, decor: RoomDecor = DEFAULT_DECOR): RoomRect[] {
   const has = (k: DecorKey) => level >= DECOR_UNLOCK[k].level && decor[k];
   const r: RoomRect[] = [];
