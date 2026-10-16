@@ -3,7 +3,7 @@
 // One place for: the new My Page switch , skins (packs), a pack code, and the
 // personal note shown at the gate. Hidden packs only appear after they are unlocked.
 
-import { useState, useEffect, type ComponentProps } from 'react';
+import { useState, useCallback, type ComponentProps } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEY } from '@/components/home/GoonMascot';
 import { PackSprite } from '@/components/page/PackSprite';
@@ -13,7 +13,7 @@ import type { CharacterId } from '@/stores/usePetStore';
 import { View, Text, TextInput, Pressable, ScrollView, Switch, StyleSheet, BackHandler } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
 import { usePackStore, GATE_NOTE_MAX, DEFAULT_COMPANION_POS, type GateVoice, type FloatMode, type CompanionSize, type PaperChoice, type DayDisplay } from '@/stores/usePackStore';
 import { availablePacks } from '@/constants/packs';
@@ -107,11 +107,13 @@ export default function CustomizeScreen() {
   const walkAways     = useUserStore((s) => s.walkAwayCount);
   const streakNow     = useUserStore((s) => s.streak);
   const [previewNight, setPreviewNight] = useState(false);
-  useEffect(() => {
-    if (!section) return;
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => { setSection(null); return true; });
-    return () => sub.remove();
-  }, [section]);
+  // Only while this screen is on top, so Back still works on screens opened from here.
+  useFocusEffect(useCallback(() => {
+    const sub = section
+      ? BackHandler.addEventListener('hardwareBackPress', () => { setSection(null); return true; })
+      : null;
+    return () => sub?.remove();
+  }, [section]));
   const setGateNote   = usePackStore((s) => s.setGateNote);
   const gateVoice     = usePackStore((s) => s.gateVoice);
   const setGateVoice  = usePackStore((s) => s.setGateVoice);

@@ -158,7 +158,7 @@ export function roomRects(p: RoomPalette, level: RoomLevel, decor: RoomDecor = D
   R(0, 0, 90, 64, p.wall); R(0, 52, 90, 12, p.wallLo); R(0, 60, 90, 4, p.ink, 0.18);
   R(0, 64, 90, 36, p.floor);
   for (const y of [72, 80, 88, 96]) R(0, y, 90, 1, p.floorLn);
-  for (const [x, y] of [[20, 64], [52, 72], [10, 80], [70, 80], [36, 88], [80, 88], [24, 96], [60, 96]]) R(x, y, 1, 8, p.floorLn);
+  for (const [x, y] of [[20, 64], [52, 72], [10, 80], [70, 80], [36, 88], [80, 88], [24, 96], [60, 96]]) R(x, y, 1, Math.min(8, 100 - y), p.floorLn);
 
   // string lights
   if (has('lights')) {

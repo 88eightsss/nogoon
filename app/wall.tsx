@@ -42,6 +42,7 @@ export default function WallScreen() {
   const left = stats ? stats.total - stats.sold : 3000;
 
   const visit = async (t: WallTile) => {
+    if (!/^https:\/\//i.test(t.url)) return;
     tapTile(t.id);
     try { await Linking.openURL(t.url); } catch { /* no browser available */ }
   };

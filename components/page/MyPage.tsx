@@ -97,7 +97,9 @@ export function MyPage() {
   }, []);
   const toggleMore = () => {
     Haptics.selectionAsync().catch(() => {});
-    setShowMore((v) => { AsyncStorage.setItem('nogoon_today_more', v ? '0' : '1').catch(() => {}); return !v; });
+    const next = !showMore;
+    setShowMore(next);
+    AsyncStorage.setItem('nogoon_today_more', next ? '1' : '0').catch(() => {});
   };
   const [topGood, setTopGood] = useState<GoodItem | null>(null);
   useEffect(() => { getTodaysGood().then((l) => setTopGood(l[0] ?? null)).catch(() => {}); }, []);

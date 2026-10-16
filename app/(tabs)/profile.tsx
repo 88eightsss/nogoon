@@ -8,7 +8,7 @@
 //   Zone 5: Border picker (5 styles)
 //   Zone 6: Account (sign out, help, privacy)
 
-import { useState, useEffect, useRef, type ComponentProps } from 'react';
+import { useState, useEffect, useRef, useCallback, type ComponentProps } from 'react';
 import {
   View, Text, Pressable, ScrollView, StyleSheet,
   Alert, Switch, TextInput, Modal, PanResponder,
@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getLocalDateKey, localDateKeyDiffDays } from '@/utils/date';
 import * as Haptics from 'expo-haptics';
@@ -414,11 +414,16 @@ export default function MeScreen() {
   const { signOut, deleteAccount } = useAuthStore();
   const [section, setSection] = useState<MeSection | null>(null);
   const scrollRef = useRef<ScrollView>(null);
-  useEffect(() => {
-    if (!section) return;
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => { setSection(null); return true; });
-    return () => sub.remove();
-  }, [section]);
+  // Back steps out of a section, but only while this tab is the one on screen (tabs stay
+  // mounted, so a plain effect would swallow Back on every other tab). Leaving Me returns it
+  // to the hub.
+  useFocusEffect(useCallback(() => {
+    const sub = section
+      ? BackHandler.addEventListener('hardwareBackPress', () => { setSection(null); return true; })
+      : null;
+    return () => sub?.remove();
+  }, [section]));
+  useFocusEffect(useCallback(() => () => setSection(null), []));
   const [showDelete, setShowDelete] = useState(false);
   const [showColdOff, setShowColdOff] = useState(false);
   const [coldText, setColdText] = useState('');

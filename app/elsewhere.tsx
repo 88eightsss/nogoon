@@ -40,7 +40,7 @@ export default function ElsewhereScreen() {
     return () => { live = false; };
   }, [showSponsors]);
   const sponsors = showSponsors ? pickSponsors(tiles, place, Math.floor(Date.now() / 86400000)) : [];
-  const visit = (t: WallTile) => { tapTile(t.id); open(t.url); };
+  const visit = (t: WallTile) => { if (!/^https:\/\//i.test(t.url)) return; tapTile(t.id); open(t.url); };
   const report = async (t: WallTile) => {
     if (await reportTile(t.id, 'Reported from Beyond the screen')) setReported((p) => new Set(p).add(t.id));
   };
