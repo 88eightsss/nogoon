@@ -4,10 +4,12 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { View, Text, Animated, PanResponder, StyleSheet, useWindowDimensions } from 'react-native';
+import { useSegments } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/useTheme';
 import { useActivePack } from '@/hooks/usePack';
 import { usePackStore, type CompanionSize } from '@/stores/usePackStore';
+import { useRoomStore } from '@/stores/useRoomStore';
 import { useUserStore } from '@/stores/useUserStore';
 import { getGoonStage } from '@/components/home/GoonMascot';
 import { FONTS } from '@/constants/Colors';
@@ -34,7 +36,12 @@ export function useFloatVisible(): boolean {
 
 export function FloatingCompanion() {
   const { colors } = useTheme();
-  const visible = useFloatVisible();
+  const wanted = useFloatVisible();
+  // Today's room already has the companion standing in it, so don't float a second one there.
+  const roomView = useRoomStore((s) => s.roomView);
+  const segments = useSegments() as string[];
+  const onToday = segments[0] === '(tabs)' && (segments.length === 1 || segments[1] === 'index');
+  const visible = wanted && !(roomView && onToday);
   const char = useCharacter();
   const walkAways = useUserStore((s) => s.walkAwayCount);
   const size = usePackStore((s) => s.companionSize);
