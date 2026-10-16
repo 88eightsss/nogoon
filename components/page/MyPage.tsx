@@ -33,6 +33,7 @@ import { describeBlockingStatus } from '@/utils/blockingStatus';
 import { TemptedSheet } from './TemptedSheet';
 import { getTodaysGood, type GoodItem } from '@/lib/dailyGood';
 import { useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StyleCard } from './StyleCard';
 
 type FeatherName = React.ComponentProps<typeof Feather>['name'];
@@ -82,6 +83,16 @@ export function MyPage() {
   const { blockingStatus, openSettings } = useAppBlocker();
   const status = describeBlockingStatus(blockingStatus, colors);
   const [tempted, setTempted] = useState(false);
+  // Today is quiet by default: the tempted button, protection and the companion. The rest
+  // folds away behind "More for today", and the choice is remembered.
+  const [showMore, setShowMore] = useState(false);
+  useEffect(() => {
+    AsyncStorage.getItem('nogoon_today_more').then((v) => { if (v === '1') setShowMore(true); }).catch(() => {});
+  }, []);
+  const toggleMore = () => {
+    Haptics.selectionAsync().catch(() => {});
+    setShowMore((v) => { AsyncStorage.setItem('nogoon_today_more', v ? '0' : '1').catch(() => {}); return !v; });
+  };
   const [topGood, setTopGood] = useState<GoodItem | null>(null);
   useEffect(() => { getTodaysGood().then((l) => setTopGood(l[0] ?? null)).catch(() => {}); }, []);
 
@@ -151,6 +162,15 @@ export function MyPage() {
       ) : null}
 
       <Pressable
+        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setTempted(true); }}
+        style={({ pressed }) => [styles.tempted, { backgroundColor: SUN, opacity: pressed ? 0.85 : 1 }]}
+        accessibilityRole="button"
+        accessibilityLabel="I'm tempted"
+      >
+        <Text style={styles.temptedText}>I'm tempted</Text>
+        <Text style={styles.temptedSub}>Tap here first. We'll get through it.</Text>
+      </Pressable>
+      <Pressable
         onPress={() => (blockingStatus === 'off' ? openSettings() : router.push('/(tabs)/blocklist' as any))}
         style={[styles.card, cardStyle, styles.row, { backgroundColor: colors.surface, borderColor: colors.cardBorder, alignItems: 'center' }]}
         accessibilityRole="button"
@@ -164,32 +184,6 @@ export function MyPage() {
         </View>
         <Feather name="chevron-right" size={18} color={colors.textMuted} />
       </Pressable>
-
-      <Pressable
-        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setTempted(true); }}
-        style={({ pressed }) => [styles.tempted, { backgroundColor: SUN, opacity: pressed ? 0.85 : 1 }]}
-        accessibilityRole="button"
-        accessibilityLabel="I'm tempted"
-      >
-        <Text style={styles.temptedText}>I'm tempted</Text>
-        <Text style={styles.temptedSub}>Tap here first. We'll get through it.</Text>
-      </Pressable>
-
-      <Pressable
-        onPress={() => router.push('/(tabs)/feed' as any)}
-        style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
-        accessibilityRole="button"
-        accessibilityLabel="Open today's briefing"
-      >
-        <Text style={[styles.cardMeta, { color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.6 }]}>Today's briefing</Text>
-        <Text style={[styles.cardTitle, { color: colors.text }]} numberOfLines={2}>
-          {topGood?.headline ?? 'Good news, what the world is curious about, and a prompt to write.'}
-        </Text>
-        <Text style={[styles.cardMeta, { color: colors.accent }]}>Open briefing</Text>
-      </Pressable>
-
-      <StyleCard />
-
       {pack.parts.page.frame === 'corner' ? (
         <Text style={[styles.cornerHint, { color: colors.textMuted }]}>
           {floatVisible ? `${petName} is in the corner. Drag them anywhere, tap to say hi.` : `${petName} is resting. Turn them back on in Customize.`}
@@ -208,34 +202,60 @@ export function MyPage() {
         </>
       )}
 
-      <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
-        <Text style={[styles.cardTitle, { color: colors.text }]}>Today's intention</Text>
-        <TextInput
-          style={[styles.input, { color: colors.text, borderColor: colors.border }]}
-          value={draft ?? intention}
-          onChangeText={setDraft}
-          onBlur={() => { if (draft !== null) { setDailyIntention(draft.trim()); setDraft(null); } }}
-          placeholder="What are you choosing instead?"
-          placeholderTextColor={colors.textMuted}
-          returnKeyType="done"
-          maxLength={120}
-        />
-      </View>
+      <Pressable
+        onPress={toggleMore}
+        style={[styles.moreBtn, { borderColor: colors.border }]}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: showMore }}
+        accessibilityLabel={showMore ? 'Show less' : 'More for today'}
+      >
+        <Text style={[styles.moreText, { color: colors.textSecondary }]}>{showMore ? 'Show less' : 'More for today'}</Text>
+        <Feather name={showMore ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textSecondary} />
+      </Pressable>
 
-      <Stamps pack={pack} best={longestStreak} />
-
-      <View style={styles.links}>
-        {LINKS.map((l) => (
-          <Pressable
-            key={l.label}
-            onPress={l.go}
-            style={({ pressed }) => [styles.link, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder, opacity: pressed ? 0.7 : 1 }]}
-          >
-            <Feather name={l.icon} size={20} color={colors.accent} />
-            <Text style={[styles.linkText, { color: colors.text }]}>{l.label}</Text>
-          </Pressable>
-        ))}
-      </View>
+      {showMore && (
+        <>
+        <Pressable
+          onPress={() => router.push('/(tabs)/feed' as any)}
+          style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
+          accessibilityRole="button"
+          accessibilityLabel="Open today's briefing"
+        >
+          <Text style={[styles.cardMeta, { color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.6 }]}>Today's briefing</Text>
+          <Text style={[styles.cardTitle, { color: colors.text }]} numberOfLines={2}>
+            {topGood?.headline ?? 'Good news, what the world is curious about, and a prompt to write.'}
+          </Text>
+          <Text style={[styles.cardMeta, { color: colors.accent }]}>Open briefing</Text>
+        </Pressable>
+        <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+          <Text style={[styles.cardTitle, { color: colors.text }]}>Today's intention</Text>
+          <TextInput
+            style={[styles.input, { color: colors.text, borderColor: colors.border }]}
+            value={draft ?? intention}
+            onChangeText={setDraft}
+            onBlur={() => { if (draft !== null) { setDailyIntention(draft.trim()); setDraft(null); } }}
+            placeholder="What are you choosing instead?"
+            placeholderTextColor={colors.textMuted}
+            returnKeyType="done"
+            maxLength={120}
+          />
+        </View>
+        <StyleCard />
+        <Stamps pack={pack} best={longestStreak} />
+        <View style={styles.links}>
+          {LINKS.map((l) => (
+            <Pressable
+              key={l.label}
+              onPress={l.go}
+              style={({ pressed }) => [styles.link, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder, opacity: pressed ? 0.7 : 1 }]}
+            >
+              <Feather name={l.icon} size={20} color={colors.accent} />
+              <Text style={[styles.linkText, { color: colors.text }]}>{l.label}</Text>
+            </Pressable>
+          ))}
+        </View>
+        </>
+      )}
     </ScrollView>
     <TemptedSheet visible={tempted} onClose={() => setTempted(false)} />
     </View>
@@ -252,6 +272,8 @@ const styles = StyleSheet.create({
   cardMeta: { fontFamily: FONTS.body, fontSize: 12, marginTop: 1 },
   hello:   { fontFamily: FONTS.display, fontSize: 26 },
   sub:     { fontFamily: FONTS.body, fontSize: 13, marginTop: 2 },
+  moreBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 11, borderRadius: 999, borderWidth: 1 },
+  moreText:{ fontFamily: FONTS.bodyMedium, fontSize: 13 },
   cornerHint: { fontFamily: FONTS.body, fontSize: 12.5, textAlign: 'center' },
   mood:    { alignItems: 'center', gap: 2 },
   face:    { fontFamily: FONTS.body, fontSize: 22 },

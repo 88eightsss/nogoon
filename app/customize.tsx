@@ -3,14 +3,14 @@
 // One place for: the new My Page switch , skins (packs), a pack code, and the
 // personal note shown at the gate. Hidden packs only appear after they are unlocked.
 
-import { useState } from 'react';
+import { useState, useEffect, type ComponentProps } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEY } from '@/components/home/GoonMascot';
 import { PackSprite } from '@/components/page/PackSprite';
 import { useCharacter } from '@/components/page/useCharacter';
 import { ALL_CHARACTER_IDS, CHARACTER_NAMES, CHAR_COLORS } from '@/constants/sprites';
 import type { CharacterId } from '@/stores/usePetStore';
-import { View, Text, TextInput, Pressable, ScrollView, Switch, StyleSheet } from 'react-native';
+import { View, Text, TextInput, Pressable, ScrollView, Switch, StyleSheet, BackHandler } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -39,6 +39,15 @@ const PAPERS: { id: PaperChoice; label: string }[] = [
   { id: 'dots', label: 'Dots' }, { id: 'none', label: 'Plain' },
 ];
 const ACCENTS = ['#1B62C2', '#0B7A44', '#FF6F61', '#7A3FD1', '#12A37F', '#DB2777', '#C2410C', '#CA8A04'];
+
+type CustSection = 'layout' | 'skins' | 'companion' | 'gate' | 'colour';
+const HUB: { id: CustSection; icon: ComponentProps<typeof Feather>['name']; title: string; sub: string }[] = [
+  { id: 'skins',     icon: 'package',    title: 'Skins & codes',        sub: 'Pick a look, enter a pack code' },
+  { id: 'companion', icon: 'smile',      title: 'Your companion',       sub: 'Which one, how it floats, how big' },
+  { id: 'colour',    icon: 'droplet',    title: 'Colour & paper',       sub: 'Accent colour and page background' },
+  { id: 'gate',      icon: 'shield',     title: 'At the gate',          sub: 'Instead bundles, your own list, your note' },
+  { id: 'layout',    icon: 'layout',     title: 'Layout & news',        sub: 'My Page layout, major news in the briefing' },
+];
 
 function Chips<T extends string>({ items, value, onChange, colors }: {
   items: { id: T; label: string }[]; value: T; onChange: (v: T) => void;
@@ -76,6 +85,12 @@ export default function CustomizeScreen() {
   const addMine        = useOfferStore((s) => s.addCustom);
   const removeMine     = useOfferStore((s) => s.removeCustom);
   const [mineDraft, setMineDraft] = useState('');
+  const [section, setSection] = useState<CustSection | null>(null);
+  useEffect(() => {
+    if (!section) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { setSection(null); return true; });
+    return () => sub.remove();
+  }, [section]);
   const setGateNote   = usePackStore((s) => s.setGateNote);
   const gateVoice     = usePackStore((s) => s.gateVoice);
   const setGateVoice  = usePackStore((s) => s.setGateVoice);
@@ -120,6 +135,40 @@ export default function CustomizeScreen() {
       </View>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
 
+        {!section && (
+          <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder, padding: 0 }]}>
+            {HUB.map((h, i) => {
+              const sub = h.id === 'skins' ? `Now: ${packs.find((p) => p.id === activePackId)?.name ?? 'Core'}` : h.sub;
+              return (
+                <Pressable
+                  key={h.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${h.title}. ${sub}`}
+                  onPress={() => { setSection(h.id); }}
+                  style={[styles.pack, i < HUB.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }]}
+                >
+                  <Feather name={h.icon} size={20} color={colors.accent} style={{ width: 28, textAlign: 'center' }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.cardTitle, { color: colors.text }]}>{h.title}</Text>
+                    <Text style={[styles.hint, { color: colors.textSecondary }]}>{sub}</Text>
+                  </View>
+                  <Feather name="chevron-right" size={16} color={colors.textMuted} />
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
+
+        {!!section && (
+          <Pressable onPress={() => setSection(null)} hitSlop={10} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }} accessibilityRole="button" accessibilityLabel="Back to Customize">
+            <Feather name="chevron-left" size={20} color={colors.accent} />
+            <Text style={[styles.btnText, { color: colors.accent }]}>Customize</Text>
+            <Text style={[styles.cardTitle, { color: colors.text, marginLeft: SPACING.sm }]}>{HUB.find((h) => h.id === section)?.title}</Text>
+          </Pressable>
+        )}
+
+        {section === 'layout' && (
+        <>
         <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
           <View style={styles.rowBetween}>
             <View style={{ flex: 1 }}>
@@ -154,6 +203,11 @@ export default function CustomizeScreen() {
           </View>
         </View>
 
+        </>
+        )}
+
+        {section === 'skins' && (
+        <>
         <Text style={[styles.section, { color: colors.textMuted }]}>Skins</Text>
         {packs.map((p) => {
           const active = p.id === activePackId || (p.id === 'core' && !packs.some((x) => x.id === activePackId));
@@ -200,6 +254,11 @@ export default function CustomizeScreen() {
           {codeMsg ? <Text style={[styles.body, { color: colors.textSecondary }]}>{codeMsg}</Text> : null}
         </View>
 
+        </>
+        )}
+
+        {section === 'companion' && (
+        <>
         <Text style={[styles.section, { color: colors.textMuted }]}>Your companion</Text>
         <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
@@ -243,6 +302,11 @@ export default function CustomizeScreen() {
           </Pressable>
         </View>
 
+        </>
+        )}
+
+        {section === 'gate' && (
+        <>
         <Text style={[styles.section, { color: colors.textMuted }]}>Instead bundles</Text>
         <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
           <Text style={[styles.body, { color: colors.textSecondary }]}>
@@ -301,6 +365,11 @@ export default function CustomizeScreen() {
           )}
         </View>
 
+        </>
+        )}
+
+        {section === 'colour' && (
+        <>
         <Text style={[styles.section, { color: colors.textMuted }]}>Colour & paper</Text>
         <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
           <Text style={[styles.body, { color: colors.textSecondary }]}>Accent colour</Text>
@@ -325,6 +394,11 @@ export default function CustomizeScreen() {
           <Chips items={PAPERS} value={paperOverride} onChange={setPaperOverride} colors={colors} />
         </View>
 
+        </>
+        )}
+
+        {section === 'gate' && (
+        <>
         <Text style={[styles.section, { color: colors.textMuted }]}>Your note at the gate</Text>
         <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
           <Text style={[styles.body, { color: colors.textSecondary }]}>
@@ -353,7 +427,10 @@ export default function CustomizeScreen() {
             ))}
           </View>
         </View>
-      </ScrollView>
+          </>
+        )}
+
+    </ScrollView>
     </SafeAreaView>
   );
 }
