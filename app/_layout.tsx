@@ -397,6 +397,9 @@ export default function RootLayout() {
           {/* The Wall — finite sponsor board, opened on purpose from the Briefing */}
           <Stack.Screen name="wall" options={{ animation: 'slide_from_right' }} />
 
+          {/* Do-it-now timer for the body offers (pushups, stretch, walk, water) */}
+          <Stack.Screen name="offer-timer" options={{ animation: 'fade' }} />
+
           {/* Personal milestones / achievement badges */}
           <Stack.Screen
             name="milestones"

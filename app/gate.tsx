@@ -36,6 +36,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/useTheme';
@@ -72,6 +73,8 @@ import { exitGate } from '@/utils/exitGate';
 import { useUserStore } from '@/stores/useUserStore';
 import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
+import { resolveOffers, type OfferDef } from '@/constants/offers';
+import { useOfferStore } from '@/stores/useOfferStore';
 import { GATE_GAMES, CALM_GAMES as CALM_CATEGORY_GAMES, pickRandomGame, getGameById, type GameId } from '@/constants/games';
 import { useThemeStore } from '@/stores/useThemeStore';
 import { useAdInterstitial } from '@/components/ads/AdInterstitial';
@@ -218,6 +221,8 @@ function NoGoonScreen() {
   } = useUserStore();
   const { maybeShowInterstitial } = useAdInterstitial();
   const { disabledGateGames, enabledCalmGateGames } = useThemeStore();
+  const bundleIds = useOfferStore((st) => st.bundleIds);
+  const customOffersList = useOfferStore((st) => st.custom);
 
   // Theme-reactive palette — matches whatever theme/accent the user picked on
   // their home screen, instead of a fixed standalone palette. `textPrimary`,
@@ -1227,32 +1232,49 @@ function NoGoonScreen() {
   // get past than before.
   // ══════════════════════════════════════════════════════════════════════════
   if (phase === 'offer') {
-    type Offer = { id: string; icon: React.ComponentProps<typeof Feather>['name']; label: string; sub: string; go: () => void };
-    const breathe: Offer = {
-      id: 'breathe', icon: 'wind', label: 'Breathe for a minute', sub: 'A calm reset, then it is your call',
-      go: () => { setSelectedGame('breathing'); setPhase('context'); },
+    const offers = resolveOffers({
+      bundleIds, custom: customOffersList, windDown: isWindDown, hour: nowHour,
+      day: Math.floor(Date.now() / 86400000), noGames,
+    });
+    const runOffer = (o: OfferDef) => {
+      switch (o.kind) {
+        case 'game': {
+          const g = o.game && o.game !== 'random' ? (o.game as GameId) : pickRandomGame(disabledGateGames, enabledCalmGateGames);
+          setSelectedGame(g);
+          setPhase('context');
+          break;
+        }
+        case 'route':
+          if (o.counts !== false) recordWalkAway();
+          router.replace(o.path as any);
+          break;
+        case 'wait':
+          router.replace({
+            pathname: '/waiting-room',
+            params: {
+              app: domain, pointsEarned: '0', gameName: 'Waiting Room', domain: displayDomain,
+              isBricked: (isBricked || isColdTurkey) ? '1' : '0',
+              isColdTurkey: isColdTurkey ? '1' : '0',
+            },
+          });
+          break;
+        case 'timer':
+          router.replace({
+            pathname: '/offer-timer',
+            params: { label: o.label, seconds: String(o.seconds ?? 60), note: o.note ?? '' },
+          } as any);
+          break;
+        case 'sms':
+          recordWalkAway();
+          Linking.openURL('sms:').catch(() => {});
+          exitGate();
+          break;
+        case 'custom':
+          recordWalkAway();
+          exitGate();
+          break;
+      }
     };
-    const quickGame: Offer = {
-      id: 'game', icon: 'zap', label: 'Play something quick', sub: 'Give your hands something to do',
-      go: () => { setSelectedGame(pickRandomGame(disabledGateGames, enabledCalmGateGames)); setPhase('context'); },
-    };
-    const goodNews: Offer = {
-      id: 'news', icon: 'sunrise', label: 'Read something good',
-      sub: offerHeadline ?? "Today's briefing: a small batch, once a day",
-      go: () => { recordWalkAway(); router.replace('/(tabs)/feed' as any); },
-    };
-    const writeLine: Offer = {
-      id: 'write', icon: 'edit-3', label: 'Write one line', sub: 'What were you hoping to feel?',
-      go: () => { recordWalkAway(); router.replace('/journal' as any); },
-    };
-    const morning = nowHour >= 5 && nowHour < 11;
-    let offers: Offer[] = isWindDown
-      ? [breathe, writeLine]
-      : morning
-      ? [goodNews, breathe, quickGame, writeLine]
-      : [breathe, quickGame, goodNews, writeLine];
-    // No-games mode skips games entirely, so only offer the things that leave the gate.
-    if (noGames) offers = offers.filter((o) => o.id === 'news' || o.id === 'write');
 
     return (
       <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]}>
@@ -1285,14 +1307,14 @@ function NoGoonScreen() {
                   styles.intentCard,
                   { backgroundColor: pressed ? C.surfaceHigh : C.surface, borderColor: C.cardBorder },
                 ]}
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); o.go(); }}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); runOffer(o); }}
                 accessibilityRole="button"
                 accessibilityLabel={o.label}
               >
                 <Feather name={o.icon} size={26} color={C.indigoBright} style={{ width: 36, textAlign: 'center' }} />
                 <View style={styles.intentCardText}>
                   <Text style={[styles.intentCardLabel, { color: C.textPrimary }]}>{o.label}</Text>
-                  <Text style={[styles.intentCardSub, { color: C.textSecondary }]} numberOfLines={2}>{o.sub}</Text>
+                  <Text style={[styles.intentCardSub, { color: C.textSecondary }]} numberOfLines={2}>{o.id === 'news' && offerHeadline ? offerHeadline : o.sub}</Text>
                 </View>
                 <Feather name="chevron-right" size={18} color={C.textMuted} />
               </Pressable>

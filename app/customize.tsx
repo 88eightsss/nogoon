@@ -18,6 +18,8 @@ import { useTheme } from '@/hooks/useTheme';
 import { usePackStore, GATE_NOTE_MAX, DEFAULT_COMPANION_POS, type GateVoice, type FloatMode, type CompanionSize, type PaperChoice, type DayDisplay } from '@/stores/usePackStore';
 import { availablePacks } from '@/constants/packs';
 import { FONTS } from '@/constants/Colors';
+import { BUNDLES, CUSTOM_LEN, CUSTOM_MAX } from '@/constants/offers';
+import { useOfferStore } from '@/stores/useOfferStore';
 import { SPACING } from '@/constants/Spacing';
 
 const VOICES: { id: GateVoice; label: string }[] = [
@@ -68,6 +70,12 @@ export default function CustomizeScreen() {
   const setActivePack = usePackStore((s) => s.setActivePack);
   const redeemCode    = usePackStore((s) => s.redeemCode);
   const gateNote      = usePackStore((s) => s.gateNote);
+  const bundleIds     = useOfferStore((s) => s.bundleIds);
+  const myList        = useOfferStore((s) => s.custom);
+  const toggleBundle  = useOfferStore((s) => s.toggleBundle);
+  const addMine        = useOfferStore((s) => s.addCustom);
+  const removeMine     = useOfferStore((s) => s.removeCustom);
+  const [mineDraft, setMineDraft] = useState('');
   const setGateNote   = usePackStore((s) => s.setGateNote);
   const gateVoice     = usePackStore((s) => s.gateVoice);
   const setGateVoice  = usePackStore((s) => s.setGateVoice);
@@ -233,6 +241,64 @@ export default function CustomizeScreen() {
           <Pressable onPress={() => setCompanionPos(DEFAULT_COMPANION_POS)} hitSlop={8}>
             <Text style={[styles.btnText, { color: colors.accent }]}>Reset position</Text>
           </Pressable>
+        </View>
+
+        <Text style={[styles.section, { color: colors.textMuted }]}>Instead bundles</Text>
+        <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+          <Text style={[styles.body, { color: colors.textSecondary }]}>
+            When you reach for a blocked app, NoGoon offers a few things to do instead. Pick the bundles that fit you. Pick several and they mix.
+          </Text>
+          {BUNDLES.map((b) => {
+            const on = bundleIds.includes(b.id);
+            return (
+              <Pressable
+                key={b.id}
+                onPress={() => toggleBundle(b.id)}
+                accessibilityRole="switch"
+                accessibilityState={{ checked: on }}
+                style={[styles.pack, { borderWidth: 1.5, borderRadius: 12, borderColor: on ? colors.accent : colors.border, backgroundColor: on ? colors.accentDim : 'transparent' }]}
+              >
+                <Feather name={b.icon} size={20} color={on ? colors.accent : colors.textSecondary} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.cardTitle, { color: colors.text }]}>{b.name}</Text>
+                  <Text style={[styles.hint, { color: colors.textSecondary }]}>{b.tagline}</Text>
+                </View>
+                <Feather name={on ? 'check-circle' : 'circle'} size={20} color={on ? colors.accent : colors.textMuted} />
+              </Pressable>
+            );
+          })}
+          <Text style={[styles.cardTitle, { color: colors.text, marginTop: SPACING.sm }]}>My own list</Text>
+          <Text style={[styles.hint, { color: colors.textSecondary }]}>
+            Things only you would pick: "call mum", "play guitar", "go see the ocean". Up to {CUSTOM_MAX}.
+          </Text>
+          {myList.map((t, i) => (
+            <View key={`${t}-${i}`} style={styles.rowBetween}>
+              <Text style={[styles.body, { color: colors.text, flex: 1 }]}>{t}</Text>
+              <Pressable onPress={() => removeMine(i)} hitSlop={10} accessibilityLabel={`Remove ${t}`}>
+                <Feather name="x" size={18} color={colors.textMuted} />
+              </Pressable>
+            </View>
+          ))}
+          {myList.length < CUSTOM_MAX && (
+            <View style={styles.rowBetween}>
+              <TextInput
+                value={mineDraft}
+                onChangeText={setMineDraft}
+                maxLength={CUSTOM_LEN}
+                placeholder="Instead I will…"
+                placeholderTextColor={colors.textMuted}
+                onSubmitEditing={() => { if (addMine(mineDraft)) setMineDraft(''); }}
+                returnKeyType="done"
+                style={[styles.input, { flex: 1, color: colors.text, borderColor: colors.border }]}
+              />
+              <Pressable
+                onPress={() => { if (addMine(mineDraft)) setMineDraft(''); }}
+                style={[styles.btn, { backgroundColor: colors.accent }]}
+              >
+                <Text style={[styles.btnText, { color: '#fff' }]}>Add</Text>
+              </Pressable>
+            </View>
+          )}
         </View>
 
         <Text style={[styles.section, { color: colors.textMuted }]}>Colour & paper</Text>
