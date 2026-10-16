@@ -26,7 +26,7 @@ import { useUserStore } from '@/stores/useUserStore';
 import { PageGuide } from '@/components/PageGuide';
 import { useUnlockedFeatures, lockHint } from '@/stores/useProgressStore';
 
-type Group = 'now' | 'play' | 'out' | 'people';
+type Group = 'now' | 'play' | 'out';
 
 type Tool = {
   id: string;
@@ -104,21 +104,12 @@ const TOOLS: Tool[] = [
   },
   {
     id:        'elsewhere',
-    group:     'people',
+    group:     'play',
     icon:      'map-pin',
     iconColor: '#12A37F',
     title:     'Beyond the screen',
     subtitle:  'Calmer places online · things to do near you',
     route:     '/elsewhere' as Href,
-  },
-  {
-    id:        'insights',
-    group:     'out',
-    icon:      'bar-chart-2',
-    iconColor: '#0277BD',
-    title:     'Insights',
-    subtitle:  'See your patterns over time',
-    route:     '/insights',
   },
 ];
 
@@ -150,9 +141,8 @@ function ToolRow({ tool }: { tool: Tool }) {
 
 const GROUPS: { id: Group; title: string; hint?: string }[] = [
   { id: 'now',  title: 'Right now',  hint: 'Urges peak and fade. Give one of these 2 minutes.' },
-  { id: 'play', title: 'Play' },
+  { id: 'play', title: 'Do something else' },
   { id: 'out',  title: 'Get it out' },
-  { id: 'people', title: 'Be with people' },
 ];
 
 function SectionLabel({ title, hint }: { title: string; hint?: string }) {

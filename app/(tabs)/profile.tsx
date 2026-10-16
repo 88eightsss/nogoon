@@ -8,11 +8,11 @@
 //   Zone 5: Border picker (5 styles)
 //   Zone 6: Account (sign out, help, privacy)
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type ComponentProps } from 'react';
 import {
   View, Text, Pressable, ScrollView, StyleSheet,
   Alert, Switch, TextInput, Modal, PanResponder,
-  KeyboardAvoidingView, Platform, Linking,
+  KeyboardAvoidingView, Platform, Linking, BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -41,6 +41,21 @@ import { TimeStepper } from '@/components/TimeStepper';
 
 // ─── Companion defaults ───────────────────────────────────────────────────────
 const DEFAULT_COMPANION_NAMES: Record<CharacterId, string> = CHARACTER_NAMES;
+
+// Me is a short hub; each row opens one section of this same screen.
+type MeSection = 'controls' | 'look' | 'progress' | 'account';
+const HUB: { id: MeSection | 'customize'; icon: ComponentProps<typeof Feather>['name']; title: string; sub: string }[] = [
+  { id: 'controls',  icon: 'shield',      title: 'Protection & controls', sub: 'Hard Mode, wind-down, focus, blocklist' },
+  { id: 'look',      icon: 'droplet',     title: 'Look & companions',     sub: 'Companions, home screen, theme' },
+  { id: 'customize', icon: 'sliders',     title: 'Customize my page',     sub: 'Skins, instead bundles, colour, paper' },
+  { id: 'progress',  icon: 'trending-up', title: 'Progress',              sub: 'Insights, weekly recap, journal' },
+  { id: 'account',   icon: 'user',        title: 'Account & help',        sub: 'Tour, tips, privacy, sign out' },
+];
+const meStyles = StyleSheet.create({
+  back:      { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4 },
+  backText:  { fontFamily: FONTS.bodyMedium, fontSize: 14 },
+  backTitle: { fontFamily: FONTS.bodyBold, fontSize: 16, marginLeft: SPACING.sm },
+});
 
 // ─── Time saved calculation ───────────────────────────────────────────────────
 // Formats getMinutesSaved(walkAwayCount) — ~20 min per walk-away, see useUserStore.
@@ -397,6 +412,13 @@ export default function MeScreen() {
   } = useUserStore();
 
   const { signOut, deleteAccount } = useAuthStore();
+  const [section, setSection] = useState<MeSection | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
+  useEffect(() => {
+    if (!section) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { setSection(null); return true; });
+    return () => sub.remove();
+  }, [section]);
   const [showDelete, setShowDelete] = useState(false);
   const [showColdOff, setShowColdOff] = useState(false);
   const [coldText, setColdText] = useState('');
@@ -595,11 +617,14 @@ export default function MeScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
       <ScrollView
+        ref={scrollRef}
         style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        {!section && (
+        <>
         {/* ── Zone 1: Identity ── */}
         <View style={styles.zone1}>
           {editingName ? (
@@ -635,6 +660,48 @@ export default function MeScreen() {
           </View>
         </View>
 
+        </>
+        )}
+
+        {!section && (
+          <View style={[ctrlStyles.board, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+            {HUB.map((h, i) => {
+              const alarm = h.id === 'controls' && blockingView.alarm;
+              const sub = h.id === 'controls' && blockingView.visible ? `${blockingView.short} · ${h.sub}` : h.sub;
+              return (
+                <Pressable
+                  key={h.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${h.title}. ${sub}`}
+                  onPress={() => {
+                    Haptics.selectionAsync().catch(() => {});
+                    if (h.id === 'customize') router.push('/customize' as any);
+                    else { setSection(h.id as MeSection); scrollRef.current?.scrollTo({ y: 0, animated: false }); }
+                  }}
+                  style={[ctrlStyles.row, i === HUB.length - 1 ? { borderBottomWidth: 0 } : { borderBottomColor: colors.border }]}
+                >
+                  <Feather name={h.icon} size={20} color={alarm ? colors.danger : colors.accent} style={{ width: 28, textAlign: 'center' }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[ctrlStyles.label, { color: colors.text }]}>{h.title}</Text>
+                    <Text style={[ctrlStyles.sub, { color: alarm ? colors.danger : colors.textMuted }]}>{sub}</Text>
+                  </View>
+                  <Feather name="chevron-right" size={16} color={colors.textMuted} />
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
+
+        {!!section && (
+          <Pressable onPress={() => setSection(null)} hitSlop={10} style={meStyles.back} accessibilityRole="button" accessibilityLabel="Back to Me">
+            <Feather name="chevron-left" size={20} color={colors.accent} />
+            <Text style={[meStyles.backText, { color: colors.accent }]}>Me</Text>
+            <Text style={[meStyles.backTitle, { color: colors.text }]}>{HUB.find((h) => h.id === section)?.title}</Text>
+          </Pressable>
+        )}
+
+        {section === 'look' && (
+        <>
         {/* ── Companions ── */}
         <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Companions</Text>
 
@@ -685,6 +752,11 @@ export default function MeScreen() {
           ))}
         </View>
 
+        </>
+        )}
+
+        {section === 'controls' && (
+        <>
         {/* ── Zone 3: Control board ── */}
         {/* Regrouped into three labeled clusters (was one flat list of 7
             rows) — new users kept landing on this screen after having just
@@ -907,6 +979,11 @@ export default function MeScreen() {
           </View>
         </View>
 
+        </>
+        )}
+
+        {section === 'look' && (
+        <>
         {/* ── Home Screen layout ── */}
         <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Home Screen</Text>
 
@@ -1070,6 +1147,11 @@ export default function MeScreen() {
           </View>
         </View>
 
+        </>
+        )}
+
+        {section === 'progress' && (
+        <>
         {/* ── Stats & Insights ── */}
         <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Stats</Text>
 
@@ -1127,6 +1209,11 @@ export default function MeScreen() {
           </Pressable>
         </View>
 
+        </>
+        )}
+
+        {section === 'account' && (
+        <>
         {/* ── Zone 6: Account ── */}
         <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Account</Text>
 
@@ -1206,6 +1293,9 @@ export default function MeScreen() {
             </View>
           </Pressable>
         </View>
+
+        </>
+        )}
 
         <View style={{ height: SPACING.xl }} />
       </ScrollView>
