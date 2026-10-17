@@ -29,6 +29,7 @@ import { useFocusEffect } from 'expo-router';
 import { useAppBlocker } from '@/hooks/useAppBlocker';
 import { describeBlockingStatus } from '@/utils/blockingStatus';
 import { TemptedSheet } from './TemptedSheet';
+import { ReachOutTreat } from './ReachOutTreat';
 import { getTodaysGood, type GoodItem } from '@/lib/dailyGood';
 import { useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -188,6 +189,7 @@ export function MyPage() {
         <Text style={styles.temptedText}>Need a minute</Text>
         <Text style={styles.temptedSub}>Tap here first. We'll get through it.</Text>
       </Pressable>
+      <ReachOutTreat char={char} stage={stage} petName={petName} />
       <Pressable
         onPress={() => (blockingStatus === 'off' ? openSettings() : router.push('/(tabs)/blocklist' as any))}
         style={[styles.card, cardStyle, styles.row, { backgroundColor: colors.surface, borderColor: colors.cardBorder, alignItems: 'center' }]}
