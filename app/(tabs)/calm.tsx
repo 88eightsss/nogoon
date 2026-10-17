@@ -45,7 +45,7 @@ const TOOLS: Tool[] = [
     icon:      'wind',
     iconColor: '#4d8bff',
     title:     'Breathe',
-    subtitle:  'Box breathing · calms the nervous system in 2 min',
+    subtitle:  'Hold the orb to breathe in, let go to breathe out · 1 min',
     route:     '/breathe',
   },
   {

@@ -28,7 +28,7 @@ const OPTIONS = [
     id:      'breathing' as const,
     emoji:   '🫧',
     title:   'Breathing',
-    sub:     'Follow the circle · 2 minutes',
+    sub:     'Hold to breathe in, let go to breathe out · 1 minute',
     color:   '#4ecdc4', // teal accent, matches breathing exercise
   },
   {

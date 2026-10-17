@@ -5,8 +5,9 @@
 //
 // PATTERN: Box breathing — 4s in, 4s hold, 4s out, 4s hold. Repeat 4 cycles.
 //
-// NO INTERACTION required — the user just watches and breathes along.
-// The orb expands on inhale, contracts on exhale.
+// Two ways to play, chosen on the ready screen:
+//   • Hold to breathe (default) — HoldBreath: press and hold the orb to inhale, let go to exhale.
+//   • Follow along — this file's timed box-breathing, no touch needed (for anyone who can't hold).
 //
 // SCORING: flat 80 pts on completion (same as BreathingGame)
 
@@ -25,6 +26,7 @@ import { FONTS } from '@/constants/Colors';
 import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { useSafeTimeout } from '@/hooks/useSafeTimeout';
+import { HoldBreath } from './HoldBreath';
 
 // ─── Breath phases ────────────────────────────────────────────────────────────
 
@@ -60,6 +62,8 @@ export function BreathRhythm({ onComplete }: Props) {
   const COLORS = useThemedColors();
   const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   const [phase, setPhase]         = useState<'ready' | 'breathing' | 'done'>('ready');
+  const [mode, setMode]           = useState<'hold' | 'follow'>('hold');
+  const [holding, setHolding]     = useState(false);
   const [, setStepIdx]            = useState(0);
   const [cycle, setCycle]         = useState(0);
   const [currentStep, setCurrentStep] = useState<BreathStep>(STEPS[0]);
@@ -150,6 +154,10 @@ export function BreathRhythm({ onComplete }: Props) {
   // PHASE: READY
   // ─────────────────────────────────────────────────────────────────────────
 
+  if (holding) {
+    return <HoldBreath onComplete={onComplete} onSwitch={() => { setHolding(false); setMode('follow'); setPhase('breathing'); runStep(0, 0); }} />;
+  }
+
   if (phase === 'ready') {
     return (
       <SafeAreaView style={styles.safe}>
@@ -157,23 +165,30 @@ export function BreathRhythm({ onComplete }: Props) {
           <Text style={styles.readyEmoji}>🌬️</Text>
           <Text style={styles.readyTitle}>Breath Rhythm</Text>
           <View style={styles.readyCard}>
-            <Text style={styles.readyLabel}>BOX BREATHING</Text>
+            <Text style={styles.readyLabel}>{mode === 'hold' ? 'HOLD TO BREATHE' : 'BOX BREATHING'}</Text>
             <Text style={styles.readyRule}>
-              Breathe in 4 · Hold 4 · Out 4 · Hold 4{'\n\n'}
-              Follow the orb for {TOTAL_CYCLES} cycles. Breathe through your nose if you can.
+              {mode === 'hold'
+                ? 'Press and hold the orb while you breathe in, let go to breathe out.\n\nFive slow breaths. Breathe through your nose if you can.'
+                : `Breathe in 4 · Hold 4 · Out 4 · Hold 4\n\nFollow the orb for ${TOTAL_CYCLES} cycles. Breathe through your nose if you can.`}
             </Text>
           </View>
           <Text style={styles.readyTime}>
-            ~{Math.round((TOTAL_CYCLES * STEP_COUNT * 4) / 60)} minutes
+            {mode === 'hold' ? 'About 1 minute' : `~${Math.round((TOTAL_CYCLES * STEP_COUNT * 4) / 60)} minutes`}
           </Text>
           <Pressable
             style={styles.startButton}
             onPress={() => {
+              if (mode === 'hold') { setHolding(true); return; }
               setPhase('breathing');
               runStep(0, 0);
             }}
           >
             <Text style={styles.startButtonText}>Begin</Text>
+          </Pressable>
+          <Pressable onPress={() => setMode(mode === 'hold' ? 'follow' : 'hold')} hitSlop={10} accessibilityRole="button">
+            <Text style={styles.modeSwitch}>
+              {mode === 'hold' ? "Can't hold? Follow along instead" : 'Back to hold-to-breathe'}
+            </Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -302,6 +317,13 @@ const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
     borderRadius:    RADIUS.md,
     paddingVertical: SPACING.lg,
     paddingHorizontal: SPACING.xxxl,
+  },
+
+  modeSwitch: {
+    fontFamily: FONTS.bodyMedium,
+    fontSize:   13,
+    color:      COLORS.textMuted,
+    textDecorationLine: 'underline',
   },
 
   startButtonText: {

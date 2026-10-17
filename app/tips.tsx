@@ -10,6 +10,7 @@ import { ScrollView, View, Text, Pressable, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
+import * as IntentLauncher from 'expo-intent-launcher';
 import { FONTS } from '@/constants/Colors';
 import { NETWORK_SHIELD_ENABLED } from '@/constants/features';
 import { useThemedColors } from '@/hooks/useThemedColors';
@@ -17,7 +18,21 @@ import { SPACING, RADIUS } from '@/constants/Spacing';
 
 // ─── Tip content ──────────────────────────────────────────────────────────────
 
-const TIPS = [
+type Tip = { icon: string; title: string; body: string; action?: { label: string; run: () => void } };
+
+// Android can't switch grayscale on for us (that needs a permission Play Store apps can't hold),
+// so this opens the system settings and the tip says where the switch lives.
+const openPhoneSettings = () => {
+  IntentLauncher.startActivityAsync(IntentLauncher.ActivityAction.ACCESSIBILITY_SETTINGS).catch(() => {});
+};
+
+const TIPS: readonly Tip[] = [
+  {
+    icon: 'droplet',
+    title: 'Try your phone\'s own grayscale',
+    body: "A black-and-white screen is a lot less tempting: bright reds, pinks and notification dots are built to pull your eye, and without colour they lose most of their grip. On Samsung: Settings > Digital Wellbeing > Bedtime mode > Grayscale (you can schedule it for evenings). On Pixel: Settings > Accessibility > Color and motion > Color correction > Grayscale.",
+    action: { label: 'Open phone settings', run: openPhoneSettings },
+  },
   {
     icon: 'toggle-left',
     title: "Turn off games you don't like",
@@ -70,7 +85,7 @@ const TIPS = [
       ? 'Accessibility Service, VPN DNS filter, and Notification Listener each close a different gap. Turn on all three on the Coverage screen for the fewest ways around a block.'
       : 'Accessibility Service and Notification Listener each close a different gap. Turn on both on the Coverage screen for the fewest ways around a block.',
   },
-] as const;
+];
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -117,6 +132,16 @@ export default function TipsScreen() {
             <View style={styles.tipText}>
               <Text style={[styles.tipTitle, { color: C.textPrimary }]}>{tip.title}</Text>
               <Text style={[styles.tipBody, { color: C.textSecondary }]}>{tip.body}</Text>
+              {tip.action ? (
+                <Pressable
+                  onPress={tip.action.run}
+                  style={[styles.tipAction, { borderColor: C.arcade }]}
+                  accessibilityRole="button"
+                  accessibilityLabel={tip.action.label}
+                >
+                  <Text style={[styles.tipActionText, { color: C.arcade }]}>{tip.action.label}</Text>
+                </Pressable>
+              ) : null}
             </View>
           </View>
         ))}
@@ -222,6 +247,20 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.body,
     fontSize: 13.5,
     lineHeight: 20,
+  },
+
+  tipAction: {
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    marginTop: SPACING.xs,
+  },
+
+  tipActionText: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 13,
   },
 
   footerCard: {
