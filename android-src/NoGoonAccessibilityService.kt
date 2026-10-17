@@ -313,7 +313,18 @@ class NoGoonAccessibilityService : AccessibilityService() {
 
     // ── Main event handler ────────────────────────────────────────────────────
 
+    // One bad event (a node going stale mid-walk, an OEM quirk) must never take the whole
+    // service down: Android then shows the service as "not working properly" and blocking
+    // is simply off until the user re-enables it. Catch, log and carry on with the next event.
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        try {
+            processEvent(event)
+        } catch (e: Exception) {
+            Log.e(TAG, "onAccessibilityEvent failed", e)
+        }
+    }
+
+    private fun processEvent(event: AccessibilityEvent?) {
         event ?: return
         // Guard: some OEMs fire events before onServiceConnected completes
         if (!::prefs.isInitialized) return
