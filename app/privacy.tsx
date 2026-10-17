@@ -125,8 +125,9 @@ export default function PrivacyScreen() {
         <Section
           title="Children"
           body={
-            'NoGoon is not directed at children under 13. We do not knowingly collect data from ' +
-            'children under 13.'
+            'NoGoon is for adults aged 18 and over and asks you to confirm your age when you set it up. ' +
+            'We do not knowingly collect data from anyone under 18. If you believe someone under 18 ' +
+            'has used NoGoon, contact us and we will delete their data.'
           }
         />
 

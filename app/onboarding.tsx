@@ -220,6 +220,8 @@ export default function OnboardingScreen() {
   const [name, setNameLocal]              = useState(knownName);
   const [nameError, setNameError]         = useState('');
   const [nameSaved, setNameSaved]         = useState(false);
+  // NoGoon is 18+ (Play target audience). Confirmed on the name screen, before anything is saved.
+  const [ageConfirmed, setAgeConfirmed]   = useState(false);
   const [companionPicked, setCompanionPicked] = useState(false);
   const [selectedChar, setSelectedChar]   = useState<CharacterId | null>(null);
   const [companionName, setCompanionName] = useState('');
@@ -270,8 +272,13 @@ export default function OnboardingScreen() {
       setNameError('Please enter your name.');
       return;
     }
+    if (!ageConfirmed) {
+      setNameError('Please confirm you are 18 or older.');
+      return;
+    }
     setNameError('');
     setNameSaved(true);
+    AsyncStorage.setItem('@nogoon_age_confirmed', new Date().toISOString()).catch(() => {});
 
     // Save name to local store. NOTE: completeOnboarding() is deliberately
     // NOT called here — it flips hasOnboarded, which _layout.tsx watches to
@@ -301,11 +308,11 @@ export default function OnboardingScreen() {
   // With a name already on file, skip the name screen once the palette is chosen.
   const autoNamedRef = useRef(false);
   useEffect(() => {
-    if (!knownName || !palettePicked || nameSaved || autoNamedRef.current) return;
+    if (!knownName || !palettePicked || !ageConfirmed || nameSaved || autoNamedRef.current) return;
     autoNamedRef.current = true;
     handleFinish();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [palettePicked, nameSaved]);
+  }, [palettePicked, nameSaved, ageConfirmed]);
 
   // Adds all selected domains from the chip grid.
   // The chips are named after apps ("TikTok", "Instagram"), and people expect
@@ -772,11 +779,25 @@ export default function OnboardingScreen() {
               onSubmitEditing={handleFinish}
             />
 
+            <Pressable
+              style={styles.ageRow}
+              onPress={() => { setAgeConfirmed((v) => !v); setNameError(''); }}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: ageConfirmed }}
+            >
+              <Feather
+                name={ageConfirmed ? 'check-square' : 'square'}
+                size={22}
+                color={ageConfirmed ? COLORS.green : COLORS.textMuted}
+              />
+              <Text style={styles.ageText}>I am 18 or older.</Text>
+            </Pressable>
+
             {nameError ? (
               <Text style={styles.nameErrorText}>{nameError}</Text>
             ) : null}
 
-            <Pressable style={styles.finishButton} onPress={handleFinish}>
+            <Pressable style={[styles.finishButton, !ageConfirmed && { opacity: 0.5 }]} onPress={handleFinish}>
               <Text style={styles.finishButtonText}>Let's Go →</Text>
             </Pressable>
 
@@ -1175,6 +1196,18 @@ const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   },
   nameInputError: {
     borderColor: COLORS.danger,
+  },
+  ageRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    alignSelf: 'flex-start',
+    paddingVertical: SPACING.sm,
+  },
+  ageText: {
+    fontFamily: FONTS.body,
+    fontSize: 15,
+    color: COLORS.textSecondary,
   },
   nameErrorText: {
     fontFamily: FONTS.body,
