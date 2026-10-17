@@ -51,7 +51,7 @@ const TIPS = [
   {
     icon: 'square',
     title: 'Match the border style to your mood',
-    body: 'Clean, Sharp, Soft, Chunky, Neon, or Laced — border styles change every card\'s edges, Neon adds a glow, Laced adds a dotted trim. Purely cosmetic, purely yours.',
+    body: 'Clean, Sharp, Soft, Bold, Halo, or Stitched — border styles change every card\'s edges, Halo adds a soft glow, Stitched adds a dotted trim. Purely cosmetic, purely yours.',
   },
   {
     icon: 'target',

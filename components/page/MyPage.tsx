@@ -2,7 +2,7 @@
 //
 // The Today tab. Shows the room by default, or this plain page (Me → Customize). Everything on it is real data from the existing stores; the
 // active pack only changes how it is dressed (frame, counter, stamps, colors).
-// Order: function first (day count, protection, "I'm tempted"), flair second (companion,
+// Order: function first (day count, protection, "Need a minute"), flair second (companion,
 // stamps). Journal / Bubbles / Insights live in the Feed tab; the pencil opens Customize.
 
 import { useCallback, useRef, useState } from 'react';
@@ -183,9 +183,9 @@ export function MyPage() {
         onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setTempted(true); }}
         style={({ pressed }) => [styles.tempted, { backgroundColor: SUN, opacity: pressed ? 0.85 : 1 }]}
         accessibilityRole="button"
-        accessibilityLabel="I'm tempted"
+        accessibilityLabel="Need a minute"
       >
-        <Text style={styles.temptedText}>I'm tempted</Text>
+        <Text style={styles.temptedText}>Need a minute</Text>
         <Text style={styles.temptedSub}>Tap here first. We'll get through it.</Text>
       </Pressable>
       <Pressable

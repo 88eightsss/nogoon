@@ -100,7 +100,7 @@ export default function TabsLayout() {
 
   // Five tabs, one intent each —
   //   Protect → set up blocking · Briefing → read the finite daily batch ·
-  //   Today → status + "I'm tempted" (centre) · Unwind → do something better
+  //   Today → status + "Need a minute" (centre) · Unwind → do something better
   //   (urge tools, games, journal) · Me → stats and settings.
   // Arcade stays a route (opened from Unwind, Today and the tempted sheet).
   const FEED_TAB = {

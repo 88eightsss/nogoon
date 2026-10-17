@@ -578,13 +578,13 @@ export const BORDERS: Record<BorderId, BorderConfig> = {
   none:  { id: 'none',  name: 'Clean',   width: 0,   radius: RADIUS.lg, glow: false },
   sharp: { id: 'sharp', name: 'Sharp',   width: 2,   radius: 0,         glow: false },
   soft:  { id: 'soft',  name: 'Soft',    width: 1.5, radius: RADIUS.xl, glow: false },
-  pixel: { id: 'pixel', name: 'Chunky',  width: 4,   radius: RADIUS.xs, glow: false },
-  glow:  { id: 'glow',  name: 'Neon',    width: 2,   radius: RADIUS.lg, glow: true  },
+  pixel: { id: 'pixel', name: 'Bold',    width: 3,   radius: RADIUS.sm, glow: false },
+  glow:  { id: 'glow',  name: 'Halo',    width: 1.5, radius: RADIUS.lg, glow: true  },
   // A dotted RN border at a decent width reads as a stitched/lace trim, especially
   // paired with a mid rounding -- distinct from every other style on line quality
   // alone, not just width/radius, so it holds up even if a future style needs to
   // reuse a radius value.
-  laced: { id: 'laced', name: 'Laced',   width: 2,   radius: RADIUS.md, glow: false, lineStyle: 'dotted' },
+  laced: { id: 'laced', name: 'Stitched', width: 2,  radius: RADIUS.md, glow: false, lineStyle: 'dotted' },
 };
 
 // ─── Order + defaults ─────────────────────────────────────────────────────────

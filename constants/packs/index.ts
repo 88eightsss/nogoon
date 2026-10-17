@@ -13,7 +13,13 @@ export { CORE_PACK, WEBCORE_PACK, TOKYO_PACK, NOTEBOOK_PACK };
 export { packTriad } from './theme';
 export { validatePack };
 
-export const PACKS: PackManifest[] = [CORE_PACK, NOTEBOOK_PACK, WEBCORE_PACK, TOKYO_PACK]
+// Only Core ships for now (2026-10-17: Jordan shelved Notebook, Webcore and Tokyo to nail down
+// the basic customization first). The packs below stay in the repo, unregistered, so they can
+// come back later by adding them to PACKS; the code-unlock path (findPackByCode) still works for
+// any registered pack with an unlock code.
+export const SHELVED_PACKS: PackManifest[] = [NOTEBOOK_PACK, WEBCORE_PACK, TOKYO_PACK];
+
+export const PACKS: PackManifest[] = [CORE_PACK]
   .map((p) => (p.id === 'core' ? p : validatePack(p)))
   .filter((p): p is PackManifest => p !== null);
 

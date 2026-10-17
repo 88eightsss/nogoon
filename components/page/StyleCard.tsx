@@ -18,9 +18,9 @@ export function StyleCard() {
   const unlockedIds   = usePackStore((s) => s.unlockedIds);
   const activePackId  = usePackStore((s) => s.activePackId);
   const setActivePack = usePackStore((s) => s.setActivePack);
-  if (dismissed) return null;
-
   const packs = availablePacks(unlockedIds);
+  // With a single look there is nothing to pick, so the first-run style card has no job.
+  if (dismissed || packs.length < 2) return null;
   const pick = (id: string) => { setActivePack(id); dismiss(); };
 
   return (

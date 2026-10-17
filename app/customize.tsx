@@ -44,7 +44,7 @@ const ACCENTS = ['#1B62C2', '#0B7A44', '#FF6F61', '#7A3FD1', '#12A37F', '#DB2777
 type CustSection = 'room' | 'layout' | 'skins' | 'companion' | 'gate' | 'colour';
 const HUB: { id: CustSection; icon: ComponentProps<typeof Feather>['name']; title: string; sub: string }[] = [
   { id: 'room',      icon: 'home',       title: 'Your room',            sub: 'Name, colours, decor' },
-  { id: 'skins',     icon: 'package',    title: 'Skins & codes',        sub: 'Pick a look, enter a pack code' },
+  { id: 'skins',     icon: 'package',    title: 'Skins & codes',        sub: 'Enter a code for extras' },
   { id: 'companion', icon: 'smile',      title: 'Your companion',       sub: 'Which one, how it floats, how big' },
   { id: 'colour',    icon: 'droplet',    title: 'Colour & paper',       sub: 'Accent colour and page background' },
   { id: 'gate',      icon: 'shield',     title: 'At the gate',          sub: 'Instead bundles, your own list, your note' },
@@ -153,7 +153,7 @@ export default function CustomizeScreen() {
         {!section && (
           <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder, padding: 0 }]}>
             {HUB.map((h, i) => {
-              const sub = h.id === 'skins' ? `Now: ${packs.find((p) => p.id === activePackId)?.name ?? 'Core'}` : h.sub;
+              const sub = h.id === 'skins' && packs.length > 1 ? `Now: ${packs.find((p) => p.id === activePackId)?.name ?? 'Core'}` : h.sub;
               return (
                 <Pressable
                   key={h.id}
@@ -334,8 +334,8 @@ export default function CustomizeScreen() {
 
         {section === 'skins' && (
         <>
-        <Text style={[styles.section, { color: colors.textMuted }]}>Skins</Text>
-        {packs.map((p) => {
+        {packs.length > 1 && <Text style={[styles.section, { color: colors.textMuted }]}>Skins</Text>}
+        {packs.length > 1 && packs.map((p) => {
           const active = p.id === activePackId || (p.id === 'core' && !packs.some((x) => x.id === activePackId));
           const swatch = p.parts.theme ? p.parts.theme[p.parts.theme.nativeMode].accent : colors.accent;
           return (
@@ -420,7 +420,7 @@ export default function CustomizeScreen() {
           <Text style={[styles.body, { color: colors.textSecondary }]}>Day count</Text>
           <Chips items={DAY_DISPLAYS} value={dayDisplay} onChange={setDayDisplay} colors={colors} />
           <Text style={[styles.body, { color: colors.textSecondary }]}>
-            A small floating buddy you can drag anywhere. Auto turns it on with the Notebook skin and keeps the big habitat off your page.
+            A small floating buddy you can drag anywhere.
           </Text>
           <Chips items={FLOAT_MODES} value={floatMode} onChange={setFloatMode} colors={colors} />
           <Text style={[styles.body, { color: colors.textSecondary }]}>Size</Text>
@@ -546,7 +546,7 @@ export default function CustomizeScreen() {
             maxLength={GATE_NOTE_MAX}
           />
           <Text style={[styles.hint, { color: colors.textMuted, alignSelf: 'flex-end' }]}>{gateNote.length}/{GATE_NOTE_MAX}</Text>
-          <Text style={[styles.body, { color: colors.textSecondary }]}>Voice for fortune lines (Tokyo skin)</Text>
+          <Text style={[styles.body, { color: colors.textSecondary }]}>Voice for your gate note</Text>
           <View style={styles.voices}>
             {VOICES.map((v) => (
               <Pressable

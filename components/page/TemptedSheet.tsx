@@ -1,4 +1,4 @@
-// ─── "I'm tempted" sheet ──────────────────────────────────────────────────────
+// ─── "Need a minute" sheet ──────────────────────────────────────────────────────
 //
 // The moment the app exists for: someone is about to open a scroll hole. One tap from
 // My Page, four ways out. Every option is an existing screen.
