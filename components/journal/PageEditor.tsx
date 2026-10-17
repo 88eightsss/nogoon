@@ -3,7 +3,7 @@
 // font, text size, easy-read, ink), Stickers (emoji and your companions) and Draw (pens, undo).
 // Everything saves as you go; leaving the screen never loses a page.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, Text, Pressable, ScrollView, TextInput, StyleSheet, Alert, Keyboard,
   KeyboardAvoidingView, Platform, Switch, useWindowDimensions,
@@ -46,6 +46,19 @@ export function PageEditor({ id, onClose }: { id: string; onClose: () => void })
   const [penWidth, setPenWidth] = useState<number>(PEN_WIDTHS[1]);
   const [group, setGroup] = useState(STICKER_GROUPS[0].id);
   const [keyboard, setKeyboard] = useState(false);
+  // Title: typed into local state, saved after a short pause and on leaving (not on every key).
+  const [titleDraft, setTitleDraft] = useState(page?.title ?? '');
+  const titleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const titleLatest = useRef(titleDraft);
+  const onTitle = (t: string) => {
+    setTitleDraft(t);
+    titleLatest.current = t;
+    if (titleTimer.current) clearTimeout(titleTimer.current);
+    titleTimer.current = setTimeout(() => updatePage(id, { title: t }), 400);
+  };
+  useEffect(() => () => {
+    if (titleTimer.current) { clearTimeout(titleTimer.current); updatePage(id, { title: titleLatest.current }); }
+  }, [id, updatePage]);
 
   useEffect(() => {
     const a = Keyboard.addListener('keyboardDidShow', () => setKeyboard(true));
@@ -118,15 +131,16 @@ export function PageEditor({ id, onClose }: { id: string; onClose: () => void })
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={0}>
         <View style={styles.header}>
           <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back to pages">
             <Feather name="arrow-left" size={22} color={colors.text} />
           </Pressable>
           <TextInput
             style={[styles.title, { color: colors.text, borderBottomColor: colors.cardBorder }]}
-            value={page.title}
-            onChangeText={(t) => change({ title: t })}
+            value={titleDraft}
+            onChangeText={onTitle}
+            accessibilityLabel="Page title"
             placeholder="Page title"
             placeholderTextColor={colors.textMuted}
             maxLength={60}

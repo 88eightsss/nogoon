@@ -20,9 +20,32 @@ function Wheel({ items, index, onIndex, width, colors, label }: {
     return () => clearTimeout(t);
   }, []);   // eslint-disable-line react-hooks/exhaustive-deps
 
-  const settle = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const i = Math.max(0, Math.min(items.length - 1, Math.round(e.nativeEvent.contentOffset.y / ITEM_H)));
+  const pending = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const placed = useRef(false);
+  useEffect(() => () => { if (pending.current) clearTimeout(pending.current); }, []);
+
+  const commit = (y: number) => {
+    const i = Math.max(0, Math.min(items.length - 1, Math.round(y / ITEM_H)));
     if (i !== settled.current) { settled.current = i; onIndex(i); }
+  };
+  // Momentum end is the real "it stopped" signal. A finger lift with no fling never
+  // starts momentum, so that case commits after a short wait (cancelled if momentum starts).
+  const onDragEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const y = e.nativeEvent.contentOffset.y;
+    if (pending.current) clearTimeout(pending.current);
+    pending.current = setTimeout(() => commit(y), 220);
+  };
+  const onMomentumBegin = () => { if (pending.current) { clearTimeout(pending.current); pending.current = null; } };
+  const onMomentumEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (pending.current) { clearTimeout(pending.current); pending.current = null; }
+    commit(e.nativeEvent.contentOffset.y);
+  };
+  // Place the initial value once the list has actually measured itself (inside a Modal
+  // the first frame can arrive before layout).
+  const placeInitial = () => {
+    if (placed.current) return;
+    placed.current = true;
+    ref.current?.scrollToOffset({ offset: index * ITEM_H, animated: false });
   };
 
   return (
@@ -51,8 +74,10 @@ function Wheel({ items, index, onIndex, width, colors, label }: {
         ListHeaderComponent={<View style={{ height: ITEM_H * 2 }} />}
         ListFooterComponent={<View style={{ height: ITEM_H * 2 }} />}
         getItemLayout={(_, i) => ({ length: ITEM_H, offset: ITEM_H * 2 + ITEM_H * i, index: i })}
-        onMomentumScrollEnd={settle}
-        onScrollEndDrag={settle}
+        onContentSizeChange={placeInitial}
+        onMomentumScrollBegin={onMomentumBegin}
+        onMomentumScrollEnd={onMomentumEnd}
+        onScrollEndDrag={onDragEnd}
         renderItem={({ item }) => (
           <View style={{ height: ITEM_H, alignItems: 'center', justifyContent: 'center' }}>
             <Text style={{ fontFamily: FONTS.display, fontSize: 28, color: colors.text }}>{item}</Text>

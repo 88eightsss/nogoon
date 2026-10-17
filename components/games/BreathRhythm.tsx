@@ -80,6 +80,7 @@ export function BreathRhythm({ onComplete }: Props) {
 
   const animRef   = useRef<Animated.CompositeAnimation | null>(null);
   const stepTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const aliveRef  = useRef(true);
 
   // ── Run the breath sequence ───────────────────────────────────────────────
 
@@ -117,7 +118,8 @@ export function BreathRhythm({ onComplete }: Props) {
     ]);
 
     animRef.current = Animated.parallel([orbAnim, ringAnim]);
-    animRef.current.start(() => {
+    animRef.current.start(({ finished }) => {
+      if (!finished || !aliveRef.current) return;
       const nextIdx  = (idx + 1) % STEP_COUNT;
       const nextCycle = nextIdx === 0 ? cycleNum + 1 : cycleNum;
 
@@ -136,7 +138,14 @@ export function BreathRhythm({ onComplete }: Props) {
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state: AppStateStatus) => {
-      if (state !== 'active') animRef.current?.stop();
+      if (state !== 'active') {
+        // Backgrounded mid-session: stop everything and go back to the start screen
+        animRef.current?.stop();
+        if (stepTimer.current) clearTimeout(stepTimer.current);
+        setPhase((p) => (p === 'breathing' ? 'ready' : p));
+        setCycle(0);
+        orbScale.setValue(1);
+      }
     });
     return () => sub.remove();
   }, []);
@@ -144,7 +153,9 @@ export function BreathRhythm({ onComplete }: Props) {
   // ── Cleanup ───────────────────────────────────────────────────────────────
 
   useEffect(() => {
+    aliveRef.current = true;
     return () => {
+      aliveRef.current = false;
       animRef.current?.stop();
       if (stepTimer.current) clearTimeout(stepTimer.current);
     };

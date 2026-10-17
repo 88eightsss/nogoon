@@ -29,8 +29,6 @@ WHAT YOU GET
 
 • Choose or shuffle — let NoGoon pick a random game, or choose the one you want
 
-• Accountability partner — someone you trust gets notified about your milestones
-
 • Light and dark mode — adapts to your system preference automatically
 
 • Points system — earn points for completing games. Bonus points for walking away.

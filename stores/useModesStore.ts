@@ -76,8 +76,15 @@ export function resolveActiveMode(
   for (const mode of modes) {
     const s = mode.schedule;
     if (!s?.enabled) continue;
-    if (s.days.length > 0 && !s.days.includes(dow)) continue;
-    if (isWithinWindow(s.start, s.end, mins)) return mode;
+    if (!isWithinWindow(s.start, s.end, mins)) continue;
+    // The chosen days are the days a window STARTS on. After midnight in an overnight
+    // window (e.g. Fri 22:00 -> Sat 06:00) we are still in Friday's window.
+    const [sh, sm] = s.start.split(':').map(Number);
+    const [eh, em] = s.end.split(':').map(Number);
+    const overnight = sh * 60 + sm > eh * 60 + em;
+    const startDay = overnight && mins < eh * 60 + em ? (dow + 6) % 7 : dow;
+    if (s.days.length > 0 && !s.days.includes(startDay)) continue;
+    return mode;
   }
 
   if (activeModeId) {

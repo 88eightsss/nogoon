@@ -111,7 +111,7 @@ export function HoldBreath({ onComplete, onSwitch }: { onComplete: (score: numbe
   // Stop everything if the app is backgrounded; cleanup on unmount.
   useEffect(() => {
     const sub = AppState.addEventListener('change', (s) => {
-      if (s !== 'active') { holding.current = false; clearFull(); anim.current?.stop(); }
+      if (s !== 'active') { holding.current = false; clearFull(); anim.current?.stop(); scale.setValue(1); glow.setValue(0.1); setStage((st) => (st === 'idle' ? st : 'idle')); }
     });
     return () => { sub.remove(); clearFull(); anim.current?.stop(); };
   }, []);

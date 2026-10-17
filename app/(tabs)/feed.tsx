@@ -155,7 +155,7 @@ export default function FeedScreen() {
         {endless ? 'Keeps loading older stories as you scroll.' : "A small batch, once a day. When it's done, it's done."}
       </Text>
       <View style={[styles.seg, { backgroundColor: colors.surfaceHigh, borderColor: colors.cardBorder }]}>
-        {([['twenty', '20 stories'], ['endless', 'Endless']] as const).map(([id, label]) => {
+        {([['twenty', 'Up to 20'], ['endless', 'Endless']] as const).map(([id, label]) => {
           const on = length === id;
           return (
             <Pressable
@@ -163,7 +163,7 @@ export default function FeedScreen() {
               onPress={() => setLength(id)}
               accessibilityRole="tab"
               accessibilityState={{ selected: on }}
-              accessibilityLabel={id === 'twenty' ? 'Twenty stories a day, then it ends' : 'Endless scrolling'}
+              accessibilityLabel={id === 'twenty' ? 'Up to twenty stories a day, then it ends' : 'Endless scrolling'}
               style={[styles.segBtn, on && { backgroundColor: colors.accent }]}
             >
               <Text style={[styles.segText, { color: on ? '#fff' : colors.textSecondary }]}>{label}</Text>

@@ -78,8 +78,7 @@ export function ReachOutTreat({ char, stage, petName }: { char: CharacterId; sta
   const send = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     try {
-      const r = await Share.share({ message: hello });
-      if (r.action === Share.sharedAction) dismiss();
+      await Share.share({ message: hello });   // the card stays; "Not today" tucks it away
     } catch {}
   };
   const time = minutes >= 60 ? `${Math.floor(minutes / 60)} h ${minutes % 60} min` : `${minutes} min`;

@@ -9,7 +9,7 @@
 // /bubbles redirects here with ?tab=canvas.
 
 import { useEffect, useState } from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet, BackHandler } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -42,6 +42,13 @@ export default function JournalScreen() {
     if (params.tab === 'canvas' || params.tab === 'moments' || params.tab === 'pages') setTab(params.tab);
   }, [params.tab]);
   useEffect(() => { if (editing && !exists) setEditing(null); }, [editing, exists]);
+
+  // Hardware back closes the open page (back to the gallery) instead of leaving Journal.
+  useEffect(() => {
+    if (!editing) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { setEditing(null); return true; });
+    return () => sub.remove();
+  }, [editing]);
 
   if (editing && exists) return <PageEditor id={editing} onClose={() => setEditing(null)} />;
 

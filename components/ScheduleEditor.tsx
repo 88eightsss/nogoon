@@ -25,12 +25,14 @@ export function ScheduleEditor({ schedule, onChange, colors }: {
     // Starting from "every day", tapping a day narrows to just that day.
     const base = everyDay ? [] : schedule.days;
     const next = base.includes(d) ? base.filter((x) => x !== d) : [...base, d].sort();
+    if (next.length === 0) return;   // keep at least one day (empty would silently mean every day)
     onChange({ ...schedule, days: next.length === 7 ? [] : next });
   };
 
   const [sh, sm] = schedule.start.split(':').map(Number);
   const [eh, em] = schedule.end.split(':').map(Number);
-  const overnight = eh * 60 + em <= sh * 60 + sm;
+  const zeroLength = eh * 60 + em === sh * 60 + sm;
+  const overnight = eh * 60 + em < sh * 60 + sm;
 
   return (
     <View style={{ gap: 14 }}>
@@ -76,7 +78,7 @@ export function ScheduleEditor({ schedule, onChange, colors }: {
       </View>
 
       <Text style={[styles.hint, { color: colors.textMuted }]}>
-        {daysLabel(schedule.days)}{overnight ? ' · ends the next morning' : ''}
+        {zeroLength ? 'Start and end are the same, so this will never switch on. Pick different times.' : `${daysLabel(schedule.days)}${overnight ? ' · ends the next morning' : ''}`}
       </Text>
     </View>
   );

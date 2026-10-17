@@ -52,7 +52,7 @@ function withAppBlockerManifest(config) {
     if (!manifest['uses-permission']) manifest['uses-permission'] = [];
     const permsToAdd = [
       'android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS',
-      'android.permission.INTERNET',                            // network access (Supabase, partner emails; VPN DNS forward when enabled)
+      'android.permission.INTERNET',                            // network access (Supabase; VPN DNS forward when enabled)
       'android.permission.FOREGROUND_SERVICE',                  // accessibility-service foreground notification
       'android.permission.FOREGROUND_SERVICE_SPECIAL_USE',      // Android 14+ foreground type for the same
     ];

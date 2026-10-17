@@ -18,7 +18,7 @@ import {
   Text,
   Pressable,
   StyleSheet,
-  FlatList,
+  ScrollView,
   Animated,
   ViewStyle,
   TextStyle,
@@ -477,13 +477,11 @@ export default function TutorialScreen() {
   const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
   const markTutorialSeen = useUserStore((s) => s.markTutorialSeen);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const flatRef = useRef<FlatList>(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
   const goToIndex = useCallback(
     (next: number) => {
       Animated.timing(fadeAnim, { toValue: 0, duration: 120, useNativeDriver: true }).start(() => {
-        flatRef.current?.scrollToIndex({ index: next, animated: false });
         setCurrentIndex(next);
         Animated.timing(fadeAnim, { toValue: 1, duration: 200, useNativeDriver: true }).start();
       });
@@ -538,21 +536,9 @@ export default function TutorialScreen() {
         </Pressable>
       </View>
 
-      {/* FlatList (hidden — used only for scroll state tracking) */}
-      <FlatList
-        ref={flatRef}
-        data={STEPS}
-        keyExtractor={(s) => s.id}
-        horizontal
-        pagingEnabled
-        scrollEnabled={false}
-        showsHorizontalScrollIndicator={false}
-        style={{ position: 'absolute', opacity: 0, height: 0 }}
-        renderItem={() => null}
-      />
-
       {/* Main content area */}
-      <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
+      <Animated.View style={[styles.contentWrap, { opacity: fadeAnim }]}>
+       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} bounces={false}>
         {/* Illustration */}
         <View style={[styles.illuWrap, { backgroundColor: COLORS[step.dimKey], borderColor: COLORS[step.colorKey] + '30' }]}>
           <step.Illustration accent={COLORS[step.colorKey]} dim={COLORS[step.dimKey]} />
@@ -581,6 +567,7 @@ export default function TutorialScreen() {
             <Feather name="arrow-right" size={14} color={COLORS[step.colorKey]} />
           </Pressable>
         )}
+       </ScrollView>
       </Animated.View>
 
       {/* Progress dots */}
@@ -867,10 +854,11 @@ const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
     color: COLORS.textMuted,
   },
 
+  contentWrap: { flex: 1 },
   content: {
-    flex: 1,
     paddingHorizontal: SPACING.xl,
     paddingTop: SPACING.xl,
+    paddingBottom: SPACING.lg,
     gap: SPACING.md,
   },
 

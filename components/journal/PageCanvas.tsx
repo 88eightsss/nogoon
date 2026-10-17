@@ -193,8 +193,8 @@ export function PageCanvas({
       const x = (e.nativeEvent.locationX / w) * VIEW_W;
       const y = (e.nativeEvent.locationY / h) * VIEW_W * PAGE_RATIO;
       const dx = x - pen.current.last.x, dy = y - pen.current.last.y;
-      if (dx * dx + dy * dy < 4) return;
-      pen.current.d += ` L${x.toFixed(1)} ${y.toFixed(1)}`;
+      if (dx * dx + dy * dy < 16) return;   // skip points under ~4 units apart
+      pen.current.d += ` L${x.toFixed(0)} ${y.toFixed(0)}`;
       pen.current.last = { x, y };
       pen.current.n += 1;
       setLive(pen.current.d);

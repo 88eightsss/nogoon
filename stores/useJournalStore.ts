@@ -72,6 +72,11 @@ export const useJournalStore = create<JournalState>()(
       togglePin: (id) =>
         set((s) => ({ pages: s.pages.map((p) => (p.id === id ? { ...p, pinned: !p.pinned } : p)) })),
     }),
-    { name: 'nogoon-journal-pages', storage: createJSONStorage(() => AsyncStorage) }
+    {
+      name: 'nogoon-journal-pages',
+      storage: createJSONStorage(() => AsyncStorage),
+      version: 1,
+      migrate: (state) => state as any,   // future page-shape changes go here
+    }
   )
 );
