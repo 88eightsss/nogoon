@@ -1,7 +1,7 @@
 // ─── feed-daily ──────────────────────────────────────────────────────────────
 //
 // Runs ONCE a day (scheduled, not called by the app). Reads a short list of positive-news
-// RSS feeds, asks Claude Haiku to pick up to 5 genuinely uplifting stories and rewrite each
+// RSS feeds, asks Claude Haiku to pick up to 10 genuinely uplifting stories and rewrite each
 // as a short original summary, then stores them in public.feed_items with a link to the
 // original article. The app reads that table, so cost does not grow with users.
 //
@@ -40,8 +40,8 @@ const FEEDS: { name: string; url: string }[] = [
   { name: 'The Optimist Daily', url: 'https://www.optimistdaily.com/feed/' },
 ];
 
-const PER_FEED = 8;
-const PICK = 5;
+const PER_FEED = 12;
+const PICK = 10;
 
 type Candidate = { title: string; link: string; desc: string; source: string };
 
@@ -96,31 +96,31 @@ async function wikiRows(key: string, day: string): Promise<Row[]> {
   const feed = await res.json();
   const out: Row[] = [];
 
-  const read = (feed?.mostread?.articles ?? []).filter((a: any) => a?.titles?.canonical && !SKIP_TITLES.test(a.titles.canonical)).slice(0, 25);
+  const read = (feed?.mostread?.articles ?? []).filter((a: any) => a?.titles?.canonical && !SKIP_TITLES.test(a.titles.canonical)).slice(0, 30);
   if (read.length >= 5) {
     const list = read.map((a: any, i: number) => `${i}. ${a.normalizedtitle ?? a.title} — ${(a.description ?? a.extract ?? '').slice(0, 160)}`).join('\n');
     const picks = await askClaude(key,
-      `These are the most-read Wikipedia articles yesterday:\n${list}\n\nChoose up to 4 that show what people are genuinely curious about. ` +
+      `These are the most-read Wikipedia articles yesterday:\n${list}\n\nChoose up to 6 that show what people are genuinely curious about. ` +
       `Skip anything sexual, graphic, about a person's death or crime, or that is only a celebrity gossip hook. ` +
       `For each, write a headline under 9 words and one plain sentence (in your own words) on why people may be looking it up or what it is. ` +
-      `Respond ONLY with JSON: [{"i": <number>, "headline": "...", "summary": "..."}]`, 700);
-    picks.slice(0, 4).forEach((p, rank) => {
+      `Respond ONLY with JSON: [{"i": <number>, "headline": "...", "summary": "..."}]`, 1100);
+    picks.slice(0, 6).forEach((p, rank) => {
       const a = read[p.i];
       const url = a?.content_urls?.desktop?.page;
       if (a && url && p.headline && p.summary) out.push({ day, rank, headline: String(p.headline).slice(0, 140), summary: String(p.summary).slice(0, 400), source: 'Wikipedia', url, category: 'curious', section: 'curious' });
     });
   }
 
-  const news = (feed?.news ?? []).slice(0, 8)
+  const news = (feed?.news ?? []).slice(0, 10)
     .map((n: any) => ({ story: strip(n?.story ?? ''), url: n?.links?.[0]?.content_urls?.desktop?.page as string | undefined }))
     .filter((n: any) => n.story && n.url);
   if (news.length >= 2) {
     const list = news.map((n: any, i: number) => `${i}. ${n.story}`).join('\n');
     const picks = await askClaude(key,
-      `Major news items today (from Wikipedia "In the news"):\n${list}\n\nWrite a calm briefing of up to 4 of these. For each: a neutral headline under 10 words and one or two plain sentences ` +
+      `Major news items today (from Wikipedia "In the news"):\n${list}\n\nWrite a calm briefing of up to 5 of these. For each: a neutral headline under 10 words and one or two plain sentences ` +
       `saying what happened and, if known, what is being done. No graphic detail, no speculation, no casualty counts beyond what is essential, no loaded words, no opinion. ` +
-      `Skip an item if it cannot be told calmly. Respond ONLY with JSON: [{"i": <number>, "headline": "...", "summary": "..."}]`, 800);
-    picks.slice(0, 4).forEach((p, rank) => {
+      `Skip an item if it cannot be told calmly. Respond ONLY with JSON: [{"i": <number>, "headline": "...", "summary": "..."}]`, 1000);
+    picks.slice(0, 5).forEach((p, rank) => {
       const n = news[p.i];
       if (n && p.headline && p.summary) out.push({ day, rank, headline: String(p.headline).slice(0, 140), summary: String(p.summary).slice(0, 400), source: 'Wikipedia', url: n.url!, category: 'world', section: 'world' });
     });
@@ -158,7 +158,7 @@ serve(async (req: Request) => {
       }),
     );
     const pool = settled.flatMap((s) => (s.status === 'fulfilled' ? s.value : []));
-    if (pool.length < PICK) throw new Error(`only ${pool.length} candidates`);
+    if (pool.length < 5) throw new Error(`only ${pool.length} candidates`);
 
     const list = pool.map((c, i) => `${i}. ${c.title} — ${c.desc}`).join('\n');
     const ai = await fetch('https://api.anthropic.com/v1/messages', {
@@ -166,7 +166,7 @@ serve(async (req: Request) => {
       headers: { 'x-api-key': anthropicKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 900,
+        max_tokens: 2200,
         messages: [{
           role: 'user',
           content:

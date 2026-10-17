@@ -1,18 +1,20 @@
 // ─── Briefing — the calm daily replacement for the feed ───────────────────────
 //
 // A finite, once-a-day destination (new layout only). Sections, each with a hard cap:
-//   Good news          up to 5 uplifting stories
-//   What people are looking up   up to 4 most-read topics (Wikipedia), described in plain words
-//   Major news         up to 4 calm summaries, ONLY if the user opted in (Me > Customize)
-//   Your turn          a journal prompt, Journal, and The Wall (Bubbles, Insights, games live in Unwind)
-// Every item links to its source. When the sections end, the briefing ends.
+//   Good news          uplifting stories
+//   What people are looking up   most-read topics (Wikipedia), described in plain words
+//   Major news         calm summaries, ONLY if the user opted in (Me > Customize)
+//   Your turn          a journal prompt, Journal, Happening near you, and The Wall
+// Length is the reader's choice (toggle at the top): "20 stories" caps the day at 20 and ends,
+// "Endless" keeps loading older stories as you scroll. Every item links to its source.
 
 import { useCallback, useEffect, useState } from 'react';
-import { ScrollView, View, Text, Pressable, ActivityIndicator, Linking, StyleSheet } from 'react-native';
+import { ScrollView, View, Text, Pressable, ActivityIndicator, Linking, StyleSheet, type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
-import { getTodaysBriefing, type Briefing, type GoodItem } from '@/lib/dailyGood';
+import { getTodaysBriefing, getOlderStories, type Briefing, type GoodItem } from '@/lib/dailyGood';
+import { useBriefingPrefs } from '@/stores/useBriefingPrefs';
 import { usePackStore } from '@/stores/usePackStore';
 import { useOfferStore } from '@/stores/useOfferStore';
 import { FONTS } from '@/constants/Colors';
@@ -36,6 +38,12 @@ export default function FeedScreen() {
   const [brief, setBrief] = useState<Briefing>({ good: [], curious: [], world: [] });
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
+  const length = useBriefingPrefs((s) => s.length);
+  const setLength = useBriefingPrefs((s) => s.setLength);
+  const endless = length === 'endless';
+  const [older, setOlder] = useState<GoodItem[]>([]);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [exhausted, setExhausted] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true); setFailed(false);
@@ -46,6 +54,31 @@ export default function FeedScreen() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // Endless: pull older stories a page at a time. Switching back to 20 clears them.
+  const loadMore = useCallback(async () => {
+    if (loadingMore || exhausted || loading) return;
+    setLoadingMore(true);
+    const before = brief.day ?? new Date().toISOString().slice(0, 10);
+    const page = await getOlderStories(before, older.length, showWorldNews);
+    if (page.length === 0) setExhausted(true);
+    else setOlder((cur) => [...cur, ...page]);
+    setLoadingMore(false);
+  }, [loadingMore, exhausted, loading, brief.day, older.length, showWorldNews]);
+
+  useEffect(() => {
+    if (!endless) { setOlder([]); setExhausted(false); }
+  }, [endless]);
+  // First page of older stories as soon as today's batch is on screen.
+  useEffect(() => {
+    if (endless && !loading && !failed && older.length === 0 && !exhausted) loadMore();
+  }, [endless, loading, failed, older.length, exhausted, loadMore]);
+
+  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (!endless) return;
+    const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
+    if (layoutMeasurement.height + contentOffset.y > contentSize.height - 700) loadMore();
+  };
 
   const open = (url?: string) => { if (url) Linking.openURL(url).catch(() => {}); };
 
@@ -76,42 +109,15 @@ export default function FeedScreen() {
     )
   );
 
-  const total = brief.good.length + brief.curious.length + (showWorldNews ? brief.world.length : 0);
+  // "20 stories" mode caps the day at 20 (good news first, major news last). Endless shows the whole batch.
+  const cap = (list: GoodItem[], room: number) => (endless ? list : list.slice(0, Math.max(0, room)));
+  const good = cap(brief.good, 20);
+  const curious = cap(brief.curious, 20 - good.length);
+  const world = showWorldNews ? cap(brief.world, 20 - good.length - curious.length) : [];
+  const total = good.length + curious.length + world.length;
 
-  return (
-    <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={styles.content}>
-      <Text style={[styles.title, { color: colors.text }]}>Today's briefing</Text>
-      <Text style={[styles.sub, { color: colors.textSecondary }]}>A small batch, once a day. When it's done, it's done.</Text>
-
-      {loading && (
-        <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
-          <ActivityIndicator color={colors.accent} />
-        </View>
-      )}
-
-      {!loading && <Section title="Good news" items={brief.good} />}
-      {!loading && <Section title="What people are looking up" hint="The topics the world got curious about yesterday." items={brief.curious} />}
-      {!loading && showWorldNews && <Section title="Major news" hint="Calm and factual. A few items, then it ends." items={brief.world} />}
-      {!loading && !showWorldNews && (
-        <Pressable onPress={() => router.push('/customize' as any)} accessibilityRole="button">
-          <Text style={[styles.sub, { color: colors.textMuted }]}>Major news is off. You can add a short, calm summary in Customize.</Text>
-        </Pressable>
-      )}
-
-      {!loading && total > 0 && (
-        <Text style={[styles.sub, { color: colors.textMuted, textAlign: 'center' }]}>That's everything for today. See you tomorrow.</Text>
-      )}
-      {!loading && failed && (
-        <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
-          <Text style={[styles.body, { color: colors.textSecondary }]}>
-            Couldn't fetch today's briefing. Good things are still happening out there, and you're protecting your time.
-          </Text>
-          <Pressable onPress={load} style={[styles.btn, { borderColor: colors.border }]}>
-            <Text style={[styles.btnText, { color: colors.text }]}>Try again</Text>
-          </Pressable>
-        </View>
-      )}
-
+  const yourTurn = (
+    <>
       <Text style={[styles.section, { color: colors.textMuted }]}>Your turn</Text>
       <Pressable
         onPress={() => router.push('/journal' as any)}
@@ -123,6 +129,7 @@ export default function FeedScreen() {
       </Pressable>
       {[
         { icon: 'book-open' as const, label: 'Journal', body: 'Colourful pages, stickers, doodles and a canvas for your thoughts. Everything stays on your phone.', go: () => router.push('/journal' as any) },
+        { icon: 'map-pin' as const,   label: 'Happening near you', body: 'Farmers markets, volunteering and community events.', go: () => router.push('/events' as any) },
         { icon: 'grid' as const,      label: 'The Wall', body: 'Sponsored. Local businesses and makers. Only when you choose to look.', go: () => router.push('/wall' as any) },
       ].filter((r) => showSponsors || r.label !== 'The Wall').map((r) => (
         <Pressable
@@ -138,11 +145,81 @@ export default function FeedScreen() {
           <Feather name="chevron-right" size={18} color={colors.textMuted} />
         </Pressable>
       ))}
+    </>
+  );
+
+  return (
+    <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={styles.content} onScroll={onScroll} scrollEventThrottle={200}>
+      <Text style={[styles.title, { color: colors.text }]}>Today's briefing</Text>
+      <Text style={[styles.sub, { color: colors.textSecondary }]}>
+        {endless ? 'Keeps loading older stories as you scroll.' : "A small batch, once a day. When it's done, it's done."}
+      </Text>
+      <View style={[styles.seg, { backgroundColor: colors.surfaceHigh, borderColor: colors.cardBorder }]}>
+        {([['twenty', '20 stories'], ['endless', 'Endless']] as const).map(([id, label]) => {
+          const on = length === id;
+          return (
+            <Pressable
+              key={id}
+              onPress={() => setLength(id)}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: on }}
+              accessibilityLabel={id === 'twenty' ? 'Twenty stories a day, then it ends' : 'Endless scrolling'}
+              style={[styles.segBtn, on && { backgroundColor: colors.accent }]}
+            >
+              <Text style={[styles.segText, { color: on ? '#fff' : colors.textSecondary }]}>{label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {loading && (
+        <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+          <ActivityIndicator color={colors.accent} />
+        </View>
+      )}
+
+      {!loading && <Section title="Good news" items={good} />}
+      {!loading && <Section title="What people are looking up" hint="The topics the world got curious about yesterday." items={curious} />}
+      {!loading && showWorldNews && <Section title="Major news" hint="Calm and factual. A few items, then it ends." items={world} />}
+      {!loading && !showWorldNews && (
+        <Pressable onPress={() => router.push('/customize' as any)} accessibilityRole="button">
+          <Text style={[styles.sub, { color: colors.textMuted }]}>Major news is off. You can add a short, calm summary in Customize.</Text>
+        </Pressable>
+      )}
+
+      {!loading && total > 0 && !endless && (
+        <Text style={[styles.sub, { color: colors.textMuted, textAlign: 'center' }]}>That's everything for today. See you tomorrow.</Text>
+      )}
+      {!loading && failed && (
+        <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+          <Text style={[styles.body, { color: colors.textSecondary }]}>
+            Couldn't fetch today's briefing. Good things are still happening out there, and you're protecting your time.
+          </Text>
+          <Pressable onPress={load} style={[styles.btn, { borderColor: colors.border }]}>
+            <Text style={[styles.btnText, { color: colors.text }]}>Try again</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {yourTurn}
+      {endless && !loading && !failed && (
+        <View style={{ gap: SPACING.sm }}>
+          <Text style={[styles.section, { color: colors.textMuted }]}>Earlier stories</Text>
+          {older.map((it, i) => <Story key={`${it.url ?? it.headline}-${i}`} item={it} />)}
+          {loadingMore && <ActivityIndicator color={colors.accent} />}
+          {exhausted && (
+            <Text style={[styles.sub, { color: colors.textMuted, textAlign: 'center' }]}>That's everything we have stored right now. Fresh stories arrive tomorrow.</Text>
+          )}
+        </View>
+      )}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  seg:      { flexDirection: 'row', borderRadius: 999, borderWidth: 1, padding: 3, alignSelf: 'flex-start' },
+  segBtn:   { paddingVertical: 7, paddingHorizontal: 18, borderRadius: 999 },
+  segText:  { fontFamily: FONTS.bodyBold, fontSize: 13 },
   content:  { padding: SPACING.lg, gap: SPACING.md, paddingBottom: SPACING.huge },
   title:    { fontFamily: FONTS.display, fontSize: 26 },
   sub:      { fontFamily: FONTS.body, fontSize: 13 },

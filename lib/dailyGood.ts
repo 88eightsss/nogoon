@@ -10,7 +10,7 @@ import { supabase } from '@/lib/supabase';
 import { getLocalDateKey } from '@/utils/date';
 
 export type GoodItem = { headline: string; summary: string; source: string; url?: string };
-export type Briefing = { good: GoodItem[]; curious: GoodItem[]; world: GoodItem[] };
+export type Briefing = { good: GoodItem[]; curious: GoodItem[]; world: GoodItem[]; day?: string };
 
 const cacheKey = () => `nogoon_brief_${getLocalDateKey()}`;
 const EMPTY: Briefing = { good: [], curious: [], world: [] };
@@ -21,7 +21,7 @@ const toItem = (r: Row): GoodItem => ({ headline: r.headline, summary: r.summary
 async function fromTable(): Promise<Briefing> {
   // `section` exists after the 20261015 migration; fall back to the old shape if it does not.
   let res = await supabase.from('feed_items').select('headline, summary, source, url, day, rank, section')
-    .order('day', { ascending: false }).order('rank', { ascending: true }).limit(40);
+    .order('day', { ascending: false }).order('rank', { ascending: true }).limit(90);
   if (res.error) {
     res = await supabase.from('feed_items').select('headline, summary, source, url, day, rank')
       .order('day', { ascending: false }).order('rank', { ascending: true }).limit(20) as typeof res;
@@ -32,9 +32,9 @@ async function fromTable(): Promise<Briefing> {
   const newest = (section: string) => {
     const rows = data.filter((r) => (r.section ?? 'good') === section);
     if (!rows.length) return [] as GoodItem[];
-    return rows.filter((r) => r.day === rows[0].day).slice(0, section === 'good' ? 5 : 4).map(toItem);
+    return rows.filter((r) => r.day === rows[0].day).slice(0, section === 'good' ? 10 : section === 'curious' ? 6 : 5).map(toItem);
   };
-  return { good: newest('good'), curious: newest('curious'), world: newest('world') };
+  return { good: newest('good'), curious: newest('curious'), world: newest('world'), day: data[0].day };
 }
 
 async function fromFunction(): Promise<GoodItem[]> {
@@ -70,4 +70,24 @@ export async function getOneGood(): Promise<GoodItem | null> {
   const items = await getTodaysGood();
   if (!items.length) return null;
   return items[Math.floor(Math.random() * items.length)];
+}
+
+
+/**
+ * Older stories for the "endless" setting: everything stored from before today's batch, newest day
+ * first, in pages. Returns [] when there is nothing more (or the table cannot be read).
+ */
+export async function getOlderStories(beforeDay: string, offset: number, includeWorld: boolean, pageSize = 15): Promise<GoodItem[]> {
+  try {
+    let q = supabase.from('feed_items').select('headline, summary, source, url, day, rank, section')
+      .lt('day', beforeDay)
+      .order('day', { ascending: false }).order('rank', { ascending: true })
+      .range(offset, offset + pageSize - 1);
+    if (!includeWorld) q = q.in('section', ['good', 'curious']);
+    const { data, error } = await q;
+    if (error || !data) return [];
+    return (data as Row[]).map(toItem);
+  } catch {
+    return [];
+  }
 }

@@ -47,6 +47,7 @@ SetSecret 'STRIPE_WEBHOOK_SECRET'  (Ask 'Stripe webhook signing secret (whsec_..
 
 Write-Host "`n4/6  Edge functions"
 SB functions deploy feed-daily    --project-ref $ref --no-verify-jwt
+SB functions deploy events-draft  --project-ref $ref --no-verify-jwt
 SB functions deploy wall          --project-ref $ref
 SB functions deploy wall-webhook  --project-ref $ref --no-verify-jwt
 
@@ -57,6 +58,11 @@ create extension if not exists pg_net;
 select cron.schedule('feed-daily', '0 14 * * *',
   `$`$ select net.http_post(
          url := 'https://$ref.supabase.co/functions/v1/feed-daily',
+         headers := jsonb_build_object('x-cron-secret', '$cron')
+       ); `$`$);
+select cron.schedule('events-draft', '0 13 * * 1',
+  `$`$ select net.http_post(
+         url := 'https://$ref.supabase.co/functions/v1/events-draft',
          headers := jsonb_build_object('x-cron-secret', '$cron')
        ); `$`$);
 select cron.schedule('wall-maintenance', '5 * * * *', `$`$ select public.wall_maintenance(); `$`$);
