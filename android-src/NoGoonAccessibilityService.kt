@@ -525,11 +525,20 @@ class NoGoonAccessibilityService : AccessibilityService() {
             return
         }
 
-        // Browsers: on a new foreground event, immediately check the active URL.
-        if (isNewForeground && browserPackages.contains(packageName)) {
+        // Browsers: any window event forgets what we last saw, so the page is judged
+        // again. On a new foreground we check at once. When it is the SAME browser
+        // (the tab switcher closing, another tab picked, a menu or sheet dismissed) the
+        // address bar usually hasn't updated yet and may not fire another content event
+        // at all, so look again shortly after. Before this, going back into a blocked
+        // site through the tab switcher matched the cached domain and was let straight in.
+        if (browserPackages.contains(packageName)) {
             lastSeenUrl.remove(packageName)
             lastBrowserCheckMs.remove(packageName)
-            checkBrowserUrlNow(packageName)
+            if (isNewForeground) {
+                checkBrowserUrlNow(packageName)
+            } else {
+                scheduleBrowserRecheck(packageName)
+            }
             return
         }
 
@@ -555,6 +564,14 @@ class NoGoonAccessibilityService : AccessibilityService() {
     // Called when a browser comes to the foreground. Reads the URL directly from
     // the accessibility tree without waiting for a content-change event.
     // Used to catch already-open tabs on blocked domains.
+
+    private fun scheduleBrowserRecheck(packageName: String) {
+        for (delayMs in longArrayOf(350L, 1_100L)) {
+            mainHandler.postDelayed({
+                if (currentForegroundPackage == packageName) checkBrowserUrlNow(packageName)
+            }, delayMs)
+        }
+    }
 
     private fun checkBrowserUrlNow(packageName: String) {
         val hasBlockedDomains = activeBlockedDomains().isNotEmpty()
@@ -606,7 +623,13 @@ class NoGoonAccessibilityService : AccessibilityService() {
         val rootNode = rootInActiveWindow ?: return
         val url = findUrlInNodeTree(rootNode)
         rootNode.recycle()          // always recycle even if url is null — prevents memory leak
-        if (url == null) return
+        if (url == null) {
+            // No address bar on screen (tab switcher, new-tab page, toolbar hidden). Forget the
+            // cached domain, otherwise coming back to the SAME blocked site compares equal to it
+            // and skips the check.
+            lastSeenUrl.remove(packageName)
+            return
+        }
 
         val domain = extractDomain(url)
         if (domain.isBlank() || !domain.contains('.')) return
