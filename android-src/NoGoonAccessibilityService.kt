@@ -334,9 +334,44 @@ class NoGoonAccessibilityService : AccessibilityService() {
 
         when (event.eventType) {
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED   -> handleAppSwitch(event, curfewActive)
-            AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> if (hasBlockedDomains) handleBrowserUrl(event)
-            AccessibilityEvent.TYPE_VIEW_SCROLLED          -> if (hasBlockedApps || hasBlockedDomains) handleScrollEvent(event)
+            AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> {
+                syncForegroundFromContentEvent(event, curfewActive)
+                if (hasBlockedDomains) handleBrowserUrl(event)
+            }
+            AccessibilityEvent.TYPE_VIEW_SCROLLED          -> {
+                syncForegroundFromContentEvent(event, curfewActive)
+                if (hasBlockedApps || hasBlockedDomains) handleScrollEvent(event)
+            }
         }
+    }
+
+    // ── Missed app switches (Samsung Recents / open-apps screen) ───────────────
+    // Blocking trusts TYPE_WINDOW_STATE_CHANGED to say "a different app is now in front".
+    // Samsung's Recents screen, split-screen, pop-up view and edge panels do not always
+    // send one when you tap an app card, so a blocked app could come back to the front
+    // with no switch ever seen (the tracker still said it was in front) and no gate.
+    //
+    // A content or scroll event from a package that is NOT the tracked foreground app,
+    // while that same package really is the active window, can only mean the app has
+    // come to the front. Treat it as the switch we missed. Events from keyboards, the
+    // notification shade and overlays are ignored because the active window is not theirs.
+    // Rate-limited per package so a chatty background app costs almost nothing.
+    private val lastSyncCheckMs = mutableMapOf<String, Long>()
+
+    private fun syncForegroundFromContentEvent(event: AccessibilityEvent, curfewActive: Boolean) {
+        val pkg = event.packageName?.toString() ?: return
+        if (pkg.isBlank() || pkg == currentForegroundPackage) return
+
+        val now = System.currentTimeMillis()
+        if (now - (lastSyncCheckMs[pkg] ?: 0L) < 300L) return
+        lastSyncCheckMs[pkg] = now
+
+        val root = rootInActiveWindow ?: return
+        val activePkg = root.packageName?.toString()
+        root.recycle()
+        if (activePkg != pkg) return
+
+        handleAppSwitch(event, curfewActive)
     }
 
     // ── Curfew check ──────────────────────────────────────────────────────────
