@@ -38,6 +38,7 @@ import {
 } from '@expo-google-fonts/jetbrains-mono';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUserStore } from '@/stores/useUserStore';
+import { getTodaysBriefing } from '@/lib/dailyGood';
 import { initMascots } from '@/services/mascotInit';
 import { useThemeStore } from '@/stores/useThemeStore';
 import { useSubscriptionStore } from '@/stores/useSubscriptionStore';
@@ -281,6 +282,14 @@ export default function RootLayout() {
         scheduleWeeklyRecap(walkAwaysThisWeek(dw), st);
       }
     });
+  }, [ready, userId, hasOnboarded]);
+
+  // Warm today's briefing as soon as the app is up, so the Briefing tab opens with the full
+  // daily feed already loaded instead of a spinner. getTodaysBriefing caches per local day, so
+  // this costs one request a day and later calls are instant.
+  useEffect(() => {
+    if (!ready || !userId || !hasOnboarded) return;
+    getTodaysBriefing().catch(() => {});
   }, [ready, userId, hasOnboarded]);
 
   // Housekeeping that must also happen when the app comes back to the foreground —
