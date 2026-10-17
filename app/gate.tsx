@@ -61,6 +61,7 @@ import { WordWeave }        from '@/components/games/WordWeave';
 import GoonWord             from '@/components/games/GoonWord';
 import { StackGame }         from '@/components/games/StackGame';
 import { PatternMemory }     from '@/components/games/PatternMemory';
+import { Defrag }            from '@/components/games/Defrag';
 import { TypingChallenge }   from '@/components/games/TypingChallenge';
 import { PACKAGE_TO_NAME } from '@/hooks/useAppBlocker';
 import { grantTemporaryUnlock, launchBlockedApp, DEFAULT_UNLOCK_MINUTES } from '@/utils/tempUnlock';
@@ -1071,6 +1072,7 @@ function NoGoonScreen() {
     if (selectedGame === 'wordweave')      return <WordWeave        onComplete={handleGameComplete} />;
     if (selectedGame === 'stack')          return <StackGame        onComplete={handleGameComplete} />;
     if (selectedGame === 'memory')         return <PatternMemory    onComplete={handleGameComplete} />;
+    if (selectedGame === 'defrag')         return <Defrag           onComplete={handleGameComplete} />;
     if (selectedGame === 'typing')         return <TypingChallenge  onComplete={handleGameComplete} duration={gameDuration} />;
     if (selectedGame === 'pixeldodge')     return <PixelDodge       onComplete={handleGameComplete} />;
     if (selectedGame === 'brickbreak')     return <BrickBreak       onComplete={handleGameComplete} />;

@@ -93,6 +93,17 @@ export const ALL_GAMES: readonly GameMeta[] = [
     category: 'puzzle',
   },
 
+  {
+    id: 'defrag',
+    name: 'Defrag',
+    description: 'Sort the scattered file blocks until the drive is tidy.',
+    emoji: '💾',
+    color: '#2f6bff',
+    tagline: 'Old-computer calm · no timer',
+    howToPlay: 'The drive map is full of scattered file blocks. Tap one block, then tap another to swap them. Pack each file together in the order shown under the map (A first, top-left), with free space at the end. Blocks with a white edge are already in place. Three drives, no timer, no way to lose.',
+    category: 'puzzle',
+  },
+
   // ── Reflex ──────────────────────────────────────────────────────────────────
 
   {
@@ -188,7 +199,7 @@ export const ALL_GAMES: readonly GameMeta[] = [
 
 export type GameId =
   | 'breathing' | 'grounding'
-  | 'twentyfortyeight' | 'wordweave' | 'memory' | 'minesweeper' | 'goon'
+  | 'twentyfortyeight' | 'wordweave' | 'memory' | 'minesweeper' | 'goon' | 'defrag'
   | 'pixeldodge' | 'brickbreak' | 'runner' | 'flappy'
   | 'stack' | 'typing'
   | 'oddone';
@@ -207,7 +218,7 @@ export const CALM_GAMES = ALL_GAMES.filter((g) => g.category === 'calm');
  *  (and every game stays available to the intercept pool); this only trims what you browse. */
 export const FEATURED_GAME_IDS: readonly string[] = [
   'breathing', 'grounding',                            // calm: the mission
-  'twentyfortyeight', 'memory',                        // puzzle
+  'twentyfortyeight', 'memory', 'defrag',              // puzzle
   'stack',                                             // skill
   'oddone',                                            // awareness: ad literacy
 ];

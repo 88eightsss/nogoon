@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 //  ARCADE TAB — NoGoon
 //  ────────────────────
-//  14 games, all free.
+//  15 games, all free.
 // ═══════════════════════════════════════════════════════════════════════════
 
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
@@ -35,6 +35,7 @@ import { TwentyFortyEight } from '@/components/games/TwentyFortyEight';
 import { WordWeave }        from '@/components/games/WordWeave';
 import { StackGame }        from '@/components/games/StackGame';
 import { PatternMemory }    from '@/components/games/PatternMemory';
+import { Defrag }            from '@/components/games/Defrag';
 // ── Pro games ───────────────────────────────────────────────────────────────
 import { TypingChallenge }  from '@/components/games/TypingChallenge';
 // SandToy removed
@@ -562,6 +563,7 @@ export default function ArcadeScreen() {
     if (activeGame === 'stack')          gameNode = <StackGame        onComplete={handleGameComplete} />;
     if (activeGame === 'typing')         gameNode = <TypingChallenge  onComplete={handleGameComplete} duration={30} />;
     if (activeGame === 'memory')         gameNode = <PatternMemory    onComplete={handleGameComplete} />;
+    if (activeGame === 'defrag')         gameNode = <Defrag           onComplete={handleGameComplete} />;
     if (activeGame === 'pixeldodge')     gameNode = <PixelDodge       onComplete={handleGameComplete} />;
     if (activeGame === 'brickbreak')     gameNode = <BrickBreak       onComplete={handleGameComplete} />;
     if (activeGame === 'runner')         gameNode = <EndlessRunner    onComplete={handleGameComplete} />;
