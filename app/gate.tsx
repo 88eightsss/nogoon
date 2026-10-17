@@ -211,7 +211,6 @@ function NoGoonScreen() {
     curfewEnabled, curfewStart, curfewEnd,
     blocklist, addSite,
     focusSessionEnd, endFocusSession,
-    notifyPartner,
     urgeJournal,
     pendingCommitment,
     clearCommitment,
@@ -947,10 +946,8 @@ function NoGoonScreen() {
             onPress={async () => {
               if (!isMatch) return;
               // Actually grant the unlock. Before, this only dismissed the screen,
-              // so the gate fired again within seconds — and the partner had
-              // already been told about a bypass that never happened.
+              // so the gate fired again within seconds.
               const granted = await grantTemporaryUnlock(domain);
-              if (granted) notifyPartner(displayDomain, 'bypass');
               exitGate();
               if (granted && isAppBlock) launchBlockedApp(domain);
             }}

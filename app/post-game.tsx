@@ -221,7 +221,7 @@ export default function PostGameScreen() {
     gameName = 'Mini-Game',
     // 'app' = raw package name / site domain forwarded from gate (e.g. 'com.instagram.android').
     // Used for unlockTemporarily() so the native module gets the right identifier.
-    // 'domain' = pretty display name (e.g. 'Instagram') — used for UI and partner notify only.
+    // 'domain' = pretty display name (e.g. 'Instagram') — used for UI only.
     app = '',
     domain = '',
     isBricked: brickedParam = '0',
@@ -255,7 +255,6 @@ export default function PostGameScreen() {
     logReflection,
     addUrgeEntry,
     addJournalEntry,
-    notifyPartner,
   } = useUserStore();
   // Hook to tell the Android native module about the 10-min unlock
 
@@ -331,7 +330,7 @@ export default function PostGameScreen() {
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
-  // One decision per visit: a double-tap used to record two walk-aways / two partner emails.
+  // One decision per visit: a double-tap used to record two walk-aways.
   const decidedRef = useRef(false);
 
   const handleWalkAway = () => {
@@ -361,7 +360,6 @@ export default function PostGameScreen() {
     // Fall back to 'domain' for web-only sessions where 'app' isn't present.
     const target = app || domain;
     const granted = target ? await grantTemporaryUnlock(target, unlockMinutes) : false;
-    notifyPartner(domainDisplay, 'unlock');
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     exitGate();
     if (granted && app) launchBlockedApp(app);
@@ -376,8 +374,7 @@ export default function PostGameScreen() {
       incrementStreak();
       const target = app || domain;
       const granted = target ? await grantTemporaryUnlock(target, unlockMinutes) : false;
-      notifyPartner(domainDisplay, 'unlock');
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       exitGate();
       if (granted && app) launchBlockedApp(app);
     }

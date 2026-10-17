@@ -221,8 +221,7 @@ export default function JournalScreen() {
           <View style={[styles.privacyNote, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
             <Feather name="lock" size={14} color={colors.textMuted} />
             <Text style={[styles.privacyNoteText, { color: colors.textMuted }]}>
-              These notes are yours — they're never shared with your accountability
-              partner or anyone else. Writing down how you feel in the moment helps
+              These notes are yours — they're never shared with anyone. Writing down how you feel in the moment helps
               you understand your triggers.
             </Text>
           </View>

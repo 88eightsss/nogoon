@@ -63,13 +63,6 @@ async function getCachedUser() {
   }
 }
 
-// ─── Email validation helper ────────────────────────────────────────────────── //
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-function isValidEmail(email: string): boolean {
-  return EMAIL_REGEX.test(email.trim());
-}
-
 // ─── XP Level system ────────────────────────────────────────────────────────── //
 // As users earn XP by completing games, they move up through these levels.
 
@@ -229,12 +222,6 @@ interface UserState {
   streakFreezeTokens: number;
   lastStreakDate: string; // 'YYYY-MM-DD' of last streak increment — gap detection
   lastGiveInDate: string; // 'YYYY-MM-DD' of the last time the user unlocked a blocked app
-
-  // ── Accountability partner (Pro+ only) ─────────────────────────────────────
-  partnerEmail: string;
-  partnerName: string;
-  partnerNotifyOnUnlock: boolean;  // send email when user unlocks a site
-  partnerNotifyOnBypass: boolean;  // send email when user dismisses without playing
 
   // ── Block schedule (Pro only) ──────────────────────────────────────────────
   // Define time windows when blocking is active
@@ -398,13 +385,6 @@ interface UserState {
 
   // Streak freeze tokens
   checkStreakContinuity: () => void;  // call on app open — auto-applies freeze if gap day
-
-  // Partner
-  setPartner: (email: string, name: string) => void;
-  setPartnerNotifications: (onUnlock: boolean, onBypass: boolean) => void;
-  // Fire-and-forget partner email notification.
-  // Checks the relevant toggle before sending — safe to call unconditionally.
-  notifyPartner: (domain: string, event: 'unlock' | 'bypass') => void;
 
   // Schedule
   setBlockSchedule: (enabled: boolean, start: string, end: string, days?: number[]) => void;
@@ -581,12 +561,6 @@ const DEFAULT_STATE = {
   streakFreezeTokens: 0,
   lastStreakDate: '',
   lastGiveInDate: '',
-
-  // Partner
-  partnerEmail: '',
-  partnerName: '',
-  partnerNotifyOnUnlock: true,
-  partnerNotifyOnBypass: false,
 
   // Schedule
   blockScheduleEnabled: false,
@@ -958,48 +932,6 @@ export const useUserStore = create<UserState>()(
         } else {
           set({ streak: 0, lastStreakDate: '' });
         }
-      },
-
-      // ── Partner ──────────────────────────────────────────────────────────────
-      // FIXED: Validates email format before storing (audit item 7)
-      setPartner: (email, name) => {
-        if (!isValidEmail(email)) {
-          console.warn('[NoGoon] Invalid partner email format:', email);
-          return;
-        }
-
-        const sanitizedEmail = email.trim().toLowerCase();
-        set({ partnerEmail: sanitizedEmail, partnerName: name });
-
-        // Sync partner info to Supabase
-        getCachedUser().then((user) => {
-          if (user) {
-            backgroundWrite('partner update', () =>
-              supabase.from('profiles').update({
-                partner_email: sanitizedEmail,
-                partner_name: name,
-              }).eq('id', user.id)
-            );
-          }
-        });
-      },
-
-      setPartnerNotifications: (onUnlock, onBypass) =>
-        set({
-          partnerNotifyOnUnlock: onUnlock,
-          partnerNotifyOnBypass: onBypass,
-        }),
-
-      notifyPartner: (domain, event) => {
-        const { partnerEmail, partnerNotifyOnUnlock, partnerNotifyOnBypass } = get();
-        if (!partnerEmail) return;
-        if (event === 'unlock' && !partnerNotifyOnUnlock) return;
-        if (event === 'bypass' && !partnerNotifyOnBypass) return;
-        // Fire-and-forget — errors are swallowed so a failed notification never
-        // blocks the user's flow (unlocking or navigating away from the gate).
-        supabase.functions
-          .invoke('notify-partner', { body: { domain } })
-          .catch((e) => console.warn('[NoGoon] Partner notification failed:', e));
       },
 
       // ── Block schedule ───────────────────────────────────────────────────────
@@ -1437,10 +1369,6 @@ export const useUserStore = create<UserState>()(
         streakFreezeTokens: state.streakFreezeTokens,
         lastStreakDate: state.lastStreakDate,
         lastGiveInDate: state.lastGiveInDate,
-        partnerEmail: state.partnerEmail,
-        partnerName: state.partnerName,
-        partnerNotifyOnUnlock: state.partnerNotifyOnUnlock,
-        partnerNotifyOnBypass: state.partnerNotifyOnBypass,
         blockScheduleEnabled: state.blockScheduleEnabled,
         blockScheduleStart: state.blockScheduleStart,
         blockScheduleEnd: state.blockScheduleEnd,

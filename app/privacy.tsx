@@ -93,11 +93,10 @@ export default function PrivacyScreen() {
             'If you create an account, we store your email address and name, and sync the following to our ' +
             'database (Supabase): points, XP, level, streak, game and walk-away counts; the websites and ' +
             'apps on your blocklist; the date and score of each game you play; and the journal entries ' +
-            'you write. If you set an accountability partner, we store their name and email and use them ' +
-            'only to send the notifications you turned on (the email names the site you tried to open). ' +
+            'you write. ' +
             'We do not sell this data and do not share it with advertisers. We use it solely to ' +
             'restore your progress across reinstalls and devices and to run the features above. ' +
-            'Journal entries are never shared with your partner or anyone else.'
+            'Journal entries are never shared with anyone.'
           }
         />
 

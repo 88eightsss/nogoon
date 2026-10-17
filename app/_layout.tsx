@@ -368,15 +368,6 @@ export default function RootLayout() {
             }}
           />
 
-          {/* Accountability Partner setup (Pro only) */}
-          <Stack.Screen
-            name="partner"
-            options={{
-              presentation: 'modal',
-              animation: 'slide_from_bottom',
-            }}
-          />
-
           {/* Impulse journal history */}
           <Stack.Screen
             name="customize"
