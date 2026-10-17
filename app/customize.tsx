@@ -14,13 +14,15 @@ import { useTheme } from '@/hooks/useTheme';
 import { usePackStore, GATE_NOTE_MAX, DEFAULT_COMPANION_POS, type GateVoice, type FloatMode, type CompanionSize, type PaperChoice, type DayDisplay } from '@/stores/usePackStore';
 import { availablePacks } from '@/constants/packs';
 import { FONTS } from '@/constants/Colors';
+import type { CharacterId } from '@/stores/usePetStore';
+import type { GoonStage } from '@/constants/sprites';
 import { BUNDLES, CUSTOM_LEN, CUSTOM_MAX } from '@/constants/offers';
 import { useOfferStore } from '@/stores/useOfferStore';
 import { useRoomStore, ROOM_NAME_MAX } from '@/stores/useRoomStore';
 import { RoomScene } from '@/components/page/RoomScene';
 import { LOOK_PARTS, ROOM_SWATCHES, DECOR_UNLOCK, type DecorKey } from '@/constants/room';
 import { useUserStore } from '@/stores/useUserStore';
-import { useMascotStore, stageOf, nextStageAt } from '@/stores/useMascotStore';
+import { useMascotStore, stageOf, nextStageAt, STAGE_AT } from '@/stores/useMascotStore';
 import { SPACING } from '@/constants/Spacing';
 
 const VOICES: { id: GateVoice; label: string }[] = [
@@ -50,6 +52,58 @@ const HUB: { id: CustSection; icon: ComponentProps<typeof Feather>['name']; titl
   { id: 'gate',      icon: 'shield',     title: 'At the gate',          sub: 'Instead bundles, your own list, your note' },
   { id: 'layout',    icon: 'layout',     title: 'Layout & news',        sub: 'Room or plain page, news, sponsors' },
 ];
+
+const STAGE_LABELS = ['Dormant', 'Awakening', 'Standing', 'Powered', 'Legendary'];
+
+// All five stages of one companion in a row. Stages you have reached are in colour, the ones
+// still ahead are dimmed with the feedings they need, and a bar shows how far to the next.
+function EvolutionPanel({ char, fed, isActive, onChoose, colors }: {
+  char: CharacterId; fed: number; isActive: boolean; onChoose: () => void;
+  colors: { accent: string; accentDim: string; border: string; text: string; textSecondary: string; textMuted: string; background: string };
+}) {
+  const stage = stageOf(fed);
+  const next = nextStageAt(fed);
+  const prev = stage === 0 ? 0 : STAGE_AT[stage - 1];
+  const pct = next === null ? 100 : Math.max(0, Math.min(100, ((fed - prev) / (next - prev)) * 100));
+  const name = CHARACTER_NAMES[char];
+  return (
+    <View style={{ gap: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.border }}>
+      <Text style={{ fontFamily: FONTS.display, fontSize: 18, color: colors.text }}>{name}</Text>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+        {STAGE_LABELS.map((label, i) => {
+          const reached = i <= stage;
+          const needs = i === 0 ? 0 : STAGE_AT[i - 1];
+          return (
+            <View key={label} style={{ flex: 1, alignItems: 'center', gap: 2, opacity: reached ? 1 : 0.35 }}>
+              <PackSprite char={char} stage={i as GoonStage} cell={3} />
+              <Text style={{ fontFamily: FONTS.body, fontSize: 10, color: i === stage ? colors.accent : colors.textSecondary }}>{label}</Text>
+              <Text style={{ fontFamily: FONTS.body, fontSize: 9, color: colors.textMuted }}>{i === 0 ? 'start' : `${needs} fed`}</Text>
+            </View>
+          );
+        })}
+      </View>
+      <View style={{ height: 8, borderRadius: 4, backgroundColor: colors.border, overflow: 'hidden' }}>
+        <View style={{ width: `${pct}%`, height: 8, backgroundColor: colors.accent }} />
+      </View>
+      <Text style={{ fontFamily: FONTS.body, fontSize: 13, color: colors.textSecondary }}>
+        {next === null
+          ? `${fed} fed. ${name} is fully evolved.`
+          : `${fed} fed. ${next - fed} more walk-aways to reach ${STAGE_LABELS[stage + 1]}.`}
+      </Text>
+      {isActive ? (
+        <Text style={{ fontFamily: FONTS.body, fontSize: 12, color: colors.accent }}>This is who you're feeding.</Text>
+      ) : (
+        <Pressable
+          onPress={onChoose}
+          accessibilityRole="button"
+          style={{ alignSelf: 'flex-start', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12, backgroundColor: colors.accent }}
+        >
+          <Text style={{ fontFamily: FONTS.body, fontSize: 14, color: colors.background }}>Feed {name} from now on</Text>
+        </Pressable>
+      )}
+    </View>
+  );
+}
 
 function Chips<T extends string>({ items, value, onChange, colors }: {
   items: { id: T; label: string }[]; value: T; onChange: (v: T) => void;
@@ -118,6 +172,10 @@ export default function CustomizeScreen() {
   const chooseChar       = useMascotStore((s) => s.setActive);
   const activeFed        = fedMap[activeChar] ?? 0;
   const activeNext       = nextStageAt(activeFed);
+  // The companion whose full evolution is on show. Defaults to the one being fed; tapping a
+  // tile previews it, and only the "Make … my companion" button actually switches.
+  const [previewChar, setPreviewChar] = useState<CharacterId | null>(null);
+  const shownChar        = previewChar ?? activeChar;
   const floatMode        = usePackStore((s) => s.floatMode);
   const setFloatMode     = usePackStore((s) => s.setFloatMode);
   const companionSize    = usePackStore((s) => s.companionSize);
@@ -399,14 +457,14 @@ export default function CustomizeScreen() {
               return (
                 <Pressable
                   key={id}
-                  onPress={() => chooseChar(id)}
+                  onPress={() => setPreviewChar(id)}
                   accessibilityRole="button"
-                  accessibilityState={{ selected: on }}
-                  accessibilityLabel={CHARACTER_NAMES[id]}
+                  accessibilityState={{ selected: id === shownChar }}
+                  accessibilityLabel={`${CHARACTER_NAMES[id]}${on ? ', your companion' : ''}. Tap to see its evolution.`}
                   style={{
                     flexBasis: '22%', flexGrow: 1, alignItems: 'center', paddingVertical: 8, gap: 4,
-                    borderRadius: 14, borderWidth: on ? 2 : 1,
-                    borderColor: on ? colors.accent : colors.border,
+                    borderRadius: 14, borderWidth: id === shownChar ? 2 : 1,
+                    borderColor: id === shownChar ? colors.accent : colors.border,
                     backgroundColor: on ? tint + '22' : 'transparent',
                   }}
                 >
@@ -417,6 +475,13 @@ export default function CustomizeScreen() {
               );
             })}
           </View>
+          <EvolutionPanel
+            char={shownChar}
+            fed={fedMap[shownChar] ?? 0}
+            isActive={shownChar === activeChar}
+            onChoose={() => { chooseChar(shownChar); setPreviewChar(null); }}
+            colors={colors}
+          />
           <Text style={[styles.body, { color: colors.textSecondary }]}>Day count</Text>
           <Chips items={DAY_DISPLAYS} value={dayDisplay} onChange={setDayDisplay} colors={colors} />
           <Text style={[styles.body, { color: colors.textSecondary }]}>
