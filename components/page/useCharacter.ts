@@ -1,27 +1,18 @@
-// Which companion the user picked (stored by GoonMascot under STORAGE_KEY).
+// Which companion is active, and how far along it is. Only the active companion is fed (one feeding
+// per walk-away), so its stage comes from its own count, not from lifetime walk-aways.
 
-import { useCallback, useState } from 'react';
-import { useFocusEffect } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { STORAGE_KEY } from '@/components/home/GoonMascot';
+import { CHARACTER_NAMES } from '@/constants/sprites';
 import type { CharacterId } from '@/stores/usePetStore';
-import { CHARACTER_NAMES, isCharacterId } from '@/constants/sprites';
+import { nextStageAt, stageOf, useMascotStore, type MascotStage } from '@/stores/useMascotStore';
 
 export const CHARACTER_LABELS: Record<CharacterId, string> = CHARACTER_NAMES;
 
 export function useCharacter(): CharacterId {
-  const [char, setChar] = useState<CharacterId>(0);
-  useFocusEffect(
-    useCallback(() => {
-      let live = true;
-      AsyncStorage.getItem(STORAGE_KEY)
-        .then((v) => {
-          const n = v === null ? NaN : parseInt(v, 10);
-          if (live && isCharacterId(n)) setChar(n);
-        })
-        .catch(() => {});
-      return () => { live = false; };
-    }, [])
-  );
-  return char;
+  return useMascotStore((s) => s.active);
+}
+
+export function useMascot(): { char: CharacterId; fed: number; stage: MascotStage; next: number | null } {
+  const char = useMascotStore((s) => s.active);
+  const fed = useMascotStore((s) => s.fed[s.active] ?? 0);
+  return { char, fed, stage: stageOf(fed), next: nextStageAt(fed) };
 }

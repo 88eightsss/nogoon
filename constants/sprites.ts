@@ -6,6 +6,7 @@
 
 import type { CharacterId } from '@/stores/usePetStore';
 import { NEW_CHAR_COLORS, NEW_GRIDS, NEW_CHAR_NAMES } from './spritesNew';
+import { WILD_CHAR_COLORS, WILD_GRIDS, WILD_CHAR_NAMES, WILD_CHAR_TAGS } from './spritesWild';
 
 export type GoonStage = 0 | 1 | 2 | 3 | 4;
 
@@ -271,22 +272,24 @@ const BASE_GRIDS: Record<0 | 1 | 2, Record<GoonStage, Pixel[][]>> = {
   },
 };
 
-// ─── All companions (original three + Mochi, Sprout, Morel, Byte, Tama) ─────
+// ─── All companions (original three + Mochi, Sprout, Morel, Byte, Tama + Honu, Pueo, ʻOpihi) ─────
 
 export const CHAR_COLORS: Record<CharacterId, Record<GoonStage, Record<number, string>>> = {
   ...BASE_COLORS,
   ...NEW_CHAR_COLORS,
+  ...WILD_CHAR_COLORS,
 };
 
 export const GRIDS: Record<CharacterId, Record<GoonStage, Pixel[][]>> = {
   ...BASE_GRIDS,
   ...NEW_GRIDS,
+  ...WILD_GRIDS,
 };
 
-export const ALL_CHARACTER_IDS: CharacterId[] = [0, 1, 2, 3, 4, 5, 6, 7];
+export const ALL_CHARACTER_IDS: CharacterId[] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
 export function isCharacterId(n: unknown): n is CharacterId {
-  return typeof n === 'number' && Number.isInteger(n) && n >= 0 && n <= 7;
+  return typeof n === 'number' && Number.isInteger(n) && n >= 0 && n <= 10;
 }
 
 export const CHARACTER_NAMES: Record<CharacterId, string> = {
@@ -294,6 +297,7 @@ export const CHARACTER_NAMES: Record<CharacterId, string> = {
   1: 'Nova',
   2: 'Rex',
   ...NEW_CHAR_NAMES,
+  ...WILD_CHAR_NAMES,
 };
 
 export const CHARACTER_TAGS: Record<CharacterId, string> = {
@@ -305,5 +309,6 @@ export const CHARACTER_TAGS: Record<CharacterId, string> = {
   5: 'Quirky · Quiet forager',
   6: 'Digital · Loves a streak',
   7: 'Classic · Needs your care',
+  ...WILD_CHAR_TAGS,
 };
 

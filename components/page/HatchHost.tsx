@@ -8,13 +8,11 @@ import Svg, { Path, Circle } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/hooks/useTheme';
 import { usePackStore } from '@/stores/usePackStore';
-import { useUserStore } from '@/stores/useUserStore';
-import { getGoonStage } from '@/components/home/GoonMascot';
 import { getPack } from '@/constants/packs';
 import { FONTS } from '@/constants/Colors';
 import { PackSprite } from './PackSprite';
 import { GlyphIcon } from './GlyphIcon';
-import { useCharacter } from './useCharacter';
+import { useMascot } from './useCharacter';
 
 const EGG = 'M118 3 C186 3 233 112 233 172 C233 236 183 269 118 269 C53 269 3 236 3 172 C3 112 50 3 118 3 Z';
 const SPARKS = [0, 60, 120, 180, 240, 300];
@@ -31,8 +29,7 @@ export function HatchHost() {
 function Ceremony({ packId }: { packId: string }) {
   const pack = getPack(packId);
   const { colors } = useTheme();
-  const char = useCharacter();
-  const walkAways = useUserStore((s) => s.walkAwayCount);
+  const { char, stage } = useMascot();
   const markSeen = usePackStore((s) => s.markUnlockSeen);
   const setActivePack = usePackStore((s) => s.setActivePack);
 
@@ -96,7 +93,6 @@ function Ceremony({ packId }: { packId: string }) {
   };
 
   const spin = rot.interpolate({ inputRange: [-12, 12], outputRange: ['-12deg', '12deg'] });
-  const stage = getGoonStage(walkAways);
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={() => finish(false)}>

@@ -14,7 +14,6 @@ import { useTheme } from '@/hooks/useTheme';
 import { useActivePack } from '@/hooks/usePack';
 import { usePackStore } from '@/stores/usePackStore';
 import { useUserStore, getMinutesSaved } from '@/stores/useUserStore';
-import { getGoonStage } from '@/components/home/GoonMascot';
 import { getLocalDateKey } from '@/utils/date';
 import { FONTS } from '@/constants/Colors';
 import { SPACING } from '@/constants/Spacing';
@@ -25,7 +24,7 @@ import { Stamps } from './Stamps';
 import { Marquee } from './Marquee';
 import { PaperBackground } from './PaperBackground';
 import { useFloatVisible } from './FloatingCompanion';
-import { useCharacter, CHARACTER_LABELS } from './useCharacter';
+import { useMascot, CHARACTER_LABELS } from './useCharacter';
 import { useFocusEffect } from 'expo-router';
 import { useAppBlocker } from '@/hooks/useAppBlocker';
 import { describeBlockingStatus } from '@/utils/blockingStatus';
@@ -65,7 +64,7 @@ const LINKS: { icon: FeatherName; label: string; go: () => void }[] = [
 export function MyPage() {
   const { colors, cardStyle } = useTheme();
   const pack = useActivePack();
-  const char = useCharacter();
+  const { char, stage } = useMascot();
   const dayDisplay = usePackStore((s) => s.dayDisplay);
   const roomView = useRoomStore((s) => s.roomView);
   const setRoomView = useRoomStore((s) => s.setRoomView);
@@ -103,7 +102,6 @@ export function MyPage() {
   const [topGood, setTopGood] = useState<GoodItem | null>(null);
   useEffect(() => { getTodaysGood().then((l) => setTopGood(l[0] ?? null)).catch(() => {}); }, []);
 
-  const stage = getGoonStage(walkAways);
   const petName = CHARACTER_LABELS[char];
   const [react, setReact] = useState<{ face: string; line: string } | null>(null);
 

@@ -4,12 +4,8 @@
 // personal note shown at the gate. Hidden packs only appear after they are unlocked.
 
 import { useState, useCallback, type ComponentProps } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { STORAGE_KEY } from '@/components/home/GoonMascot';
 import { PackSprite } from '@/components/page/PackSprite';
-import { useCharacter } from '@/components/page/useCharacter';
 import { ALL_CHARACTER_IDS, CHARACTER_NAMES, CHAR_COLORS } from '@/constants/sprites';
-import type { CharacterId } from '@/stores/usePetStore';
 import { View, Text, TextInput, Pressable, ScrollView, Switch, StyleSheet, BackHandler } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -24,7 +20,7 @@ import { useRoomStore, ROOM_NAME_MAX } from '@/stores/useRoomStore';
 import { RoomScene } from '@/components/page/RoomScene';
 import { LOOK_PARTS, ROOM_SWATCHES, DECOR_UNLOCK, type DecorKey } from '@/constants/room';
 import { useUserStore } from '@/stores/useUserStore';
-import { getGoonStage } from '@/components/home/GoonMascot';
+import { useMascotStore, stageOf, nextStageAt } from '@/stores/useMascotStore';
 import { SPACING } from '@/constants/Spacing';
 
 const VOICES: { id: GateVoice; label: string }[] = [
@@ -117,13 +113,11 @@ export default function CustomizeScreen() {
   const setGateVoice  = usePackStore((s) => s.setGateVoice);
   const dayDisplay       = usePackStore((s) => s.dayDisplay);
   const setDayDisplay    = usePackStore((s) => s.setDayDisplay);
-  const savedChar        = useCharacter();
-  const [pickedChar, setPickedChar] = useState<CharacterId | null>(null);
-  const activeChar = pickedChar ?? savedChar;
-  const chooseChar = (id: CharacterId) => {
-    setPickedChar(id);
-    AsyncStorage.setItem(STORAGE_KEY, String(id)).catch(() => {});
-  };
+  const activeChar       = useMascotStore((s) => s.active);
+  const fedMap           = useMascotStore((s) => s.fed);
+  const chooseChar       = useMascotStore((s) => s.setActive);
+  const activeFed        = fedMap[activeChar] ?? 0;
+  const activeNext       = nextStageAt(activeFed);
   const floatMode        = usePackStore((s) => s.floatMode);
   const setFloatMode     = usePackStore((s) => s.setFloatMode);
   const companionSize    = usePackStore((s) => s.companionSize);
@@ -192,7 +186,7 @@ export default function CustomizeScreen() {
         <>
         <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder, alignItems: 'center' }]}>
           <RoomScene
-            char={activeChar} stage={getGoonStage(walkAways)} streak={streakNow} walkAways={walkAways}
+            char={activeChar} stage={stageOf(activeFed)} streak={streakNow} walkAways={walkAways}
             headline={null} showSponsors={false} petName="" interactive={false} showTicker={false}
             forceNight={previewNight} outerPad={96}
           />
@@ -388,9 +382,19 @@ export default function CustomizeScreen() {
         <>
         <Text style={[styles.section, { color: colors.textMuted }]}>Your companion</Text>
         <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+          <Text style={[styles.body, { color: colors.text }]}>
+            Every walk-away feeds {CHARACTER_NAMES[activeChar]}. Switch anytime: only the one you're feeding grows, and the others keep what they've earned.
+          </Text>
+          <Text style={[styles.body, { color: colors.textSecondary }]}>
+            {activeNext === null
+              ? `${activeFed} fed. Fully grown.`
+              : `${activeFed} fed. ${activeNext - activeFed} more for the next stage.`}
+          </Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
             {ALL_CHARACTER_IDS.map((id) => {
               const on = id === activeChar;
+              const idFed = fedMap[id] ?? 0;
+              const idStage = stageOf(idFed);
               const tint = CHAR_COLORS[id][0][1];
               return (
                 <Pressable
@@ -406,8 +410,9 @@ export default function CustomizeScreen() {
                     backgroundColor: on ? tint + '22' : 'transparent',
                   }}
                 >
-                  <PackSprite char={id} stage={2} cell={4} />
+                  <PackSprite char={id} stage={idStage} cell={4} />
                   <Text style={[styles.body, { color: on ? colors.accent : colors.textSecondary, fontSize: 12 }]}>{CHARACTER_NAMES[id]}</Text>
+                  <Text style={[styles.body, { color: colors.textMuted, fontSize: 10 }]}>{on ? 'Feeding' : idFed > 0 ? `Stage ${idStage + 1}` : 'New'}</Text>
                 </Pressable>
               );
             })}

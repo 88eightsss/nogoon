@@ -10,11 +10,9 @@ import { useTheme } from '@/hooks/useTheme';
 import { useActivePack } from '@/hooks/usePack';
 import { usePackStore, type CompanionSize } from '@/stores/usePackStore';
 import { useRoomStore } from '@/stores/useRoomStore';
-import { useUserStore } from '@/stores/useUserStore';
-import { getGoonStage } from '@/components/home/GoonMascot';
 import { FONTS } from '@/constants/Colors';
 import { PackSprite } from './PackSprite';
-import { useCharacter, CHARACTER_LABELS } from './useCharacter';
+import { useMascot, CHARACTER_LABELS } from './useCharacter';
 
 const CELL: Record<CompanionSize, number> = { sm: 3, md: 4, lg: 6 };
 const PAD = 8;
@@ -42,8 +40,7 @@ export function FloatingCompanion() {
   const segments = useSegments() as string[];
   const onToday = segments[0] === '(tabs)' && (segments.length === 1 || segments[1] === 'index');
   const visible = wanted && !(roomView && onToday);
-  const char = useCharacter();
-  const walkAways = useUserStore((s) => s.walkAwayCount);
+  const { char, stage } = useMascot();
   const size = usePackStore((s) => s.companionSize);
   const snap = usePackStore((s) => s.companionSnap);
   const pos = usePackStore((s) => s.companionPos);
@@ -83,7 +80,7 @@ export function FloatingCompanion() {
       Animated.timing(hop, { toValue: -10, duration: 120, useNativeDriver: true }),
       Animated.timing(hop, { toValue: 0, duration: 160, useNativeDriver: true }),
     ]).start();
-    setLine(SAY[getGoonStage(walkAways)]);
+    setLine(SAY[stage]);
     if (lineTimer.current) clearTimeout(lineTimer.current);
     lineTimer.current = setTimeout(() => setLine(null), 2600);
   };
@@ -132,7 +129,7 @@ export function FloatingCompanion() {
           </View>
         ) : null}
         <Animated.View style={{ transform: [{ translateY: hop }] }}>
-          <PackSprite char={char} stage={getGoonStage(walkAways)} cell={cell} />
+          <PackSprite char={char} stage={stage} cell={cell} />
         </Animated.View>
       </Animated.View>
     </View>

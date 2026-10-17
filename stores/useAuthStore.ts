@@ -20,6 +20,7 @@ import { useProgressStore } from '@/stores/useProgressStore';
 import { usePackStore } from '@/stores/usePackStore';
 import { useOfferStore } from '@/stores/useOfferStore';
 import { useRoomStore } from '@/stores/useRoomStore';
+import { useMascotStore } from '@/stores/useMascotStore';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -89,6 +90,7 @@ async function wipeLocal() {
     // Their own "instead I will…" list is personal too.
     useOfferStore.setState(useOfferStore.getInitialState(), true);
     useRoomStore.setState(useRoomStore.getInitialState(), true);
+    useMascotStore.setState(useMascotStore.getInitialState(), true);
 
     // The Android service reads its own copy of the lists, which would otherwise keep
     // gating the old account's apps with nobody signed in. A self-imposed lock

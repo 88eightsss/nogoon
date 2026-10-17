@@ -44,6 +44,7 @@ import { Breathe } from '@/components/Breathe';
 import { useUserStore } from '@/stores/useUserStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useThemeStore } from '@/stores/useThemeStore';
+import { useMascotStore } from '@/stores/useMascotStore';
 import { THEMES, THEME_ORDER } from '@/constants/Themes';
 import { useAppBlocker, appPackagesForDomains } from '@/hooks/useAppBlocker';
 import { useVpn } from '@/hooks/useVpn';
@@ -324,6 +325,7 @@ export default function OnboardingScreen() {
     if (selectedChar === null) return;
     const nameToSave = companionName.trim() || COMPANION_NAMES[selectedChar];
     await AsyncStorage.setItem('@nogoon_goon_character', String(selectedChar));
+    useMascotStore.getState().setActive(selectedChar);
     await AsyncStorage.setItem(`@nogoon_pet_name_${selectedChar}`, nameToSave);
     setCompanionPicked(true);
   };

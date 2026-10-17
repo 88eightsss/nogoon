@@ -79,7 +79,8 @@ import { GATE_GAMES, CALM_GAMES as CALM_CATEGORY_GAMES, pickRandomGame, getGameB
 import { useThemeStore } from '@/stores/useThemeStore';
 import { useAdInterstitial } from '@/components/ads/AdInterstitial';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { GoonSprite, getGoonStage } from '@/components/home/GoonMascot';
+import { GoonSprite } from '@/components/home/GoonMascot';
+import { useMascotStore, stageOf } from '@/stores/useMascotStore';
 import { PackGateCard } from '@/components/page/PackGateCard';
 import { getTodaysBriefing } from '@/lib/dailyGood';
 import type { CharacterId } from '@/stores/usePetStore';
@@ -137,6 +138,9 @@ const COMPANION_ACCENT: Record<CharacterId, string> = {
   5: '#C9402B', // morel red
   6: '#2B6FD6', // pixel blue
   7: '#D9822B', // amber
+  8: '#1F9E7A', // honu teal
+  9: '#9A6E44', // pueo brown
+  10: '#B8783A', // opihi shell
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -243,6 +247,7 @@ function NoGoonScreen() {
 
   // ── Companion ─────────────────────────────────────────────────────────────
   const [gateCharacter, setGateCharacter] = useState<CharacterId | null>(null);
+  const fedMap = useMascotStore((s) => s.fed);
   const [gatePetName,   setGatePetName]   = useState('Buddy');
 
   const isAppBlock = source === 'app';
@@ -624,7 +629,7 @@ function NoGoonScreen() {
   const frictionTotal = isRapidEntry ? Math.min(rapidEntryCount, 10) : 0;
 
   // ── Companion derived values (used in rapid + calm phases) ───────────────
-  const gateStage  = getGoonStage(walkAwayCount);
+  const gateStage  = stageOf(gateCharacter !== null ? (fedMap[gateCharacter] ?? 0) : 0);
   const gateMood   = moodOf({
     hour: nowHour,
     walkAwaysToday: dailyWalkAwaysMap?.[getLocalDateKey()] ?? 0,

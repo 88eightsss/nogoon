@@ -31,7 +31,8 @@ import { THEMES, BORDERS, THEME_ORDER, BORDER_ORDER, ThemePalette, brightnessLab
 import { FONTS } from '@/constants/Colors';
 import { NETWORK_SHIELD_ENABLED } from '@/constants/features';
 import { SPACING, RADIUS } from '@/constants/Spacing';
-import { GoonSprite, getGoonStage } from '@/components/home/GoonMascot';
+import { GoonSprite } from '@/components/home/GoonMascot';
+import { useMascotStore, stageOf } from '@/stores/useMascotStore';
 import { type CharacterId } from '@/stores/usePetStore';
 import { CHARACTER_NAMES, ALL_CHARACTER_IDS } from '@/constants/sprites';
 import { useUnlockedFeatures, lockHint, useProgressStore, PROGRESSIVE_UNLOCKS } from '@/stores/useProgressStore';
@@ -439,7 +440,7 @@ export default function MeScreen() {
   const [editingCompanion,  setEditingCompanion]  = useState<CharacterId | null>(null);
   const [companionDraft,    setCompanionDraft]    = useState('');
 
-  const companionStage = getGoonStage(walkAwayCount);
+  const fedMap = useMascotStore((s) => s.fed);
 
   useEffect(() => {
     async function computeDay() {
@@ -700,7 +701,7 @@ export default function MeScreen() {
                 idx < ALL_CHARACTER_IDS.length - 1 ? { borderBottomColor: colors.border } : { borderBottomWidth: 0 },
               ]}
             >
-              <GoonSprite char={id} stage={companionStage} size={0.4} />
+              <GoonSprite char={id} stage={stageOf(fedMap[id] ?? 0)} size={0.4} />
               {editingCompanion === id ? (
                 <TextInput
                   style={[companionStyles.input, { color: colors.text, borderBottomColor: colors.cardBorder }]}

@@ -38,6 +38,7 @@ import {
 } from '@expo-google-fonts/jetbrains-mono';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUserStore } from '@/stores/useUserStore';
+import { initMascots } from '@/services/mascotInit';
 import { useThemeStore } from '@/stores/useThemeStore';
 import { useSubscriptionStore } from '@/stores/useSubscriptionStore';
 import { requestNotificationPermission, scheduleWeeklyRecap, walkAwaysThisWeek, cancelComebackReminder } from '@/utils/notifications';
@@ -214,6 +215,9 @@ export default function RootLayout() {
     const u2 = useThemeStore.persist.onFinishHydration(check);
     return () => { u1(); u2(); };
   }, []);
+
+  // Credit an existing install's walk-aways to its companion, once.
+  useEffect(() => { initMascots(); }, []);
 
   // Keep the current route in a ref so the routing effect can look at it
   // without re-running every time the user navigates.

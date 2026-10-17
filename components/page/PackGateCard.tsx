@@ -8,23 +8,20 @@ import Svg, { Path, Rect } from 'react-native-svg';
 import { useTheme } from '@/hooks/useTheme';
 import { useActivePack } from '@/hooks/usePack';
 import { usePackStore } from '@/stores/usePackStore';
-import { useUserStore } from '@/stores/useUserStore';
-import { getGoonStage } from '@/components/home/GoonMascot';
 import { FORTUNES } from '@/constants/packs/tokyo';
 import { FONTS } from '@/constants/Colors';
 import { SPACING } from '@/constants/Spacing';
 import { PackSprite } from './PackSprite';
 import { WinFrame } from './WinChrome';
 import { GlyphIcon } from './GlyphIcon';
-import { useCharacter } from './useCharacter';
+import { useMascot } from './useCharacter';
 
 export function PackGateCard() {
   const { colors, cardStyle } = useTheme();
   const pack = useActivePack();
   const note = usePackStore((s) => s.gateNote.trim());
   const voice = usePackStore((s) => s.gateVoice);
-  const char = useCharacter();
-  const walkAways = useUserStore((s) => s.walkAwayCount);
+  const { char, stage } = useMascot();
   const fortune = useMemo(() => FORTUNES[Math.floor(Math.random() * FORTUNES.length)], []);
   const look = pack.parts.page.look;
   const gate = pack.parts.page.gate;
@@ -77,7 +74,7 @@ export function PackGateCard() {
       <View style={styles.shrineRow}>
         <View style={[styles.ema, { backgroundColor: wood }]}>
           <GlyphIcon name="torii" size={20} color={woodInk} weight={4} />
-          <PackSprite char={char} stage={getGoonStage(walkAways)} cell={4} />
+          <PackSprite char={char} stage={stage} cell={4} />
           <Text style={[styles.emaNote, { color: woodInk }]}>{note || 'Write a note to future you in Customize.'}</Text>
         </View>
         <View style={styles.omi}>

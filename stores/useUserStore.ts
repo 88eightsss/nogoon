@@ -18,6 +18,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '@/lib/supabase';
 import { maybeNotifyStreak, maybeNotifyWalkAway, scheduleDailySummary } from '@/utils/notifications';
 import { useModesStore } from '@/stores/useModesStore';
+import { useMascotStore } from '@/stores/useMascotStore';
 import { getLocalDateKey, getLocalMonthKey, localDateKeyDiffDays, parseLocalDateKey } from '@/utils/date';
 
 // Fire-and-forget helper: writes focusSessionEnd to SharedPreferences so the
@@ -1061,6 +1062,7 @@ export const useUserStore = create<UserState>()(
         incrementStreak();
         incrementWalkAway();
         recordDailyWalkAway();
+        useMascotStore.getState().feed(1);   // a walk-away feeds the active companion
       },
 
       recordDailyWalkAway: () => {

@@ -1,6 +1,6 @@
 // ─── Companion sprite ─────────────────────────────────────────────────────────
 //
-// The pixel companion: five evolution stages driven by lifetime walk-aways
+// The pixel companion: five evolution stages driven by how much that companion has been fed (see stores/useMascotStore.ts)
 //   0 (0–4) Dormant · 1 (5–14) Awakening · 2 (15–29) Standing · 3 (30–59) Powered · 4 (60+) Legendary
 // Sprite data lives in constants/sprites.ts (shared with the pack system).
 
@@ -20,9 +20,6 @@ export function getGoonStage(walkAwayCount: number): GoonStage {
   if (walkAwayCount >= 5)  return 1;
   return 0;
 }
-
-/** AsyncStorage key for the chosen companion. */
-export const STORAGE_KEY = '@nogoon_goon_character';
 
 const CELL = 8;
 
