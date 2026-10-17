@@ -38,7 +38,7 @@ import { CHARACTER_NAMES, ALL_CHARACTER_IDS } from '@/constants/sprites';
 import { useUnlockedFeatures, lockHint, useProgressStore, PROGRESSIVE_UNLOCKS } from '@/stores/useProgressStore';
 import { PageGuide } from '@/components/PageGuide';
 import Constants from 'expo-constants';
-import { TimeStepper } from '@/components/TimeStepper';
+import { TimeField } from '@/components/TimeField';
 
 // ─── Companion defaults ───────────────────────────────────────────────────────
 const DEFAULT_COMPANION_NAMES: Record<CharacterId, string> = CHARACTER_NAMES;
@@ -865,8 +865,8 @@ export default function MeScreen() {
               </View>
               {curfewEnabled && (
                 <View style={{ flexDirection: 'row', gap: SPACING.xl, marginTop: 2 }}>
-                  <TimeStepper label="Starts" value={curfewStart} onChange={(v) => setCurfew(true, v, curfewEnd)} colors={colors} />
-                  <TimeStepper label="Ends"   value={curfewEnd}   onChange={(v) => setCurfew(true, curfewStart, v)} colors={colors} />
+                  <TimeField label="Starts" value={curfewStart} onChange={(v) => setCurfew(true, v, curfewEnd)} colors={colors} />
+                  <TimeField label="Ends"   value={curfewEnd}   onChange={(v) => setCurfew(true, curfewStart, v)} colors={colors} />
                 </View>
               )}
             </View>

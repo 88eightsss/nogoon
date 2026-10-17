@@ -1,40 +1,29 @@
-// ─── Modes ────────────────────────────────────────────────────────────────────
+// ─── Modes ──────────────────────────────────────────────────────────────────────
 //
-// Saved presets that bundle a blocklist + gate settings, optionally tied to
-// a schedule so the right one applies itself automatically (e.g. a stricter
-// "Work" mode on weekday mornings). See stores/useModesStore.ts for the
-// resolution rules and hooks/useAppBlocker.ts for how a resolved mode gets
-// applied to the existing blocklist/settings fields.
+// Saved presets that bundle a blocklist + gate settings. The list works like a phone's Clock
+// app: each mode is a card with its time window, an on/off switch, and tap-to-expand day chips
+// and clock wheels. See stores/useModesStore.ts for the resolution rules and
+// hooks/useAppBlocker.ts for how a resolved mode gets applied to the live lists.
 
-import { View, Text, ScrollView, Pressable, StyleSheet, Alert } from 'react-native';
+import { useState } from 'react';
+import { View, Text, ScrollView, Pressable, StyleSheet, Alert, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
-import { useModesStore, resolveActiveMode, type ModePreset } from '@/stores/useModesStore';
+import { useModesStore, resolveActiveMode, DEFAULT_SCHEDULE, type ModePreset } from '@/stores/useModesStore';
+import { ScheduleEditor } from '@/components/ScheduleEditor';
+import { daysLabel, format12, nextChangeLine } from '@/utils/schedule';
 import { FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 
-const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-function scheduleSummary(mode: ModePreset): string | null {
-  const s = mode.schedule;
-  if (!s?.enabled) return null;
-  const days = s.days.length === 0 || s.days.length === 7
-    ? 'Every day'
-    : s.days.length === 5 && [1, 2, 3, 4, 5].every((d) => s.days.includes(d))
-    ? 'Weekdays'
-    : s.days.length === 2 && [0, 6].every((d) => s.days.includes(d))
-    ? 'Weekends'
-    : s.days.map((d) => DAY_LABELS[d]).join(', ');
-  return `${days} · ${s.start}–${s.end}`;
-}
-
 export default function ModesScreen() {
   const { colors, cardStyle } = useTheme();
-  const { modes, activeModeId, setActiveModeId, deleteMode } = useModesStore();
+  const { modes, activeModeId, setActiveModeId, deleteMode, updateMode } = useModesStore();
+  const [openId, setOpenId] = useState<string | null>(null);
 
   const resolvedNow = resolveActiveMode(modes, activeModeId);
+  const nextLine = nextChangeLine(modes);
 
   const confirmDelete = (mode: ModePreset) => {
     Alert.alert(
@@ -42,7 +31,7 @@ export default function ModesScreen() {
       `"${mode.name}" and its saved settings will be removed. This can't be undone.`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => deleteMode(mode.id) },
+        { text: 'Delete', style: 'destructive', onPress: () => { if (openId === mode.id) setOpenId(null); deleteMode(mode.id); } },
       ],
     );
   };
@@ -53,61 +42,73 @@ export default function ModesScreen() {
 
         {/* Header */}
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
+          <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Back">
             <Feather name="arrow-left" size={20} color={colors.text} />
           </Pressable>
           <View style={{ flex: 1 }}>
             <Text style={[styles.title, { color: colors.text }]}>Modes</Text>
-            <Text style={[styles.sub, { color: colors.textMuted }]}>
-              Saved blocklists that switch themselves on a schedule
-            </Text>
+            <Text style={[styles.sub, { color: colors.textMuted }]}>Blocklists that switch themselves on a schedule</Text>
           </View>
         </View>
+
+        {nextLine ? (
+          <View style={[styles.nextBanner, { backgroundColor: colors.accentDim }]}>
+            <Feather name="clock" size={14} color={colors.accent} />
+            <Text style={[styles.nextText, { color: colors.accent }]}>{nextLine}</Text>
+          </View>
+        ) : null}
 
         {modes.length === 0 && (
           <View style={[styles.emptyCard, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
             <Feather name="layers" size={22} color={colors.textMuted} />
             <Text style={[styles.emptyTitle, { color: colors.text }]}>No modes yet</Text>
             <Text style={[styles.emptyDesc, { color: colors.textMuted }]}>
-              Build a couple of presets — say "Work" and "Weekend" — each with its own
-              blocklist. Give one a schedule and it'll switch on automatically.
+              Make a couple of presets, say "Work" and "Weekend", each with its own blocklist.
+              Switch on a time window and it takes over by itself, just like an alarm.
             </Text>
           </View>
         )}
 
         <View style={styles.grid}>
           {modes.map((mode) => {
+            const s = mode.schedule ?? DEFAULT_SCHEDULE;
             const isManualActive = activeModeId === mode.id;
-            const isResolvedNow  = resolvedNow?.id === mode.id;
-            const summary = scheduleSummary(mode);
+            const isResolvedNow = resolvedNow?.id === mode.id;
+            const open = openId === mode.id;
             return (
-              <Pressable
+              <View
                 key={mode.id}
                 style={[
-                  styles.card,
-                  cardStyle,
-                  {
-                    backgroundColor: colors.surface,
-                    borderColor: isResolvedNow ? colors.accent : colors.cardBorder,
-                    borderWidth: isResolvedNow ? 1.5 : 0.5,
-                  },
+                  styles.card, cardStyle,
+                  { backgroundColor: colors.surface, borderColor: isResolvedNow ? colors.accent : colors.cardBorder, borderWidth: isResolvedNow ? 1.5 : 0.5 },
                 ]}
-                onPress={() => router.push({ pathname: '/mode-editor', params: { id: mode.id } })}
               >
-                <View style={styles.cardTopRow}>
-                  <View style={[styles.emojiChip, { backgroundColor: mode.color + '22' }]}>
-                    <Text style={{ fontSize: 18 }}>{mode.emoji}</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.cardName, { color: colors.text }]}>{mode.name}</Text>
+                <Pressable
+                  onPress={() => setOpenId(open ? null : mode.id)}
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: open }}
+                  accessibilityLabel={`${mode.name}. ${format12(s.start)} to ${format12(s.end)}, ${daysLabel(s.days)}. ${s.enabled ? 'On' : 'Off'}. Tap to ${open ? 'close' : 'edit'}.`}
+                  style={styles.topRow}
+                >
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={[styles.time, { color: s.enabled ? colors.text : colors.textMuted }]}>
+                      {format12(s.start)} – {format12(s.end)}
+                    </Text>
+                    <Text style={[styles.cardName, { color: colors.text }]}>
+                      {mode.emoji}  {mode.name}
+                    </Text>
                     <Text style={[styles.cardDesc, { color: colors.textMuted }]}>
-                      {mode.blockedApps.length} apps · {mode.blockedDomains.length} sites
+                      {s.enabled ? daysLabel(s.days) : 'Schedule off'} · {mode.blockedApps.length} apps · {mode.blockedDomains.length} sites
                     </Text>
                   </View>
-                  <Pressable hitSlop={10} onPress={() => confirmDelete(mode)}>
-                    <Feather name="trash-2" size={16} color={colors.textMuted} />
-                  </Pressable>
-                </View>
+                  <Switch
+                    value={!!s.enabled}
+                    onValueChange={(v) => updateMode(mode.id, { schedule: { ...s, enabled: v } })}
+                    trackColor={{ true: colors.accentDim, false: colors.border }}
+                    thumbColor={s.enabled ? colors.accent : colors.textMuted}
+                    accessibilityLabel={`${mode.name} schedule`}
+                  />
+                </Pressable>
 
                 {isResolvedNow && (
                   <View style={[styles.activeBadge, { backgroundColor: colors.accentDim }]}>
@@ -116,25 +117,37 @@ export default function ModesScreen() {
                   </View>
                 )}
 
-                {summary && (
-                  <View style={styles.scheduleRow}>
-                    <Feather name="clock" size={12} color={colors.textSecondary} />
-                    <Text style={[styles.scheduleTxt, { color: colors.textSecondary }]}>{summary}</Text>
+                {open && (
+                  <View style={[styles.editor, { borderTopColor: colors.cardBorder }]}>
+                    <ScheduleEditor
+                      schedule={s}
+                      onChange={(next) => updateMode(mode.id, { schedule: { ...next, enabled: true } })}
+                      colors={colors}
+                    />
+                    <View style={styles.actionsRow}>
+                      <Pressable
+                        style={[styles.applyBtn, { backgroundColor: isManualActive ? colors.accentDim : colors.surfaceHigh }]}
+                        onPress={() => setActiveModeId(isManualActive ? null : mode.id)}
+                        accessibilityRole="button"
+                      >
+                        <Text style={[styles.applyTxt, { color: isManualActive ? colors.accent : colors.textSecondary }]}>
+                          {isManualActive ? 'Current default' : 'Set as default'}
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        style={[styles.applyBtn, { backgroundColor: colors.surfaceHigh }]}
+                        onPress={() => router.push({ pathname: '/mode-editor', params: { id: mode.id } })}
+                        accessibilityRole="button"
+                      >
+                        <Text style={[styles.applyTxt, { color: colors.textSecondary }]}>Blocklist & settings</Text>
+                      </Pressable>
+                      <Pressable hitSlop={10} onPress={() => confirmDelete(mode)} accessibilityRole="button" accessibilityLabel={`Delete ${mode.name}`}>
+                        <Feather name="trash-2" size={18} color={colors.textMuted} />
+                      </Pressable>
+                    </View>
                   </View>
                 )}
-
-                <Pressable
-                  style={[
-                    styles.applyBtn,
-                    { backgroundColor: isManualActive ? colors.accentDim : colors.surfaceHigh },
-                  ]}
-                  onPress={() => setActiveModeId(isManualActive ? null : mode.id)}
-                >
-                  <Text style={[styles.applyTxt, { color: isManualActive ? colors.accent : colors.textSecondary }]}>
-                    {isManualActive ? 'Current default' : 'Set as default'}
-                  </Text>
-                </Pressable>
-              </Pressable>
+              </View>
             );
           })}
         </View>
@@ -142,15 +155,15 @@ export default function ModesScreen() {
         <Pressable
           style={[styles.newBtn, { borderColor: colors.cardBorder }]}
           onPress={() => router.push('/mode-editor')}
+          accessibilityRole="button"
         >
           <Feather name="plus" size={16} color={colors.accent} />
           <Text style={[styles.newTxt, { color: colors.accent }]}>New mode</Text>
         </Pressable>
 
         <Text style={[styles.footer, { color: colors.textMuted }]}>
-          A mode with a schedule takes over automatically during its window. Otherwise,
-          whichever one you set as "current default" applies. Hard Mode, Cold Turkey and
-          Digital Curfew stay separate — modes never touch them.
+          A mode with its switch on takes over during its window. Otherwise, whichever one you set as
+          the default applies. Hard Mode, Cold Turkey and Digital Curfew stay separate: modes never touch them.
         </Text>
 
         <View style={{ height: SPACING.xl }} />
@@ -199,6 +212,12 @@ const styles = StyleSheet.create({
     padding: SPACING.lg,
     gap: SPACING.sm,
   },
+  topRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
+  time: { fontFamily: FONTS.display, fontSize: 28, letterSpacing: -0.5 },
+  nextBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 14 },
+  nextText: { fontFamily: FONTS.bodyBold, fontSize: 13 },
+  editor: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: SPACING.md, gap: SPACING.md },
+  actionsRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   cardTopRow: {
     flexDirection: 'row',
     alignItems: 'center',

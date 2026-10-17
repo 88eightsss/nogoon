@@ -14,7 +14,7 @@ import { Feather } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
 import { useModesStore, DEFAULT_SCHEDULE, type ModeSchedule } from '@/stores/useModesStore';
 import { BLOCKABLE_APPS } from '@/hooks/useAppBlocker';
-import { TimeStepper } from '@/components/TimeStepper';
+import { ScheduleEditor } from '@/components/ScheduleEditor';
 import { FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 
@@ -234,34 +234,7 @@ export default function ModeEditorScreen() {
           </View>
 
           {schedule.enabled && (
-            <>
-              <View style={styles.rowWrap}>
-                {DAY_LABELS.map((label, i) => (
-                  <Pressable
-                    key={i}
-                    onPress={() => toggleDay(i)}
-                    style={[
-                      styles.dayOpt,
-                      {
-                        backgroundColor: schedule.days.includes(i) ? colors.accentDim : colors.surfaceHigh,
-                        borderColor: schedule.days.includes(i) ? colors.accent : colors.cardBorder,
-                      },
-                    ]}
-                  >
-                    <Text style={[styles.dayTxt, { color: schedule.days.includes(i) ? colors.accent : colors.textMuted }]}>
-                      {label}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-              <Text style={[styles.hint, { color: colors.textMuted }]}>
-                No days picked = every day. End time can be earlier than start (e.g. 22:00–07:00) for an overnight window.
-              </Text>
-              <View style={styles.timeRow}>
-                <TimeStepper label="Starts" value={schedule.start} onChange={(v) => setSchedule((s) => ({ ...s, start: v }))} colors={colors} />
-                <TimeStepper label="Ends"   value={schedule.end}   onChange={(v) => setSchedule((s) => ({ ...s, end: v }))}   colors={colors} />
-              </View>
-            </>
+            <ScheduleEditor schedule={schedule} onChange={setSchedule} colors={colors} />
           )}
         </View>
 
