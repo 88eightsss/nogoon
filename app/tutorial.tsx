@@ -307,6 +307,23 @@ const LootIllustration: React.FC<{ accent: string; dim: string }> = ({ accent, d
   );
 };
 
+// A simple still scene for the newer steps: one big emoji with a few small ones beneath it.
+const scene = (emojis: string[]): React.FC<{ accent: string; dim: string }> =>
+  function SceneIllustration({ accent, dim }) {
+    return (
+      <View style={ill.container}>
+        <Text style={{ fontSize: 56 }}>{emojis[0]}</Text>
+        <View style={ill.lootRow}>
+          {emojis.slice(1).map((e, i) => (
+            <View key={i} style={[ill.lootItem, { backgroundColor: dim, borderColor: accent + '40' }]}>
+              <Text style={{ fontSize: 22 }}>{e}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+    );
+  };
+
 // ─── Steps ────────────────────────────────────────────────────────────────────
 
 // Trimmed from 10 steps to 6 — the first four (blocklist, intercept screen,
@@ -322,9 +339,75 @@ const STEPS: Step[] = [
     dimKey: 'arcadeDim' as const,
     title: 'Unlock more as you go',
     subtitle: 'Step 1 of 6',
-    body: 'Keep walking away and NoGoon opens up: the full Arcade (all 19 games), Insights and Journal all unlock at walk-away milestones.\n\nAnything you see locked isn\'t gone for good — it\'s waiting for you to earn it.',
+    body: 'Keep walking away and NoGoon opens up: the full Arcade (all 15 games), Insights and Journal all unlock at walk-away milestones.\n\nAnything you see locked isn\'t gone for good — it\'s waiting for you to earn it.',
     cta: { label: "See what's locked", route: '/(tabs)/arcade' },
     Illustration: LootIllustration,
+  },
+  {
+    id: 'minute',
+    emoji: '⏸️',
+    colorKey: 'arcade' as const,
+    dimKey: 'arcadeDim' as const,
+    title: 'Need a minute',
+    subtitle: '',
+    body: 'The big yellow button on Today is for when a craving shows up. Tap it and pick one: breathe, play a quick game, calm down, or write it out.\n\nBreathing is hands-on now: press and hold the orb to breathe in, let go to breathe out. Can\'t hold? Switch to follow-along.',
+    cta: { label: 'Try breathing', route: '/breathe' },
+    Illustration: scene(['🫧', '🌬️', '🎮', '✍️']),
+  },
+  {
+    id: 'companions',
+    emoji: '🐣',
+    colorKey: 'cyan' as const,
+    dimKey: 'cyanDim' as const,
+    title: 'Your companion grows',
+    subtitle: '',
+    body: 'Every walk-away feeds your companion. In Customize, tap any companion to see all five stages and how far along you are, then pick who to feed. Only one grows at a time.\n\nBorders and colours are in Customize too: Clean, Sharp, Soft, Bold, Halo or Stitched.',
+    cta: { label: 'Open Customize', route: '/customize' },
+    Illustration: scene(['🥚', '🐣', '🐥', '🦅']),
+  },
+  {
+    id: 'journal',
+    emoji: '📓',
+    colorKey: 'indigoBright' as const,
+    dimKey: 'indigoDim' as const,
+    title: 'Your journal, your way',
+    subtitle: '',
+    body: 'Pages is a colourful journal: pick paper, add stickers (even your companions), doodle, and use a template or a prompt when you don\'t know where to start. Canvas is Brain Bubbles for emptying your head. Moments keeps your quick urge notes.\n\nText size and easy-read spacing are in the Style tab. Everything stays on your phone.',
+    cta: { label: 'Open Journal', route: '/journal' },
+    Illustration: scene(['📓', '🎨', '⭐', '🌈']),
+  },
+  {
+    id: 'modes',
+    emoji: '⏰',
+    colorKey: 'purple' as const,
+    dimKey: 'purpleDim' as const,
+    title: 'Modes run like alarms',
+    subtitle: '',
+    body: 'Each mode is a saved blocklist with its own time window. Flip the switch to turn its schedule on, tap the card to set the days and spin the clock wheels for start and end times.\n\nThe top of the screen tells you what changes next, like "Work starts in 2 h".',
+    cta: { label: 'Open Modes', route: '/modes' },
+    Illustration: scene(['⏰', '💼', '🌙', '🏖️']),
+  },
+  {
+    id: 'briefing',
+    emoji: '📰',
+    colorKey: 'green' as const,
+    dimKey: 'greenDim' as const,
+    title: 'Briefing and what\'s on near you',
+    subtitle: '',
+    body: 'The Briefing tab is good news and what the world is curious about. Choose 20 stories (then it ends) or Endless (older stories keep loading).\n\n"Happening near you" lists farmers markets, volunteering and community events, each with a link to the organiser.',
+    cta: { label: 'Happening near you', route: '/events' },
+    Illustration: scene(['📰', '🌺', '🥭', '🤝']),
+  },
+  {
+    id: 'reachout',
+    emoji: '💌',
+    colorKey: 'arcade' as const,
+    dimKey: 'arcadeDim' as const,
+    title: 'A nudge to reach out',
+    subtitle: '',
+    body: 'After a long scroll, your companion may leave a small card on Today with a ready-made hello. Tap Send to share it with anyone, or "Not today" to tuck it away. It\'s never a notification, and nothing is sent unless you send it.\n\nAnother tip: your phone\'s own grayscale makes scrolling duller. The Tips page shows where to find it.',
+    cta: { label: 'See Tips', route: '/tips' },
+    Illustration: scene(['💌', '👋', '☎️', '🩶']),
   },
   {
     id: 'focus',
@@ -384,6 +467,8 @@ const STEPS: Step[] = [
     Illustration: WindDownIllustration,
   },
 ];
+
+STEPS.forEach((st, i) => { st.subtitle = `Step ${i + 1} of ${STEPS.length}`; });
 
 // ─── Tutorial screen ──────────────────────────────────────────────────────────
 

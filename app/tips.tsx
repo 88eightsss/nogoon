@@ -34,6 +34,36 @@ const TIPS: readonly Tip[] = [
     action: { label: 'Open phone settings', run: openPhoneSettings },
   },
   {
+    icon: 'wind',
+    title: 'Hold the orb to breathe',
+    body: "In Breathing, press and hold the orb while you breathe in and let go to breathe out. The out-breath is longer on purpose: that's the part that calms you. Can't hold? Tap 'Follow along instead'.",
+  },
+  {
+    icon: 'book-open',
+    title: 'Make journal pages yours',
+    body: 'In Journal > Pages, the Style tab changes paper, lines, frame, ink and writing style. Stickers can be dragged anywhere (your companions too), and Draw lets you doodle. Easy-read spacing and four text sizes are in Style as well.',
+  },
+  {
+    icon: 'clock',
+    title: 'Modes work like alarms',
+    body: 'Flip a mode on, tap its card for the days, then tap Starts or Ends to spin the clock wheels. The line at the top tells you what changes next.',
+  },
+  {
+    icon: 'list',
+    title: 'Pick how long the Briefing is',
+    body: '20 stories gives you a finite batch that ends. Endless keeps loading older stories as you scroll. Switch any time at the top of the Briefing tab.',
+  },
+  {
+    icon: 'map-pin',
+    title: 'See what is on near you',
+    body: "'Happening near you' (in the Briefing tab) lists farmers markets, volunteering and community events with a link to each organiser. Add your town to search where there is no list yet.",
+  },
+  {
+    icon: 'heart',
+    title: 'Your companion may suggest a hello',
+    body: "After a long scroll, a small card appears on Today with a ready-made message. Tap Send to share it with anyone, or 'Not today' to dismiss. It is not a notification and nothing is sent unless you send it.",
+  },
+  {
     icon: 'toggle-left',
     title: "Turn off games you don't like",
     body: "In Arcade, scroll to Intercept games and flip off anything you'd rather skip — it just won't come up when you hit a blocker anymore.",
