@@ -88,6 +88,42 @@ function pickTruth() {
   return TRUTHS[hourSeed % TRUTHS.length];
 }
 
+// ─── The urge wave ────────────────────────────────────────────────────────────
+// A row of bars the wave rolls across while the clock runs: it swells, peaks and fades on its
+// own, which is exactly what an urge does. Driven by the same 0 → 1 progress as the loading bar,
+// so it costs nothing extra (native-driven scaleY, no per-frame JS).
+
+const BARS = 11;
+const SAMPLES = 12;
+
+function WaveBars({ progress, color }: { progress: Animated.Value; color: string }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, height: 64 }}>
+      {Array.from({ length: BARS }).map((_, i) => {
+        const center = 0.1 + (i / (BARS - 1)) * 0.6;   // the crest reaches bar i at this point in time
+        const input = Array.from({ length: SAMPLES }, (_, k) => k / (SAMPLES - 1));
+        const output = input.map((p) => 0.14 + 0.86 * Math.exp(-(((p - center) / 0.16) ** 2)));
+        return (
+          <Animated.View
+            key={i}
+            style={{
+              width: 10, height: 60, borderRadius: 5, backgroundColor: color,
+              transform: [{ scaleY: progress.interpolate({ inputRange: input, outputRange: output }) }],
+            }}
+          />
+        );
+      })}
+    </View>
+  );
+}
+
+function waveLabel(secondsLeft: number, ready: boolean) {
+  if (ready) return 'It passed. You rode it out.';
+  if (secondsLeft >= 4) return 'The urge is rising…';
+  if (secondsLeft >= 2) return 'This is the peak. It does not last.';
+  return 'Already easing…';
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const COUNTDOWN = 5;
@@ -198,9 +234,8 @@ export default function WaitingRoomScreen() {
 
         {/* Main content */}
         <View style={styles.main}>
-          <Text style={styles.label}>
-            {ready ? 'Ready.' : `Processing… ${secondsLeft}`}
-          </Text>
+          <WaveBars progress={progressAnim} color={COLORS.indigo} />
+          <Text style={styles.label}>{waveLabel(secondsLeft, ready)}</Text>
 
           {/* Truth card */}
           <View style={styles.truthCard}>
@@ -289,8 +324,9 @@ const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
     fontFamily: FONTS.bodyMedium,
     fontSize: 13,
     color: COLORS.textMuted,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+    textAlign: 'center',
+    marginTop: SPACING.md,
     marginBottom: SPACING.lg,
   },
 
