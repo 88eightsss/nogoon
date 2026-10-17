@@ -48,14 +48,11 @@ import { Feather } from '@expo/vector-icons';
 import { BreathRhythm }     from '@/components/games/BreathRhythm';
 import { GroundingExercise } from '@/components/games/GroundingExercise';
 import { OddOneOut }         from '@/components/games/OddOneOut';
-import { ColorSort }         from '@/components/games/ColorSort';
 // BallSort removed
 import { TwentyFortyEight } from '@/components/games/TwentyFortyEight';
 // SandToy removed
-import { SpotTheSponsored } from '@/components/games/SpotTheSponsored';
 import { PixelDodge }       from '@/components/games/PixelDodge';
 // FlashTap removed
-import { SnakeGame }        from '@/components/games/SnakeGame';
 import { BrickBreak }       from '@/components/games/BrickBreak';
 import { EndlessRunner }    from '@/components/games/EndlessRunner';
 import { FlappyBird }       from '@/components/games/FlappyBird';
@@ -64,8 +61,6 @@ import { WordWeave }        from '@/components/games/WordWeave';
 import GoonWord             from '@/components/games/GoonWord';
 import { StackGame }         from '@/components/games/StackGame';
 import { PatternMemory }     from '@/components/games/PatternMemory';
-import { WarpGame }          from '@/components/games/WarpGame';
-import { IntentionCheck }    from '@/components/games/IntentionCheck';
 import { TypingChallenge }   from '@/components/games/TypingChallenge';
 import { PACKAGE_TO_NAME } from '@/hooks/useAppBlocker';
 import { grantTemporaryUnlock, launchBlockedApp, DEFAULT_UNLOCK_MINUTES } from '@/utils/tempUnlock';
@@ -126,7 +121,7 @@ const INTENT_OPTIONS: IntentOption[] = [
 ];
 
 // Low-stimulation games for stressed users. Excludes reflex/skill games (stack, typing, pixeldodge, etc.).
-const CALM_GAMES: GameId[] = ['breathing', 'grounding', 'colorsort', 'warp', 'intention', 'wordweave', 'memory'];
+const CALM_GAMES: GameId[] = ['breathing', 'grounding', 'wordweave', 'memory'];
 
 // Accent color per companion character — matches CHAR_COLORS dominant hues
 const COMPANION_ACCENT: Record<CharacterId, string> = {
@@ -1072,17 +1067,12 @@ function NoGoonScreen() {
     if (selectedGame === 'breathing')  return <BreathRhythm    onComplete={handleGameComplete} />;
     if (selectedGame === 'grounding')  return <GroundingExercise onComplete={handleGameComplete} />;
     if (selectedGame === 'oddone')     return <OddOneOut        onComplete={handleGameComplete} />;
-    if (selectedGame === 'colorsort')  return <ColorSort        onComplete={handleGameComplete} />;
     if (selectedGame === 'twentyfortyeight') return <TwentyFortyEight onComplete={handleGameComplete} />;
     if (selectedGame === 'wordweave')      return <WordWeave        onComplete={handleGameComplete} />;
     if (selectedGame === 'stack')          return <StackGame        onComplete={handleGameComplete} />;
     if (selectedGame === 'memory')         return <PatternMemory    onComplete={handleGameComplete} />;
-    if (selectedGame === 'warp')           return <WarpGame         onComplete={handleGameComplete} />;
-    if (selectedGame === 'intention')      return <IntentionCheck   onComplete={handleGameComplete} />;
     if (selectedGame === 'typing')         return <TypingChallenge  onComplete={handleGameComplete} duration={gameDuration} />;
-    if (selectedGame === 'spotsponsored')  return <SpotTheSponsored onComplete={handleGameComplete} />;
     if (selectedGame === 'pixeldodge')     return <PixelDodge       onComplete={handleGameComplete} />;
-    if (selectedGame === 'snakegame')      return <SnakeGame        onComplete={handleGameComplete} />;
     if (selectedGame === 'brickbreak')     return <BrickBreak       onComplete={handleGameComplete} />;
     if (selectedGame === 'runner')         return <EndlessRunner    onComplete={handleGameComplete} />;
     if (selectedGame === 'flappy')         return <FlappyBird       onComplete={handleGameComplete} />;

@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 //  ARCADE TAB — NoGoon
 //  ────────────────────
-//  13 exclusive games, all free.
+//  14 games, all free.
 // ═══════════════════════════════════════════════════════════════════════════
 
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
@@ -30,22 +30,17 @@ import * as Haptics from 'expo-haptics';
 import { GroundingExercise } from '@/components/games/GroundingExercise';
 import { BreathRhythm }     from '@/components/games/BreathRhythm';
 import { OddOneOut }        from '@/components/games/OddOneOut';
-import { ColorSort }        from '@/components/games/ColorSort';
 // BallSort removed
 import { TwentyFortyEight } from '@/components/games/TwentyFortyEight';
 import { WordWeave }        from '@/components/games/WordWeave';
 import { StackGame }        from '@/components/games/StackGame';
 import { PatternMemory }    from '@/components/games/PatternMemory';
 // ── Pro games ───────────────────────────────────────────────────────────────
-import { WarpGame }         from '@/components/games/WarpGame';
-import { IntentionCheck }   from '@/components/games/IntentionCheck';
 import { TypingChallenge }  from '@/components/games/TypingChallenge';
 // SandToy removed
-import { SpotTheSponsored } from '@/components/games/SpotTheSponsored';
 // ── Retro 2-bit games ────────────────────────────────────────────────────────
 import { PixelDodge }       from '@/components/games/PixelDodge';
 // FlashTap removed
-import { SnakeGame }        from '@/components/games/SnakeGame';
 import { BrickBreak }       from '@/components/games/BrickBreak';
 import { EndlessRunner }    from '@/components/games/EndlessRunner';
 import { FlappyBird }       from '@/components/games/FlappyBird';
@@ -562,17 +557,12 @@ export default function ArcadeScreen() {
     if (activeGame === 'breathing')  gameNode = <BreathRhythm    onComplete={handleGameComplete} />;
     if (activeGame === 'grounding')  gameNode = <GroundingExercise onComplete={handleGameComplete} />;
     if (activeGame === 'oddone')     gameNode = <OddOneOut        onComplete={handleGameComplete} />;
-    if (activeGame === 'colorsort')  gameNode = <ColorSort        onComplete={handleGameComplete} />;
     if (activeGame === 'twentyfortyeight') gameNode = <TwentyFortyEight onComplete={handleGameComplete} />;
     if (activeGame === 'wordweave')      gameNode = <WordWeave        onComplete={handleGameComplete} />;
-    if (activeGame === 'warp')           gameNode = <WarpGame         onComplete={handleGameComplete} />;
     if (activeGame === 'stack')          gameNode = <StackGame        onComplete={handleGameComplete} />;
-    if (activeGame === 'intention')      gameNode = <IntentionCheck   onComplete={handleGameComplete} />;
     if (activeGame === 'typing')         gameNode = <TypingChallenge  onComplete={handleGameComplete} duration={30} />;
     if (activeGame === 'memory')         gameNode = <PatternMemory    onComplete={handleGameComplete} />;
-    if (activeGame === 'spotsponsored')  gameNode = <SpotTheSponsored onComplete={handleGameComplete} />;
     if (activeGame === 'pixeldodge')     gameNode = <PixelDodge       onComplete={handleGameComplete} />;
-    if (activeGame === 'snakegame')      gameNode = <SnakeGame        onComplete={handleGameComplete} />;
     if (activeGame === 'brickbreak')     gameNode = <BrickBreak       onComplete={handleGameComplete} />;
     if (activeGame === 'runner')         gameNode = <EndlessRunner    onComplete={handleGameComplete} />;
     if (activeGame === 'flappy')         gameNode = <FlappyBird       onComplete={handleGameComplete} />;

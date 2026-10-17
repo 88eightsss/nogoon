@@ -49,39 +49,9 @@ export const ALL_GAMES: readonly GameMeta[] = [
     howToPlay: 'Work through your five senses in order: name 5 things you can see, 4 you can touch, 3 you can hear, 2 you can smell, 1 you can taste. Tap each item as you notice it. A well-known grounding technique for interrupting a craving loop.',
     category: 'calm',
   },
-  {
-    id: 'warp',
-    name: 'Warp',
-    description: 'Drift through the cosmos and collect light fragments.',
-    emoji: '✦',
-    color: '#7dd3fc',
-    tagline: 'Peaceful · meditative',
-    howToPlay: 'Drift through space and tap the glowing light fragments before they fade. They appear at random positions — tap quickly. The game ends when you\'ve collected enough fragments or time runs out. Peaceful and meditative.',
-    category: 'calm',
-  },
-  {
-    id: 'intention',
-    name: 'Why Am I Here?',
-    description: 'A 60-second check-in with yourself.',
-    emoji: '🪞',
-    color: COLORS.purple,
-    tagline: 'Deep reflection',
-    howToPlay: 'A series of honest questions about what brought you to this app right now. No wrong answers — just reflection. Takes about 60 seconds. The insight usually makes the urge lose its grip.',
-    category: 'calm',
-  },
 
   // ── Puzzle ──────────────────────────────────────────────────────────────────
 
-  {
-    id: 'colorsort',
-    name: 'Color Sort',
-    description: 'Sort the tiles so every row is one solid color.',
-    emoji: '🎨',
-    color: '#7c3aed',
-    tagline: 'Pure visual flow',
-    howToPlay: 'Tap a tile to select it, then tap another tile to swap them. The goal: every row must be a single solid color. Solve it in 10 or fewer moves for max points.',
-    category: 'puzzle',
-  },
   {
     id: 'twentyfortyeight',
     name: '2048',
@@ -133,16 +103,6 @@ export const ALL_GAMES: readonly GameMeta[] = [
     color: '#22c55e',
     tagline: 'Pure reflex · retro arcade',
     howToPlay: 'Tap the LEFT side of the screen to move your pixel left, RIGHT side to move right. Avoid the blocks raining from above. Survive 30 seconds to win. Miss one and it\'s over — no second chances.',
-    category: 'reflex',
-  },
-  {
-    id: 'snakegame',
-    name: 'Snake',
-    description: 'Eat pellets, grow longer, don\'t crash.',
-    emoji: '🐍',
-    color: '#4ade80',
-    tagline: 'Classic · never gets old',
-    howToPlay: 'Drag the joystick to steer your snake. Eat the pellets to grow longer and earn points. Don\'t hit the walls or your own tail — either ends the game instantly. Eat 10 pellets to win.',
     category: 'reflex',
   },
   {
@@ -224,24 +184,14 @@ export const ALL_GAMES: readonly GameMeta[] = [
     howToPlay: 'Each round shows a grid of posts — one is a manipulative ad, the rest are real content. Tap the ad to advance. You\'ll learn to spot dark patterns: fake urgency, engineered FOMO, hidden costs, and misleading claims.',
     category: 'awareness',
   },
-  {
-    id: 'spotsponsored',
-    name: 'Spot the Sponsored',
-    description: 'Scroll through a social feed and flag every hidden ad.',
-    emoji: '🚩',
-    color: '#f59e0b',
-    tagline: 'See what\'s invisible',
-    howToPlay: 'A realistic-looking social media feed scrolls by. Five of the posts are hidden ads — some obvious, some sneaky. Tap every post you think is an ad before the 60-second timer runs out. Flag correctly = +20 pts. False positive = −10 pts. After time\'s up, the feed is revealed with each trick explained.',
-    category: 'awareness',
-  },
 ] as const;
 
 export type GameId =
-  | 'breathing' | 'grounding' | 'warp' | 'intention'
-  | 'colorsort' | 'twentyfortyeight' | 'wordweave' | 'memory' | 'minesweeper' | 'goon'
-  | 'pixeldodge' | 'snakegame' | 'brickbreak' | 'runner' | 'flappy'
+  | 'breathing' | 'grounding'
+  | 'twentyfortyeight' | 'wordweave' | 'memory' | 'minesweeper' | 'goon'
+  | 'pixeldodge' | 'brickbreak' | 'runner' | 'flappy'
   | 'stack' | 'typing'
-  | 'oddone' | 'spotsponsored';
+  | 'oddone';
 
 /** Games available on the gate intercept by default (exclude awareness —
  *  they need context to be meaningful, arcade only — and exclude calm,
@@ -256,11 +206,10 @@ export const CALM_GAMES = ALL_GAMES.filter((g) => g.category === 'calm');
 /** The short list shown by default. Everything else is still in the app under "More games"
  *  (and every game stays available to the intercept pool); this only trims what you browse. */
 export const FEATURED_GAME_IDS: readonly string[] = [
-  'breathing', 'grounding', 'intention', 'warp',      // calm: the mission
+  'breathing', 'grounding',                            // calm: the mission
   'twentyfortyeight', 'memory',                        // puzzle
-  'snakegame',                                         // reflex
   'stack',                                             // skill
-  'spotsponsored',                                     // awareness: ad literacy
+  'oddone',                                            // awareness: ad literacy
 ];
 export const isFeatured = (id: string) => FEATURED_GAME_IDS.includes(id);
 

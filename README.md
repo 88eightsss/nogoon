@@ -76,7 +76,6 @@ gate/
 │   ├── games/              # All mini-games
 │   │   ├── BreathingGame.tsx
 │   │   ├── GroundingExercise.tsx   ← 5-4-3-2-1 grounding technique
-│   │   ├── IntentionCheck.tsx      ← "Why am I here?" self-reflection
 │   │   ├── PatternMemory.tsx
 │   │   ├── ReactionGame.tsx
 │   │   ├── StroopChallenge.tsx

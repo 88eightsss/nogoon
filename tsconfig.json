@@ -16,6 +16,7 @@
     ".expo/types/**/*.ts"
   ],
   "exclude": [
-    "supabase/**"
+    "supabase/**",
+    "web-build/**"
   ]
 }
