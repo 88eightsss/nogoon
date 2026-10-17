@@ -1,4 +1,4 @@
-// ─── Wild mascots: Honu, Pueo, ʻOpihi ────────────────────────────────────────────
+// ─── Wild mascots: Tide (turtle), Dusk (owl), Pebble (limpet) ────────────────────────────────────────────
 //
 // Same format as spritesNew.ts (10x12 grids, 0 empty / 1 body / 2 dark / 3 accent / 4 highlight, five
 // stages 0 dormant, 1 hatchling, 2 grown, 3 glowing, 4 evolved). Each stage changes shape, not only colour.
@@ -7,7 +7,7 @@ import type { GoonStage, Pixel } from './sprites';
 
 export type WildCharacterId = 8 | 9 | 10;
 
-export const WILD_CHAR_NAMES: Record<WildCharacterId, string> = { 8: 'Honu', 9: 'Pueo', 10: 'ʻOpihi' };
+export const WILD_CHAR_NAMES: Record<WildCharacterId, string> = { 8: 'Tide', 9: 'Dusk', 10: 'Pebble' };
 
 export const WILD_CHAR_TAGS: Record<WildCharacterId, string> = {
   8: 'Ancient · Carries an island',

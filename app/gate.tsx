@@ -138,9 +138,9 @@ const COMPANION_ACCENT: Record<CharacterId, string> = {
   5: '#C9402B', // morel red
   6: '#2B6FD6', // pixel blue
   7: '#D9822B', // amber
-  8: '#1F9E7A', // honu teal
-  9: '#9A6E44', // pueo brown
-  10: '#B8783A', // opihi shell
+  8: '#1F9E7A', // Tide teal
+  9: '#9A6E44', // Dusk brown
+  10: '#B8783A', // Pebble shell
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
