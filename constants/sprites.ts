@@ -272,7 +272,7 @@ const BASE_GRIDS: Record<0 | 1 | 2, Record<GoonStage, Pixel[][]>> = {
   },
 };
 
-// ─── All companions (original three + Mochi, Sprout, Morel, Byte, Tama + Honu, Pueo, ʻOpihi) ─────
+// ─── All companions (original three + Mochi, Sprout, Morel, Byte, Tama + Timmy, Ocky, Jambo) ─────
 
 export const CHAR_COLORS: Record<CharacterId, Record<GoonStage, Record<number, string>>> = {
   ...BASE_COLORS,
