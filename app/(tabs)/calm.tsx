@@ -81,17 +81,8 @@ const TOOLS: Tool[] = [
     icon:      'book-open',
     iconColor: '#0277BD',
     title:     'Journal',
-    subtitle:  'Log an urge or a win · stays on your phone',
+    subtitle:  'Colourful pages, stickers and doodles · plus a canvas to empty your head',
     route:     '/journal' as Href,
-  },
-  {
-    id:        'bubbles',
-    group:     'out',
-    icon:      'feather',
-    iconColor: '#0ea5e9',
-    title:     'Brain Bubbles',
-    subtitle:  'Write it out · get the noise out of your head',
-    route:     '/bubbles',
   },
   {
     id:        'deadreckoning',
