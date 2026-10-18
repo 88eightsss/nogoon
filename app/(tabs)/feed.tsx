@@ -18,7 +18,7 @@ import { useBriefingPrefs } from '@/stores/useBriefingPrefs';
 import { usePackStore } from '@/stores/usePackStore';
 import { useOfferStore } from '@/stores/useOfferStore';
 import { FONTS } from '@/constants/Colors';
-import { ConstructionBadge } from '@/components/ui/Construction';
+import { ConstructionBadge, ConstructionSign } from '@/components/ui/Construction';
 import { UNDER_CONSTRUCTION } from '@/constants/construction';
 import { SPACING } from '@/constants/Spacing';
 
@@ -157,6 +157,7 @@ export default function FeedScreen() {
   return (
     <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={styles.content} onScroll={onScroll} scrollEventThrottle={200}>
       <Text style={[styles.title, { color: colors.text }]}>Today's briefing</Text>
+      {UNDER_CONSTRUCTION.goodNews ? <View style={{ alignSelf: 'flex-start' }}><ConstructionBadge label="Still being built" /></View> : null}
       <Text style={[styles.sub, { color: colors.textSecondary }]}>
         {endless ? 'Keeps loading older stories as you scroll.' : "A small batch, once a day. When it's done, it's done."}
       </Text>
@@ -198,6 +199,7 @@ export default function FeedScreen() {
       )}
       {!loading && failed && (
         <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+          {UNDER_CONSTRUCTION.goodNews ? <ConstructionSign note="The daily briefing isn't switched on yet." /> : null}
           <Text style={[styles.body, { color: colors.textSecondary }]}>
             Couldn't fetch today's briefing. Good things are still happening out there, and you're protecting your time.
           </Text>
