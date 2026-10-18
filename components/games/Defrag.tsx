@@ -210,7 +210,7 @@ export function Defrag({ onComplete }: DefragProps) {
             </View>
           </View>
         </View>
-        <ProceedButton label="Continue →" onPress={() => onComplete(score)} />
+        <ProceedButton label="Continue" onPress={() => onComplete(score)} />
       </SafeAreaView>
     );
   }

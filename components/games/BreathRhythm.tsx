@@ -242,9 +242,9 @@ export function BreathRhythm({ onComplete }: Props) {
         <Animated.View style={[styles.labelWrap, { opacity: labelOpacity }]}>
           <Text style={styles.breathLabel}>{currentStep.label}</Text>
           <Text style={styles.breathSub}>
-            {currentStep.phase === 'in'       ? '↑ expand with your lungs' :
+            {currentStep.phase === 'in'       ? 'expand with your lungs' :
              currentStep.phase === 'hold-in'  ? '— stay full' :
-             currentStep.phase === 'out'      ? '↓ release slowly' :
+             currentStep.phase === 'out'      ? 'release slowly' :
                                                 '— stay empty'}
           </Text>
         </Animated.View>

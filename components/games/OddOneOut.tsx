@@ -250,7 +250,7 @@ function AdCard({ ad, position, onPress, result, answered, styles, COLORS }: AdC
             eye hits, not a faint border they have to go looking for. */}
         {result === 'revealed' && (
           <View style={styles.revealedBadge}>
-            <Text style={styles.revealedBadgeText}>✓ MISSED THIS ONE</Text>
+            <Text style={styles.revealedBadgeText}>MISSED THIS ONE</Text>
           </View>
         )}
 
@@ -486,7 +486,7 @@ export function OddOneOut({ onComplete }: Props) {
           </View>
 
           <Pressable style={styles.startButton} onPress={() => setGamePhase('playing')}>
-            <Text style={styles.startButtonText}>Start →</Text>
+            <Text style={styles.startButtonText}>Start</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -520,7 +520,7 @@ export function OddOneOut({ onComplete }: Props) {
           </View>
 
           <ProceedButton
-            label="Continue →"
+            label="Continue"
             onPress={() => onComplete(score)}
             style={{ width: '100%' }}
           />
@@ -582,9 +582,7 @@ export function OddOneOut({ onComplete }: Props) {
         {answered && isSponsoredRound && sponsoredCampaign ? (
           <View style={[styles.explanationCard, styles.sponsoredCard]}>
             <View style={styles.sponsoredHeader}>
-              <Text style={styles.sponsoredEmoji}>
-                {sponsoredCampaign.brand_avatar_emoji ?? '✦'}
-              </Text>
+              <Feather name="award" size={26} color={COLORS.cyan} style={{ marginRight: 8 }} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.sponsoredBrandName}>{sponsoredCampaign.brand_name}</Text>
                 {sponsoredCampaign.brand_handle ? (
@@ -611,7 +609,7 @@ export function OddOneOut({ onComplete }: Props) {
             </Pressable>
             <Pressable style={styles.nextButton} onPress={handleNext}>
               <Text style={styles.nextButtonText}>
-                {roundIndex >= totalRounds - 1 ? 'See Results →' : 'Next Round →'}
+                {roundIndex >= totalRounds - 1 ? 'See Results' : 'Next Round'}
               </Text>
             </Pressable>
           </View>
@@ -623,7 +621,7 @@ export function OddOneOut({ onComplete }: Props) {
             <Text style={styles.explanationText}>{round!.explanation}</Text>
             <Pressable style={styles.nextButton} onPress={handleNext}>
               <Text style={styles.nextButtonText}>
-                {roundIndex >= totalRounds - 1 ? 'See Results →' : 'Next Round →'}
+                {roundIndex >= totalRounds - 1 ? 'See Results' : 'Next Round'}
               </Text>
             </Pressable>
           </View>

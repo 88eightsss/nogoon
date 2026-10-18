@@ -155,7 +155,7 @@ export default function DeadReckoningScreen() {
             disabled={saved}
           >
             <Text style={styles.actionBtnText}>
-              {saved ? 'Locked in ✓' : 'Lock in my prediction'}
+              {saved ? 'Locked in' : 'Lock in my prediction'}
             </Text>
           </Pressable>
         </View>

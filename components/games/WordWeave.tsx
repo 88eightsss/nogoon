@@ -507,9 +507,9 @@ export function WordWeave({ onComplete }: Props) {
               lastResult === 'invalid' && { color: COLORS.danger },
             ]}>
               {lastResult === 'found'
-                ? `✓ ${foundWords[foundWords.length - 1]}`
+                ? foundWords[foundWords.length - 1]
                 : lastResult === 'invalid'
-                  ? '✗ not a word'
+                  ? 'not a word'
                   : currentWord || '—'}
             </Text>
           </View>
@@ -525,7 +525,7 @@ export function WordWeave({ onComplete }: Props) {
           </Pressable>
 
           <Pressable style={styles.clearBtn} onPress={clearPath}>
-            <Text style={styles.clearBtnText}>✕</Text>
+            <Feather name="x" size={20} color={COLORS.textMuted} />
           </Pressable>
         </View>
 

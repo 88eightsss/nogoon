@@ -82,7 +82,7 @@ function ArcadePostGame({ gameName, onBack, onPlayAgain, styles, COLORS }: {
             <Text style={styles.playAgainText}>Play Again</Text>
           </Pressable>
           <Pressable style={styles.backButton} onPress={onBack}>
-            <Text style={styles.backButtonText}>← Back to Arcade</Text>
+            <Text style={styles.backButtonText}>Back to Arcade</Text>
           </Pressable>
         </View>
       </View>
@@ -647,7 +647,7 @@ export default function ArcadeScreen() {
               </Text>
             </View>
             <Pressable style={styles.seeAllBtn} onPress={() => setShowAll(true)}>
-              <Text style={styles.seeAllText}>See all {ALL_GAMES.length} games →</Text>
+              <Text style={styles.seeAllText}>See all {ALL_GAMES.length} games</Text>
             </Pressable>
           </View>
         )}

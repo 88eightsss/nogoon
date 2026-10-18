@@ -456,7 +456,7 @@ export default function PostGameScreen() {
             style={styles.nowWhatBtn}
             onPress={() => { setShowNowWhat(false); setCelebrating(true); }}
           >
-            <Text style={styles.nowWhatBtnText}>I'm ready →</Text>
+            <Text style={styles.nowWhatBtnText}>I'm ready</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -478,7 +478,7 @@ export default function PostGameScreen() {
       return (
         <SafeAreaView style={styles.safe}>
           <View style={styles.celebrationContainer}>
-            <Text style={{ fontSize: 52 }}>✓</Text>
+            <Feather name="check-circle" size={56} color={COLORS.green} />
             <Text style={[styles.celebrationSub, { color: COLORS.green }]}>Logged.</Text>
           </View>
         </SafeAreaView>

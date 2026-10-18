@@ -70,7 +70,7 @@ export function PositiveNewsCard({ onDone }: Props) {
 
       {/* Dismiss */}
       <Pressable style={styles.doneButton} onPress={onDone}>
-        <Text style={styles.doneText}>Back to life →</Text>
+        <Text style={styles.doneText}>Back to life</Text>
       </Pressable>
     </View>
   );

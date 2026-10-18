@@ -303,7 +303,7 @@ export function PatternMemory({ onComplete }: PatternMemoryProps) {
             <Text style={styles.statLabel}>SEQ LEN</Text>
           </View>
         </View>
-        <ProceedButton label="Continue →" onPress={() => onComplete(score)} />
+        <ProceedButton label="Continue" onPress={() => onComplete(score)} />
       </View>
     );
   }

@@ -7,6 +7,7 @@
 // Yellow = right letter, wrong place.
 // Gray = not in word.
 
+import { Feather } from '@expo/vector-icons';
 import { useState, useCallback, useRef } from 'react';
 import {
   View, Text, Pressable, StyleSheet, Animated,
@@ -226,7 +227,7 @@ function Key({ label, letterState, onPress, wide }: {
       style={[keyStyles.key, { backgroundColor: bg, minWidth: wide ? 52 : 36 }]}
       onPress={onPress}
     >
-      <Text style={keyStyles.label}>{label}</Text>
+      {label === '⌫' ? <Feather name="delete" size={18} color={C.keyText} /> : <Text style={keyStyles.label}>{label}</Text>}
     </Pressable>
   );
 }

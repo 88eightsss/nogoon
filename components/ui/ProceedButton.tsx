@@ -25,7 +25,7 @@ interface ProceedButtonProps {
 
 export function ProceedButton({
   onPress,
-  label = 'Continue →',
+  label = 'Continue',
   delaySeconds = 3,
   style,
 }: ProceedButtonProps) {

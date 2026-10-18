@@ -300,9 +300,11 @@ export function BrickBreak({ onComplete }: Props) {
 
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.livesText}>
-            {Array.from({ length: MAX_LIVES }, (_, i) => i < lives ? '●' : '○').join(' ')}
-          </Text>
+          <View style={{ flexDirection: 'row', gap: 6 }} accessibilityLabel={`${lives} lives left`}>
+            {Array.from({ length: MAX_LIVES }, (_, i) => (
+              <View key={i} style={{ width: 12, height: 12, borderRadius: 6, borderWidth: 2, borderColor: COLORS.cyan, backgroundColor: i < lives ? COLORS.cyan : 'transparent' }} />
+            ))}
+          </View>
           <Text style={styles.bricksText}>{bricksLeft} left</Text>
         </View>
 

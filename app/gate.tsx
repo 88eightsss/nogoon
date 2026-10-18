@@ -959,7 +959,7 @@ function NoGoonScreen() {
             </Text>
           </Pressable>
           <Pressable onPress={() => setPhase('intent')} style={styles.exitTextRow}>
-            <Text style={[styles.exitText, { color: C.textMuted }]}>← Back</Text>
+            <Text style={[styles.exitText, { color: C.textMuted }]}>Back</Text>
           </Pressable>
         </ScrollView>
         </KeyboardAvoidingView>

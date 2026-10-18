@@ -225,7 +225,7 @@ export function StackGame({ onComplete }: Props) {
           </View>
           <Text style={styles.challengeTag}>CHALLENGE MODE</Text>
           <Pressable style={styles.startButton} onPress={startGame}>
-            <Text style={styles.startButtonText}>Drop it →</Text>
+            <Text style={styles.startButtonText}>Drop it</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -250,7 +250,7 @@ export function StackGame({ onComplete }: Props) {
           <View style={styles.hudRight}>
             <Text style={styles.hudCount}>{stackCount} / {TARGET_STACKS}</Text>
             {perfectCount > 0 && (
-              <Text style={styles.hudPerfect}>✦ {perfectCount} perfect</Text>
+              <Text style={styles.hudPerfect}>{perfectCount} perfect</Text>
             )}
           </View>
         </View>
