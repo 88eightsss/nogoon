@@ -74,11 +74,18 @@ function EvolutionPanel({ char, fed, isActive, onChoose, colors }: {
         {STAGE_LABELS.map((label, i) => {
           const reached = i <= stage;
           const needs = i === 0 ? 0 : STAGE_AT[i - 1];
+          // Evolutions stay a surprise until they are reached.
           return (
-            <View key={label} style={{ flex: 1, alignItems: 'center', gap: 2, opacity: reached ? 1 : 0.35 }}>
-              <PackSprite char={char} stage={i as GoonStage} cell={3} />
-              <Text style={{ fontFamily: FONTS.body, fontSize: 10, color: i === stage ? colors.accent : colors.textSecondary }}>{label}</Text>
-              <Text style={{ fontFamily: FONTS.body, fontSize: 9, color: colors.textMuted }}>{i === 0 ? 'start' : `${needs} fed`}</Text>
+            <View key={label} style={{ flex: 1, alignItems: 'center', gap: 2 }} accessibilityLabel={reached ? label : 'Hidden evolution, not reached yet'}>
+              {reached ? (
+                <PackSprite char={char} stage={i as GoonStage} cell={3} />
+              ) : (
+                <View style={{ width: 30, height: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 8, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.border }}>
+                  <Feather name="help-circle" size={16} color={colors.textMuted} />
+                </View>
+              )}
+              <Text style={{ fontFamily: FONTS.body, fontSize: 10, color: i === stage ? colors.accent : reached ? colors.textSecondary : colors.textMuted }}>{reached ? label : '???'}</Text>
+              <Text style={{ fontFamily: FONTS.body, fontSize: 9, color: colors.textMuted }}>{reached ? (i === 0 ? 'start' : `${needs} fed`) : ' '}</Text>
             </View>
           );
         })}
@@ -89,7 +96,7 @@ function EvolutionPanel({ char, fed, isActive, onChoose, colors }: {
       <Text style={{ fontFamily: FONTS.body, fontSize: 13, color: colors.textSecondary }}>
         {next === null
           ? `${fed} fed. ${name} is fully evolved.`
-          : `${fed} fed. ${next - fed} more walk-aways to reach ${STAGE_LABELS[stage + 1]}.`}
+          : `${fed} fed. ${next - fed} more feedings to reveal the next evolution.`}
       </Text>
       {isActive ? (
         <Text style={{ fontFamily: FONTS.body, fontSize: 12, color: colors.accent }}>This is who you're feeding.</Text>
@@ -540,7 +547,7 @@ export default function CustomizeScreen() {
         <Text style={[styles.section, { color: colors.textMuted }]}>Your companion</Text>
         <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
           <Text style={[styles.body, { color: colors.text }]}>
-            Every walk-away feeds {CHARACTER_NAMES[activeChar]}. Switch anytime: only the one you're feeding grows, and the others keep what they've earned.
+            Walk-aways and walks earn treats. Feed {CHARACTER_NAMES[activeChar]} from Today and they grow. Switch anytime: only the one you're feeding grows, and the others keep what they've earned.
           </Text>
           <Text style={[styles.body, { color: colors.textSecondary }]}>
             {activeNext === null

@@ -37,9 +37,15 @@ interface MascotState {
   fed: Partial<Record<CharacterId, number>>;
   /** True once an existing install's walk-aways were credited to its companion. */
   migrated: boolean;
+  /** Treats earned by walking away or walking the pal. Spend one with Feed on Today. */
+  treats: number;
   setActive: (id: CharacterId) => void;
   /** Feed the active companion. */
   feed: (n?: number) => void;
+  /** Bank a treat (a walk-away or a walk earns one). */
+  addTreat: (n?: number) => void;
+  /** Spend one treat to feed the active companion. Returns false when there is none. */
+  feedWithTreat: () => boolean;
   /** One-off: credit lifetime walk-aways to the companion this install already had. */
   migrate: (active: CharacterId, walkAways: number) => void;
 }
@@ -50,6 +56,7 @@ export const useMascotStore = create<MascotState>()(
       active: 0,
       fed: {},
       migrated: false,
+      treats: 0,
       setActive: (id) => {
         if (!isCharacterId(id)) return;
         set({ active: id });
@@ -58,6 +65,13 @@ export const useMascotStore = create<MascotState>()(
       feed: (n = 1) => {
         const { active, fed } = get();
         set({ fed: { ...fed, [active]: (fed[active] ?? 0) + n } });
+      },
+      addTreat: (n = 1) => set({ treats: Math.min(99, get().treats + n) }),
+      feedWithTreat: () => {
+        const { treats, active, fed } = get();
+        if (treats < 1) return false;
+        set({ treats: treats - 1, fed: { ...fed, [active]: (fed[active] ?? 0) + 1 } });
+        return true;
       },
       migrate: (active, walkAways) => {
         if (get().migrated) return;
@@ -79,6 +93,7 @@ export const useMascotStore = create<MascotState>()(
           active: isCharacterId(p.active) ? p.active : 0,
           fed,
           migrated: p.migrated === true,
+          treats: typeof p.treats === 'number' && Number.isFinite(p.treats) ? Math.max(0, Math.min(99, Math.floor(p.treats))) : 0,
         };
       },
     },

@@ -31,7 +31,7 @@ export const CHAPTERS: Chapter[] = [
     id: 'basics', title: 'The basics', blurb: 'What happens when you open a blocked app', icon: 'compass', tone: 'accent',
     steps: [
       { title: 'A pause before the scroll', body: 'When you open an app you blocked, NoGoon steps in first. Try it: open the pretend app below.', demo: 'gate' },
-      { title: 'Walking away feeds your companion', body: 'Every walk-away makes your companion grow. Feed this one and watch it change shape.', demo: 'feed' },
+      { title: 'Walking away earns a treat', body: 'Every walk-away earns a treat. Tap Feed on Today to give it to your favorite and watch it change shape.', demo: 'feed' },
       { title: 'Need a minute', body: 'The big yellow button on Today is for when a craving shows up. Breathing is hands-on: hold to breathe in, let go to breathe out.', demo: 'hold' },
       { title: 'Unlock more as you go', body: 'Keep walking away and NoGoon opens up: the full Arcade, Insights and Journal unlock at walk-away milestones. Anything locked is waiting for you to earn it.' },
     ],
@@ -48,7 +48,7 @@ export const CHAPTERS: Chapter[] = [
     id: 'companions', title: 'Companions', blurb: 'Pick who grows with you', icon: 'smile', tone: 'me',
     steps: [
       { title: 'Choose who to feed', body: 'You can switch companion whenever you like, but only the one you feed evolves. Each keeps its own progress.', demo: 'picker' },
-      { title: 'Five stages each', body: 'Walk-aways feed your active companion. Stages arrive at 5, 15, 30 and 60. Tap any companion in Customize to see all five stages and how far along you are.', demo: 'feed' },
+      { title: 'Five stages each', body: 'Treats feed your active companion from Today. New forms arrive at 5, 15, 30 and 60 feedings, and stay a surprise until you reach them. Customize shows how far along each one is.', demo: 'feed' },
     ],
   },
   {

@@ -994,7 +994,7 @@ export const useUserStore = create<UserState>()(
         incrementStreak();
         incrementWalkAway();
         recordDailyWalkAway();
-        useMascotStore.getState().feed(1);   // a walk-away feeds the active companion
+        useMascotStore.getState().addTreat(1);   // a walk-away earns a treat; Feed on Today spends it
       },
 
       recordDailyWalkAway: () => {

@@ -201,7 +201,7 @@ export default function WalkScreen() {
     setMoving(false);
     const final = stepsRef.current;
     const got = useWalkStore.getState().finishWalk(final);
-    if (got) useMascotStore.getState().feed(1);
+    if (got) useMascotStore.getState().addTreat(1);
     setEarned(got);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     if (inGate) {
@@ -384,7 +384,7 @@ export default function WalkScreen() {
               <Feather name={earned ? 'heart' : 'info'} size={18} color={earned ? colors.accent : colors.textMuted} />
               <Text style={[s.noteText, { color: colors.textSecondary }]}>
                 {earned
-                  ? `${name} was fed from this walk and grew a little.`
+                  ? `You earned a treat. Feed ${name} from Today.`
                   : steps < WALK_MIN_STEPS_TO_FEED
                     ? `Walks of ${WALK_MIN_STEPS_TO_FEED}+ steps feed ${name}. This one was ${WALK_MIN_STEPS_TO_FEED - steps} short.`
                     : `${name} is full for today. Walk again tomorrow to feed them.`}

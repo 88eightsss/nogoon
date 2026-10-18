@@ -30,6 +30,7 @@ import { useAppBlocker } from '@/hooks/useAppBlocker';
 import { describeBlockingStatus } from '@/utils/blockingStatus';
 import { TemptedSheet } from './TemptedSheet';
 import { ReachOutTreat } from './ReachOutTreat';
+import { FeedPal } from './FeedPal';
 import { getTodaysGood, type GoodItem } from '@/lib/dailyGood';
 import { useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -214,6 +215,7 @@ export function MyPage() {
   );
   const partC = (
     <>
+      <FeedPal petName={petName} />
       <ReachOutTreat char={char} stage={stage} petName={petName} />
       <Pressable
         onPress={() => router.push('/walk' as any)}
@@ -370,8 +372,8 @@ export function MyPage() {
         <>
           {partC}
           {partD}
-          {partF}
           {partA}
+          {partF}
           {partB}
           {partG}
         </>
