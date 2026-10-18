@@ -215,7 +215,7 @@ export default function OnboardingScreen() {
   // Dark/Light switch on the palette screen. Starts from whatever the app is
   // showing right now (Dark by default) and re-themes the whole screen live.
   // It only exists on this one intro step; afterwards it lives in Me → Theme.
-  const [mode, setMode] = useState<'dark' | 'light'>(themeBrightness >= 50 ? 'light' : 'dark');
+  const [mode, setMode] = useState<'dark' | 'light'>('light');
   const chooseMode = (m: 'dark' | 'light') => {
     setMode(m);
     setThemeBrightness(m === 'light' ? 100 : 0);
@@ -225,6 +225,9 @@ export default function OnboardingScreen() {
     setThemeBrightness(mode === 'light' ? 100 : 0);
   };
   const [palettePicked, setPalettePicked] = useState(false);
+  // The welcome slides open in the light version; the palette screen's Dark/Light switch still
+  // lets people change it. Runs once, on arrival, for a fresh sign-up.
+  useEffect(() => { setThemeBrightness(100); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   // The sign-up form already asked for a name — reuse it instead of asking again.
   const knownName = (useUserStore.getState().name || (user?.user_metadata?.name as string | undefined) || '').trim();
   const [name, setNameLocal]              = useState(knownName);
