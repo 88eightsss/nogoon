@@ -238,13 +238,29 @@ export function RoomScene({
   const heartId = useRef(0);
   const dropHeart = useCallback((id: number) => setHearts((h) => h.filter((x) => x !== id)), []);
 
+  // Every tap gets a hop and a tick, but the pal does not chatter or shower hearts each time:
+  // a word every few taps, and a little burst of hearts only after a good run of them.
+  const sinceSay = useRef(0);
+  const sinceHeart = useRef(0);
+  const sayAfter = useRef(3 + Math.floor(Math.random() * 3));      // 3 to 5 taps
+  const heartAfter = useRef(6 + Math.floor(Math.random() * 4));    // 6 to 9 taps
   const petIt = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     const n = pets + 1;
     setPets(n);
-    speak(petLine(mood, n));
     hopOnce(8);
-    setHearts((h) => [...h, heartId.current++, heartId.current++]);
+    sinceSay.current += 1;
+    sinceHeart.current += 1;
+    if (sinceSay.current >= sayAfter.current) {
+      sinceSay.current = 0;
+      sayAfter.current = 3 + Math.floor(Math.random() * 3);
+      speak(petLine(mood, n));
+    }
+    if (sinceHeart.current >= heartAfter.current) {
+      sinceHeart.current = 0;
+      heartAfter.current = 6 + Math.floor(Math.random() * 4);
+      setHearts((h) => [...h, heartId.current++, heartId.current++, heartId.current++]);
+    }
     if (mood === 'sleepy') {
       setAwake(true);
       later(() => setAwake(false), 9000);
