@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/useTheme';
 import { useTourStore } from '@/stores/useTourStore';
 import { useUserStore } from '@/stores/useUserStore';
+import { useRoomStore } from '@/stores/useRoomStore';
 import { FONTS } from '@/constants/Colors';
 
 const SEEN_KEY = 'tabs';
@@ -34,6 +35,7 @@ export function TabCoach() {
   const seen = useTourStore((s) => !!s.coachSeen[SEEN_KEY]);
   const markCoachSeen = useTourStore((s) => s.markCoachSeen);
   const hasOnboarded = useUserStore((s) => s.hasOnboarded);
+  const raised = useRoomStore((s) => s.tabStyle) === 'raised';
 
   const [size, setSize] = useState({ w: 0, h: 0 });
   const [step, setStep] = useState(0);
@@ -60,7 +62,7 @@ export function TabCoach() {
 
   const stop = STOPS[step];
   const last = step === STOPS.length - 1;
-  const barH = 60 + insets.bottom;
+  const barH = (raised ? 76 : 60) + insets.bottom;
 
   // The hole around the lit element, in this overlay's own coordinates.
   const hole = stop.slot === 'help'

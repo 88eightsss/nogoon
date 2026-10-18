@@ -35,6 +35,7 @@ import { useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StyleCard } from './StyleCard';
 import { RoomScene, RoomTitle } from './RoomScene';
+import { PackSprite } from './PackSprite';
 import { useRoomStore } from '@/stores/useRoomStore';
 import { useOfferStore } from '@/stores/useOfferStore';
 
@@ -69,6 +70,8 @@ export function MyPage() {
   const dayDisplay = usePackStore((s) => s.dayDisplay);
   const roomView = useRoomStore((s) => s.roomView);
   const setRoomView = useRoomStore((s) => s.setRoomView);
+  const layout = useRoomStore((s) => s.todayLayout);
+  const isFocus = layout === 'focus';
   const showSponsors = useOfferStore((s) => s.showSponsors);
 
   const name          = useUserStore((s) => s.name);
@@ -157,14 +160,50 @@ export function MyPage() {
         </Pressable>
       </View>
 
-      {roomView ? (
+      {isFocus ? (
+        <View style={styles.focusWrap}>
+          <PackSprite char={char} stage={stage} cell={7} />
+          <Text style={[styles.focusNum, { color: colors.text }]}>{streak}</Text>
+          <Text style={[styles.focusLabel, { color: colors.textSecondary }]}>
+            day{streak === 1 ? '' : 's'} in a row with {petName}
+          </Text>
+        </View>
+      ) : roomView ? (
         <>
         <RoomTitle />
         <RoomScene
           char={char} stage={stage} streak={streak} walkAways={walkAways}
           headline={topGood?.headline ?? null} showSponsors={showSponsors} petName={petName}
           protectionOff={blockingStatus === 'off' || blockingStatus === 'empty'}
+          {...(layout === 'cards' ? { maxWidth: 300, outerPad: 96, showTicker: false } : {})}
         />
+        {layout === 'cards' && (
+          <>
+          <View style={styles.trio}>
+            {[
+              { v: String(streak), l: 'day streak' },
+              { v: String(walkAways), l: 'walk-aways' },
+              { v: savedLabel, l: 'time saved' },
+            ].map((t) => (
+              <View key={t.l} style={[styles.trioCell, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+                <Text style={[styles.trioNum, { color: colors.text }]}>{t.v}</Text>
+                <Text style={[styles.cardMeta, { color: colors.textMuted }]}>{t.l}</Text>
+              </View>
+            ))}
+          </View>
+          <Pressable
+            onPress={() => router.push('/(tabs)/feed' as any)}
+            style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
+            accessibilityRole="button"
+            accessibilityLabel="Open today's briefing"
+          >
+            <Text style={[styles.cardMeta, { color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.6 }]}>Good news today</Text>
+            <Text style={[styles.cardTitle, { color: colors.text }]} numberOfLines={2}>
+              {topGood?.headline ?? 'Open the briefing for good news and something to be curious about.'}
+            </Text>
+          </Pressable>
+          </>
+        )}
         </>
       ) : (
         <>
@@ -204,7 +243,7 @@ export function MyPage() {
         </View>
         <Feather name="chevron-right" size={18} color={colors.textMuted} />
       </Pressable>
-      {roomView ? null : pack.parts.page.frame === 'corner' ? (
+      {isFocus || roomView ? null : pack.parts.page.frame === 'corner' ? (
         <Text style={[styles.cornerHint, { color: colors.textMuted }]}>
           {floatVisible ? `${petName} is in the corner. Drag them anywhere, tap to say hi.` : `${petName} is resting. Turn them back on in Customize.`}
         </Text>
@@ -222,6 +261,8 @@ export function MyPage() {
         </>
       )}
 
+      {isFocus ? null : (
+      <>
       <Pressable
         onPress={toggleMore}
         style={[styles.moreBtn, { borderColor: colors.border }]}
@@ -277,8 +318,11 @@ export function MyPage() {
         </>
       )}
 
+      </>
+      )}
+
       <Pressable onPress={() => { Haptics.selectionAsync().catch(() => {}); setRoomView(!roomView); }} hitSlop={8} style={styles.switchView} accessibilityRole="button">
-        <Text style={[styles.switchText, { color: colors.textMuted }]}>{roomView ? 'Switch to the plain page' : 'Switch to the room'}</Text>
+        <Text style={[styles.switchText, { color: colors.textMuted }]}>{roomView ? 'Switch to the plain page' : 'Switch to the room'}  ·  more layouts in Customize</Text>
       </Pressable>
     </ScrollView>
     <TemptedSheet visible={tempted} onClose={() => setTempted(false)} />
@@ -288,6 +332,12 @@ export function MyPage() {
 
 const styles = StyleSheet.create({
   content: { padding: SPACING.lg, gap: SPACING.md, paddingBottom: SPACING.huge },
+  focusWrap: { alignItems: 'center', gap: 2, paddingVertical: SPACING.lg },
+  focusNum: { fontFamily: FONTS.display, fontSize: 64, lineHeight: 72 },
+  focusLabel: { fontFamily: FONTS.body, fontSize: 14 },
+  trio: { flexDirection: 'row', gap: SPACING.sm },
+  trioCell: { flex: 1, alignItems: 'center', paddingVertical: 12, gap: 1 },
+  trioNum: { fontFamily: FONTS.display, fontSize: 20 },
   headRow: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.sm },
   pencil:  { width: 34, height: 34, borderRadius: 17, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
   tempted: { borderRadius: 18, paddingVertical: 18, alignItems: 'center', gap: 2, borderBottomWidth: 3, borderBottomColor: '#D99E00' },

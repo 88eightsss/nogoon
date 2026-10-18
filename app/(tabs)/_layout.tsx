@@ -27,6 +27,9 @@ import { Feather } from '@expo/vector-icons';
 import { Pressable, View, Text } from 'react-native';
 import { FloatingCompanion } from '@/components/page/FloatingCompanion';
 import { TabCoach } from '@/components/tour/TabCoach';
+import { PackSprite } from '@/components/page/PackSprite';
+import { useMascot } from '@/components/page/useCharacter';
+import { useRoomStore } from '@/stores/useRoomStore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeStore } from '@/stores/useThemeStore';
 import { useUserStore } from '@/stores/useUserStore';
@@ -37,6 +40,22 @@ import { FONTS } from '@/constants/Colors';
 
 type FeatherName = React.ComponentProps<typeof Feather>['name'];
 
+// "Raised Today" tab bar: the centre tab is a round button showing the active companion.
+function RaisedToday({ focused, color, ring }: { focused: boolean; color: string; ring: string }) {
+  const { char, stage } = useMascot();
+  return (
+    <View
+      style={{
+        width: 54, height: 54, borderRadius: 27, marginTop: -22, alignItems: 'center', justifyContent: 'center',
+        backgroundColor: focused ? color : color + '33', borderWidth: 3, borderColor: ring,
+        shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 5,
+      }}
+    >
+      <PackSprite char={char} stage={stage} cell={3} />
+    </View>
+  );
+}
+
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const { themeId, themeBrightness } = useThemeStore();
@@ -44,6 +63,7 @@ export default function TabsLayout() {
   const accentOverride = usePackStore((s) => s.accentOverride);
   const colors = resolveSkinPalette(themeId, themeBrightness, pack, accentOverride);
   const requestGuideReopen = useUserStore((s) => s.requestGuideReopen);
+  const raised = useRoomStore((s) => s.tabStyle) === 'raised';
 
   // Tab definitions use live theme colors — updates whenever theme changes.
   // guidePage must match the `page` prop each tab's own <PageGuide/> uses.
@@ -124,8 +144,8 @@ export default function TabsLayout() {
           backgroundColor: colors.background,
           borderTopColor: colors.border,
           borderTopWidth: 1,
-          height: 60 + insets.bottom,
-          paddingTop: 6,
+          height: (raised ? 76 : 60) + insets.bottom,
+          paddingTop: raised ? 14 : 6,
           paddingBottom: insets.bottom + 4,
         },
         tabBarShowLabel: true,
@@ -147,7 +167,9 @@ export default function TabsLayout() {
                 <Feather name="help-circle" size={22} color={colors.textMuted} />
               </Pressable>
             ),
-            tabBarIcon: ({ focused, size }) => (
+            tabBarIcon: ({ focused, size }) => (raised && tab.name === 'index') ? (
+              <RaisedToday focused={focused} color={tab.color} ring={colors.background} />
+            ) : (
               <View style={{ alignItems: 'center' }}>
                 <View
                   style={{

@@ -13,9 +13,21 @@ import {
 
 export const ROOM_NAME_MAX = 24;
 
+/** How the Today tab is laid out. */
+export type TodayLayout = 'room' | 'cards' | 'plain' | 'focus';
+export const TODAY_LAYOUTS: TodayLayout[] = ['room', 'cards', 'plain', 'focus'];
+/** How the bottom tab bar looks. */
+export type TabStyle = 'standard' | 'raised';
+const isLayout = (v: unknown): v is TodayLayout => typeof v === 'string' && (TODAY_LAYOUTS as string[]).includes(v);
+const hasRoom = (l: TodayLayout) => l === 'room' || l === 'cards';
+
 interface RoomState {
-  roomView: boolean;
+  roomView: boolean;            // true for the layouts that show the room (room, cards)
   setRoomView: (on: boolean) => void;
+  todayLayout: TodayLayout;
+  setTodayLayout: (l: TodayLayout) => void;
+  tabStyle: TabStyle;
+  setTabStyle: (t: TabStyle) => void;
   roomName: string;
   setRoomName: (name: string) => void;
   look: RoomLook;
@@ -29,7 +41,15 @@ export const useRoomStore = create<RoomState>()(
   persist(
     (set, get) => ({
       roomView: true,
-      setRoomView: (on) => set({ roomView: on }),
+      setRoomView: (on) => {
+        const cur = get().todayLayout;
+        const todayLayout: TodayLayout = on ? (hasRoom(cur) ? cur : 'room') : 'plain';
+        set({ roomView: on, todayLayout });
+      },
+      todayLayout: 'room',
+      setTodayLayout: (l) => set({ todayLayout: l, roomView: hasRoom(l) }),
+      tabStyle: 'standard',
+      setTabStyle: (t) => set({ tabStyle: t }),
       roomName: '',
       setRoomName: (name) => set({ roomName: name.slice(0, ROOM_NAME_MAX) }),
       look: DEFAULT_LOOK,
@@ -56,9 +76,12 @@ export const useRoomStore = create<RoomState>()(
         for (const k of Object.keys(DEFAULT_DECOR) as DecorKey[]) {
           if (typeof p.decor?.[k] === 'boolean') decor[k] = p.decor[k];
         }
+        const todayLayout: TodayLayout = isLayout(p.todayLayout) ? p.todayLayout : (p.roomView === false ? 'plain' : 'room');
         return {
           ...current,
-          roomView: p.roomView !== false,
+          todayLayout,
+          roomView: hasRoom(todayLayout),
+          tabStyle: p.tabStyle === 'raised' ? 'raised' : 'standard',
           roomName: typeof p.roomName === 'string' ? p.roomName.slice(0, ROOM_NAME_MAX) : '',
           look, decor,
         };

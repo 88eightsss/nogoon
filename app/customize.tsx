@@ -18,7 +18,7 @@ import type { CharacterId } from '@/stores/usePetStore';
 import type { GoonStage } from '@/constants/sprites';
 import { BUNDLES, CUSTOM_LEN, CUSTOM_MAX } from '@/constants/offers';
 import { useOfferStore } from '@/stores/useOfferStore';
-import { useRoomStore, ROOM_NAME_MAX } from '@/stores/useRoomStore';
+import { useRoomStore, ROOM_NAME_MAX, type TodayLayout, type TabStyle } from '@/stores/useRoomStore';
 import { RoomScene } from '@/components/page/RoomScene';
 import { LOOK_PARTS, ROOM_SWATCHES, DECOR_UNLOCK, type DecorKey } from '@/constants/room';
 import { useUserStore } from '@/stores/useUserStore';
@@ -50,7 +50,7 @@ const HUB: { id: CustSection; icon: ComponentProps<typeof Feather>['name']; titl
   { id: 'companion', icon: 'smile',      title: 'Your companion',       sub: 'Which one, how it floats, how big' },
   { id: 'colour',    icon: 'droplet',    title: 'Colour & paper',       sub: 'Accent colour and page background' },
   { id: 'gate',      icon: 'shield',     title: 'At the gate',          sub: 'Instead bundles, your own list, your note' },
-  { id: 'layout',    icon: 'layout',     title: 'Layout & news',        sub: 'Room or plain page, news, sponsors' },
+  { id: 'layout',    icon: 'layout',     title: 'Layout & news',        sub: 'Today page, tab bar, news, sponsors' },
 ];
 
 const STAGE_LABELS = ['Dormant', 'Awakening', 'Standing', 'Powered', 'Legendary'];
@@ -124,6 +124,63 @@ function Chips<T extends string>({ items, value, onChange, colors }: {
   );
 }
 
+// ── Layout previews: tiny phone sketches so you can see the layout before choosing it ──────────
+const LAYOUT_CHOICES: { id: TodayLayout; title: string; sub: string }[] = [
+  { id: 'room',  title: 'Room',           sub: 'Your companion in its room' },
+  { id: 'cards', title: 'Room and cards', sub: 'Smaller room, your numbers, good news' },
+  { id: 'plain', title: 'Plain page',     sub: 'Paper, companion and stamps' },
+  { id: 'focus', title: 'Just the button', sub: 'Streak, button, nothing else' },
+];
+
+function LayoutSketch({ kind, colors }: { kind: TodayLayout; colors: { accent: string; accentDim: string; border: string; surfaceHigh: string; textMuted: string } }) {
+  const line = { height: 4, borderRadius: 2, backgroundColor: colors.border };
+  const yellow = { height: 12, borderRadius: 5, backgroundColor: '#FFC21A' };
+  const card = { height: 9, borderRadius: 3, backgroundColor: colors.surfaceHigh, borderWidth: 1, borderColor: colors.border };
+  return (
+    <View style={{ width: 62, height: 96, borderRadius: 9, borderWidth: 1.5, borderColor: colors.border, padding: 5, gap: 4, backgroundColor: colors.surfaceHigh + '88' }}>
+      <View style={[line, { width: '55%' }]} />
+      {kind === 'room' && <View style={{ height: 36, borderRadius: 4, backgroundColor: colors.accentDim }} />}
+      {kind === 'cards' && (
+        <>
+          <View style={{ height: 22, width: '72%', alignSelf: 'center', borderRadius: 4, backgroundColor: colors.accentDim }} />
+          <View style={{ flexDirection: 'row', gap: 2 }}>
+            {[0, 1, 2].map((i) => <View key={i} style={[card, { flex: 1, height: 10 }]} />)}
+          </View>
+          <View style={card} />
+        </>
+      )}
+      {kind === 'plain' && (
+        <>
+          <View style={[line, { width: '40%', height: 8, backgroundColor: colors.textMuted }]} />
+          <View style={[line, { width: '85%' }]} />
+          <View style={[line, { width: '70%' }]} />
+        </>
+      )}
+      {kind === 'focus' && (
+        <>
+          <View style={{ width: 16, height: 16, borderRadius: 8, alignSelf: 'center', backgroundColor: colors.accentDim }} />
+          <View style={[line, { width: 20, height: 10, alignSelf: 'center', backgroundColor: colors.textMuted }]} />
+        </>
+      )}
+      <View style={yellow} />
+      {kind !== 'focus' && <View style={card} />}
+      {kind === 'plain' && <View style={card} />}
+    </View>
+  );
+}
+
+function TabSketch({ kind, colors }: { kind: TabStyle; colors: { accent: string; border: string; textMuted: string; surfaceHigh: string } }) {
+  return (
+    <View style={{ width: 118, height: 40, borderRadius: 8, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.surfaceHigh + '88', flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-around', paddingBottom: 6, paddingHorizontal: 4 }}>
+      {[0, 1, 2, 3, 4].map((i) =>
+        i === 2 && kind === 'raised'
+          ? <View key={i} style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: colors.accent, marginBottom: 5, borderWidth: 2, borderColor: colors.surfaceHigh }} />
+          : <View key={i} style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: i === 2 ? colors.accent : colors.textMuted }} />
+      )}
+    </View>
+  );
+}
+
 export default function CustomizeScreen() {
   const { colors, cardStyle } = useTheme();
   const showWorldNews = usePackStore((s) => s.showWorldNews);
@@ -136,8 +193,10 @@ export default function CustomizeScreen() {
   const bundleIds     = useOfferStore((s) => s.bundleIds);
   const myList        = useOfferStore((s) => s.custom);
   const toggleBundle  = useOfferStore((s) => s.toggleBundle);
-  const roomView      = useRoomStore((s) => s.roomView);
-  const setRoomView   = useRoomStore((s) => s.setRoomView);
+  const todayLayout   = useRoomStore((s) => s.todayLayout);
+  const setTodayLayout = useRoomStore((s) => s.setTodayLayout);
+  const tabStyle       = useRoomStore((s) => s.tabStyle);
+  const setTabStyle    = useRoomStore((s) => s.setTabStyle);
   const showSponsors  = useOfferStore((s) => s.showSponsors);
   const setShowSponsors = useOfferStore((s) => s.setShowSponsors);
   const addMine        = useOfferStore((s) => s.addCustom);
@@ -336,23 +395,51 @@ export default function CustomizeScreen() {
 
         {section === 'layout' && (
         <>
-        <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
-          <View style={styles.rowBetween}>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.cardTitle, { color: colors.text }]}>Today as a room</Text>
-              <Text style={[styles.body, { color: colors.textSecondary }]}>
-                Your companion lives in a small room. Tap the window, door, corkboard, bed or dresser to go there. The room fills in as you walk away. Turn off for the plain page.
-              </Text>
-            </View>
-            <Switch
-              value={roomView}
-              onValueChange={setRoomView}
-              trackColor={{ false: colors.border, true: colors.accent }}
-              thumbColor="#fff"
-            />
-          </View>
+        <Text style={[styles.section, { color: colors.textMuted }]}>Today page</Text>
+        <View style={styles.tileGrid}>
+          {LAYOUT_CHOICES.map((l) => {
+            const on = todayLayout === l.id;
+            return (
+              <Pressable
+                key={l.id}
+                onPress={() => setTodayLayout(l.id)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: on }}
+                accessibilityLabel={`${l.title}. ${l.sub}`}
+                style={[styles.tile, cardStyle, { backgroundColor: on ? colors.accentDim : colors.surface, borderColor: on ? colors.accent : colors.cardBorder }]}
+              >
+                <LayoutSketch kind={l.id} colors={colors} />
+                <Text style={[styles.cardTitle, { color: colors.text, textAlign: 'center' }]}>{l.title}</Text>
+                <Text style={[styles.hint, { color: colors.textSecondary, textAlign: 'center' }]}>{l.sub}</Text>
+                {on && <Feather name="check-circle" size={16} color={colors.accent} />}
+              </Pressable>
+            );
+          })}
         </View>
 
+        <Text style={[styles.section, { color: colors.textMuted }]}>Tab bar</Text>
+        <View style={styles.tileGrid}>
+          {([['standard', 'Standard', 'Five equal tabs'], ['raised', 'Raised Today', 'Your companion in a round centre button']] as const).map(([id, title, sub]) => {
+            const on = tabStyle === id;
+            return (
+              <Pressable
+                key={id}
+                onPress={() => setTabStyle(id)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: on }}
+                accessibilityLabel={`${title}. ${sub}`}
+                style={[styles.tile, cardStyle, { backgroundColor: on ? colors.accentDim : colors.surface, borderColor: on ? colors.accent : colors.cardBorder }]}
+              >
+                <TabSketch kind={id} colors={colors} />
+                <Text style={[styles.cardTitle, { color: colors.text, textAlign: 'center' }]}>{title}</Text>
+                <Text style={[styles.hint, { color: colors.textSecondary, textAlign: 'center' }]}>{sub}</Text>
+                {on && <Feather name="check-circle" size={16} color={colors.accent} />}
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <Text style={[styles.section, { color: colors.textMuted }]}>Briefing and sponsors</Text>
         <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
           <View style={styles.rowBetween}>
             <View style={{ flex: 1 }}>
@@ -361,6 +448,14 @@ export default function CustomizeScreen() {
                 A short, calm summary of the biggest stories, a few items a day, then it ends. Off by default.
               </Text>
             </View>
+            <Switch
+              value={showWorldNews}
+              onValueChange={setShowWorldNews}
+              trackColor={{ false: colors.border, true: colors.accent }}
+              thumbColor="#fff"
+            />
+          </View>
+        </View>
 
         <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
           <View style={styles.rowBetween}>
@@ -378,15 +473,6 @@ export default function CustomizeScreen() {
             />
           </View>
         </View>
-            <Switch
-              value={showWorldNews}
-              onValueChange={setShowWorldNews}
-              trackColor={{ false: colors.border, true: colors.accent }}
-              thumbColor="#fff"
-            />
-          </View>
-        </View>
-
         </>
         )}
 
@@ -640,6 +726,8 @@ const styles = StyleSheet.create({
   cardTitle:{ fontFamily: FONTS.bodyBold, fontSize: 15 },
   body:    { fontFamily: FONTS.body, fontSize: 13, lineHeight: 19 },
   hint:    { fontFamily: FONTS.body, fontSize: 12 },
+  tileGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
+  tile: { width: '48%', flexGrow: 1, alignItems: 'center', gap: 6, padding: SPACING.md },
   section: { fontFamily: FONTS.bodyMedium, fontSize: 12, letterSpacing: 0.6, textTransform: 'uppercase', marginTop: SPACING.sm },
   rowBetween: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
   pack:    { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, padding: SPACING.md },
