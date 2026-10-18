@@ -132,7 +132,7 @@ export default function FeedScreen() {
         <Text style={[styles.btnText, { color: colors.accent }]}>Write it down</Text>
       </Pressable>
       {[
-        { icon: 'book-open' as const, label: 'Journal', body: 'Colourful pages, stickers, doodles and a canvas for your thoughts. Everything stays on your phone.', go: () => router.push('/journal' as any) },
+        { icon: 'book-open' as const, label: 'Journal', body: 'Colourful pages, stickers, doodles and thought bubbles for your head. Everything stays on your phone.', go: () => router.push('/journal' as any) },
         { icon: 'map-pin' as const,   label: 'Happening near you', body: 'Farmers markets, volunteering and community events.', go: () => router.push('/events' as any) },
         { icon: 'grid' as const,      label: 'The Wall', body: 'Sponsored. Local businesses and makers. Only when you choose to look.', go: () => router.push('/wall' as any) },
       ].filter((r) => showSponsors || r.label !== 'The Wall').map((r) => (

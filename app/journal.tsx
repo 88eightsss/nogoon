@@ -25,7 +25,7 @@ import { MomentsView } from '@/components/journal/MomentsView';
 type Tab = 'pages' | 'canvas' | 'moments';
 const TABS: { id: Tab; label: string }[] = [
   { id: 'pages',   label: 'Pages' },
-  { id: 'canvas',  label: 'Canvas' },
+  { id: 'canvas',  label: 'Thought bubbles' },
   { id: 'moments', label: 'Moments' },
 ];
 
@@ -73,7 +73,7 @@ export default function JournalScreen() {
               accessibilityState={{ selected: on }}
               style={[styles.segBtn, on && { backgroundColor: colors.accent }]}
             >
-              <Text style={[styles.segText, { color: on ? '#fff' : colors.textSecondary }]}>{t.label}</Text>
+              <Text numberOfLines={1} adjustsFontSizeToFit style={[styles.segText, { color: on ? '#fff' : colors.textSecondary }]}>{t.label}</Text>
             </Pressable>
           );
         })}

@@ -90,7 +90,7 @@ const TOOLS: Tool[] = [
     icon:      'book-open',
     iconColor: '#0277BD',
     title:     'Journal',
-    subtitle:  'Colourful pages, stickers and doodles · plus a canvas to empty your head',
+    subtitle:  'Colourful pages, stickers and doodles · plus thought bubbles to empty your head',
     route:     '/journal' as Href,
   },
   {

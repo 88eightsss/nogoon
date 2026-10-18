@@ -53,10 +53,10 @@ export const CHAPTERS: Chapter[] = [
     ],
   },
   {
-    id: 'journal', title: 'Journal', blurb: 'Pages, a thought canvas and quick moments', icon: 'edit-3', tone: 'me',
+    id: 'journal', title: 'Journal', blurb: 'Pages, thought bubbles and quick moments', icon: 'edit-3', tone: 'me',
     steps: [
       { title: 'Make a page yours', body: 'Pick paper, add stickers (even your companions), doodle, use a template or a prompt. Try dragging a sticker.', demo: 'sticker' },
-      { title: 'Canvas and Moments', body: 'Canvas is Brain Bubbles, a big space for emptying your head. Moments keeps the quick notes from urge moments. Text size and easy-read spacing live in the Style tab. Everything stays on your phone.' },
+      { title: 'Thought bubbles and Moments', body: 'Thought bubbles are a big space for emptying your head: add a bubble, type what is on your mind, drag it around. Moments keeps the quick notes from urge moments. Text size and easy-read spacing live in the Style tab. Everything stays on your phone.' },
     ],
   },
   {
