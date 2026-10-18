@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView, BackHandler } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useLocalSearchParams, type Href } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { FONTS } from '@/constants/Colors';
@@ -19,7 +19,7 @@ import { useTourStore } from '@/stores/useTourStore';
 import { DEMOS, type DemoKey } from '@/components/tour/Demos';
 
 type FeatherName = React.ComponentProps<typeof Feather>['name'];
-type TourStep = { title: string; body: string; demo?: DemoKey; cta?: { label: string; route: string } };
+type TourStep = { title: string; body: string; demo?: DemoKey };
 type Chapter = {
   id: string; title: string; blurb: string; icon: FeatherName;
   tone: 'accent' | 'calm' | 'me' | 'protect' | 'arcade';
@@ -32,60 +32,60 @@ export const CHAPTERS: Chapter[] = [
     steps: [
       { title: 'A pause before the scroll', body: 'When you open an app you blocked, NoGoon steps in first. Try it: open the pretend app below.', demo: 'gate' },
       { title: 'Walking away feeds your companion', body: 'Every walk-away makes your companion grow. Feed this one and watch it change shape.', demo: 'feed' },
-      { title: 'Need a minute', body: 'The big yellow button on Today is for when a craving shows up. Breathing is hands-on: hold to breathe in, let go to breathe out.', demo: 'hold', cta: { label: 'Try the real breathing', route: '/breathe' } },
-      { title: 'Unlock more as you go', body: 'Keep walking away and NoGoon opens up: the full Arcade, Insights and Journal unlock at walk-away milestones. Anything locked is waiting for you to earn it.', cta: { label: "See what's locked", route: '/(tabs)/arcade' } },
+      { title: 'Need a minute', body: 'The big yellow button on Today is for when a craving shows up. Breathing is hands-on: hold to breathe in, let go to breathe out.', demo: 'hold' },
+      { title: 'Unlock more as you go', body: 'Keep walking away and NoGoon opens up: the full Arcade, Insights and Journal unlock at walk-away milestones. Anything locked is waiting for you to earn it.' },
     ],
   },
   {
     id: 'calm', title: 'Calm and urges', blurb: 'Ride out a craving instead of fighting it', icon: 'wind', tone: 'calm',
     steps: [
       { title: 'Urges rise, peak and pass', body: 'A craving feels endless, but it crests and fades, usually in minutes. Watch one do it.', demo: 'wave' },
-      { title: 'Breathe with your thumb', body: 'Hold to breathe in, release to breathe out. Five slow breaths. Can\'t hold? There is a follow-along mode too.', demo: 'hold', cta: { label: 'Open Breathe', route: '/breathe' } },
-      { title: 'More ways to settle', body: 'The Calm tab also has Grounding (notice five things around you) and the Waiting Room, a five second pause with a truth card and the urge wave.', cta: { label: 'Open the Waiting Room', route: '/waiting-room' } },
+      { title: 'Breathe with your thumb', body: 'Hold to breathe in, release to breathe out. Five slow breaths. Can\'t hold? There is a follow-along mode too.', demo: 'hold' },
+      { title: 'More ways to settle', body: 'The Calm tab also has Grounding (notice five things around you) and the Waiting Room, a five second pause with a truth card and the urge wave.' },
     ],
   },
   {
     id: 'companions', title: 'Companions', blurb: 'Pick who grows with you', icon: 'smile', tone: 'me',
     steps: [
       { title: 'Choose who to feed', body: 'You can switch companion whenever you like, but only the one you feed evolves. Each keeps its own progress.', demo: 'picker' },
-      { title: 'Five stages each', body: 'Walk-aways feed your active companion. Stages arrive at 5, 15, 30 and 60. Tap any companion in Customize to see all five stages and how far along you are.', demo: 'feed', cta: { label: 'Open Customize', route: '/customize' } },
+      { title: 'Five stages each', body: 'Walk-aways feed your active companion. Stages arrive at 5, 15, 30 and 60. Tap any companion in Customize to see all five stages and how far along you are.', demo: 'feed' },
     ],
   },
   {
     id: 'journal', title: 'Journal', blurb: 'Pages, a thought canvas and quick moments', icon: 'edit-3', tone: 'me',
     steps: [
       { title: 'Make a page yours', body: 'Pick paper, add stickers (even your companions), doodle, use a template or a prompt. Try dragging a sticker.', demo: 'sticker' },
-      { title: 'Canvas and Moments', body: 'Canvas is Brain Bubbles, a big space for emptying your head. Moments keeps the quick notes from urge moments. Text size and easy-read spacing live in the Style tab. Everything stays on your phone.', cta: { label: 'Open Journal', route: '/journal' } },
+      { title: 'Canvas and Moments', body: 'Canvas is Brain Bubbles, a big space for emptying your head. Moments keeps the quick notes from urge moments. Text size and easy-read spacing live in the Style tab. Everything stays on your phone.' },
     ],
   },
   {
     id: 'modes', title: 'Modes and schedules', blurb: 'Different blocklists for work, study, sleep', icon: 'clock', tone: 'protect',
     steps: [
       { title: 'Set it like an alarm', body: 'Each mode is a saved blocklist with its own time window. Spin the wheels below and watch the "next change" line update.', demo: 'clock' },
-      { title: 'Switches, days and curfew', body: 'Flip a mode\'s switch to turn its schedule on, tap the card to choose days and times. The Digital Curfew in Me uses the same clock wheels.', cta: { label: 'Open Modes', route: '/modes' } },
+      { title: 'Switches, days and curfew', body: 'Flip a mode\'s switch to turn its schedule on, tap the card to choose days and times. The Digital Curfew in Me uses the same clock wheels.' },
     ],
   },
   {
     id: 'briefing', title: 'Briefing and near you', blurb: 'Good news with an ending, and real things to do', icon: 'sun', tone: 'accent',
     steps: [
-      { title: 'A feed that ends', body: 'The Briefing is good news and what the world is curious about. Choose Up to 20 stories (then it ends) or Endless.', demo: 'briefing', cta: { label: 'Open the Briefing', route: '/(tabs)/feed' } },
-      { title: 'Happening near you', body: 'Farmers markets, volunteering and community events, checked by hand, each linking to the organiser. A reason to go outside.', demo: 'nearby', cta: { label: 'Happening near you', route: '/events' } },
+      { title: 'A feed that ends', body: 'The Briefing is good news and what the world is curious about. Choose Up to 20 stories (then it ends) or Endless.', demo: 'briefing' },
+      { title: 'Happening near you', body: 'Farmers markets, volunteering and community events, checked by hand, each linking to the organiser. A reason to go outside.', demo: 'nearby' },
     ],
   },
   {
     id: 'protect', title: 'Stronger focus', blurb: 'Intentions, focus sessions, wind-down, insights', icon: 'shield', tone: 'protect',
     steps: [
       { title: 'Set an intention', body: 'A line in your own words that shows on the gate. Not a rule, just a nudge from past-you to present-you.', demo: 'intention' },
-      { title: 'Focus Session and Wind-down', body: 'A Focus Session pause-proofs your blocklist for a set time. Wind-down adds friction after your cutoff each night. Both are in Me, under Blocking strength.', cta: { label: 'Open Me', route: '/(tabs)/profile' } },
-      { title: 'Find your patterns', body: 'Insights shows your walk-aways this week, your peak distraction hour and how you felt afterwards. Most people find a two hour window behind most of their scrolling.', cta: { label: 'View Insights', route: '/insights' } },
+      { title: 'Focus Session and Wind-down', body: 'A Focus Session pause-proofs your blocklist for a set time. Wind-down adds friction after your cutoff each night. Both are in Me, under Blocking strength.' },
+      { title: 'Find your patterns', body: 'Insights shows your walk-aways this week, your peak distraction hour and how you felt afterwards. Most people find a two hour window behind most of their scrolling.' },
     ],
   },
   {
     id: 'extras', title: 'Little extras', blurb: 'A nudge to reach out, and a phone trick', icon: 'gift', tone: 'arcade',
     steps: [
       { title: 'A nudge to reach out', body: 'After a long scroll your companion may leave a card on Today with a ready-made hello. It is never a notification, and nothing is sent unless you send it.', demo: 'reach' },
-      { title: 'Take your pal for a walk', body: 'Under Unwind, "Take your pal for a walk" counts your steps with the phone\'s sensors while your companion trots along. Walk 500 steps or more and they get fed. No location needed.', cta: { label: 'Try a walk', route: '/walk' } },
-      { title: 'Make the phone duller', body: 'Your phone\'s own grayscale makes scrolling less sticky. The Tips page shows where to find it on your phone.', cta: { label: 'See Tips', route: '/tips' } },
+      { title: 'Take your pal for a walk', body: 'Under Unwind, "Take your pal for a walk" counts your steps with the phone\'s sensors while your companion trots along. Walk 500 steps or more and they get fed. No location needed.' },
+      { title: 'Make the phone duller', body: 'Your phone\'s own grayscale makes scrolling less sticky. The Tips page shows where to find it on your phone.' },
     ],
   },
 ];
@@ -263,16 +263,6 @@ export default function TutorialScreen() {
               </View>
             )}
 
-            {step.cta && (
-              <Pressable
-                style={[s.cta, { borderColor: tone + '66', backgroundColor: tone + '14' }]}
-                onPress={() => { markTutorialSeen(); router.push(step.cta!.route as Href); }}
-                accessibilityRole="button"
-              >
-                <Text style={[s.ctaText, { color: tone }]}>{step.cta.label}</Text>
-                <Feather name="arrow-right" size={14} color={tone} />
-              </Pressable>
-            )}
           </ScrollView>
 
           <View style={s.footer}>
@@ -349,7 +339,6 @@ const s = StyleSheet.create({
   stepBody: { fontFamily: FONTS.body, fontSize: 15.5, lineHeight: 23 },
   nice: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   niceText: { fontFamily: FONTS.bodyMedium, fontSize: 13.5 },
-  cta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 13, borderRadius: 999, borderWidth: 1 },
   ctaText: { fontFamily: FONTS.bodyMedium, fontSize: 14 },
 
   footer: { flexDirection: 'row', gap: 10, paddingHorizontal: SPACING.lg, paddingBottom: SPACING.md, paddingTop: SPACING.sm },
