@@ -215,7 +215,6 @@ export function MyPage() {
   );
   const partC = (
     <>
-      <FeedPal petName={petName} />
       <ReachOutTreat char={char} stage={stage} petName={petName} />
       <Pressable
         onPress={() => router.push('/walk' as any)}
@@ -373,6 +372,7 @@ export function MyPage() {
           {partC}
           {partD}
           {partA}
+          <FeedPal petName={petName} />
           {partF}
           {partB}
           {partG}
@@ -380,6 +380,7 @@ export function MyPage() {
       ) : (
         <>
           {partA}
+          <FeedPal petName={petName} />
           {partB}
           {partC}
           {partD}
