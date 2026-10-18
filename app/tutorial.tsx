@@ -277,7 +277,7 @@ export default function TutorialScreen() {
               <Text style={[s.nextText, { color: isLightColor(tone) ? '#111111' : '#FFFFFF' }]}>
                 {stepIdx < chapter.steps.length - 1 ? (Demo && !hasTried ? 'Skip' : 'Next') : allMode ? (chapterIdx === CHAPTERS.length - 1 ? 'Finish tour' : 'Next topic') : 'Finish topic'}
               </Text>
-              <Feather name="arrow-right" size={17} color="#fff" />
+              <Feather name="arrow-right" size={17} color={isLightColor(tone) ? '#111111' : '#FFFFFF'} />
             </Pressable>
           </View>
         </>
@@ -295,12 +295,12 @@ export default function TutorialScreen() {
           </Text>
           <View style={{ gap: 10, alignSelf: 'stretch', marginTop: SPACING.md }}>
             {nextUndone >= 0 && (
-              <Pressable style={[s.nextBtn, { backgroundColor: tone }]} onPress={() => open(nextUndone)} accessibilityRole="button">
+              <Pressable style={[s.nextBtn, s.doneBtn, { backgroundColor: tone }]} onPress={() => open(nextUndone)} accessibilityRole="button">
                 <Text style={[s.nextText, { color: isLightColor(tone) ? '#111111' : '#FFFFFF' }]}>Next: {CHAPTERS[nextUndone].title}</Text>
-                <Feather name="arrow-right" size={17} color="#fff" />
+                <Feather name="arrow-right" size={17} color={isLightColor(tone) ? '#111111' : '#FFFFFF'} />
               </Pressable>
             )}
-            <Pressable style={[s.nextBtn, { borderWidth: 1, borderColor: colors.cardBorder }]} onPress={toHub} accessibilityRole="button">
+            <Pressable style={[s.nextBtn, s.doneBtn, { borderWidth: 1, borderColor: colors.cardBorder }]} onPress={toHub} accessibilityRole="button">
               <Text style={[s.nextText, { color: colors.text }]}>All topics</Text>
             </Pressable>
             <Pressable style={s.leave} onPress={() => router.back()} accessibilityRole="button">
@@ -346,6 +346,8 @@ const s = StyleSheet.create({
   footer: { flexDirection: 'row', gap: 10, paddingHorizontal: SPACING.lg, paddingBottom: SPACING.md, paddingTop: SPACING.sm },
   backBtn: { width: 52, borderRadius: 999, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   nextBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 15, borderRadius: 999 },
+  // On the finished screen the buttons sit in an auto-height column, where flex:1 collapses them to nothing.
+  doneBtn: { flex: 0, minHeight: 52, alignSelf: 'stretch' },
   nextText: { fontFamily: FONTS.bodyBold, fontSize: 16, color: '#fff' },
 
   doneWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: SPACING.xl, gap: 12 },
