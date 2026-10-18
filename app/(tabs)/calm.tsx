@@ -67,6 +67,15 @@ const TOOLS: Tool[] = [
     route:     { pathname: '/breathe', params: { mode: 'grounding' } },
   },
   {
+    id:        'walk',
+    group:     'play',
+    icon:      'activity',
+    iconColor: '#16a34a',
+    title:     'Take your pal for a walk',
+    subtitle:  'Count your steps · your companion trots along',
+    route:     '/walk',
+  },
+  {
     id:        'games',
     group:     'play',
     icon:      'zap',

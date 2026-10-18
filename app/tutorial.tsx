@@ -84,6 +84,7 @@ export const CHAPTERS: Chapter[] = [
     id: 'extras', title: 'Little extras', blurb: 'A nudge to reach out, and a phone trick', icon: 'gift', tone: 'arcade',
     steps: [
       { title: 'A nudge to reach out', body: 'After a long scroll your companion may leave a card on Today with a ready-made hello. It is never a notification, and nothing is sent unless you send it.', demo: 'reach' },
+      { title: 'Take your pal for a walk', body: 'Under Unwind, "Take your pal for a walk" counts your steps with the phone\'s sensors while your companion trots along. Walk 500 steps or more and they get fed. No location needed.', cta: { label: 'Try a walk', route: '/walk' } },
       { title: 'Make the phone duller', body: 'Your phone\'s own grayscale makes scrolling less sticky. The Tips page shows where to find it on your phone.', cta: { label: 'See Tips', route: '/tips' } },
     ],
   },

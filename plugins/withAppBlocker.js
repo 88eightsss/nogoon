@@ -55,6 +55,7 @@ function withAppBlockerManifest(config) {
       'android.permission.INTERNET',                            // network access (Supabase; VPN DNS forward when enabled)
       'android.permission.FOREGROUND_SERVICE',                  // accessibility-service foreground notification
       'android.permission.FOREGROUND_SERVICE_SPECIAL_USE',      // Android 14+ foreground type for the same
+      'android.permission.ACTIVITY_RECOGNITION',                // step counter for "Take your pal for a walk"
     ];
     for (const perm of permsToAdd) {
       const alreadyHas = manifest['uses-permission'].some(

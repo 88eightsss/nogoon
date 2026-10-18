@@ -215,6 +215,19 @@ export function MyPage() {
   const partC = (
     <>
       <ReachOutTreat char={char} stage={stage} petName={petName} />
+      <Pressable
+        onPress={() => router.push('/walk' as any)}
+        style={({ pressed }) => [styles.card, cardStyle, styles.row, { backgroundColor: colors.surface, borderColor: colors.cardBorder, alignItems: 'center', opacity: pressed ? 0.85 : 1 }]}
+        accessibilityRole="button"
+        accessibilityLabel={`Take ${petName || 'your pal'} for a walk`}
+      >
+        <Feather name="activity" size={20} color={colors.success} />
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontFamily: FONTS.bodyBold, fontSize: 15, color: colors.text }}>Take {petName || 'your pal'} for a walk</Text>
+          <Text style={{ fontFamily: FONTS.body, fontSize: 13, color: colors.textSecondary }}>Count steps together. Walks feed them.</Text>
+        </View>
+        <Feather name="chevron-right" size={18} color={colors.textMuted} />
+      </Pressable>
     </>
   );
   const partD = (
