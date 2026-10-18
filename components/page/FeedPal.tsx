@@ -53,7 +53,7 @@ export function FeedPal({ petName }: { petName?: string }) {
   const can = treats > 0;
   const meta = can
     ? `${treats} treat${treats === 1 ? '' : 's'} ready${next === null ? '' : ` · ${next - fed} to evolve`}`
-    : 'No treats yet. Walk away or take a walk.';
+    : 'No treats. Walk away to earn one.';
 
   return (
     <View style={[styles.row, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>

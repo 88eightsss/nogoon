@@ -211,7 +211,7 @@ export default function OnboardingScreen() {
   }, [serviceEnabled, requestNotificationPermission]);
 
   const [step, setStep]                   = useState(0);
-  const { themeId, setTheme, setThemeBrightness, themeBrightness } = useThemeStore();
+  const { themeId, setTheme, setThemeBrightness } = useThemeStore();
   // Dark/Light switch on the palette screen. Starts from whatever the app is
   // showing right now (Dark by default) and re-themes the whole screen live.
   // It only exists on this one intro step; afterwards it lives in Me → Theme.
