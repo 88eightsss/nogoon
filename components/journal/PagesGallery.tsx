@@ -9,7 +9,7 @@ import { FONTS } from '@/constants/Colors';
 import { SPACING } from '@/constants/Spacing';
 import { MOOD_TAGS } from '@/constants/moods';
 import { TEMPLATES, stickerTint, type PageTemplate } from '@/constants/journalStyles';
-import { Glyph } from '@/components/ui/Glyph';
+import { Glyph, resolveIcon } from '@/components/ui/Glyph';
 import { useJournalStore, type JournalPage } from '@/stores/useJournalStore';
 import { paperOf, inkOf } from './PageCanvas';
 
@@ -37,7 +37,7 @@ function PageCard({ p, onOpen }: { p: JournalPage; onOpen: () => void }) {
         <Text style={[styles.cardDate, { color: ink + '99' }]}>{whenLabel(p.updatedAt)}</Text>
         <View style={{ flexDirection: 'row', gap: 4, alignItems: 'center' }}>
           {mood ? <Glyph name={mood.emoji} size={15} color={ink} /> : null}
-          {glyphs.map((g, i) => <Glyph key={i} name={g} size={15} color={stickerTint(g)} />)}
+          {glyphs.map((g, i) => <Glyph key={i} name={g} size={15} color={stickerTint(resolveIcon(g))} />)}
         </View>
       </View>
     </Pressable>
@@ -144,7 +144,7 @@ export function PagesGallery({ onOpen }: { onOpen: (id: string) => void }) {
                       <Text style={[styles.tplBlurb, { color: paper.ink + 'CC' }]}>{t.blurb}</Text>
                     </View>
                     <View style={{ flexDirection: 'row', gap: 4 }}>
-                      {(t.stickers.length ? t.stickers : ['edit-3']).map((g) => <Glyph key={g} name={g} size={22} color={stickerTint(g)} />)}
+                      {(t.stickers.length ? t.stickers : ['edit-3']).map((g) => <Glyph key={g} name={g} size={22} color={stickerTint(resolveIcon(g))} />)}
                     </View>
                   </Pressable>
                 );

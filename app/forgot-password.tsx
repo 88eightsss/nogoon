@@ -132,7 +132,7 @@ export default function ForgotPasswordScreen() {
                 <Text style={styles.submitButtonText}>I have my code</Text>
               </Pressable>
 
-              <Pressable style={styles.resendBtn} onPress={handleSend} hitSlop={8}>
+              <Pressable style={styles.resendBtn} onPress={handleSend} disabled={loading} hitSlop={8} accessibilityRole="button">
                 <Text style={styles.resendText}>Didn't get it? Send again</Text>
               </Pressable>
             </View>

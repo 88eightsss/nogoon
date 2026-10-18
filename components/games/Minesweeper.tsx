@@ -272,7 +272,7 @@ export function Minesweeper({ onComplete }: Props) {
             <Text style={styles.rule}>
               <Text style={ruleAccent}>Tap</Text> to reveal a cell.{'\n'}
               Numbers show how many Goons are nearby.{'\n\n'}
-              <Text style={ruleAccent}>Long-press</Text> to mark a suspected Goon with your brain shield.{'\n\n'}
+              <Text style={ruleAccent}>Long-press</Text> to mark a suspected Goon with your shield.{'\n\n'}
               Clear every safe cell to{' '}
               <Text style={ruleAccent}>escape</Text>.{'\n'}
               Step on a Goon and it's over.

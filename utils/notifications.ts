@@ -116,7 +116,7 @@ export async function scheduleWeeklyRecap(walkAwayCount: number, streak: number)
 
 function buildRecapBody(walkAways: number, streak: number): string {
   if (walkAways === 0) return "A new week starts now. You've got this.";
-  if (streak >= 7)  return `${walkAways} walk-away${walkAways === 1 ? '' : 's'} this week · ${streak}-day streak Keep going.`;
+  if (streak >= 7)  return `${walkAways} walk-away${walkAways === 1 ? '' : 's'} this week · ${streak}-day streak. Keep going.`;
   return `${walkAways} walk-away${walkAways === 1 ? '' : 's'} this week. Every one counts.`;
 }
 

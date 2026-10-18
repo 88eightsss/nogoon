@@ -94,7 +94,7 @@ export function WalkScene({ char, stage, moving, line }: { char: CharacterId; st
       <View style={s.ground}>
         {w > 0 && (
           <Scroller width={w} seconds={1.4} running={moving} style={{ top: 22 }}>
-            {Array.from({ length: Math.ceil(w / 46) + 1 }).map((_, i) => <View key={i} style={[s.dash, { left: i * 46 }]} />)}
+            {Array.from({ length: Math.max(1, Math.round(w / 46)) }).map((_, i, all) => <View key={i} style={[s.dash, { left: (i * w) / all.length }]} />)}
           </Scroller>
         )}
       </View>

@@ -799,7 +799,7 @@ export default function OnboardingScreen() {
           style={styles.flex}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          <View style={styles.nameScreen}>
+          <ScrollView contentContainerStyle={styles.nameScreen} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
             <View style={styles.iconBubble}><Feather name="user" size={30} color={c.accentBright} /></View>
             <Text style={styles.title} accessibilityRole="header">What should{'\n'}we call you?</Text>
             <Text style={styles.sub}>
@@ -842,7 +842,7 @@ export default function OnboardingScreen() {
             </Pressable>
 
             <BackLink onPress={goBack} styles={styles} color={c.textMuted} />
-          </View>
+          </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
     );
@@ -986,7 +986,7 @@ const makeStyles = (c: ThemePalette, card: ReturnType<typeof useTheme>['cardStyl
   paletteCheck: { position: 'absolute', top: 8, right: 8, width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
 
   // ── Name screen ──
-  nameScreen: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: SPACING.lg, gap: SPACING.md },
+  nameScreen: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: SPACING.lg, gap: SPACING.md },
   nameInput: { width: '100%', minHeight: 56, backgroundColor: c.surface, borderRadius: 14, borderWidth: 1, borderColor: c.cardBorder, paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, fontFamily: FONTS.body, fontSize: 18, color: c.text, textAlign: 'center', marginTop: SPACING.sm },
   nameInputError: { borderColor: c.danger },
   ageRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, alignSelf: 'flex-start', minHeight: 44 },

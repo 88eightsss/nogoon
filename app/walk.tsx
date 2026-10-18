@@ -71,6 +71,9 @@ export default function WalkScreen() {
   // Live counters live in refs so sensor callbacks never go stale.
   const pedSteps = useRef(0);
   const accelSteps = useRef(0);
+  const stepsRef = useRef(0);        // the number on screen, readable from callbacks
+  const goalHitRef = useRef(false);
+  const runId = useRef(0);           // bumped on every start/stop so a late async start can bail out
   const lastTick = useRef(0);
   const lastBuzz = useRef(0);
   const goalRef = useRef(goal);
@@ -79,6 +82,7 @@ export default function WalkScreen() {
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const stopSensors = useCallback(() => {
+    runId.current += 1;
     subs.current.forEach((s) => { try { s.remove(); } catch { /* already gone */ } });
     subs.current = [];
     if (timer.current) { clearInterval(timer.current); timer.current = null; }
@@ -86,25 +90,31 @@ export default function WalkScreen() {
   }, []);
   useEffect(() => stopSensors, [stopSensors]);
 
-  // Folds whichever sensor is ahead into one number; it can only go up.
+  // Folds the sensors into one number that can only go up. Once the phone's step sensor has
+  // reported, it is the source of truth (motion can over-count); until then motion counts.
   const bump = useCallback(() => {
-    const next = Math.max(pedSteps.current, accelSteps.current);
+    const next = pedSteps.current > 0 ? Math.max(pedSteps.current, stepsRef.current) : Math.max(accelSteps.current, stepsRef.current);
     lastTick.current = Date.now();
-    setSteps((prev) => {
-      if (next <= prev) return prev;
-      // light tap every 250 steps, a stronger buzz when the goal is reached
-      if (Math.floor(next / 250) > Math.floor(prev / 250)) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-      if (prev < goalRef.current && next >= goalRef.current) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-        setGoalHit(true);
-      }
-      return next;
-    });
+    const prev = stepsRef.current;
+    if (next <= prev) return;
+    stepsRef.current = next;
+    setSteps(next);
+    // light tap every 250 steps, a stronger buzz when the goal is reached (once)
+    if (Math.floor(next / 250) > Math.floor(prev / 250)) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    if (!goalHitRef.current && next >= goalRef.current) {
+      goalHitRef.current = true;
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      setGoalHit(true);
+    }
   }, []);
 
   const start = useCallback(async () => {
+    stopSensors(); // clears anything from a previous run and invalidates it
+    const myRun = runId.current;
     pedSteps.current = 0;
     accelSteps.current = 0;
+    stepsRef.current = 0;
+    goalHitRef.current = false;
     lastTick.current = 0;
     lastBuzz.current = 0;
     setSteps(0);
@@ -129,6 +139,7 @@ export default function WalkScreen() {
           const p = await Pedometer.requestPermissionsAsync();
           granted = !!p?.granted;
         }
+        if (runId.current !== myRun) return; // left the screen or finished while the permission prompt was up
         if (ok && granted) {
           const sub = Pedometer.watchStepCount((r: { steps: number }) => {
             pedSteps.current = r.steps;
@@ -141,9 +152,11 @@ export default function WalkScreen() {
       }
     } catch { /* fall through to motion */ }
 
+    if (runId.current !== myRun) { subs.current.forEach((s) => { try { s.remove(); } catch { /* gone */ } }); subs.current = []; return; }
+
     // 2) The shakes of walking, always running as backup so it counts even with no step sensor.
     try {
-      if (Accelerometer?.isAvailableAsync && (await Accelerometer.isAvailableAsync())) {
+      if (Accelerometer?.isAvailableAsync && (await Accelerometer.isAvailableAsync()) && runId.current === myRun) {
         Accelerometer.setUpdateInterval(50);
         let smooth = 1;
         let above = false;
@@ -166,22 +179,24 @@ export default function WalkScreen() {
       }
     } catch { /* nothing to count with */ }
 
+    if (runId.current !== myRun) { subs.current.forEach((s) => { try { s.remove(); } catch { /* gone */ } }); subs.current = []; return; }
     const began = Date.now();
     timer.current = setInterval(() => {
       setSeconds(Math.round((Date.now() - began) / 1000));
       setMoving(Date.now() - lastTick.current < MOVING_WINDOW_MS && lastTick.current > 0);
     }, 500);
-  }, [bump]);
+  }, [bump, stopSensors]);
 
   const finish = useCallback(() => {
     stopSensors();
     setMoving(false);
-    const got = useWalkStore.getState().finishWalk(steps);
+    const final = stepsRef.current;
+    const got = useWalkStore.getState().finishWalk(final);
     if (got) useMascotStore.getState().feed(1);
     setEarned(got);
     setPhase('done');
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-  }, [steps, stopSensors]);
+  }, [stopSensors]);
 
   // If the app is sent away mid-walk the step sensor keeps counting but motion pauses; nothing to do
   // except make sure the timer does not run on after the screen is gone.

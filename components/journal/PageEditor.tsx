@@ -1,6 +1,6 @@
 // ─── Journal page editor ──────────────────────────────────────────────────────
 // The page up top, four tool tabs underneath: Write (mood + prompts), Style (paper, lines, frame,
-// font, text size, easy-read, ink), Stickers (emoji and your companions) and Draw (pens, undo).
+// font, text size, easy-read, ink), Stickers (icons and your companions) and Draw (pens, undo).
 // Everything saves as you go; leaving the screen never loses a page.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
