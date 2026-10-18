@@ -22,6 +22,7 @@ import { useOfferStore } from '@/stores/useOfferStore';
 import { useRoomStore } from '@/stores/useRoomStore';
 import { useMascotStore } from '@/stores/useMascotStore';
 import { useWalkStore } from '@/stores/useWalkStore';
+import { useTourStore } from '@/stores/useTourStore';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -93,6 +94,7 @@ async function wipeLocal() {
     useRoomStore.setState(useRoomStore.getInitialState(), true);
     useMascotStore.setState(useMascotStore.getInitialState(), true);
     useWalkStore.setState(useWalkStore.getInitialState(), true);
+    useTourStore.getState().resetTour();
 
     // The Android service reads its own copy of the lists, which would otherwise keep
     // gating the old account's apps with nobody signed in. A self-imposed lock

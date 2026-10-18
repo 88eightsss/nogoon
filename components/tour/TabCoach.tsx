@@ -34,6 +34,9 @@ export function TabCoach() {
   const insets = useSafeAreaInsets();
   const seen = useTourStore((s) => !!s.coachSeen[SEEN_KEY]);
   const markCoachSeen = useTourStore((s) => s.markCoachSeen);
+  const requested = useTourStore((s) => s.coachRequested);
+  const offered = useTourStore((s) => s.offered);
+  const markOffered = useTourStore((s) => s.markOffered);
   const hasOnboarded = useUserStore((s) => s.hasOnboarded);
   const raised = useRoomStore((s) => s.tabStyle) === 'raised';
 
@@ -42,12 +45,22 @@ export function TabCoach() {
   const [ready, setReady] = useState(false);
   const pulse = useRef(new Animated.Value(0)).current;
 
-  // First time only: wait a moment so the screen has settled before dimming it.
+  // Right after setup the whole interactive tour opens once, and people click through it.
+  // (This spotlight below never starts by itself; it runs when someone asks for it in the tour.)
   useEffect(() => {
-    if (seen || !hasOnboarded) { setReady(false); return; }
-    const t = setTimeout(() => { setStep(0); setReady(true); }, 2500);
+    if (!hasOnboarded || offered) return;
+    const t = setTimeout(() => {
+      markOffered();
+      router.push({ pathname: '/tutorial', params: { all: '1' } } as Href);
+    }, 1200);
     return () => clearTimeout(t);
-  }, [seen, hasOnboarded]);
+  }, [hasOnboarded, offered, markOffered]);
+
+  useEffect(() => {
+    if (seen || !requested || !hasOnboarded) { setReady(false); return; }
+    const t = setTimeout(() => { setStep(0); setReady(true); }, 600);
+    return () => clearTimeout(t);
+  }, [seen, requested, hasOnboarded]);
 
   useEffect(() => {
     const loop = Animated.loop(Animated.sequence([
@@ -58,7 +71,7 @@ export function TabCoach() {
     return () => loop.stop();
   }, [pulse]);
 
-  if (seen || !ready || !hasOnboarded) return null;
+  if (seen || !requested || !ready || !hasOnboarded) return null;
 
   const stop = STOPS[step];
   const last = step === STOPS.length - 1;

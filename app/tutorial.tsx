@@ -92,15 +92,17 @@ export const CHAPTERS: Chapter[] = [
 
 export default function TutorialScreen() {
   const { colors, cardStyle } = useTheme();
-  const { topic } = useLocalSearchParams<{ topic?: string }>();
+  const { topic, all } = useLocalSearchParams<{ topic?: string; all?: string }>();
   const markTutorialSeen = useUserStore((s) => s.markTutorialSeen);
   const done = useTourStore((s) => s.done);
   const markDone = useTourStore((s) => s.markDone);
-  const clearCoachSeen = useTourStore((s) => s.clearCoachSeen);
+  const requestCoach = useTourStore((s) => s.requestCoach);
 
   const start = CHAPTERS.findIndex((c) => c.id === topic);
-  const [chapterIdx, setChapterIdx] = useState<number | null>(start >= 0 ? start : null);
+  const [chapterIdx, setChapterIdx] = useState<number | null>(start >= 0 ? start : all === '1' ? 0 : null);
   const [stepIdx, setStepIdx] = useState(0);
+  // "Full tour" plays every topic in order with one Next button; topics are still open from the list.
+  const [allMode, setAllMode] = useState(all === '1');
   const [finished, setFinished] = useState(false);
   const [tried, setTried] = useState<Record<string, true>>({});
   const scroller = useRef<ScrollView>(null);
@@ -109,8 +111,9 @@ export default function TutorialScreen() {
   const doneCount = CHAPTERS.filter((c) => done[c.id]).length;
   const toneColor = (t: Chapter['tone']) => colors[t];
 
-  const toHub = useCallback(() => { setChapterIdx(null); setStepIdx(0); setFinished(false); }, []);
+  const toHub = useCallback(() => { setChapterIdx(null); setStepIdx(0); setFinished(false); setAllMode(false); }, []);
   const open = (i: number) => { Haptics.selectionAsync().catch(() => {}); markTutorialSeen(); setChapterIdx(i); setStepIdx(0); setFinished(false); };
+  const playAll = () => { Haptics.selectionAsync().catch(() => {}); markTutorialSeen(); setAllMode(true); setChapterIdx(0); setStepIdx(0); setFinished(false); };
 
   // Hardware back goes up one level (chapter -> topics -> out).
   useEffect(() => {
@@ -127,9 +130,23 @@ export default function TutorialScreen() {
     if (!chapter) return;
     if (stepIdx < chapter.steps.length - 1) { setStepIdx(stepIdx + 1); return; }
     markDone(chapter.id);
+    if (allMode && chapterIdx !== null && chapterIdx < CHAPTERS.length - 1) {
+      Haptics.selectionAsync().catch(() => {});
+      setChapterIdx(chapterIdx + 1);
+      setStepIdx(0);
+      return;
+    }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     setFinished(true);
   };
+  const prev = () => {
+    if (stepIdx > 0) { setStepIdx(stepIdx - 1); return; }
+    if (allMode && chapterIdx !== null && chapterIdx > 0) {
+      setChapterIdx(chapterIdx - 1);
+      setStepIdx(CHAPTERS[chapterIdx - 1].steps.length - 1);
+    }
+  };
+  const canPrev = stepIdx > 0 || (allMode && (chapterIdx ?? 0) > 0);
   const nextUndone = chapter ? CHAPTERS.findIndex((c, i) => i !== chapterIdx && !done[c.id] && c.id !== chapter.id) : -1;
 
   const tone = chapter ? toneColor(chapter.tone) : colors.accent;
@@ -143,10 +160,14 @@ export default function TutorialScreen() {
       {/* Header */}
       <View style={s.header}>
         <Pressable style={s.navBtn} onPress={() => (chapter ? toHub() : router.back())} hitSlop={8} accessibilityRole="button" accessibilityLabel={chapter ? 'Back to topics' : 'Close tour'}>
-          <Feather name={chapter ? 'arrow-left' : 'x'} size={21} color={colors.text} />
+          <Feather name={chapter ? 'list' : 'x'} size={21} color={colors.text} />
         </Pressable>
         <Text style={[s.headerTitle, { color: colors.text }]}>{chapter ? chapter.title : 'Interactive tour'}</Text>
-        <View style={s.navBtn} />
+        {chapter && allMode ? (
+          <Pressable style={s.navBtn} onPress={() => router.back()} hitSlop={8} accessibilityRole="button" accessibilityLabel="Close tour">
+            <Feather name="x" size={21} color={colors.text} />
+          </Pressable>
+        ) : <View style={s.navBtn} />}
       </View>
 
       {/* ── Hub ── */}
@@ -163,17 +184,17 @@ export default function TutorialScreen() {
           </View>
 
           <Pressable
-            onPress={() => { Haptics.selectionAsync().catch(() => {}); clearCoachSeen('tabs'); router.back(); }}
+            onPress={playAll}
             accessibilityRole="button"
-            accessibilityLabel="Spotlight the tabs on the real screens"
+            accessibilityLabel={`Play the full tour. ${CHAPTERS.length} topics, click through at your own pace.`}
             style={[s.topic, cardStyle, { backgroundColor: colors.accentDim, borderColor: colors.accent }]}
           >
             <View style={[s.topicIcon, { backgroundColor: colors.accent + '33' }]}>
-              <Feather name="target" size={20} color={colors.accent} />
+              <Feather name="play" size={20} color={colors.accent} />
             </View>
             <View style={{ flex: 1, gap: 2 }}>
-              <Text style={[s.topicTitle, { color: colors.text }]}>Show me around the real app</Text>
-              <Text style={[s.topicBlurb, { color: colors.textSecondary }]}>A spotlight walk along the tabs, one at a time</Text>
+              <Text style={[s.topicTitle, { color: colors.text }]}>Play the full tour</Text>
+              <Text style={[s.topicBlurb, { color: colors.textSecondary }]}>All {CHAPTERS.length} topics in order. Tap Next to click through.</Text>
             </View>
             <Feather name="chevron-right" size={20} color={colors.accent} />
           </Pressable>
@@ -206,9 +227,16 @@ export default function TutorialScreen() {
               </Pressable>
             );
           })}
-          <Text style={[s.foot, { color: colors.textMuted }]}>
-            Prefer pointers on the real screens? Each tab also has a small "?" at the top.
-          </Text>
+          <Pressable
+            onPress={() => { Haptics.selectionAsync().catch(() => {}); requestCoach(); router.back(); }}
+            accessibilityRole="button"
+            hitSlop={8}
+          >
+            <Text style={[s.foot, { color: colors.textMuted, textDecorationLine: 'underline' }]}>
+              Or spotlight the tabs on the real screens
+            </Text>
+          </Pressable>
+          <Text style={[s.foot, { color: colors.textMuted }]}>Each tab also has a small "?" at the top.</Text>
         </ScrollView>
       )}
 
@@ -221,7 +249,7 @@ export default function TutorialScreen() {
             ))}
           </View>
           <ScrollView ref={scroller} contentContainerStyle={s.stepScroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            <Text style={[s.stepKicker, { color: tone }]}>Step {stepIdx + 1} of {chapter.steps.length}</Text>
+            <Text style={[s.stepKicker, { color: tone }]}>{allMode ? `Topic ${(chapterIdx ?? 0) + 1} of ${CHAPTERS.length}  ·  ` : ''}Step {stepIdx + 1} of {chapter.steps.length}</Text>
             <Text style={[s.stepTitle, { color: colors.text }]} accessibilityRole="header">{step.title}</Text>
             <Text style={[s.stepBody, { color: colors.textSecondary }]}>{step.body}</Text>
 
@@ -248,14 +276,14 @@ export default function TutorialScreen() {
           </ScrollView>
 
           <View style={s.footer}>
-            {stepIdx > 0 && (
-              <Pressable style={[s.backBtn, { borderColor: colors.cardBorder }]} onPress={() => setStepIdx(stepIdx - 1)} accessibilityRole="button" accessibilityLabel="Previous step">
+            {canPrev && (
+              <Pressable style={[s.backBtn, { borderColor: colors.cardBorder }]} onPress={prev} accessibilityRole="button" accessibilityLabel="Previous step">
                 <Feather name="arrow-left" size={18} color={colors.textSecondary} />
               </Pressable>
             )}
             <Pressable style={[s.nextBtn, { backgroundColor: tone }]} onPress={next} accessibilityRole="button">
               <Text style={s.nextText}>
-                {stepIdx < chapter.steps.length - 1 ? (Demo && !hasTried ? 'Skip' : 'Next') : 'Finish topic'}
+                {stepIdx < chapter.steps.length - 1 ? (Demo && !hasTried ? 'Skip' : 'Next') : allMode ? (chapterIdx === CHAPTERS.length - 1 ? 'Finish tour' : 'Next topic') : 'Finish topic'}
               </Text>
               <Feather name="arrow-right" size={17} color="#fff" />
             </Pressable>
