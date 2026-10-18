@@ -70,6 +70,7 @@ import { isLightColor } from '@/utils/colorLuminance';
 interface ErrorBoundaryState {
   hasError: boolean;
   error: Error | null;
+  attempt: number;
 }
 
 class ErrorBoundary extends React.Component<
@@ -78,11 +79,11 @@ class ErrorBoundary extends React.Component<
 > {
   constructor(props: { children: React.ReactNode }) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, attempt: 0 };
   }
 
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
-    return { hasError: true, error };
+    return { hasError: true, error, attempt: 0 };
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
@@ -91,7 +92,7 @@ class ErrorBoundary extends React.Component<
   }
 
   handleReset = () => {
-    this.setState({ hasError: false, error: null });
+    this.setState((st) => ({ hasError: false, error: null, attempt: st.attempt + 1 }));
   };
 
   render() {
@@ -117,7 +118,8 @@ class ErrorBoundary extends React.Component<
         </View>
       );
     }
-    return this.props.children;
+    // A new key remounts the whole tree, so Try Again starts clean instead of re-rendering the crash.
+    return <React.Fragment key={this.state.attempt}>{this.props.children}</React.Fragment>;
   }
 }
 
@@ -185,7 +187,7 @@ export default function RootLayout() {
   }, []);
 
   // Load all custom fonts before any screen renders
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     Anybody_400Regular,
     Anybody_700Bold,
     BricolageGrotesque_600SemiBold,
@@ -230,7 +232,18 @@ export default function RootLayout() {
   // session object on every token refresh (about hourly), which used to re-fire
   // all of this and yank the user out of whatever screen they were on.
   const userId = session?.user.id;
-  const ready = fontsLoaded && !loading && storeHydrated;
+  // Watchdogs: a stalled network session check, font error or storage read must never leave
+  // the app on a blank screen. After a few seconds we go on with what we have.
+  const [authTimedOut, setAuthTimedOut] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setAuthTimedOut(true), 6000);
+    return () => clearTimeout(t);
+  }, []);
+  useEffect(() => {
+    const t = setTimeout(() => setStoreHydrated(true), 8000);
+    return () => clearTimeout(t);
+  }, []);
+  const ready = (fontsLoaded || !!fontError) && (!loading || authTimedOut) && storeHydrated;
 
   // A fresh install / new phone starts with hasOnboarded=false even for an account
   // that finished onboarding long ago. Check the cloud once before deciding to

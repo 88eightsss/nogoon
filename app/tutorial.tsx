@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView, BackHandler } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
+import { isLightColor } from '@/utils/colorLuminance';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { FONTS } from '@/constants/Colors';
@@ -33,7 +34,7 @@ export const CHAPTERS: Chapter[] = [
       { title: 'A pause before the scroll', body: 'When you open an app you blocked, NoGoon steps in first. Try it: open the pretend app below.', demo: 'gate' },
       { title: 'Walking away earns a treat', body: 'Every walk-away earns a treat. Tap Feed on Today to give it to your favorite and watch it change shape.', demo: 'feed' },
       { title: 'Need a minute', body: 'The big yellow button on Today is for when a craving shows up. Breathing is hands-on: hold to breathe in, let go to breathe out.', demo: 'hold' },
-      { title: 'Unlock more as you go', body: 'Keep walking away and NoGoon opens up: the full Arcade, Insights and Journal unlock at walk-away milestones. Anything locked is waiting for you to earn it.' },
+      { title: 'Everything is open', body: 'Games, Insights and the Journal are all yours from day one. Keep walking away and your companion grows, one treat at a time.' },
     ],
   },
   {
@@ -41,7 +42,7 @@ export const CHAPTERS: Chapter[] = [
     steps: [
       { title: 'Urges rise, peak and pass', body: 'A craving feels endless, but it crests and fades, usually in minutes. Watch one do it.', demo: 'wave' },
       { title: 'Breathe with your thumb', body: 'Hold to breathe in, release to breathe out. Five slow breaths. Can\'t hold? There is a follow-along mode too.', demo: 'hold' },
-      { title: 'More ways to settle', body: 'The Calm tab also has Grounding (notice five things around you) and the Waiting Room, a five second pause with a truth card and the urge wave.' },
+      { title: 'More ways to settle', body: 'The Unwind tab also has Grounding (notice five things around you) and the Waiting Room, a five second pause with a truth card and the urge wave.' },
     ],
   },
   {
@@ -273,7 +274,7 @@ export default function TutorialScreen() {
               </Pressable>
             )}
             <Pressable style={[s.nextBtn, { backgroundColor: tone }]} onPress={next} accessibilityRole="button">
-              <Text style={s.nextText}>
+              <Text style={[s.nextText, { color: isLightColor(tone) ? '#111111' : '#FFFFFF' }]}>
                 {stepIdx < chapter.steps.length - 1 ? (Demo && !hasTried ? 'Skip' : 'Next') : allMode ? (chapterIdx === CHAPTERS.length - 1 ? 'Finish tour' : 'Next topic') : 'Finish topic'}
               </Text>
               <Feather name="arrow-right" size={17} color="#fff" />
@@ -295,7 +296,7 @@ export default function TutorialScreen() {
           <View style={{ gap: 10, alignSelf: 'stretch', marginTop: SPACING.md }}>
             {nextUndone >= 0 && (
               <Pressable style={[s.nextBtn, { backgroundColor: tone }]} onPress={() => open(nextUndone)} accessibilityRole="button">
-                <Text style={s.nextText}>Next: {CHAPTERS[nextUndone].title}</Text>
+                <Text style={[s.nextText, { color: isLightColor(tone) ? '#111111' : '#FFFFFF' }]}>Next: {CHAPTERS[nextUndone].title}</Text>
                 <Feather name="arrow-right" size={17} color="#fff" />
               </Pressable>
             )}

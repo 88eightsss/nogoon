@@ -320,7 +320,7 @@ export default function PostGameScreen() {
   // ── Unlock countdown — replaces token-based friction ──────────────────────
   // Free users must wait 10s before the unlock button becomes active.
   // null = not started, N = counting down, 0 = ready to confirm.
-  const [unlockCountdown, setUnlockCountdown] = useState<number | null>(null);
+  const [unlockCountdown, setUnlockCountdown] = useState<number | null>(gameName === 'Walk' ? 0 : null);
   const [bonusEarned, setBonusEarned] = useState(false);
   const bonusPoints = 50;
   const [selectedTrigger, setSelectedTrigger] = useState<string | null>(null);

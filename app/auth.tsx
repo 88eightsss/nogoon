@@ -339,7 +339,7 @@ const makeStyles = (c: ThemePalette) => {
   modeTab: { flex: 1, paddingVertical: 10, borderRadius: 999, alignItems: 'center' },
   modeTabActive: { backgroundColor: c.accent },
   modeTabText: { fontFamily: FONTS.bodyMedium, fontSize: 14, color: c.textSecondary },
-  modeTabTextActive: { color: '#FFFFFF', fontFamily: FONTS.bodyBold },
+  modeTabTextActive: { color: isLightColor(c.accent) ? '#111111' : '#FFFFFF', fontFamily: FONTS.bodyBold },
 
   // Form card
   form: { padding: SPACING.lg, gap: SPACING.md },

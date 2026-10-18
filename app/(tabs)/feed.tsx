@@ -20,6 +20,7 @@ import { useOfferStore } from '@/stores/useOfferStore';
 import { FONTS } from '@/constants/Colors';
 import { ConstructionBadge, ConstructionSign } from '@/components/ui/Construction';
 import { UNDER_CONSTRUCTION } from '@/constants/construction';
+import { isLightColor } from '@/utils/colorLuminance';
 import { SPACING } from '@/constants/Spacing';
 
 const PROMPTS = [
@@ -173,7 +174,7 @@ export default function FeedScreen() {
               accessibilityLabel={id === 'twenty' ? 'Up to twenty stories a day, then it ends' : 'Endless scrolling'}
               style={[styles.segBtn, on && { backgroundColor: colors.accent }]}
             >
-              <Text style={[styles.segText, { color: on ? '#fff' : colors.textSecondary }]}>{label}</Text>
+              <Text style={[styles.segText, { color: on ? (isLightColor(colors.accent) ? '#111111' : '#fff') : colors.textSecondary }]}>{label}</Text>
             </Pressable>
           );
         })}

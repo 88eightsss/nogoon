@@ -1210,7 +1210,7 @@ function NoGoonScreen() {
 
           {/* Override — requires typing a sentence before unlocking. Hidden when
               Hard Mode / Cold Turkey is on: those promise no unlock path. */}
-          {!isBricked && !isColdTurkey && (
+          {!isBricked && !isColdTurkey && !gateWalk && (
             <Pressable onPress={() => setPhase('override')} style={styles.exitTextRow}>
               <Text style={[styles.exitText, { color: C.textSecondary }]}>
                 I actually need this right now
@@ -1522,7 +1522,7 @@ function NoGoonScreen() {
               <Text style={[styles.calmBreathText, { color: TEAL }]}>Try a breathing exercise</Text>
             </Pressable>
           </>
-        ) : (
+        ) : gateWalk ? null : (
           <Pressable style={styles.skipRow} onPress={() => setPhase('override')}>
             <Text style={[styles.skipText, { color: C.textSecondary }]}>
               I actually need this right now
