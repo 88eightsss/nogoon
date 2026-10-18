@@ -26,6 +26,7 @@ import { Tabs } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { Pressable, View, Text } from 'react-native';
 import { FloatingCompanion } from '@/components/page/FloatingCompanion';
+import { TabCoach } from '@/components/tour/TabCoach';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeStore } from '@/stores/useThemeStore';
 import { useUserStore } from '@/stores/useUserStore';
@@ -198,6 +199,7 @@ export default function TabsLayout() {
       ))}
     </Tabs>
     <FloatingCompanion />
+    <TabCoach />
     </View>
   );
 }

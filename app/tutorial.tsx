@@ -95,6 +95,7 @@ export default function TutorialScreen() {
   const markTutorialSeen = useUserStore((s) => s.markTutorialSeen);
   const done = useTourStore((s) => s.done);
   const markDone = useTourStore((s) => s.markDone);
+  const clearCoachSeen = useTourStore((s) => s.clearCoachSeen);
 
   const start = CHAPTERS.findIndex((c) => c.id === topic);
   const [chapterIdx, setChapterIdx] = useState<number | null>(start >= 0 ? start : null);
@@ -159,6 +160,22 @@ export default function TutorialScreen() {
             </View>
             <Text style={[s.progressText, { color: colors.textMuted }]}>{doneCount} of {CHAPTERS.length}</Text>
           </View>
+
+          <Pressable
+            onPress={() => { Haptics.selectionAsync().catch(() => {}); clearCoachSeen('tabs'); router.back(); }}
+            accessibilityRole="button"
+            accessibilityLabel="Spotlight the tabs on the real screens"
+            style={[s.topic, cardStyle, { backgroundColor: colors.accentDim, borderColor: colors.accent }]}
+          >
+            <View style={[s.topicIcon, { backgroundColor: colors.accent + '33' }]}>
+              <Feather name="target" size={20} color={colors.accent} />
+            </View>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={[s.topicTitle, { color: colors.text }]}>Show me around the real app</Text>
+              <Text style={[s.topicBlurb, { color: colors.textSecondary }]}>A spotlight walk along the tabs, one at a time</Text>
+            </View>
+            <Feather name="chevron-right" size={20} color={colors.accent} />
+          </Pressable>
 
           {CHAPTERS.map((c, i) => {
             const c1 = toneColor(c.tone);

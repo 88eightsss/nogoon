@@ -9,6 +9,7 @@ interface State {
   coachSeen: Record<string, true>;
   markDone: (chapter: string) => void;
   markCoachSeen: (tab: string) => void;
+  clearCoachSeen: (tab: string) => void;
   resetTour: () => void;
 }
 
@@ -19,6 +20,7 @@ export const useTourStore = create<State>()(
       coachSeen: {},
       markDone: (chapter) => set((s) => ({ done: { ...s.done, [chapter]: true } })),
       markCoachSeen: (tab) => set((s) => ({ coachSeen: { ...s.coachSeen, [tab]: true } })),
+      clearCoachSeen: (tab) => set((s) => { const c = { ...s.coachSeen }; delete c[tab]; return { coachSeen: c }; }),
       resetTour: () => set({ done: {}, coachSeen: {} }),
     }),
     { name: 'nogoon-tour', storage: createJSONStorage(() => AsyncStorage), version: 1 }
