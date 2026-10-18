@@ -19,6 +19,7 @@ import { SPACING, RADIUS } from '@/constants/Spacing';
 import { useTheme } from '@/hooks/useTheme';
 import { getLocalDateKey, getLast7DaysWithLabels } from '@/utils/date';
 import { computeConsistencyScore } from '@/utils/consistencyScore';
+import { Glyph } from '@/components/ui/Glyph';
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 const MAX_BAR_HEIGHT = 56;
@@ -26,12 +27,12 @@ const MAX_BAR_HEIGHT = 56;
 // IDs must match the REFLECTION_OPTIONS ids in post-game.tsx exactly (capitalized).
 // reflectionCounts keys are stored verbatim from opt.id — lowercase would miss all data.
 const FEELINGS = [
-  { id: 'Bored',           emoji: '😴', label: 'Bored',      color: COLORS.cyan    },
-  { id: 'Anxious',         emoji: '😰', label: 'Anxious',    color: COLORS.warning },
-  { id: 'Stressed',        emoji: '😤', label: 'Stressed',   color: COLORS.warning },
-  { id: 'Lonely',          emoji: '🫂', label: 'Lonely',     color: COLORS.purple  },
-  { id: 'Procrastinating', emoji: '⏰', label: 'Avoiding',   color: COLORS.green   },
-  { id: 'Habit',           emoji: '🔁', label: 'Just Habit', color: COLORS.cyan    },
+  { id: 'Bored',           emoji: 'cloud', label: 'Bored',      color: COLORS.cyan    },
+  { id: 'Anxious',         emoji: 'wind', label: 'Anxious',    color: COLORS.warning },
+  { id: 'Stressed',        emoji: 'zap', label: 'Stressed',   color: COLORS.warning },
+  { id: 'Lonely',          emoji: 'users', label: 'Lonely',     color: COLORS.purple  },
+  { id: 'Procrastinating', emoji: 'clock', label: 'Avoiding',   color: COLORS.green   },
+  { id: 'Habit',           emoji: 'repeat', label: 'Just Habit', color: COLORS.cyan    },
 ] as const;
 
 // Evenly-spaced hours for the heatmap (8 cells across the day)
@@ -346,7 +347,7 @@ export default function InsightsScreen() {
                 const pct   = totalReflections > 0 ? count / totalReflections : 0;
                 return (
                   <View key={f.id} style={styles.feelingRow}>
-                    <Text style={styles.feelingEmoji}>{f.emoji}</Text>
+                    <View style={{ width: 28 }}><Glyph name={f.emoji} size={18} color={f.color} /></View>
                     <View style={styles.feelingBarWrap}>
                       <View style={styles.feelingLabelRow}>
                         <Text style={[styles.feelingLabel, { color: C.textSecondary }]}>{f.label}</Text>
@@ -411,7 +412,7 @@ export default function InsightsScreen() {
         {streak >= 3 && (
           <View style={[styles.card, { borderColor: C.green + '44', backgroundColor: C.surface }]}>
             <View style={styles.streakRow}>
-              <Text style={{ fontSize: 28 }}>🔥</Text>
+              <Feather name="zap" size={28} color={C.green} />
               <View style={{ flex: 1 }}>
                 <Text style={[styles.cardTitle, { color: C.textPrimary }]}>{streak}-day streak</Text>
                 <Text style={[styles.emptyHint, { color: C.textSecondary, marginTop: 4 }]}>

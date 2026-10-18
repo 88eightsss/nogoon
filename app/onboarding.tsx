@@ -50,14 +50,15 @@ import { useAppBlocker, appPackagesForDomains } from '@/hooks/useAppBlocker';
 import { useVpn } from '@/hooks/useVpn';
 import { NETWORK_SHIELD_ENABLED } from '@/constants/features';
 import { useNotificationListener } from '@/hooks/useNotificationListener';
-import { COLORS as SLIDE_COLORS, FONTS } from '@/constants/Colors';
-import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
+import { FONTS } from '@/constants/Colors';
+import type { ThemePalette } from '@/constants/Themes';
+import { Glyph } from '@/components/ui/Glyph';
 import { useTheme } from '@/hooks/useTheme';
 import { isLightColor, readableOn } from '@/utils/colorLuminance';
-import { SPACING, RADIUS } from '@/constants/Spacing';
+import { SPACING } from '@/constants/Spacing';
 import { GoonSprite, CHAR_COLORS } from '@/components/home/GoonMascot';
 import type { CharacterId } from '@/stores/usePetStore';
-import { CHARACTER_NAMES, CHARACTER_TAGS, ALL_CHARACTER_IDS } from '@/constants/sprites';
+import { CHARACTER_NAMES, CHARACTER_TAGS, STARTER_IDS, MORE_IDS } from '@/constants/sprites';
 
 // ─── Enable button ───────────────────────────────────────────────────────────
 // Every pending setup row gets the same gently-breathing button. Its colors are
@@ -86,6 +87,15 @@ function EnableButton({ label, onPress, disabled, bg, fg, style, textStyle, dela
   );
 }
 
+function BackLink({ onPress, styles, color }: { onPress: () => void; styles: { backRow: object; backLink: object }; color: string }) {
+  return (
+    <Pressable onPress={onPress} style={styles.backRow} accessibilityRole="button" accessibilityLabel="Back">
+      <Feather name="arrow-left" size={15} color={color} />
+      <Text style={styles.backLink}>Back</Text>
+    </Pressable>
+  );
+}
+
 const COMPANION_NAMES = CHARACTER_NAMES;
 const COMPANION_TAGS = CHARACTER_TAGS;
 
@@ -103,58 +113,58 @@ type FeatherName = React.ComponentProps<typeof Feather>['name'];
 // heads-up about the one phone setting that has to be turned on next (the
 // full step-by-step for that lives on the setup screen right after this).
 
-const SLIDES: { icon: FeatherName; title: string; body: string; color: string }[] = [
+type Tone = 'protect' | 'calm' | 'arcade' | 'me';
+const SLIDES: { icon: FeatherName; title: string; body: string; tone: Tone }[] = [
   {
     icon: 'shield',
     title: 'NoGoon blocks the\napps that pull you in',
     body: "Open a blocked app and NoGoon steps in before the scroll starts. No willpower needed.",
-    color: SLIDE_COLORS.green,
+    tone: 'protect',
   },
   {
     icon: 'refresh-cw',
     title: 'Pause. Play.\nThen choose.',
     body: "A quick game breaks the urge. Most people walk away. If you still want in, a short wait unlocks it.",
-    color: SLIDE_COLORS.purple,
+    tone: 'calm',
   },
   {
     icon: 'grid',
     title: 'Five tabs,\none home',
     body: "Protect, Calm, Today, Arcade and Me. Each one explains itself the first time you open it.",
-    color: SLIDE_COLORS.cyan,
+    tone: 'me',
   },
   {
     icon: 'settings',
     title: 'One setting\nturns it on',
     body: "Next, turn on Accessibility Access in Settings so NoGoon can block app opens. About 30 seconds, and we'll guide every tap.",
-    color: SLIDE_COLORS.arcade,
+    tone: 'arcade',
   },
 ];
 
 // Suggested sites shown as toggleable chips during setup — all pre-selected
 const SITE_SUGGESTIONS = [
-  { domain: 'tiktok.com',    name: 'TikTok',     emoji: '🎵' },
-  { domain: 'instagram.com', name: 'Instagram',  emoji: '📸' },
-  { domain: 'youtube.com',   name: 'YouTube',    emoji: '▶️' },
-  { domain: 'reddit.com',    name: 'Reddit',     emoji: '🤖' },
-  { domain: 'twitter.com',   name: 'X',          emoji: '𝕏' },
-  { domain: 'facebook.com',  name: 'Facebook',   emoji: '👥' },
-  { domain: 'snapchat.com',  name: 'Snapchat',   emoji: '👻' },
-  { domain: 'twitch.tv',     name: 'Twitch',     emoji: '🟣' },
-  { domain: 'pornhub.com',   name: 'Pornhub',    emoji: '🔞' },
+  { domain: 'tiktok.com',    name: 'TikTok',     emoji: 'music' },
+  { domain: 'instagram.com', name: 'Instagram',  emoji: 'camera' },
+  { domain: 'youtube.com',   name: 'YouTube',    emoji: 'play' },
+  { domain: 'reddit.com',    name: 'Reddit',     emoji: 'cpu' },
+  { domain: 'twitter.com',   name: 'X',          emoji: 'x' },
+  { domain: 'facebook.com',  name: 'Facebook',   emoji: 'users' },
+  { domain: 'snapchat.com',  name: 'Snapchat',   emoji: 'eye-off' },
+  { domain: 'twitch.tv',     name: 'Twitch',     emoji: 'video' },
+  { domain: 'pornhub.com',   name: 'Pornhub',    emoji: 'slash' },
 ];
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function OnboardingScreen() {
-  const COLORS = useThemedColors();
-  const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
-  const { colors: liveColors } = useTheme();
+  const { colors: c, cardStyle: card } = useTheme();
   // Button fill: the theme accent, nudged until it clearly stands out from the
   // card it sits on; label color flips black/white to match.
   const btn = useMemo(() => {
-    const bg = readableOn(liveColors.accent, liveColors.surface, 3);
+    const bg = readableOn(c.accent, c.surface, 3);
     return { bg, fg: isLightColor(bg) ? '#111111' : '#FFFFFF' };
-  }, [liveColors.accent, liveColors.surface]);
+  }, [c.accent, c.surface]);
+  const styles = useMemo(() => makeStyles(c, card, btn), [c, card, btn]);
   const { setName, completeOnboarding, addSite, blockedApps, setBlockedApps } = useUserStore();
   const { user } = useAuthStore();
   const {
@@ -328,6 +338,13 @@ export default function OnboardingScreen() {
 
   // ── Companion picker — save choice to AsyncStorage ────────────────────────
 
+  const pickChar = (id: CharacterId) => {
+    setSelectedChar(id);
+    if (!companionName || companionName === COMPANION_NAMES[selectedChar ?? id]) {
+      setCompanionName(COMPANION_NAMES[id]);
+    }
+  };
+
   const handlePickCompanion = async () => {
     if (selectedChar === null) return;
     const nameToSave = companionName.trim() || COMPANION_NAMES[selectedChar];
@@ -370,8 +387,8 @@ export default function OnboardingScreen() {
             contentContainerStyle={styles.paletteScreen}
             showsVerticalScrollIndicator={false}
           >
-            <Text style={styles.paletteTitle}>Pick your{'\n'}palette</Text>
-            <Text style={styles.paletteSub}>
+            <Text style={styles.title} accessibilityRole="header">Pick your{'\n'}palette</Text>
+            <Text style={styles.sub}>
               Choose the look that feels right. You can change it any time in Me.
             </Text>
 
@@ -386,9 +403,10 @@ export default function OnboardingScreen() {
                     onPress={() => chooseMode(m)}
                     accessibilityRole="button"
                     accessibilityState={{ selected: on }}
+                    accessibilityLabel={m === 'dark' ? 'Dark' : 'Light'}
                   >
-                    <Feather name={m === 'dark' ? 'moon' : 'sun'} size={16} color={on ? btn.fg : COLORS.textSecondary} />
-                    <Text style={[styles.modeOptionText, { color: on ? btn.fg : COLORS.textSecondary }]}>
+                    <Feather name={m === 'dark' ? 'moon' : 'sun'} size={16} color={on ? btn.fg : c.textSecondary} />
+                    <Text style={[styles.modeOptionText, { color: on ? btn.fg : c.textSecondary }]}>
                       {m === 'dark' ? 'Dark' : 'Light'}
                     </Text>
                   </Pressable>
@@ -410,6 +428,9 @@ export default function OnboardingScreen() {
                       active && { borderWidth: 3 },
                     ]}
                     onPress={() => applyPalette(id)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${triad.name} palette`}
+                    accessibilityState={{ selected: active }}
                   >
                     <View style={[styles.paletteSurface, { backgroundColor: pal.surface }]}>
                       <View style={[styles.paletteBar, { backgroundColor: pal.accent }]} />
@@ -430,13 +451,11 @@ export default function OnboardingScreen() {
               })}
             </View>
 
-            <Pressable style={[styles.finishButton, { backgroundColor: btn.bg }]} onPress={() => { applyPalette(themeId); setPalettePicked(true); }}>
-              <Text style={[styles.finishButtonText, { color: btn.fg }]}>Continue →</Text>
+            <Pressable style={styles.primary} onPress={() => { applyPalette(themeId); setPalettePicked(true); }} accessibilityRole="button" accessibilityLabel="Continue">
+              <Text style={styles.primaryText}>Continue</Text>
             </Pressable>
 
-            <Pressable onPress={goBack}>
-              <Text style={styles.backLink}>← Back</Text>
-            </Pressable>
+            <BackLink onPress={goBack} styles={styles} color={c.textMuted} />
           </ScrollView>
         </SafeAreaView>
       );
@@ -452,33 +471,49 @@ export default function OnboardingScreen() {
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
-            <Text style={styles.companionTitle}>Choose your{'\n'}companion</Text>
-            <Text style={styles.companionSub}>
+            <Text style={styles.title} accessibilityRole="header">Choose your{'\n'}companion</Text>
+            <Text style={styles.sub}>
               They grow as you walk away from distractions. You can have them all, but pick your starter.
             </Text>
 
-            <View style={styles.companionRow}>
-              {ALL_CHARACTER_IDS.map((id) => {
+            <Text style={styles.sectionLabel}>Starters</Text>
+            <View style={styles.starterRow}>
+              {STARTER_IDS.map((id) => {
                 const active = id === selectedChar;
                 const accent = CHAR_COLORS[id][0][1];
                 return (
                   <Pressable
                     key={id}
-                    style={[
-                      styles.companionCard,
-                      active && { borderColor: accent, backgroundColor: accent + '12' },
-                    ]}
-                    onPress={() => {
-                      setSelectedChar(id);
-                      if (!companionName || companionName === COMPANION_NAMES[selectedChar ?? id]) {
-                        setCompanionName(COMPANION_NAMES[id]);
-                      }
-                    }}
+                    style={[styles.starterCard, active && { borderColor: accent, backgroundColor: accent + '14' }]}
+                    onPress={() => pickChar(id)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: active }}
+                    accessibilityLabel={`${COMPANION_NAMES[id]}, ${COMPANION_TAGS[id]}`}
+                  >
+                    <GoonSprite char={id} stage={0} size={1.1} />
+                    <Text style={[styles.starterName, active && { color: accent }]}>{COMPANION_NAMES[id]}</Text>
+                    <Text style={styles.starterTag}>{COMPANION_TAGS[id]}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <Text style={styles.sectionLabel}>More companions</Text>
+            <View style={styles.companionRow}>
+              {MORE_IDS.map((id) => {
+                const active = id === selectedChar;
+                const accent = CHAR_COLORS[id][0][1];
+                return (
+                  <Pressable
+                    key={id}
+                    style={[styles.companionCard, active && { borderColor: accent, backgroundColor: accent + '14' }]}
+                    onPress={() => pickChar(id)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: active }}
+                    accessibilityLabel={`${COMPANION_NAMES[id]}, ${COMPANION_TAGS[id]}`}
                   >
                     <GoonSprite char={id} stage={0} size={0.9} />
-                    <Text style={[styles.companionCardName, active && { color: accent }]}>
-                      {COMPANION_NAMES[id]}
-                    </Text>
+                    <Text style={[styles.companionCardName, active && { color: accent }]}>{COMPANION_NAMES[id]}</Text>
                     <Text style={styles.companionCardTag}>{COMPANION_TAGS[id]}</Text>
                   </Pressable>
                 );
@@ -493,22 +528,25 @@ export default function OnboardingScreen() {
                   value={companionName}
                   onChangeText={setCompanionName}
                   placeholder={COMPANION_NAMES[selectedChar]}
-                  placeholderTextColor={COLORS.textMuted}
+                  placeholderTextColor={c.textMuted}
                   maxLength={20}
                   returnKeyType="done"
+                  accessibilityLabel="Companion nickname"
                 />
               </>
             )}
 
             <Pressable
-              style={[styles.finishButton, selectedChar === null && { opacity: 0.4 }]}
+              style={[styles.primary, selectedChar === null && { opacity: 0.4 }]}
               onPress={handlePickCompanion}
               disabled={selectedChar === null}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: selectedChar === null }}
             >
-              <Text style={styles.finishButtonText}>
+              <Text style={styles.primaryText}>
                 {selectedChar !== null
-                  ? `Meet ${companionName || COMPANION_NAMES[selectedChar]} →`
-                  : 'Pick a companion →'}
+                  ? `Meet ${companionName || COMPANION_NAMES[selectedChar]}`
+                  : 'Pick a companion'}
               </Text>
             </Pressable>
 
@@ -529,8 +567,8 @@ export default function OnboardingScreen() {
           >
 
             {/* Title */}
-            <Text style={styles.setupTitle}>Set it up in{'\n'}30 seconds</Text>
-            <Text style={styles.setupSubtitle}>Two quick steps and you're protected. The rest is optional.</Text>
+            <Text style={styles.title} accessibilityRole="header">Set it up in{'\n'}30 seconds</Text>
+            <Text style={styles.sub}>Two quick steps and you're protected. The rest is optional.</Text>
 
             {/* Setup card with action rows */}
             <View style={styles.setupCard}>
@@ -538,7 +576,7 @@ export default function OnboardingScreen() {
               {/* Row 1 — Block sites */}
               <View style={styles.setupRow}>
                 <View style={styles.setupRowLeft}>
-                  <Text style={styles.setupRowEmoji}>🛡️</Text>
+                  <View style={styles.setupRowIcon}><Feather name="shield" size={20} color={c.accentBright} /></View>
                   <View style={styles.setupRowText}>
                     <Text style={styles.setupRowTitle}>Block sites</Text>
                     <Text style={styles.setupRowSub}>
@@ -548,7 +586,7 @@ export default function OnboardingScreen() {
                     </Text>
                   </View>
                 </View>
-                {sitesAdded && <Feather name="check-circle" size={28} color={COLORS.green} />}
+                {sitesAdded && <Feather name="check-circle" size={28} color={c.success} />}
               </View>
 
               {/* Chip grid — shown before sites are added */}
@@ -570,7 +608,7 @@ export default function OnboardingScreen() {
                             })
                           }
                         >
-                          <Text style={styles.chipEmoji}>{emoji}</Text>
+                          <Glyph name={emoji} size={15} color={selected ? btn.bg : c.textSecondary} />
                           <Text style={[styles.chipName, selected && { color: btn.bg }]}>
                             {name}
                           </Text>
@@ -584,7 +622,7 @@ export default function OnboardingScreen() {
                     onPress={handleAddSelected}
                   >
                     <Text style={[styles.chipAddBtnText, { color: btn.fg }]}>
-                      Block {selectedDomains.size} site{selectedDomains.size === 1 ? '' : 's'} →
+                      Block {selectedDomains.size} site{selectedDomains.size === 1 ? '' : 's'}
                     </Text>
                   </Pressable>
                 </View>
@@ -596,7 +634,7 @@ export default function OnboardingScreen() {
               {/* Row 2 — Enable accessibility / app blocking */}
               <View style={styles.setupRow}>
                 <View style={styles.setupRowLeft}>
-                  <Text style={styles.setupRowEmoji}>📱</Text>
+                  <View style={styles.setupRowIcon}><Feather name="smartphone" size={20} color={c.accentBright} /></View>
                   <View style={styles.setupRowText}>
                     <Text style={styles.setupRowTitle}>Enable app blocking</Text>
                     <Text style={styles.setupRowSub}>Blocks apps like TikTok</Text>
@@ -605,7 +643,7 @@ export default function OnboardingScreen() {
 
                 {/* Turns into a checkmark automatically when permission is granted */}
                 {serviceEnabled ? (
-                  <Feather name="check-circle" size={28} color={COLORS.green} />
+                  <Feather name="check-circle" size={28} color={c.success} />
                 ) : (
                   <EnableButton delay={0} label="Enable" onPress={openSettings} bg={btn.bg} fg={btn.fg}
                     style={styles.setupEnableButton} textStyle={styles.setupEnableButtonText} />
@@ -619,7 +657,7 @@ export default function OnboardingScreen() {
                   {[
                     'Tap "Enable" above',
                     'Tap "Installed apps" or scroll to find NoGoon',
-                    'Tap NoGoon → toggle it ON',
+                    'Tap NoGoon, then toggle it ON',
                     'Tap "Allow" on the confirmation dialog',
                     'Come back here — the checkmark will appear automatically',
                   ].map((instruction, i) => (
@@ -637,7 +675,7 @@ export default function OnboardingScreen() {
               {/* Row 3 — Battery optimization exemption */}
               <View style={styles.setupRow}>
                 <View style={styles.setupRowLeft}>
-                  <Text style={styles.setupRowEmoji}>⚡</Text>
+                  <View style={styles.setupRowIcon}><Feather name="zap" size={20} color={c.accentBright} /></View>
                   <View style={styles.setupRowText}>
                     <Text style={styles.setupRowTitle}>Keep NoGoon always on</Text>
                     <Text style={styles.setupRowSub}>Recommended — stops Android from turning it off</Text>
@@ -645,7 +683,7 @@ export default function OnboardingScreen() {
                 </View>
 
                 {batteryExempt ? (
-                  <Feather name="check-circle" size={28} color={COLORS.green} />
+                  <Feather name="check-circle" size={28} color={c.success} />
                 ) : (
                   <EnableButton delay={450} label="Enable" bg={btn.bg} fg={btn.fg}
                     style={styles.setupEnableButton} textStyle={styles.setupEnableButtonText}
@@ -673,14 +711,14 @@ export default function OnboardingScreen() {
                   after onboarding, with no link back to actually enable it. */}
               <View style={styles.setupRow}>
                 <View style={styles.setupRowLeft}>
-                  <Text style={styles.setupRowEmoji}>🌐</Text>
+                  <View style={styles.setupRowIcon}><Feather name="globe" size={20} color={c.accentBright} /></View>
                   <View style={styles.setupRowText}>
                     <Text style={styles.setupRowTitle}>Network filter</Text>
                     <Text style={styles.setupRowSub}>Optional — catches blocked sites at the network level too</Text>
                   </View>
                 </View>
                 {vpnActive ? (
-                  <Feather name="check-circle" size={28} color={COLORS.green} />
+                  <Feather name="check-circle" size={28} color={c.success} />
                 ) : (
                   <EnableButton delay={900} label={vpnLoading ? '…' : 'Enable'} onPress={startVpn} disabled={vpnLoading}
                     bg={btn.bg} fg={btn.fg} style={styles.setupEnableButton} textStyle={styles.setupEnableButtonText} />
@@ -695,14 +733,14 @@ export default function OnboardingScreen() {
                   filters distracting notifications from blocked apps/sites. */}
               <View style={styles.setupRow}>
                 <View style={styles.setupRowLeft}>
-                  <Text style={styles.setupRowEmoji}>🔕</Text>
+                  <View style={styles.setupRowIcon}><Feather name="bell-off" size={20} color={c.accentBright} /></View>
                   <View style={styles.setupRowText}>
                     <Text style={styles.setupRowTitle}>Notification filter</Text>
                     <Text style={styles.setupRowSub}>Optional — quiets notifications from blocked apps</Text>
                   </View>
                 </View>
                 {notifGranted && notifEnabled ? (
-                  <Feather name="check-circle" size={28} color={COLORS.green} />
+                  <Feather name="check-circle" size={28} color={c.success} />
                 ) : (
                   <EnableButton delay={1350} label={notifLoading ? '…' : 'Enable'}
                     onPress={() => (notifGranted ? toggleNotif(true) : openNotifSettings())} disabled={notifLoading}
@@ -718,7 +756,7 @@ export default function OnboardingScreen() {
                   <View style={styles.setupDivider} />
                   <View style={styles.setupRow}>
                     <View style={styles.setupRowLeft}>
-                      <Feather name="alert-triangle" size={20} color={COLORS.textSecondary} />
+                      <Feather name="alert-triangle" size={20} color={c.textSecondary} />
                       <View style={styles.setupRowText}>
                         <Text style={styles.setupRowTitle}>Check your phone's battery manager</Text>
                         <Text style={styles.setupRowSub}>Your device brand has its own, separate from Android's. Also try locking NoGoon in your recent apps.</Text>
@@ -735,15 +773,16 @@ export default function OnboardingScreen() {
             {/* Continue button — moves into the main app. This is where
                 onboarding actually completes (see handleExitSetup above). */}
             <Pressable
-              style={[styles.setupContinueButton, { backgroundColor: btn.bg }]}
+              style={styles.primary}
               onPress={handleContinueSetup}
+              accessibilityRole="button"
             >
-              <Text style={[styles.setupContinueText, { color: btn.fg }]}>Continue to NoGoon →</Text>
+              <Text style={styles.primaryText}>Continue to NoGoon</Text>
             </Pressable>
 
             {/* Skip link for users who want to configure later — still
                 counts as "done" so they land on the main app, not back here. */}
-            <Pressable onPress={handleExitSetup}>
+            <Pressable onPress={handleExitSetup} accessibilityRole="button">
               <Text style={styles.setupSkipText}>Skip for now</Text>
             </Pressable>
 
@@ -761,16 +800,17 @@ export default function OnboardingScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
           <View style={styles.nameScreen}>
-            <Text style={styles.nameEmoji}>👋</Text>
-            <Text style={styles.nameTitle}>What should{'\n'}we call you?</Text>
-            <Text style={styles.nameSubtitle}>
+            <View style={styles.iconBubble}><Feather name="user" size={30} color={c.accentBright} /></View>
+            <Text style={styles.title} accessibilityRole="header">What should{'\n'}we call you?</Text>
+            <Text style={styles.sub}>
               This shows on your profile and streak badges.
             </Text>
 
             <TextInput
               style={[styles.nameInput, nameError ? styles.nameInputError : null]}
               placeholder="Your first name"
-              placeholderTextColor={COLORS.textMuted}
+              accessibilityLabel="Your first name"
+              placeholderTextColor={c.textMuted}
               value={name}
               onChangeText={(t) => { setNameLocal(t); setNameError(''); }}
               autoCapitalize="words"
@@ -788,7 +828,7 @@ export default function OnboardingScreen() {
               <Feather
                 name={ageConfirmed ? 'check-square' : 'square'}
                 size={22}
-                color={ageConfirmed ? COLORS.green : COLORS.textMuted}
+                color={ageConfirmed ? c.success : c.textMuted}
               />
               <Text style={styles.ageText}>I am 18 or older.</Text>
             </Pressable>
@@ -797,13 +837,11 @@ export default function OnboardingScreen() {
               <Text style={styles.nameErrorText}>{nameError}</Text>
             ) : null}
 
-            <Pressable style={[styles.finishButton, !ageConfirmed && { opacity: 0.5 }]} onPress={handleFinish}>
-              <Text style={styles.finishButtonText}>Let's Go →</Text>
+            <Pressable style={[styles.primary, !ageConfirmed && { opacity: 0.5 }]} onPress={handleFinish} accessibilityRole="button" accessibilityLabel="Let's go">
+              <Text style={styles.primaryText}>Let's go</Text>
             </Pressable>
 
-            <Pressable onPress={goBack}>
-              <Text style={styles.backLink}>← Back</Text>
-            </Pressable>
+            <BackLink onPress={goBack} styles={styles} color={c.textMuted} />
           </View>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -824,7 +862,7 @@ export default function OnboardingScreen() {
             // palette screen lands on a slide that matches the step.
             slideX.setValue(-(SLIDES.length - 1) * SCREEN_WIDTH);
             setStep(SLIDES.length);
-          }} hitSlop={10}>
+          }} hitSlop={10} accessibilityRole="button" accessibilityLabel="Skip intro">
             <Text style={styles.skipButtonText}>Skip</Text>
           </Pressable>
         )}
@@ -839,10 +877,10 @@ export default function OnboardingScreen() {
           >
             {SLIDES.map((slide, i) => (
               <View key={i} style={styles.slide}>
-                <View style={[styles.slideIconWrap, { backgroundColor: slide.color + '1c' }]}>
-                  <Feather name={slide.icon} size={40} color={slide.color} />
+                <View style={[styles.slideIconWrap, { backgroundColor: c[slide.tone] + '22', borderWidth: card.borderWidth, borderColor: c[slide.tone] + '55' }]}>
+                  <Feather name={slide.icon} size={42} color={c[slide.tone]} />
                 </View>
-                <Text style={[styles.slideTitle, { color: slide.color }]}>
+                <Text style={styles.slideTitle} accessibilityRole="header">
                   {slide.title}
                 </Text>
                 <Text style={styles.slideBody}>{slide.body}</Text>
@@ -867,14 +905,14 @@ export default function OnboardingScreen() {
         {/* Navigation buttons */}
         <View style={styles.nav}>
           {step > 0 ? (
-            <Pressable style={styles.backButton} onPress={goBack}>
+            <Pressable style={styles.backButton} onPress={goBack} accessibilityRole="button" accessibilityLabel="Back">
               <Text style={styles.backButtonText}>Back</Text>
             </Pressable>
           ) : (
             <View style={styles.backButton} /> // spacer
           )}
 
-          <Pressable style={styles.nextButton} onPress={goNext}>
+          <Pressable style={styles.nextButton} onPress={goNext} accessibilityRole="button">
             <Text style={styles.nextButtonText}>
               {step === SLIDES.length - 1 ? "Let's start" : 'Next'}
             </Text>
@@ -886,551 +924,101 @@ export default function OnboardingScreen() {
   );
 }
 
-const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  flex: {
-    flex: 1,
-  },
+const makeStyles = (c: ThemePalette, card: ReturnType<typeof useTheme>['cardStyle'], btn: { bg: string; fg: string }) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: c.background },
+  flex: { flex: 1 },
+
+  // Shared bits
+  title: { fontFamily: FONTS.display, fontSize: 34, color: c.text, textAlign: 'center', lineHeight: 42, letterSpacing: -0.5 },
+  sub: { fontFamily: FONTS.body, fontSize: 15, color: c.textSecondary, textAlign: 'center', lineHeight: 22 },
+  primary: { width: '100%', minHeight: 52, backgroundColor: btn.bg, borderRadius: 999, paddingVertical: 14, paddingHorizontal: SPACING.lg, alignItems: 'center', justifyContent: 'center', marginTop: SPACING.sm },
+  primaryText: { fontFamily: FONTS.bodyBold, fontSize: 16, color: btn.fg },
+  backRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: 44, paddingHorizontal: SPACING.md },
+  backLink: { fontFamily: FONTS.bodyMedium, fontSize: 14, color: c.textMuted },
+  iconBubble: { width: 72, height: 72, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: c.accentDim, marginBottom: SPACING.sm },
 
   // ── Slides ──
-  skipButton: {
-    position: 'absolute',
-    top: SPACING.md,
-    right: SPACING.lg,
-    zIndex: 5,
-    paddingVertical: SPACING.xs,
-    paddingHorizontal: SPACING.sm,
-  },
-  skipButtonText: {
-    fontFamily: FONTS.bodyMedium,
-    fontSize: 15,
-    color: COLORS.textMuted,
-  },
-  slidesWrapper: {
-    flex: 1,
-    overflow: 'hidden',
-  },
-  slidesRow: {
-    flexDirection: 'row',
-    width: SCREEN_WIDTH * SLIDES.length,
-    flex: 1,
-  },
-  slide: {
-    width: SCREEN_WIDTH,
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: SPACING.xl,
-  },
-  slideIconWrap: {
-    width: 88,
-    height: 88,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: SPACING.xl,
-  },
-  slideTitle: {
-    fontFamily: FONTS.display,
-    fontSize: 36,
-    textAlign: 'center',
-    lineHeight: 44,
-    letterSpacing: -0.5,
-    marginBottom: SPACING.lg,
-  },
-  slideBody: {
-    fontFamily: FONTS.body,
-    fontSize: 17,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    lineHeight: 26,
-  },
+  skipButton: { position: 'absolute', top: SPACING.md, right: SPACING.lg, zIndex: 5, minHeight: 44, justifyContent: 'center', paddingHorizontal: SPACING.sm },
+  skipButtonText: { fontFamily: FONTS.bodyMedium, fontSize: 15, color: c.textMuted },
+  slidesWrapper: { flex: 1, overflow: 'hidden' },
+  slidesRow: { flexDirection: 'row', width: SCREEN_WIDTH * SLIDES.length, flex: 1 },
+  slide: { width: SCREEN_WIDTH, flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: SPACING.xl },
+  slideIconWrap: { width: 96, height: 96, borderRadius: 32, alignItems: 'center', justifyContent: 'center', marginBottom: SPACING.xl },
+  slideTitle: { fontFamily: FONTS.display, fontSize: 36, textAlign: 'center', lineHeight: 44, letterSpacing: -0.5, marginBottom: SPACING.lg, color: c.text },
+  slideBody: { fontFamily: FONTS.body, fontSize: 17, color: c.textSecondary, textAlign: 'center', lineHeight: 26 },
 
-  // ── Dots ──
-  dots: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: SPACING.sm,
-    paddingVertical: SPACING.xl,
-  },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: COLORS.border,
-  },
-  dotActive: {
-    width: 20,
-    backgroundColor: COLORS.indigoBright,
-  },
+  dots: { flexDirection: 'row', justifyContent: 'center', gap: SPACING.sm, paddingVertical: SPACING.xl },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: c.border },
+  dotActive: { width: 22, backgroundColor: c.accent },
 
-  // ── Nav buttons ──
-  nav: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.lg,
-    paddingBottom: SPACING.xxl,
-    gap: SPACING.md,
-  },
-  backButton: {
-    width: 80,
-    paddingVertical: SPACING.md,
-    alignItems: 'center',
-  },
-  backButtonText: {
-    fontFamily: FONTS.body,
-    fontSize: 15,
-    color: COLORS.textMuted,
-  },
-  nextButton: {
-    flex: 1,
-    backgroundColor: COLORS.indigo,
-    borderRadius: RADIUS.md,
-    paddingVertical: SPACING.lg,
-    alignItems: 'center',
-  },
-  nextButtonText: {
-    fontFamily: FONTS.bodyBold,
-    fontSize: 16,
-    color: COLORS.background,
-  },
+  nav: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING.lg, paddingBottom: SPACING.xxl, gap: SPACING.md },
+  backButton: { width: 80, minHeight: 52, alignItems: 'center', justifyContent: 'center' },
+  backButtonText: { fontFamily: FONTS.bodyMedium, fontSize: 15, color: c.textMuted },
+  nextButton: { flex: 1, minHeight: 52, backgroundColor: btn.bg, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
+  nextButtonText: { fontFamily: FONTS.bodyBold, fontSize: 16, color: btn.fg },
 
   // ── Companion screen ──
-  companionScreen: {
-    flexGrow: 1,
-    alignItems: 'center',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.xl,
-    gap: SPACING.lg,
-  },
-  companionTitle: {
-    fontFamily: FONTS.display,
-    fontSize: 34,
-    color: COLORS.textPrimary,
-    textAlign: 'center',
-    lineHeight: 42,
-    letterSpacing: -0.5,
-  },
-  companionSub: {
-    fontFamily: FONTS.body,
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    lineHeight: 22,
-    marginTop: -SPACING.sm,
-  },
-  companionRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.sm,
-    width: '100%',
-  },
-  companionCard: {
-    flexBasis: '22%',
-    flexGrow: 1,
-    alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.md,
-    borderWidth: 2,
-    borderColor: COLORS.cardBorder,
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.xs,
-    gap: SPACING.xs,
-  },
-  companionCardName: {
-    fontFamily: FONTS.bodyBold,
-    fontSize: 13,
-    color: COLORS.textPrimary,
-  },
-  companionCardTag: {
-    fontFamily: FONTS.body,
-    fontSize: 10,
-    color: COLORS.textMuted,
-    textAlign: 'center',
-    lineHeight: 14,
-  },
-  companionNameLabel: {
-    fontFamily: FONTS.mono,
-    fontSize: 11,
-    color: COLORS.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    alignSelf: 'flex-start',
-    marginBottom: -SPACING.sm,
-  },
-  companionNameInput: {
-    width: '100%',
-    backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.cardBorder,
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-    fontFamily: FONTS.body,
-    fontSize: 16,
-    color: COLORS.textPrimary,
-    textAlign: 'center',
-  },
+  companionScreen: { flexGrow: 1, alignItems: 'center', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.xl, gap: SPACING.md },
+  sectionLabel: { alignSelf: 'flex-start', fontFamily: FONTS.bodyBold, fontSize: 11, letterSpacing: 1.2, color: c.textMuted, textTransform: 'uppercase', marginTop: SPACING.sm },
+  starterRow: { flexDirection: 'row', gap: SPACING.sm, width: '100%' },
+  starterCard: { flex: 1, alignItems: 'center', backgroundColor: c.surface, borderRadius: card.borderRadius, borderWidth: 2, borderColor: c.cardBorder, paddingVertical: SPACING.lg, paddingHorizontal: SPACING.xs, gap: SPACING.xs, minHeight: 150 },
+  companionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm, width: '100%' },
+  companionCard: { flexBasis: '22%', flexGrow: 1, alignItems: 'center', backgroundColor: c.surface, borderRadius: card.borderRadius, borderWidth: 2, borderColor: c.cardBorder, paddingVertical: SPACING.md, paddingHorizontal: SPACING.xs, gap: SPACING.xs },
+  companionCardName: { fontFamily: FONTS.bodyBold, fontSize: 13, color: c.text },
+  starterName: { fontFamily: FONTS.display, fontSize: 17, color: c.text },
+  companionCardTag: { fontFamily: FONTS.body, fontSize: 10, color: c.textMuted, textAlign: 'center', lineHeight: 14 },
+  starterTag: { fontFamily: FONTS.body, fontSize: 11, color: c.textSecondary, textAlign: 'center', lineHeight: 15 },
+  companionNameLabel: { fontFamily: FONTS.bodyBold, fontSize: 11, color: c.textMuted, textTransform: 'uppercase', letterSpacing: 1.2, alignSelf: 'flex-start', marginTop: SPACING.sm, marginBottom: -SPACING.xs },
+  companionNameInput: { width: '100%', minHeight: 52, backgroundColor: c.surface, borderRadius: 14, borderWidth: 1, borderColor: c.cardBorder, paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, fontFamily: FONTS.body, fontSize: 16, color: c.text, textAlign: 'center' },
 
   // ── Palette screen ──
-  paletteScreen: {
-    flexGrow: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: SPACING.xl,
-    paddingVertical: SPACING.xl,
-    gap: SPACING.md,
-  },
-  paletteTitle: {
-    fontFamily: FONTS.display,
-    fontSize: 36,
-    color: COLORS.textPrimary,
-    textAlign: 'center',
-    lineHeight: 44,
-    letterSpacing: -0.5,
-  },
-  paletteSub: {
-    fontFamily: FONTS.body,
-    fontSize: 15,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    marginBottom: SPACING.sm,
-  },
-  modeSwitch: {
-    flexDirection: 'row',
-    alignSelf: 'center',
-    backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.full ?? 999,
-    borderWidth: 1,
-    borderColor: COLORS.cardBorder,
-    padding: 4,
-    marginBottom: SPACING.sm,
-  },
-  modeOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 18,
-    borderRadius: 999,
-  },
+  paletteScreen: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.xl, gap: SPACING.md },
+  modeSwitch: { flexDirection: 'row', alignSelf: 'center', backgroundColor: c.surfaceHigh, borderRadius: 999, borderWidth: 1, borderColor: c.cardBorder, padding: 3, marginBottom: SPACING.sm },
+  modeOption: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44, paddingHorizontal: 20, borderRadius: 999 },
   modeOptionText: { fontFamily: FONTS.bodyBold, fontSize: 14 },
-  paletteGrid: {
-    width: '100%',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    rowGap: SPACING.md,
-  },
-  paletteCard: {
-    width: '48%',
-    borderRadius: RADIUS.md,
-    borderWidth: 1.5,
-    padding: SPACING.sm,
-    gap: SPACING.sm,
-  },
-  paletteSurface: {
-    borderRadius: RADIUS.sm,
-    padding: SPACING.sm,
-    gap: SPACING.sm,
-  },
+  paletteGrid: { width: '100%', flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: SPACING.md },
+  paletteCard: { width: '48%', borderRadius: card.borderRadius, borderWidth: 1.5, padding: SPACING.sm, gap: SPACING.sm },
+  paletteSurface: { borderRadius: 10, padding: SPACING.sm, gap: SPACING.sm },
   paletteBar: { height: 8, borderRadius: 4, width: '60%' },
   paletteDots: { flexDirection: 'row', gap: 6 },
   paletteDot: { width: 12, height: 12, borderRadius: 6 },
   paletteName: { fontFamily: FONTS.bodyBold, fontSize: 14, paddingHorizontal: 2 },
-  paletteCheck: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  paletteCheck: { position: 'absolute', top: 8, right: 8, width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
 
   // ── Name screen ──
-  nameScreen: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: SPACING.xl,
-    gap: SPACING.md,
-  },
-  nameEmoji: {
-    fontSize: 64,
-    marginBottom: SPACING.sm,
-  },
-  nameTitle: {
-    fontFamily: FONTS.display,
-    fontSize: 36,
-    color: COLORS.textPrimary,
-    textAlign: 'center',
-    lineHeight: 44,
-    letterSpacing: -0.5,
-  },
-  nameSubtitle: {
-    fontFamily: FONTS.body,
-    fontSize: 15,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    marginBottom: SPACING.sm,
-  },
-  nameInput: {
-    width: '100%',
-    backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.cardBorder,
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-    fontFamily: FONTS.body,
-    fontSize: 18,
-    color: COLORS.textPrimary,
-    textAlign: 'center',
-    marginTop: SPACING.sm,
-  },
-  nameInputError: {
-    borderColor: COLORS.danger,
-  },
-  ageRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-    alignSelf: 'flex-start',
-    paddingVertical: SPACING.sm,
-  },
-  ageText: {
-    fontFamily: FONTS.body,
-    fontSize: 15,
-    color: COLORS.textSecondary,
-  },
-  nameErrorText: {
-    fontFamily: FONTS.body,
-    fontSize: 13,
-    color: COLORS.danger,
-  },
-  finishButton: {
-    width: '100%',
-    backgroundColor: COLORS.indigo,
-    borderRadius: RADIUS.md,
-    paddingVertical: SPACING.lg,
-    alignItems: 'center',
-    marginTop: SPACING.sm,
-  },
-  finishButtonText: {
-    fontFamily: FONTS.bodyBold,
-    fontSize: 16,
-    color: COLORS.background,
-  },
-  backLink: {
-    fontFamily: FONTS.body,
-    fontSize: 14,
-    color: COLORS.textMuted,
-    marginTop: SPACING.sm,
-  },
+  nameScreen: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: SPACING.lg, gap: SPACING.md },
+  nameInput: { width: '100%', minHeight: 56, backgroundColor: c.surface, borderRadius: 14, borderWidth: 1, borderColor: c.cardBorder, paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, fontFamily: FONTS.body, fontSize: 18, color: c.text, textAlign: 'center', marginTop: SPACING.sm },
+  nameInputError: { borderColor: c.danger },
+  ageRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, alignSelf: 'flex-start', minHeight: 44 },
+  ageText: { fontFamily: FONTS.body, fontSize: 15, color: c.textSecondary },
+  nameErrorText: { fontFamily: FONTS.body, fontSize: 13, color: c.danger, alignSelf: 'flex-start' },
 
   // ── Setup step ──
-  // Shown after the name input. Guides the user to add blocked sites
-  // and enable the Accessibility Service before entering the main app.
-  setupScreen: {
-    flexGrow: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: SPACING.xl,
-    paddingVertical: SPACING.xl,
-    gap: SPACING.lg,
-  },
+  setupScreen: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: SPACING.lg, paddingVertical: SPACING.xl, gap: SPACING.lg },
+  setupCard: { width: '100%', backgroundColor: c.surface, borderRadius: card.borderRadius, borderWidth: card.borderWidth, borderColor: c.cardBorder, overflow: 'hidden' },
+  setupRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: SPACING.lg, gap: SPACING.md },
+  setupRowLeft: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, flex: 1 },
+  setupRowIcon: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: c.accentDim },
+  setupRowText: { flex: 1, gap: 2 },
+  setupRowTitle: { fontFamily: FONTS.bodyBold, fontSize: 15, color: c.text },
+  setupRowSub: { fontFamily: FONTS.body, fontSize: 13, color: c.textSecondary, lineHeight: 18 },
+  setupDivider: { height: 1, backgroundColor: c.cardBorder, marginHorizontal: SPACING.lg },
+  setupEnableButton: { minHeight: 44, justifyContent: 'center', borderRadius: 999, paddingHorizontal: SPACING.lg },
+  setupEnableButtonText: { fontFamily: FONTS.bodyBold, fontSize: 14, color: btn.fg },
+  setupContinueText: { fontFamily: FONTS.bodyBold, fontSize: 16, color: btn.fg },
+  setupSkipText: { fontFamily: FONTS.bodyMedium, fontSize: 14, color: c.textMuted, minHeight: 44, textAlignVertical: 'center', paddingTop: 10 },
 
-  // ── Site suggestion chips ──
-  chipSection: {
-    paddingHorizontal: SPACING.lg,
-    paddingBottom: SPACING.lg,
-    gap: SPACING.md,
-  },
-  chipGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.sm,
-  },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 7,
-    borderRadius: RADIUS.full,
-    borderWidth: 1,
-    borderColor: COLORS.cardBorder,
-    backgroundColor: COLORS.background,
-  },
-  chipSelected: {
-    borderColor: COLORS.green,
-    backgroundColor: COLORS.green + '18',
-  },
-  chipEmoji: {
-    fontSize: 14,
-  },
-  chipName: {
-    fontFamily: FONTS.body,
-    fontSize: 13,
-    color: COLORS.textSecondary,
-  },
-  chipNameSelected: {
-    color: COLORS.green,
-  },
-  chipAddBtn: {
-    backgroundColor: COLORS.indigo,
-    borderRadius: RADIUS.md,
-    paddingVertical: SPACING.md,
-    alignItems: 'center',
-  },
-  chipAddBtnText: {
-    fontFamily: FONTS.bodyBold,
-    fontSize: 15,
-    color: COLORS.background,
-  },
-  setupTitle: {
-    fontFamily: FONTS.display,
-    fontSize: 36,
-    color: COLORS.textPrimary,
-    textAlign: 'center',
-    lineHeight: 44,
-    letterSpacing: -0.5,
-  },
-  setupSubtitle: {
-    fontFamily: FONTS.body,
-    fontSize: 15,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    marginTop: -SPACING.sm,
-  },
-  setupCard: {
-    width: '100%',
-    backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.cardBorder,
-    overflow: 'hidden',
-  },
-  setupRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: SPACING.lg,
-    gap: SPACING.md,
-  },
-  setupRowLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.md,
-    flex: 1,
-  },
-  setupRowEmoji: {
-    fontSize: 26,
-  },
-  setupRowText: {
-    flex: 1,
-    gap: 2,
-  },
-  setupRowTitle: {
-    fontFamily: FONTS.bodyBold,
-    fontSize: 15,
-    color: COLORS.textPrimary,
-  },
-  setupRowSub: {
-    fontFamily: FONTS.body,
-    fontSize: 13,
-    color: COLORS.textSecondary,
-  },
-  setupDivider: {
-    height: 1,
-    backgroundColor: COLORS.cardBorder,
-    marginHorizontal: SPACING.lg,
-  },
-  // Green "Add" button — becomes a checkmark icon once tapped
-  setupAddButton: {
-    backgroundColor: COLORS.indigo,
-    borderRadius: RADIUS.sm,
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-  },
-  setupAddButtonText: {
-    fontFamily: FONTS.bodyBold,
-    fontSize: 14,
-    color: COLORS.background,
-  },
-  // Purple "Enable" button for the accessibility row
-  setupEnableButton: {
-    backgroundColor: COLORS.purple,
-    borderRadius: RADIUS.sm,
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-  },
-  setupEnableButtonText: {
-    fontFamily: FONTS.bodyBold,
-    fontSize: 14,
-    color: COLORS.background,
-  },
-  // Large green continue button at the bottom of the setup screen
-  setupContinueButton: {
-    width: '100%',
-    backgroundColor: COLORS.indigo,
-    borderRadius: RADIUS.md,
-    paddingVertical: SPACING.lg,
-    alignItems: 'center',
-  },
-  setupContinueText: {
-    fontFamily: FONTS.bodyBold,
-    fontSize: 16,
-    color: COLORS.background,
-  },
-  // Small skip link below the continue button
-  setupSkipText: {
-    fontFamily: FONTS.body,
-    fontSize: 14,
-    color: COLORS.textMuted,
-  },
+  // Site chips
+  chipSection: { paddingHorizontal: SPACING.lg, paddingBottom: SPACING.lg, gap: SPACING.md },
+  chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 40, paddingHorizontal: SPACING.md, borderRadius: 999, borderWidth: 1, borderColor: c.cardBorder, backgroundColor: c.background },
+  chipName: { fontFamily: FONTS.bodyMedium, fontSize: 13, color: c.textSecondary },
+  chipAddBtn: { minHeight: 48, backgroundColor: btn.bg, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
+  chipAddBtnText: { fontFamily: FONTS.bodyBold, fontSize: 15, color: btn.fg },
 
-  // ── Accessibility step-by-step instructions ──
-  // Shown inside the setup card below the Enable row, only before permission granted
-  accessibilitySteps: {
-    marginHorizontal: SPACING.lg,
-    marginBottom: SPACING.lg,
-    backgroundColor: COLORS.background,
-    borderRadius: RADIUS.sm,
-    padding: SPACING.md,
-    gap: SPACING.xs,
-  },
-  accessibilityStepsTitle: {
-    fontFamily: FONTS.bodyBold,
-    fontSize: 12,
-    color: COLORS.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: SPACING.xs,
-  },
-  accessibilityStep: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: SPACING.sm,
-  },
-  accessibilityStepNum: {
-    fontFamily: FONTS.mono,
-    fontSize: 12,
-    color: COLORS.purple,
-    width: 16,
-    marginTop: 1,
-  },
-  accessibilityStepText: {
-    fontFamily: FONTS.body,
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    flex: 1,
-    lineHeight: 20,
-  },
+  accessibilitySteps: { marginHorizontal: SPACING.lg, marginBottom: SPACING.lg, backgroundColor: c.background, borderRadius: 12, padding: SPACING.md, gap: SPACING.xs },
+  accessibilityStepsTitle: { fontFamily: FONTS.bodyBold, fontSize: 12, color: c.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: SPACING.xs },
+  accessibilityStep: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.sm },
+  accessibilityStepNum: { fontFamily: FONTS.monoBold, fontSize: 12, color: c.accentBright, width: 16, marginTop: 1 },
+  accessibilityStepText: { fontFamily: FONTS.body, fontSize: 13, color: c.textSecondary, flex: 1, lineHeight: 20 },
 });

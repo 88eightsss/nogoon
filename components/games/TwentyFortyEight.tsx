@@ -22,6 +22,7 @@ import { FONTS } from '@/constants/Colors';
 import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { useSafeTimeout } from '@/hooks/useSafeTimeout';
+import { Feather } from '@expo/vector-icons';
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
 
@@ -396,14 +397,14 @@ export function TwentyFortyEight({ onComplete }: Props) {
 
         {phase === 'won' && (
           <View style={styles.overlay}>
-            <Text style={styles.overlayEmoji}>🏆</Text>
+            <Feather name="award" size={56} color={COLORS.green} />
             <Text style={styles.overlayTitle}>You reached 2048!</Text>
             <Text style={styles.overlayScore}>{score} pts</Text>
           </View>
         )}
         {phase === 'over' && (
           <View style={styles.overlay}>
-            <Text style={styles.overlayEmoji}>💀</Text>
+            <Feather name="x-octagon" size={56} color={COLORS.danger} />
             <Text style={styles.overlayTitle}>No more moves</Text>
             <Text style={styles.overlayScore}>{score} pts</Text>
           </View>

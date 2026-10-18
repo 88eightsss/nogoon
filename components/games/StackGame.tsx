@@ -29,6 +29,7 @@ import { FONTS } from '@/constants/Colors';
 import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { useSafeTimeout } from '@/hooks/useSafeTimeout';
+import { Feather } from '@expo/vector-icons';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -213,7 +214,7 @@ export function StackGame({ onComplete }: Props) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.readyContainer}>
-          <Text style={styles.readyEmoji}>🏗️</Text>
+          <Feather name="layers" size={56} color={COLORS.cyan} />
           <Text style={styles.readyTitle}>Stack</Text>
           <View style={styles.readyCard}>
             <Text style={styles.readyRule}>
@@ -222,7 +223,7 @@ export function StackGame({ onComplete }: Props) {
               completely and the game ends. Stack {TARGET_STACKS} blocks to win.
             </Text>
           </View>
-          <Text style={styles.challengeTag}>⚡ CHALLENGE MODE</Text>
+          <Text style={styles.challengeTag}>CHALLENGE MODE</Text>
           <Pressable style={styles.startButton} onPress={startGame}>
             <Text style={styles.startButtonText}>Drop it →</Text>
           </Pressable>
@@ -302,7 +303,7 @@ export function StackGame({ onComplete }: Props) {
         {/* ── Done overlay ── */}
         {phase === 'done' && (
           <View style={styles.doneOverlay}>
-            <Text style={styles.doneEmoji}>{failed ? '💥' : '🏗️'}</Text>
+            <Feather name={failed ? 'x-circle' : 'layers'} size={56} color={failed ? COLORS.danger : COLORS.cyan} />
             <Text style={styles.doneTitle}>
               {failed ? 'Missed!' : `${stackCount} stacked!`}
             </Text>

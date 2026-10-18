@@ -16,6 +16,7 @@ import { FONTS } from '@/constants/Colors';
 import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { useSafeTimeout } from '@/hooks/useSafeTimeout';
+import { Feather } from '@expo/vector-icons';
 
 // ─── Game constants ────────────────────────────────────────────────────────────
 
@@ -148,7 +149,7 @@ export function PixelDodge({ onComplete }: Props) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.center}>
-          <Text style={styles.titleEmoji}>👾</Text>
+          <Feather name="cpu" size={56} color={COLORS.green} />
           <Text style={styles.title}>Pixel Dodge</Text>
           <View style={styles.ruleCard}>
             <Text style={styles.rule}>
@@ -201,7 +202,7 @@ export function PixelDodge({ onComplete }: Props) {
           {(phase === 'dead' || phase === 'win') && (
             <View style={styles.overlay}>
               <Text style={styles.overlayText}>
-                {phase === 'win' ? '🎉 SURVIVED' : '💥 HIT'}
+                {phase === 'win' ? 'SURVIVED' : 'HIT'}
               </Text>
             </View>
           )}
@@ -213,13 +214,13 @@ export function PixelDodge({ onComplete }: Props) {
             style={[styles.ctrlBtn, { backgroundColor: COLORS.green + '22', borderColor: COLORS.green + '55' }]}
             onPressIn={() => movePlayer('left')}
           >
-            <Text style={[styles.ctrlText, { color: COLORS.green }]}>◀</Text>
+            <Feather name="chevron-left" size={34} color={COLORS.green} />
           </Pressable>
           <Pressable
             style={[styles.ctrlBtn, { backgroundColor: COLORS.cyan + '22', borderColor: COLORS.cyan + '55' }]}
             onPressIn={() => movePlayer('right')}
           >
-            <Text style={[styles.ctrlText, { color: COLORS.cyan }]}>▶</Text>
+            <Feather name="chevron-right" size={34} color={COLORS.cyan} />
           </Pressable>
         </View>
 

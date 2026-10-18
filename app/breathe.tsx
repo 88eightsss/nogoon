@@ -20,20 +20,21 @@ import { GroundingExercise } from '@/components/games/GroundingExercise';
 import { FONTS } from '@/constants/Colors';
 import { useThemedColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
+import { Glyph } from '@/components/ui/Glyph';
 
 type Phase = 'pick' | 'breathing' | 'grounding' | 'done';
 
 const OPTIONS = [
   {
     id:      'breathing' as const,
-    emoji:   '🫧',
+    emoji:   'droplet',
     title:   'Breathing',
     sub:     'Hold to breathe in, let go to breathe out · 1 minute',
     color:   '#4ecdc4', // teal accent, matches breathing exercise
   },
   {
     id:      'grounding' as const,
-    emoji:   '🌿',
+    emoji:   'feather',
     title:   'Grounding',
     sub:     'Type what you notice · anchors you here',
     color:   '#2E7D32', // forest green accent, matches grounding exercise
@@ -73,7 +74,7 @@ export default function BreatheScreen() {
     return (
       <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]}>
         <View style={styles.doneContainer}>
-          <Text style={styles.doneEmoji}>🌿</Text>
+          <Feather name="feather" size={60} color={C.green} />
           <Text style={[styles.doneTitle, { color: C.textPrimary }]}>That's it.</Text>
           <Text style={[styles.doneSub, { color: C.textSecondary }]}>
             A moment of calm, taken.
@@ -140,7 +141,7 @@ export default function BreatheScreen() {
                 setPhase(opt.id);
               }}
             >
-              <Text style={styles.optionEmoji}>{opt.emoji}</Text>
+              <View style={{ width: 40, alignItems: 'center' }}><Glyph name={opt.emoji} size={28} color={C.cyan} /></View>
               <View style={styles.optionText}>
                 <Text style={[styles.optionTitle, { color: C.textPrimary }]}>{opt.title}</Text>
                 <Text style={[styles.optionSub, { color: C.textSecondary }]}>{opt.sub}</Text>

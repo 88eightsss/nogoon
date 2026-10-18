@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
+import { Glyph, resolveIcon } from '@/components/ui/Glyph';
 import { useTheme } from '@/hooks/useTheme';
 import { useModesStore, DEFAULT_SCHEDULE, type ModeSchedule } from '@/stores/useModesStore';
 import { BLOCKABLE_APPS } from '@/hooks/useAppBlocker';
@@ -18,7 +19,7 @@ import { ScheduleEditor } from '@/components/ScheduleEditor';
 import { FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 
-const EMOJI_CHOICES = ['🎯', '💼', '🌙', '📚', '🏋️', '🧘', '🎮', '🛌', '☀️', '🔒'];
+const EMOJI_CHOICES = ['target', 'briefcase', 'moon', 'book', 'activity', 'heart', 'play-circle', 'sun', 'lock', 'coffee'];
 const COLOR_CHOICES = ['#6c8cff', '#ff6b8a', '#4ecdc4', '#ffb84d', '#a78bfa', '#6ee7b7'];
 const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
@@ -40,7 +41,7 @@ export default function ModeEditorScreen() {
   const isEditing = !!existing;
 
   const [name, setName]   = useState(existing?.name ?? '');
-  const [emoji, setEmoji] = useState(existing?.emoji ?? EMOJI_CHOICES[0]);
+  const [emoji, setEmoji] = useState<string>(resolveIcon(existing?.emoji ?? EMOJI_CHOICES[0]));
   const [color, setColor] = useState(existing?.color ?? COLOR_CHOICES[0]);
   const [apps, setApps]   = useState<string[]>(existing?.blockedApps ?? []);
   const [domains, setDomains] = useState<string[]>(existing?.blockedDomains ?? []);
@@ -121,7 +122,7 @@ export default function ModeEditorScreen() {
                 { backgroundColor: colors.surface, borderColor: emoji === e ? colors.accent : colors.cardBorder, borderWidth: emoji === e ? 1.5 : 0.5 },
               ]}
             >
-              <Text style={{ fontSize: 18 }}>{e}</Text>
+              <Glyph name={e} size={20} color={emoji === e ? colors.accent : colors.textSecondary} />
             </Pressable>
           ))}
         </View>
@@ -140,7 +141,7 @@ export default function ModeEditorScreen() {
         <View style={[styles.section, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
           {BLOCKABLE_APPS.map((app) => (
             <View key={app.id} style={styles.appRow}>
-              <Text style={{ fontSize: 16 }}>{app.emoji}</Text>
+              <Glyph name={app.emoji} size={18} color={colors.textSecondary} />
               <Text style={[styles.appName, { color: colors.text }]}>{app.name}</Text>
               <Switch
                 value={apps.includes(app.id)}

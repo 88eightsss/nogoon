@@ -27,6 +27,7 @@ import { FONTS } from '@/constants/Colors';
 import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { useSafeTimeout } from '@/hooks/useSafeTimeout';
+import { Feather } from '@expo/vector-icons';
 
 // ─── Layout constants (actual px computed from measured width) ─────────────────
 
@@ -273,7 +274,7 @@ export function BrickBreak({ onComplete }: Props) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.center}>
-          <Text style={styles.emoji}>🧱</Text>
+          <Feather name="square" size={56} color={COLORS.danger} />
           <Text style={styles.title}>Brick Break</Text>
           <View style={styles.ruleCard}>
             <Text style={styles.rule}>
@@ -361,7 +362,7 @@ export function BrickBreak({ onComplete }: Props) {
           {phase === 'done' && (
             <View style={styles.overlay}>
               <Text style={styles.overlayText}>
-                {bricksLeft === 0 ? '🎉 Cleared!' : `${BRICK_ROWS * BRICK_COLS - bricksLeft} broken`}
+                {bricksLeft === 0 ? 'Cleared!' : `${BRICK_ROWS * BRICK_COLS - bricksLeft} broken`}
               </Text>
             </View>
           )}

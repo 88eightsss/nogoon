@@ -18,6 +18,7 @@ import { FONTS } from '@/constants/Colors';
 import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { useSafeTimeout } from '@/hooks/useSafeTimeout';
+import { Feather } from '@expo/vector-icons';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -195,7 +196,7 @@ export function FlappyBird({ onComplete }: Props) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.center}>
-          <Text style={styles.emoji}>🐦</Text>
+          <Feather name="send" size={56} color={COLORS.cyan} />
           <Text style={styles.title}>Flappy</Text>
           <View style={styles.ruleCard}>
             <Text style={styles.rule}>
@@ -307,7 +308,7 @@ export function FlappyBird({ onComplete }: Props) {
             {phase === 'done' && (
               <View style={styles.overlay}>
                 <Text style={styles.overlayText}>
-                  {displayScore >= WIN_PIPES ? '🎉 You won!' : `${displayScore} pipes`}
+                  {displayScore >= WIN_PIPES ? 'You won!' : `${displayScore} pipes`}
                 </Text>
               </View>
             )}

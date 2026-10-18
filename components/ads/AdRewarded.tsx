@@ -35,7 +35,7 @@ import { SPACING, RADIUS } from '@/constants/Spacing';
 
 // ─── Ad Unit IDs ──────────────────────────────────────────────────────────────
 // Test IDs are Google's official test IDs — safe to use during development.
-// ⚠️  Replace REAL_REWARDED_ID_ANDROID with your real Ad Unit ID before launch.
+// WARNING: Replace REAL_REWARDED_ID_ANDROID with your real Ad Unit ID before launch.
 
 const TEST_REWARDED_ID_ANDROID  = 'ca-app-pub-3940256099942544/5224354917';
 const REAL_REWARDED_ID_ANDROID  = 'ca-app-pub-REPLACE_ME/REPLACE_ME';

@@ -32,6 +32,7 @@ import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { ProceedButton } from '@/components/ui/ProceedButton';
 import { useSafeTimeout } from '@/hooks/useSafeTimeout';
+import { Feather } from '@expo/vector-icons';
 
 // ─── Phrase bank ───────────────────────────────────────────────────────────────
 // Each phrase is chosen to reinforce the app's values while keeping fingers busy.
@@ -158,7 +159,7 @@ export function TypingChallenge({ onComplete, duration = 30 }: Props) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.center}>
-          <Text style={styles.gameTitle}>⌨️  Typing Challenge</Text>
+          <Text style={styles.gameTitle}>Typing Challenge</Text>
           <Text style={styles.gameSub}>
             Type the phrase exactly as shown.{'\n'}Every character must be perfect.
           </Text>
@@ -177,7 +178,7 @@ export function TypingChallenge({ onComplete, duration = 30 }: Props) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.center}>
-          <Text style={styles.completeEmoji}>✅</Text>
+          <Feather name="check-circle" size={56} color={COLORS.green} />
           <Text style={styles.completeTitle}>Perfect!</Text>
           <Text style={styles.completeSub}>You typed every character correctly.</Text>
         </View>
@@ -189,7 +190,7 @@ export function TypingChallenge({ onComplete, duration = 30 }: Props) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.center}>
-          <Text style={styles.completeEmoji}>⏱️</Text>
+          <Feather name="clock" size={56} color={COLORS.warning} />
           <Text style={styles.completeTitle}>Time's up</Text>
           <Text style={styles.completeSub}>Still counts — you broke the pattern.</Text>
           <ProceedButton

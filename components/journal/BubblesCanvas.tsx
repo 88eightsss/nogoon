@@ -472,7 +472,7 @@ export function BubblesCanvas({ embedded = false }: { embedded?: boolean }) {
                 >
                   {bubbles.length === 0 && (
                     <View style={canvasStyles.emptyHint}>
-                      <Text style={[canvasStyles.emptyIcon]}>🫧</Text>
+                      <Feather name="circle" size={48} color={colors.textMuted} />
                       <Text style={[canvasStyles.emptyText, { color: colors.textMuted }]}>
                         Tap + to create your first bubble
                       </Text>

@@ -21,6 +21,7 @@
 // already reads those fields (gate.tsx, the native bridge, Supabase sync)
 // keeps working unchanged; a mode is just a saved way to set them in bulk.
 
+import { resolveIcon } from '@/components/ui/Glyph';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -148,7 +149,7 @@ export const useModesStore = create<ModesState>()(
         const mode: ModePreset = {
           id,
           name:  input.name.trim() || 'New Mode',
-          emoji: input.emoji ?? '🎯',
+          emoji: input.emoji ?? 'target',
           color: input.color ?? '#6c8cff',
           blockedApps:       input.blockedApps ?? [],
           blockedDomains:    input.blockedDomains ?? [],
@@ -194,7 +195,13 @@ export const useModesStore = create<ModesState>()(
     {
       name:    'nogoon-modes-store',
       storage: createJSONStorage(() => AsyncStorage),
-      version: 1,
+      version: 2,
+      // v2: the mode picture is a Feather icon name, not an emoji.
+      migrate: (persisted: any) => {
+        const s = persisted ?? {};
+        if (Array.isArray(s.modes)) s.modes = s.modes.map((m: any) => ({ ...m, emoji: resolveIcon(m?.emoji) }));
+        return s;
+      },
       partialize: (state) => ({
         modes:        state.modes,
         activeModeId: state.activeModeId,

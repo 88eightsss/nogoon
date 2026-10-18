@@ -37,6 +37,7 @@ import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { ProceedButton } from '@/components/ui/ProceedButton';
 import { fetchAdForPlacement, trackAdEvent, type AdCampaign } from '@/services/ads';
+import { Feather } from '@expo/vector-icons';
 
 // ─── Ad data types ────────────────────────────────────────────────────────────
 
@@ -287,12 +288,12 @@ function AdCard({ ad, position, onPress, result, answered, styles, COLORS }: AdC
         {/* Result indicator overlay */}
         {result === 'correct' && (
           <View style={styles.resultOverlay}>
-            <Text style={styles.resultOverlayEmoji}>✅</Text>
+            <Feather name="check-circle" size={28} color={COLORS.green} />
           </View>
         )}
         {result === 'wrong' && (
           <View style={styles.resultOverlay}>
-            <Text style={styles.resultOverlayEmoji}>❌</Text>
+            <Feather name="x-circle" size={28} color={COLORS.danger} />
           </View>
         )}
       </Animated.View>
@@ -469,7 +470,7 @@ export function OddOneOut({ onComplete }: Props) {
       <SafeAreaView style={styles.safe}>
         <View style={styles.centeredContainer}>
 
-          <Text style={styles.heroEmoji}>🕵️</Text>
+          <Feather name="search" size={56} color={COLORS.cyan} />
           <Text style={styles.title}>Odd One Out</Text>
 
           <Text style={styles.subtitle}>
@@ -479,9 +480,9 @@ export function OddOneOut({ onComplete }: Props) {
           </Text>
 
           <View style={styles.infoCard}>
-            <Text style={styles.infoRow}>🎯  5 rounds, gets harder</Text>
-            <Text style={styles.infoRow}>💰  +20 pts per correct answer</Text>
-            <Text style={styles.infoRow}>🧠  Learn to spot ad tricks</Text>
+            <Text style={styles.infoRow}>5 rounds, gets harder</Text>
+            <Text style={styles.infoRow}>+20 pts per correct answer</Text>
+            <Text style={styles.infoRow}>Learn to spot ad tricks</Text>
           </View>
 
           <Pressable style={styles.startButton} onPress={() => setGamePhase('playing')}>
@@ -501,9 +502,7 @@ export function OddOneOut({ onComplete }: Props) {
       <SafeAreaView style={styles.safe}>
         <ScrollView contentContainerStyle={styles.centeredContainer} bounces={false}>
 
-          <Text style={styles.heroEmoji}>
-            {correctCount === ROUNDS.length ? '🏆' : '🕵️'}
-          </Text>
+          <Feather name={correctCount === ROUNDS.length ? 'award' : 'search'} size={56} color={COLORS.cyan} />
 
           <Text style={styles.title}>
             {correctCount === ROUNDS.length ? 'Ad Detective!' : `${correctCount}/${ROUNDS.length} correct`}
@@ -516,7 +515,7 @@ export function OddOneOut({ onComplete }: Props) {
 
           <View style={styles.infoCard}>
             <Text style={styles.infoRow}>
-              💡 Ads use these tricks on millions of people every day. Now you know what to look for.
+              Ads use these tricks on millions of people every day. Now you know what to look for.
             </Text>
           </View>
 
@@ -597,7 +596,7 @@ export function OddOneOut({ onComplete }: Props) {
               </View>
             </View>
             <Text style={styles.explanationTitle}>
-              {selectedPos === sponsoredPos ? '✅ You spotted it!' : '❌ Not quite'}
+              {selectedPos === sponsoredPos ? 'You spotted it!' : 'Not quite'}
             </Text>
             <Text style={styles.explanationText}>
               {selectedPos === sponsoredPos
@@ -619,7 +618,7 @@ export function OddOneOut({ onComplete }: Props) {
         ) : answered ? (
           <View style={styles.explanationCard}>
             <Text style={styles.explanationTitle}>
-              {selectedPos === round!.oddPosition ? '✅ Correct!' : '❌ Wrong'}
+              {selectedPos === round!.oddPosition ? 'Correct!' : 'Wrong'}
             </Text>
             <Text style={styles.explanationText}>{round!.explanation}</Text>
             <Pressable style={styles.nextButton} onPress={handleNext}>

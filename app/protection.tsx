@@ -86,7 +86,7 @@ function LayerCard({
           <View style={[styles.layerBadge, isActive && styles.layerBadgeActive]}>
             <Text style={styles.layerBadgeText}>{number}</Text>
           </View>
-          <Text style={styles.cardIcon}>{icon}</Text>
+          <Feather name={icon as any} size={22} color={isActive ? COLORS.green : COLORS.textSecondary} />
           <View>
             <Text style={styles.cardTitle}>{title}</Text>
             <Text style={styles.cardSubtitle}>{subtitle}</Text>
@@ -272,7 +272,7 @@ export default function ProtectionScreen() {
         {/* Layer 1 — App Blocker */}
         <LayerCard
           number={1}
-          icon="🛡️"
+          icon="shield"
           title="App Blocker"
           subtitle="Accessibility Service"
           description="Watches for app switches in the background. The moment you open a blocked app, NoGoon intercepts it and shows the gate screen — forcing you to pause before you can continue."
@@ -289,7 +289,7 @@ export default function ProtectionScreen() {
         {NETWORK_SHIELD_ENABLED && (
         <LayerCard
           number={2}
-          icon="🌐"
+          icon="globe"
           title="Network Shield"
           subtitle="DNS Blocker"
           description="Even if the gate is bypassed, blocked apps can't load their content feed. This works by intercepting DNS lookups — only those queries go through the VPN, everything else is untouched. No privacy cost, no latency penalty."
@@ -307,7 +307,7 @@ export default function ProtectionScreen() {
         {/* Layer 3 — Notification Filter */}
         <LayerCard
           number={NETWORK_SHIELD_ENABLED ? 3 : 2}
-          icon="🔕"
+          icon="bell-off"
           title="Notification Filter"
           subtitle="Notification Listener"
           description="Silences notifications from blocked apps before they reach your notification bar. Those '3 new messages' pings are engineered to trigger the same craving the blocker is trying to prevent — this closes that backdoor."
@@ -340,7 +340,7 @@ export default function ProtectionScreen() {
         {/* Battery Exemption — reliability check, not a blocking layer */}
         <LayerCard
           number={NETWORK_SHIELD_ENABLED ? 4 : 3}
-          icon="🔋"
+          icon="battery"
           title="Battery Exemption"
           subtitle="Keeps the App Blocker alive"
           description="Android's battery saver can quietly force-stop background services — including the Accessibility Service Layer 1 depends on — to save power. This is a separate permission from Accessibility and has to be granted on its own."

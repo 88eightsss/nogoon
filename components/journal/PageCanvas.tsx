@@ -3,11 +3,12 @@
 // while drawing) a transparent sheet that catches the pen. Sticker positions are stored as fractions
 // of the page; strokes are stored in a fixed 1000-unit space so a page looks the same on any phone.
 
+import { Glyph, resolveIcon } from '@/components/ui/Glyph';
 import { memo, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { View, Text, TextInput, PanResponder, Animated, StyleSheet } from 'react-native';
 import Svg, { Path, Line, Circle } from 'react-native-svg';
 import { FONTS } from '@/constants/Colors';
-import { PAPERS, TEXT_SIZES } from '@/constants/journalStyles';
+import { PAPERS, TEXT_SIZES, stickerTint } from '@/constants/journalStyles';
 import type { JournalPage, PageSticker } from '@/stores/useJournalStore';
 import { PackSprite } from '@/components/page/PackSprite';
 import type { CharacterId } from '@/stores/usePetStore';
@@ -137,7 +138,7 @@ const StickerView = memo(function StickerView({
       {isMascot ? (
         <PackSprite char={Number(s.glyph.slice(2)) as CharacterId} stage={2} cell={3 * s.size} />
       ) : (
-        <Text style={{ fontSize: fs, lineHeight: fs * 1.25 }}>{s.glyph.slice(2)}</Text>
+        <Glyph name={s.glyph.slice(2)} size={fs} color={stickerTint(resolveIcon(s.glyph.slice(2)))} />
       )}
     </Animated.View>
   );

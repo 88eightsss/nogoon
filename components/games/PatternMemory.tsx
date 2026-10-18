@@ -339,7 +339,7 @@ export function PatternMemory({ onComplete }: PatternMemoryProps) {
         </View>
         <View style={styles.hudCenter}>
           <Text style={[styles.phaseLabel, { color: phaseColor }]}>
-            {phase === 'showing' ? '◉ WATCH' : '▶ TAP!'}
+            {phase === 'showing' ? 'WATCH' : 'TAP!'}
           </Text>
           <Text style={styles.roundNumber}>LVL {String(round).padStart(2, '0')}</Text>
         </View>

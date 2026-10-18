@@ -9,11 +9,11 @@
 // was picked right after a walk-away or written later from the Journal tab.
 
 export const MOOD_TAGS = [
-  { id: 'Bored',           emoji: '😴', label: 'Bored' },
-  { id: 'Stressed',        emoji: '😤', label: 'Stressed' },
-  { id: 'Procrastinating', emoji: '⏰', label: 'Avoiding' },
-  { id: 'Lonely',          emoji: '🫂', label: 'Lonely' },
-  { id: 'Habit',           emoji: '🔁', label: 'Just Habit' },
-  { id: 'Anxious',         emoji: '😰', label: 'Anxious' },
+  { id: 'Bored',           emoji: 'cloud', label: 'Bored' },
+  { id: 'Stressed',        emoji: 'zap', label: 'Stressed' },
+  { id: 'Procrastinating', emoji: 'clock', label: 'Avoiding' },
+  { id: 'Lonely',          emoji: 'users', label: 'Lonely' },
+  { id: 'Habit',           emoji: 'repeat', label: 'Just Habit' },
+  { id: 'Anxious',         emoji: 'wind', label: 'Anxious' },
 ] as const;
 

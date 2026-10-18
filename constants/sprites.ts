@@ -288,6 +288,10 @@ export const GRIDS: Record<CharacterId, Record<GoonStage, Pixel[][]>> = {
 
 export const ALL_CHARACTER_IDS: CharacterId[] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
+/** The three originals. Every companion picker shows these first, then the rest. */
+export const STARTER_IDS: CharacterId[] = [0, 1, 2];
+export const MORE_IDS: CharacterId[] = ALL_CHARACTER_IDS.filter((id) => !STARTER_IDS.includes(id));
+
 export function isCharacterId(n: unknown): n is CharacterId {
   return typeof n === 'number' && Number.isInteger(n) && n >= 0 && n <= 10;
 }

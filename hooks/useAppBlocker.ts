@@ -35,43 +35,43 @@ const hasNativeModule = isAndroid && !!AppBlocker;
 // Each entry has:
 //   id       — Android package name (unique identifier for each app)
 //   name     — Display name shown in the UI
-//   emoji    — Visual icon since we don't load app icons
+//   emoji    — Visual icon (a Feather icon name) since we don't load app icons
 //   category — Groups apps in the UI
 
 export interface BlockableApp {
   id: string;       // Android package name
   name: string;     // Human-readable name
-  emoji: string;    // Icon emoji
+  emoji: string;    // Feather icon name
   category: 'social' | 'video' | 'shopping' | 'gaming';
   domain?: string;  // matching website, so blocking the site can also block the app
 }
 
 export const BLOCKABLE_APPS: BlockableApp[] = [
   // ── Social ──
-  { id: 'com.instagram.android',         name: 'Instagram',  emoji: '📸', category: 'social', domain: 'instagram.com' },
-  { id: 'com.zhiliaoapp.musically',      name: 'TikTok',     emoji: '🎵', category: 'social', domain: 'tiktok.com' },
-  { id: 'com.twitter.android',           name: 'X (Twitter)',emoji: '𝕏',  category: 'social', domain: 'twitter.com' },
-  { id: 'com.snapchat.android',          name: 'Snapchat',   emoji: '👻', category: 'social', domain: 'snapchat.com' },
-  { id: 'com.facebook.katana',           name: 'Facebook',   emoji: '👤', category: 'social', domain: 'facebook.com' },
-  { id: 'com.pinterest',                 name: 'Pinterest',  emoji: '📌', category: 'social' },
-  { id: 'com.bereal.ft',                 name: 'BeReal',     emoji: '📷', category: 'social' },
-  { id: 'com.discord',                   name: 'Discord',    emoji: '🎮', category: 'social' },
-  { id: 'com.reddit.frontpage',            name: 'Reddit',     emoji: '🤖', category: 'social', domain: 'reddit.com' },
+  { id: 'com.instagram.android',         name: 'Instagram',  emoji: 'instagram', category: 'social', domain: 'instagram.com' },
+  { id: 'com.zhiliaoapp.musically',      name: 'TikTok',     emoji: 'music', category: 'social', domain: 'tiktok.com' },
+  { id: 'com.twitter.android',           name: 'X (Twitter)',emoji: 'twitter',  category: 'social', domain: 'twitter.com' },
+  { id: 'com.snapchat.android',          name: 'Snapchat',   emoji: 'eye-off', category: 'social', domain: 'snapchat.com' },
+  { id: 'com.facebook.katana',           name: 'Facebook',   emoji: 'facebook', category: 'social', domain: 'facebook.com' },
+  { id: 'com.pinterest',                 name: 'Pinterest',  emoji: 'map-pin', category: 'social' },
+  { id: 'com.bereal.ft',                 name: 'BeReal',     emoji: 'camera', category: 'social' },
+  { id: 'com.discord',                   name: 'Discord',    emoji: 'headphones', category: 'social' },
+  { id: 'com.reddit.frontpage',            name: 'Reddit',     emoji: 'message-square', category: 'social', domain: 'reddit.com' },
 
   // ── Video ──
-  { id: 'com.google.android.youtube',   name: 'YouTube',    emoji: '▶️',  category: 'video', domain: 'youtube.com' },
-  { id: 'com.netflix.mediaclient',       name: 'Netflix',    emoji: '🎬', category: 'video' },
-  { id: 'com.amazon.avod.thirdpartyclient', name: 'Prime Video', emoji: '🎥', category: 'video' },
-  { id: 'tv.twitch.android.app',    name: 'Twitch',     emoji: '🟣', category: 'video', domain: 'twitch.tv' },
+  { id: 'com.google.android.youtube',   name: 'YouTube',    emoji: 'youtube',  category: 'video', domain: 'youtube.com' },
+  { id: 'com.netflix.mediaclient',       name: 'Netflix',    emoji: 'film', category: 'video' },
+  { id: 'com.amazon.avod.thirdpartyclient', name: 'Prime Video', emoji: 'video', category: 'video' },
+  { id: 'tv.twitch.android.app',    name: 'Twitch',     emoji: 'twitch', category: 'video', domain: 'twitch.tv' },
 
   // ── Shopping ──
-  { id: 'com.amazon.mShop.android.shopping', name: 'Amazon', emoji: '📦', category: 'shopping' },
-  { id: 'com.zzkko',              name: 'SHEIN',      emoji: '👗', category: 'shopping' },
+  { id: 'com.amazon.mShop.android.shopping', name: 'Amazon', emoji: 'package', category: 'shopping' },
+  { id: 'com.zzkko',              name: 'SHEIN',      emoji: 'shopping-bag', category: 'shopping' },
 
   // ── Gaming ──
-  { id: 'com.kiloo.subwaysurf',         name: 'Subway Surfers', emoji: '🏃', category: 'gaming' },
-  { id: 'com.supercell.clashofclans',   name: 'Clash of Clans', emoji: '⚔️', category: 'gaming' },
-  { id: 'com.roblox.client',            name: 'Roblox',     emoji: '🟥', category: 'gaming' },
+  { id: 'com.kiloo.subwaysurf',         name: 'Subway Surfers', emoji: 'activity', category: 'gaming' },
+  { id: 'com.supercell.clashofclans',   name: 'Clash of Clans', emoji: 'target', category: 'gaming' },
+  { id: 'com.roblox.client',            name: 'Roblox',     emoji: 'square', category: 'gaming' },
 ];
 
 // Android packages whose website is in the given list of domains (e.g. picking

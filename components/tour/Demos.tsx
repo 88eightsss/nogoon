@@ -3,6 +3,7 @@
 // touches real data: each demo keeps its own throwaway state and calls onTried() the first time
 // the person actually does the thing, so the tour can say "nice" and tick the step.
 
+import { Glyph } from '@/components/ui/Glyph';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Animated, Easing, PanResponder, TextInput } from 'react-native';
 import * as Haptics from 'expo-haptics';
@@ -199,7 +200,8 @@ function PickerDemo({ colors, onTried }: DemoProps) {
 
 // ── 6. Journal page with stickers ─────────────────────────────────────────────────────────────
 const PAPER = ['#FFF8E7', '#E8F3EC', '#E9EEFB', '#FBE9F1'];
-const GLYPHS = ['🌱', '⭐', '☀️', '🐢', '💛'];
+const GLYPHS = ['feather', 'star', 'sun', 'anchor', 'heart'];
+const GLYPH_TINT = ['#30A46C', '#E5A000', '#F76B15', '#0091FF', '#E93D82'];
 function Sticker({ glyph, x0, y0, onMoved }: { glyph: string; x0: number; y0: number; onMoved: () => void }) {
   const pos = useRef(new Animated.ValueXY({ x: x0, y: y0 })).current;
   const pan = useRef(
@@ -213,7 +215,7 @@ function Sticker({ glyph, x0, y0, onMoved }: { glyph: string; x0: number; y0: nu
   ).current;
   return (
     <Animated.View {...pan.panHandlers} style={[s.sticker, { transform: pos.getTranslateTransform() }]} accessibilityLabel={`Sticker ${glyph}. Drag to move`}>
-      <Text style={{ fontSize: 34 }}>{glyph}</Text>
+      <Glyph name={glyph} size={34} color={GLYPH_TINT[Math.max(0, GLYPHS.indexOf(glyph))]} />
     </Animated.View>
   );
 }
@@ -236,7 +238,7 @@ function StickerDemo({ colors, onTried }: DemoProps) {
       <View style={s.row}>
         {GLYPHS.map((g) => (
           <Pressable key={g} onPress={() => add(g)} accessibilityRole="button" accessibilityLabel={`Add ${g} sticker`} style={[s.chip, { backgroundColor: colors.surfaceHigh, borderColor: colors.cardBorder }]}>
-            <Text style={{ fontSize: 22 }}>{g}</Text>
+            <Glyph name={g} size={22} color={GLYPH_TINT[GLYPHS.indexOf(g)]} />
           </Pressable>
         ))}
       </View>

@@ -16,8 +16,9 @@ import { FONTS } from '@/constants/Colors';
 import { SPACING } from '@/constants/Spacing';
 import { MOOD_TAGS } from '@/constants/moods';
 import {
-  PAPERS, PATTERNS, FRAMES, FONT_CHOICES, INKS, PEN_WIDTHS, STICKER_GROUPS, MASCOT_STICKERS, PROMPTS,
+  PAPERS, PATTERNS, FRAMES, FONT_CHOICES, INKS, PEN_WIDTHS, STICKER_GROUPS, MASCOT_STICKERS, PROMPTS, stickerTint,
 } from '@/constants/journalStyles';
+import { Glyph } from '@/components/ui/Glyph';
 import { useJournalStore, type JournalPage } from '@/stores/useJournalStore';
 import { PageCanvas, PAGE_RATIO, paperOf, type CanvasMode } from './PageCanvas';
 import { PackSprite } from '@/components/page/PackSprite';
@@ -177,7 +178,7 @@ export function PageEditor({ id, onClose }: { id: string; onClose: () => void })
                 <>
                   <Text style={[styles.label, { color: colors.textMuted }]}>How are you feeling?</Text>
                   <View style={styles.row}>
-                    {MOOD_TAGS.map((m) => chip(`${m.emoji} ${m.label}`, page.mood === m.id, () => change({ mood: page.mood === m.id ? null : m.id }), m.id))}
+                    {MOOD_TAGS.map((m) => chip(m.label, page.mood === m.id, () => change({ mood: page.mood === m.id ? null : m.id }), m.id))}
                   </View>
                   <View style={styles.row}>
                     <Pressable onPress={addPrompt} style={[styles.action, { borderColor: colors.accent }]} accessibilityRole="button">
@@ -231,8 +232,8 @@ export function PageEditor({ id, onClose }: { id: string; onClose: () => void })
                           </Pressable>
                         ))
                       : (group_?.items ?? []).map((e) => (
-                          <Pressable key={e} onPress={() => addSticker(`e:${e}`)} style={styles.stickerBtn} accessibilityRole="button" accessibilityLabel={`Add ${e} sticker`}>
-                            <Text style={{ fontSize: 28 }}>{e}</Text>
+                          <Pressable key={e} onPress={() => addSticker(`i:${e}`)} style={styles.stickerBtn} accessibilityRole="button" accessibilityLabel={`Add ${e.replace(/-/g, ' ')} sticker`}>
+                            <Glyph name={e} size={28} color={stickerTint(e)} />
                           </Pressable>
                         ))}
                   </View>

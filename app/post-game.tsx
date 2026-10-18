@@ -38,6 +38,7 @@ import { FONTS } from '@/constants/Colors';
 import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { MOOD_TAGS } from '@/constants/moods';
 import { SPACING, RADIUS } from '@/constants/Spacing';
+import { Glyph } from '@/components/ui/Glyph';
 
 // ─── Micro-learning cards ──────────────────────────────────────────────────────
 
@@ -45,49 +46,49 @@ import { SPACING, RADIUS } from '@/constants/Spacing';
 // each time the screen appears. The goal: teach while the user is receptive.
 const MICRO_CARDS = [
   {
-    emoji: '⏱️',
+    emoji: 'clock',
     title: 'The 90-Second Rule',
     body: 'A physiological craving lasts about 90 seconds in your body. If you ride it out without acting, the wave breaks on its own.',
     source: 'Dr. Jill Bolte Taylor — My Stroke of Insight',
     accent: 'cyan' as const,
   },
   {
-    emoji: '📉',
+    emoji: 'trending-down',
     title: 'Dopamine Reset',
     body: "Every time you resist an urge, you're lowering the spike and raising your baseline. The things you used to need more of start to feel like enough.",
     source: 'Dr. Anna Lembke — Dopamine Nation',
     accent: 'purple' as const,
   },
   {
-    emoji: '⚡',
+    emoji: 'zap',
     title: 'Pattern Interruption',
     body: 'Playing a cognitively demanding game right after a trigger physically reroutes the neural pathway before the habitual behavior can fire.',
     source: 'Cognitive Behavioral Neuroscience',
     accent: 'green' as const,
   },
   {
-    emoji: '🎰',
+    emoji: 'repeat',
     title: 'Variable Reward Loop',
     body: 'Social media uses unpredictable rewards — the same mechanism as slot machines — to keep dopamine elevated and attention locked in.',
     source: 'B.J. Fogg — Persuasive Technology',
     accent: 'warning' as const,
   },
   {
-    emoji: '⌚',
+    emoji: 'watch',
     title: 'The 10-Minute Rule',
     body: 'Waiting just 10 minutes before acting on a craving reduces its felt intensity by up to 40% in most people. Time is a disruptor.',
     source: 'Behavioral Psychology Research',
     accent: 'cyan' as const,
   },
   {
-    emoji: '🏄',
+    emoji: 'wind',
     title: 'Urge Surfing',
     body: 'Rather than fighting a craving, observe it like a wave. Notice where you feel it in your body. It rises, peaks, and passes — without you doing anything.',
     source: 'Acceptance & Commitment Therapy (ACT)',
     accent: 'purple' as const,
   },
   {
-    emoji: '🔄',
+    emoji: 'refresh-cw',
     title: 'Habit Stacking',
     body: "Habits have three parts: cue \u2192 routine \u2192 reward. You kept the cue and reward. You just swapped the routine for a game. That's exactly how new habits form.",
     source: 'Charles Duhigg — The Power of Habit',
@@ -302,13 +303,13 @@ export default function PostGameScreen() {
   };
 
   const COMMITMENT_OPTIONS = [
-    { id: 'read',     label: 'Read / write / create', emoji: '📖' },
-    { id: 'outside',  label: 'Go outside',            emoji: '🌿' },
-    { id: 'food',     label: 'Make food',             emoji: '🍳' },
-    { id: 'call',     label: 'Call or text someone',  emoji: '💬' },
-    { id: 'exercise', label: 'Exercise / stretch',    emoji: '🏃' },
-    { id: 'work',     label: 'Work on something',     emoji: '💼' },
-    { id: 'nothing',  label: 'Nothing specific',      emoji: '✌️' },
+    { id: 'read',     label: 'Read / write / create', emoji: 'book-open' },
+    { id: 'outside',  label: 'Go outside',            emoji: 'feather' },
+    { id: 'food',     label: 'Make food',             emoji: 'coffee' },
+    { id: 'call',     label: 'Call or text someone',  emoji: 'message-circle' },
+    { id: 'exercise', label: 'Exercise / stretch',    emoji: 'activity' },
+    { id: 'work',     label: 'Work on something',     emoji: 'briefcase' },
+    { id: 'nothing',  label: 'Nothing specific',      emoji: 'smile' },
   ] as const;
 
   // ── Unlock countdown — replaces token-based friction ──────────────────────
@@ -414,7 +415,7 @@ export default function PostGameScreen() {
                 style={[styles.commitmentCard, { borderColor: COLORS.cardBorder, backgroundColor: COLORS.surface }]}
                 onPress={() => handleCommitment(opt.label)}
               >
-                <Text style={styles.commitmentEmoji}>{opt.emoji}</Text>
+                <Glyph name={opt.emoji} size={22} color={COLORS.indigoBright} />
                 <Text style={[styles.commitmentLabel, { color: COLORS.textPrimary }]}>{opt.label}</Text>
               </Pressable>
             ))}
@@ -509,7 +510,7 @@ export default function PostGameScreen() {
                     continueToNews(opt.id); // also saves the note draft below, tagged with this mood
                   }}
                 >
-                  <Text style={styles.reflectionEmoji}>{opt.emoji}</Text>
+                  <Glyph name={opt.emoji} size={16} color={COLORS.textSecondary} />
                   <Text style={[styles.reflectionPillText, { color: COLORS.textSecondary }]}>{opt.label}</Text>
                 </Pressable>
               ))}
@@ -574,7 +575,7 @@ export default function PostGameScreen() {
         {/* ── Streak callout ── */}
         {streak > 0 && (
           <View style={styles.streakCallout}>
-            <Text style={styles.streakCalloutEmoji}>🔥</Text>
+            <Feather name="zap" size={28} color={COLORS.green} />
             <View style={styles.streakCalloutText}>
               <Text style={styles.streakCalloutTitle}>
                 {streak}-day streak
@@ -610,10 +611,10 @@ export default function PostGameScreen() {
           <Text style={[styles.triggerLabel, { color: COLORS.textMuted }]}>What pulled you in?</Text>
           <View style={styles.triggerPills}>
             {[
-              { id: 'bored',         emoji: '😴', label: 'Bored' },
-              { id: 'stressed',      emoji: '😰', label: 'Stressed' },
-              { id: 'habit',         emoji: '📱', label: 'Habit' },
-              { id: 'fomo',          emoji: '😱', label: 'FOMO' },
+              { id: 'bored',         emoji: 'cloud', label: 'Bored' },
+              { id: 'stressed',      emoji: 'wind', label: 'Stressed' },
+              { id: 'habit',         emoji: 'smartphone', label: 'Habit' },
+              { id: 'fomo',          emoji: 'eye', label: 'FOMO' },
             ].map((t) => {
               const active = selectedTrigger === t.id;
               return (
@@ -631,7 +632,7 @@ export default function PostGameScreen() {
                     Haptics.selectionAsync();
                   }}
                 >
-                  <Text style={styles.triggerPillEmoji}>{t.emoji}</Text>
+                  <Glyph name={t.emoji} size={14} color={active ? COLORS.indigoBright : COLORS.textSecondary} />
                   <Text style={[styles.triggerPillText, { color: active ? COLORS.indigoBright : COLORS.textSecondary }]}>
                     {t.label}
                   </Text>
@@ -653,7 +654,7 @@ export default function PostGameScreen() {
           {/* BRICKED / Cold Turkey: locked out message */}
           {isBrickedMode ? (
             <View style={styles.brickedLockout}>
-              <Text style={styles.brickedLockEmoji}>{isColdTurkeyMode ? '🦃' : '🧱'}</Text>
+              <Feather name={isColdTurkeyMode ? 'slash' : 'lock'} size={28} color={COLORS.danger} />
               <View style={styles.brickedLockText}>
                 <Text style={styles.brickedLockTitle}>
                   {isColdTurkeyMode ? 'Cold Turkey Active' : 'Hard Mode Active'}
@@ -737,7 +738,7 @@ export default function PostGameScreen() {
         {/* ── Micro-learning card ── */}
         <View style={[styles.microCard, { borderLeftColor: COLORS[card.accent] }]}>
           <View style={styles.microCardHeader}>
-            <Text style={styles.microEmoji}>{card.emoji}</Text>
+            <Glyph name={card.emoji} size={22} color={COLORS[card.accent]} />
             <Text style={[styles.microTitle, { color: COLORS[card.accent] }]}>
               {card.title}
             </Text>

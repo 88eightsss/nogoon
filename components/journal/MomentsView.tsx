@@ -34,6 +34,7 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
+import { Glyph } from '@/components/ui/Glyph';
 import { FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { useUserStore } from '@/stores/useUserStore';
@@ -174,7 +175,7 @@ export function MomentsView() {
                       ]}
                       onPress={() => setDraftTag(selected ? undefined : m.id)}
                     >
-                      <Text style={styles.moodChipEmoji}>{m.emoji}</Text>
+                      <Glyph name={m.emoji} size={14} color={selected ? colors.accent : colors.textMuted} />
                       <Text style={[styles.moodChipText, { color: selected ? colors.accent : colors.textMuted }]}>
                         {m.label}
                       </Text>
@@ -217,7 +218,7 @@ export function MomentsView() {
           {/* ── Empty state ── */}
           {journalEntries.length === 0 && !composing && (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyEmoji}>⚡</Text>
+              <Feather name="zap" size={44} color={colors.textMuted} style={{ marginBottom: 8 }} />
               <Text style={[styles.emptyHeading, { color: colors.text }]}>No moments yet</Text>
               <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
                 Quick notes you jot down in the heat of an urge. For longer, prettier writing, start a page.
@@ -246,7 +247,7 @@ export function MomentsView() {
                     if (!mood) return null;
                     return (
                       <View style={[styles.domainChip, { backgroundColor: colors.surfaceHigh, borderColor: colors.cardBorder }]}>
-                        <Text style={{ fontSize: 12 }}>{mood.emoji}</Text>
+                        <Glyph name={mood.emoji} size={12} color={colors.textSecondary} />
                         <Text style={[styles.domainText, { color: colors.textSecondary }]}>{mood.label}</Text>
                       </View>
                     );

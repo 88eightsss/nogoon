@@ -57,6 +57,7 @@ import { ALL_GAMES, GATE_GAMES, CALM_GAMES, getGamesByCategory, isFeatured, FEAT
 import { AdBanner } from '@/components/ads/AdBanner';
 import { useThemeStore } from '@/stores/useThemeStore';
 import { useUnlockedFeatures, lockHint } from '@/stores/useProgressStore';
+import { Glyph } from '@/components/ui/Glyph';
 
 // ─── Post-game screen ─────────────────────────────────────────────────────────
 
@@ -67,7 +68,7 @@ function ArcadePostGame({ gameName, onBack, onPlayAgain, styles, COLORS }: {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.postGameContainer}>
-        <Text style={styles.postGameEmoji}>🎮</Text>
+        <Feather name="award" size={64} color={COLORS.arcade} />
         <Text style={styles.postGameTitle}>Nice work!</Text>
         <Text style={styles.postGameGame}>{gameName}</Text>
         <View style={styles.arcadeNote}>
@@ -102,7 +103,7 @@ function GameInfoModal({ game, onClose, onPlay, styles, COLORS }: {
       <Pressable style={styles.modalBackdrop} onPress={onClose}>
         <Pressable style={[styles.modalSheet, { borderColor: game.color + '40' }]} onPress={() => {}}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalEmoji}>{game.emoji}</Text>
+            <View style={{ width: 48, alignItems: 'center' }}><Glyph name={game.emoji} size={34} color={game.color} /></View>
             <View style={{ flex: 1 }}>
               <Text style={styles.modalName}>{game.name}</Text>
               <Text style={[styles.modalTagline, { color: game.color }]}>{game.tagline}</Text>
@@ -191,7 +192,7 @@ function ArcadeGameRow({ game, index, rowH, compact, active, onPlay, onInfo, loc
           ]}
         >
           <View style={[styles.gameChip, { backgroundColor: accent + '22' }]}>
-            <Text style={styles.gameChipEmoji}>{locked ? '🔒' : game.emoji}</Text>
+            {locked ? <Feather name="lock" size={18} color={accent} /> : <Glyph name={game.emoji} size={18} color={accent} />}
           </View>
           <View style={styles.gameInfo}>
             <Text style={styles.gameName} numberOfLines={1}>{game.name}</Text>
@@ -228,7 +229,7 @@ function ArcadeGameRow({ game, index, rowH, compact, active, onPlay, onInfo, loc
 // Only three boards are mounted: previous, current, next.
 
 const BOARD_ICON: Record<GameCategory, string> = {
-  calm: '🌬️', puzzle: '🧩', reflex: '👾', skill: '🎯', awareness: '👁️',
+  calm: 'wind', puzzle: 'grid', reflex: 'zap', skill: 'target', awareness: 'eye',
 };
 const SETTLE_MS = 900;   // full-board crossfade; a half-way drag takes half that
 const mod = (a: number, n: number) => ((a % n) + n) % n;
@@ -262,7 +263,7 @@ function BoardCard({ board, index, total, active, onOverflow, animStyle, front, 
       <View style={styles.boardHead}>
         <View style={styles.boardTitle}>
           <View style={[styles.boardIcon, { backgroundColor: accent + '22' }]}>
-            <Text style={styles.boardIconEmoji}>{BOARD_ICON[board.key]}</Text>
+            <Glyph name={BOARD_ICON[board.key]} size={20} color={accent} />
           </View>
           <View>
             <Text style={styles.boardName}>{board.label}</Text>
@@ -614,7 +615,7 @@ export default function ArcadeScreen() {
     const enabled = isOn(game.id);
     return (
       <View key={game.id} style={[styles.gateToggleRow, idx !== list.length - 1 && styles.gateToggleDivider]}>
-        <Text style={styles.gateToggleEmoji}>{game.emoji}</Text>
+        <View style={{ width: 28 }}><Glyph name={game.emoji} size={18} color={game.color} /></View>
         <Text style={[styles.gateToggleName, !enabled && styles.gateToggleNameOff]}>{game.name}</Text>
         <Switch
           value={enabled}

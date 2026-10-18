@@ -10,7 +10,7 @@ import type { PaperId, PatternId, FrameId, FontId } from '@/constants/journalSty
 
 export type PageSticker = {
   id: string;
-  glyph: string;      // `e:🌸` or `m:3`
+  glyph: string;      // `i:sun` (Feather icon), `m:3` (companion) or legacy `e:<emoji>`
   x: number;          // 0..1 of page width (centre)
   y: number;          // 0..1 of page height (centre)
   size: number;       // 0.6 .. 3 (multiplier)

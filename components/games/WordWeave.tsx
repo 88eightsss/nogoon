@@ -31,6 +31,7 @@ import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import * as Haptics from 'expo-haptics';
 import { useSafeTimeout } from '@/hooks/useSafeTimeout';
+import { Feather } from '@expo/vector-icons';
 
 // ─── Grid constants ───────────────────────────────────────────────────────────
 
@@ -378,7 +379,7 @@ export function WordWeave({ onComplete }: Props) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.readyContainer}>
-          <Text style={styles.readyEmoji}>〰️</Text>
+          <Feather name="feather" size={56} color={COLORS.cyan} />
           <Text style={styles.readyTitle}>Word Weave</Text>
           <View style={styles.readyCard}>
             <Text style={styles.readyRule}>
@@ -535,7 +536,7 @@ export function WordWeave({ onComplete }: Props) {
         {/* ── Done overlay ── */}
         {phase === 'done' && (
           <View pointerEvents="none" style={styles.doneOverlay}>
-            <Text style={styles.doneEmoji}>🎉</Text>
+            <Feather name="award" size={56} color={COLORS.green} />
             <Text style={styles.doneTitle}>{foundWords.length} words!</Text>
             <Text style={styles.doneSub}>{attempts} attempt{attempts === 1 ? '' : 's'}</Text>
           </View>

@@ -43,7 +43,7 @@ import { SPACING, RADIUS } from '@/constants/Spacing';
 const TEST_BANNER_ID_ANDROID = 'ca-app-pub-3940256099942544/6300978111';
 const TEST_BANNER_ID_IOS     = 'ca-app-pub-3940256099942544/2934735716';
 
-// ⚠️  REPLACE THESE with your real Ad Unit IDs before publishing:
+// WARNING: REPLACE THESE with your real Ad Unit IDs before publishing:
 const REAL_BANNER_ID_ANDROID = 'ca-app-pub-REPLACE_ME/REPLACE_ME';
 const REAL_BANNER_ID_IOS     = 'ca-app-pub-REPLACE_ME/REPLACE_ME';
 

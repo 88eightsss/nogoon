@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import { Glyph } from '@/components/ui/Glyph';
 import { useUserStore } from '@/stores/useUserStore';
 import { useModesStore } from '@/stores/useModesStore';
 import { useAppBlocker, BLOCKABLE_APPS } from '@/hooks/useAppBlocker';
@@ -36,7 +37,7 @@ const PACKAGES: SitePackage[] = [
   {
     id:    'social',
     name:  'Social & Entertainment',
-    emoji: '📱',
+    emoji: 'smartphone',
     sites: [
       'instagram.com', 'tiktok.com', 'youtube.com', 'twitter.com', 'x.com',
       'facebook.com', 'snapchat.com', 'pinterest.com', 'twitch.tv',
@@ -46,7 +47,7 @@ const PACKAGES: SitePackage[] = [
   {
     id:    'news',
     name:  'News & Browsing',
-    emoji: '🗞️',
+    emoji: 'file-text',
     sites: [
       'cnn.com', 'foxnews.com', 'reddit.com', 'news.google.com',
       'bbc.com', 'twitter.com', 'x.com', 'apple.news', 'huffpost.com',
@@ -56,7 +57,7 @@ const PACKAGES: SitePackage[] = [
   {
     id:    'shopping',
     name:  'Shopping & Streaming',
-    emoji: '🛒',
+    emoji: 'shopping-cart',
     sites: [
       'amazon.com', 'netflix.com', 'hulu.com', 'disneyplus.com',
       'hbomax.com', 'ebay.com', 'wish.com', 'shein.com',
@@ -91,7 +92,7 @@ function PackageRow({ pkg, blocklist, onAddSite, onRemoveSite }: {
     <View style={[pkgStyles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
       {/* Header row */}
       <Pressable style={pkgStyles.header} onPress={() => setOpen((v) => !v)}>
-        <Text style={pkgStyles.emoji}>{pkg.emoji}</Text>
+        <View style={{ width: 28 }}><Glyph name={pkg.emoji} size={20} color={colors.textSecondary} /></View>
         <View style={{ flex: 1 }}>
           <Text style={[pkgStyles.name, { color: colors.text }]}>{pkg.name}</Text>
           <Text style={[pkgStyles.count, { color: colors.textMuted }]}>
@@ -412,7 +413,7 @@ export default function ProtectScreen() {
           {/* AI teaser */}
           <View style={[teaserStyles.wrap, { backgroundColor: colors.accentDim }]}>
             <Text style={[teaserStyles.text, { color: colors.accent }]}>
-              ✦ AI suggestions coming soon — it'll learn what to block based on your patterns
+              AI suggestions coming soon — it'll learn what to block based on your patterns
             </Text>
           </View>
 

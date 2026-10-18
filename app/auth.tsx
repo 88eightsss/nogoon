@@ -25,6 +25,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { isLightColor, readableOn } from '@/utils/colorLuminance';
 import { FONTS } from '@/constants/Colors';
 import { useTheme } from '@/hooks/useTheme';
 import type { ThemePalette } from '@/constants/Themes';
@@ -285,7 +286,7 @@ export default function AuthScreen() {
               accessibilityState={{ disabled: loading, busy: loading }}
             >
               {loading ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={isLightColor(readableOn(colors.accent, colors.surface, 3)) ? '#111111' : '#FFFFFF'} />
               ) : (
                 <Text style={styles.submitButtonText}>{mode === 'signin' ? 'Sign in' : 'Create my account'}</Text>
               )}
@@ -312,7 +313,10 @@ export default function AuthScreen() {
   );
 }
 
-const makeStyles = (c: ThemePalette) => StyleSheet.create({
+const makeStyles = (c: ThemePalette) => {
+  const btnBg = readableOn(c.accent, c.surface, 3);
+  const btnFg = isLightColor(btnBg) ? '#111111' : '#FFFFFF';
+  return StyleSheet.create({
   safe: { flex: 1, backgroundColor: c.background },
   flex: { flex: 1 },
   scroll: { flexGrow: 1, paddingHorizontal: SPACING.lg, paddingBottom: SPACING.xl },
@@ -353,11 +357,12 @@ const makeStyles = (c: ThemePalette) => StyleSheet.create({
   notice: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: 12, borderWidth: 1, padding: SPACING.md },
   noticeText: { fontFamily: FONTS.body, fontSize: 14, flex: 1, lineHeight: 19 },
 
-  submitButton: { backgroundColor: c.accent, borderRadius: 999, paddingVertical: 15, alignItems: 'center', marginTop: 4 },
+  submitButton: { backgroundColor: btnBg, borderRadius: 999, paddingVertical: 15, alignItems: 'center', marginTop: 4 },
   submitButtonLoading: { opacity: 0.7 },
-  submitButtonText: { fontFamily: FONTS.bodyBold, fontSize: 16, color: '#FFFFFF' },
+  submitButtonText: { fontFamily: FONTS.bodyBold, fontSize: 16, color: btnFg },
 
   why: { fontFamily: FONTS.body, fontSize: 13, color: c.textMuted, textAlign: 'center', marginTop: SPACING.md, paddingHorizontal: SPACING.md },
   finePrint: { fontFamily: FONTS.body, fontSize: 11.5, color: c.textMuted, textAlign: 'center', marginTop: SPACING.lg, lineHeight: 18 },
   finePrintLink: { color: c.accentBright, textDecorationLine: 'underline' },
 });
+};

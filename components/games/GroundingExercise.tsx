@@ -43,6 +43,7 @@ import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { ProceedButton } from '@/components/ui/ProceedButton';
 import { useSafeTimeout } from '@/hooks/useSafeTimeout';
+import { Glyph } from '@/components/ui/Glyph';
 
 interface GroundingExerciseProps {
   onComplete: (score: number) => void;
@@ -54,7 +55,7 @@ const getSenses = (COLORS: ArcadeColors) => [
   {
     count: 5,
     sense: 'SEE',
-    icon: '👁️',
+    icon: 'eye',
     color: COLORS.cyan,
     prompt: 'Look around. Name 5 things you can see.',
     placeholder: 'I see...',
@@ -63,7 +64,7 @@ const getSenses = (COLORS: ArcadeColors) => [
   {
     count: 4,
     sense: 'FEEL',
-    icon: '✋',
+    icon: 'move',
     color: COLORS.purple,
     prompt: 'Notice 4 things you can physically feel right now.',
     placeholder: 'I feel...',
@@ -72,7 +73,7 @@ const getSenses = (COLORS: ArcadeColors) => [
   {
     count: 3,
     sense: 'HEAR',
-    icon: '👂',
+    icon: 'headphones',
     color: COLORS.indigoBright,
     prompt: 'Listen for 3 sounds around you.',
     placeholder: 'I hear...',
@@ -81,7 +82,7 @@ const getSenses = (COLORS: ArcadeColors) => [
   {
     count: 2,
     sense: 'SMELL',
-    icon: '👃',
+    icon: 'wind',
     color: '#ff9d4d',
     prompt: 'Notice 2 things you can smell (or the absence of smell).',
     placeholder: 'I smell...',
@@ -90,7 +91,7 @@ const getSenses = (COLORS: ArcadeColors) => [
   {
     count: 1,
     sense: 'TASTE',
-    icon: '👅',
+    icon: 'smile',
     color: COLORS.green,
     prompt: 'What\'s the one taste you notice right now?',
     placeholder: 'I taste...',
@@ -184,7 +185,7 @@ export function GroundingExercise({ onComplete }: GroundingExerciseProps) {
     return (
       <SafeAreaView style={styles.safe}>
         <ScrollView contentContainerStyle={styles.doneScroll}>
-          <Text style={styles.doneEmoji}>🌿</Text>
+          <Feather name="feather" size={56} color={COLORS.green} />
           <Text style={styles.doneTitle}>You're here.</Text>
           <Text style={styles.doneBody}>
             Most cravings last 90 seconds.{'\n'}
@@ -197,7 +198,7 @@ export function GroundingExercise({ onComplete }: GroundingExerciseProps) {
             {SENSES.map((sense, i) => (
               <View key={sense.sense} style={styles.summarySection}>
                 <Text style={[styles.summarySenseLabel, { color: sense.color }]}>
-                  {sense.icon}  {sense.sense}
+                  {sense.sense}
                 </Text>
                 {logged[i].map((obs, j) => (
                   <Text key={j} style={styles.summaryObs}>
@@ -269,7 +270,7 @@ export function GroundingExercise({ onComplete }: GroundingExerciseProps) {
 
           {/* ── Sense header ── */}
           <View style={styles.senseHeader}>
-            <Text style={styles.senseIcon}>{currentSense.icon}</Text>
+            <Glyph name={currentSense.icon} size={30} color={currentSense.color} />
             <Text style={[styles.senseName, { color: currentSense.color }]}>
               {currentSense.sense}
             </Text>

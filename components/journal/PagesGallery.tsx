@@ -8,7 +8,8 @@ import { useTheme } from '@/hooks/useTheme';
 import { FONTS } from '@/constants/Colors';
 import { SPACING } from '@/constants/Spacing';
 import { MOOD_TAGS } from '@/constants/moods';
-import { TEMPLATES, type PageTemplate } from '@/constants/journalStyles';
+import { TEMPLATES, stickerTint, type PageTemplate } from '@/constants/journalStyles';
+import { Glyph } from '@/components/ui/Glyph';
 import { useJournalStore, type JournalPage } from '@/stores/useJournalStore';
 import { paperOf, inkOf } from './PageCanvas';
 
@@ -20,7 +21,7 @@ function PageCard({ p, onOpen }: { p: JournalPage; onOpen: () => void }) {
   const paper = paperOf(p);
   const ink = inkOf(p);
   const mood = MOOD_TAGS.find((m) => m.id === p.mood);
-  const glyphs = p.stickers.filter((s) => s.glyph.startsWith('e:')).slice(0, 4).map((s) => s.glyph.slice(2));
+  const glyphs = p.stickers.filter((s) => (s.glyph.startsWith('i:') || s.glyph.startsWith('e:'))).slice(0, 4).map((s) => s.glyph.slice(2));
   return (
     <Pressable
       onPress={onOpen}
@@ -34,7 +35,10 @@ function PageCard({ p, onOpen }: { p: JournalPage; onOpen: () => void }) {
       <Text style={[styles.cardBody, { color: ink + 'CC' }]} numberOfLines={4}>{p.body || (p.strokes.length ? 'A drawing.' : 'Empty page')}</Text>
       <View style={styles.cardFoot}>
         <Text style={[styles.cardDate, { color: ink + '99' }]}>{whenLabel(p.updatedAt)}</Text>
-        <Text style={{ fontSize: 15 }}>{mood ? mood.emoji : ''}{glyphs.join('')}</Text>
+        <View style={{ flexDirection: 'row', gap: 4, alignItems: 'center' }}>
+          {mood ? <Glyph name={mood.emoji} size={15} color={ink} /> : null}
+          {glyphs.map((g, i) => <Glyph key={i} name={g} size={15} color={stickerTint(g)} />)}
+        </View>
       </View>
     </Pressable>
   );
@@ -59,7 +63,7 @@ export function PagesGallery({ onOpen }: { onOpen: (id: string) => void }) {
   const start = (t: PageTemplate) => {
     setPicker(false);
     const stickers = t.stickers.map((g, i) => ({
-      id: `st_${Date.now()}_${i}`, glyph: `e:${g}`, x: 0.82 - i * 0.14, y: 0.07, size: 1, rot: i % 2 ? 8 : -8,
+      id: `st_${Date.now()}_${i}`, glyph: `i:${g}`, x: 0.82 - i * 0.14, y: 0.07, size: 1, rot: i % 2 ? 8 : -8,
     }));
     const id = addPage({ title: t.id === 'blank' ? '' : t.label, body: t.body, paper: t.paper, pattern: t.pattern, stickers });
     onOpen(id);
@@ -88,7 +92,7 @@ export function PagesGallery({ onOpen }: { onOpen: (id: string) => void }) {
                     accessibilityRole="button" accessibilityState={{ selected: on }}
                     style={[styles.chip, { borderColor: on ? colors.accent : colors.cardBorder, backgroundColor: on ? colors.accentDim : colors.surfaceHigh }]}
                   >
-                    <Text style={[styles.chipText, { color: on ? colors.accent : colors.textSecondary }]}>{m.emoji} {m.label}</Text>
+                    <Text style={[styles.chipText, { color: on ? colors.accent : colors.textSecondary }]}>{m.label}</Text>
                   </Pressable>
                 );
               })}
@@ -98,7 +102,7 @@ export function PagesGallery({ onOpen }: { onOpen: (id: string) => void }) {
 
         {pages.length === 0 ? (
           <View style={styles.empty}>
-            <Text style={{ fontSize: 46 }}>📓</Text>
+            <Feather name="book" size={46} color={colors.textMuted} />
             <Text style={[styles.emptyTitle, { color: colors.text }]}>Your journal starts here</Text>
             <Text style={[styles.emptyBody, { color: colors.textSecondary }]}>
               Pick a paper colour, add stickers, doodle in the margins. Make it yours. Only you can see it.
@@ -139,7 +143,9 @@ export function PagesGallery({ onOpen }: { onOpen: (id: string) => void }) {
                       <Text style={[styles.tplTitle, { color: paper.ink }]}>{t.label}</Text>
                       <Text style={[styles.tplBlurb, { color: paper.ink + 'CC' }]}>{t.blurb}</Text>
                     </View>
-                    <Text style={{ fontSize: 22 }}>{t.stickers.join('') || '✏️'}</Text>
+                    <View style={{ flexDirection: 'row', gap: 4 }}>
+                      {(t.stickers.length ? t.stickers : ['edit-3']).map((g) => <Glyph key={g} name={g} size={22} color={stickerTint(g)} />)}
+                    </View>
                   </Pressable>
                 );
               })}

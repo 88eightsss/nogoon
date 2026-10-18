@@ -47,12 +47,12 @@ async function fire(title: string, body: string) {
 
 // ── Streak milestones ────────────────────────────────────────────────────────
 const STREAK_MILESTONES: Record<number, { title: string; body: string }> = {
-  3:   { title: '🔥 3-Day Streak!',  body: "Three days strong. You're building something real." },
-  7:   { title: '🔥 7-Day Streak!',  body: "One week of staying in control. That's huge." },
-  14:  { title: '🔥 2-Week Streak!', body: "14 days. Your brain is literally rewiring." },
-  30:  { title: '🌙 30-Day Streak!', body: "A full month. You've levelled up for real." },
-  60:  { title: '⚡ 60-Day Streak!', body: "Two months of discipline. Legendary." },
-  100: { title: '🏆 100-Day Streak!', body: "100 days. Most people quit. You didn't." },
+  3:   { title: '3-Day Streak!',  body: "Three days strong. You're building something real." },
+  7:   { title: '7-Day Streak!',  body: "One week of staying in control. That's huge." },
+  14:  { title: '2-Week Streak!', body: "14 days. Your brain is literally rewiring." },
+  30:  { title: '30-Day Streak!', body: "A full month. You've levelled up for real." },
+  60:  { title: '60-Day Streak!', body: "Two months of discipline. Legendary." },
+  100: { title: '100-Day Streak!', body: "100 days. Most people quit. You didn't." },
 };
 
 export async function maybeNotifyStreak(newStreak: number) {
@@ -64,10 +64,10 @@ export async function maybeNotifyStreak(newStreak: number) {
 
 // ── Walk-away milestones ─────────────────────────────────────────────────────
 const WALKAWAY_MILESTONES: Record<number, { title: string; body: string }> = {
-  10:  { title: '🚶 10 Walk-Aways!',  body: "Ten times you chose yourself over the scroll." },
-  25:  { title: '💪 25 Walk-Aways!',  body: "25 urges redirected. You're genuinely different now." },
-  50:  { title: '🧠 50 Walk-Aways!',  body: "Halfway to 100. Your focus is a superpower." },
-  100: { title: '🏆 100 Walk-Aways!', body: "100. You've proven you run the app, not the other way around." },
+  10:  { title: '10 Walk-Aways!',  body: "Ten times you chose yourself over the scroll." },
+  25:  { title: '25 Walk-Aways!',  body: "25 urges redirected. You're genuinely different now." },
+  50:  { title: '50 Walk-Aways!',  body: "Halfway to 100. Your focus is a superpower." },
+  100: { title: '100 Walk-Aways!', body: "100. You've proven you run the app, not the other way around." },
 };
 
 export async function maybeNotifyWalkAway(newCount: number) {
@@ -98,7 +98,7 @@ export async function scheduleWeeklyRecap(walkAwayCount: number, streak: number)
     await Notifications.scheduleNotificationAsync({
       identifier: 'weekly-recap',
       content: {
-        title: '📊 Your weekly recap',
+        title: 'Your weekly recap',
         body: buildRecapBody(walkAwayCount, streak),
         sound: true,
       },
@@ -116,8 +116,8 @@ export async function scheduleWeeklyRecap(walkAwayCount: number, streak: number)
 
 function buildRecapBody(walkAways: number, streak: number): string {
   if (walkAways === 0) return "A new week starts now. You've got this.";
-  if (streak >= 7)  return `${walkAways} walk-away${walkAways === 1 ? '' : 's'} this week · ${streak}-day streak 🔥 Keep going.`;
-  return `${walkAways} walk-away${walkAways === 1 ? '' : 's'} this week. Every one counts. 💪`;
+  if (streak >= 7)  return `${walkAways} walk-away${walkAways === 1 ? '' : 's'} this week · ${streak}-day streak Keep going.`;
+  return `${walkAways} walk-away${walkAways === 1 ? '' : 's'} this week. Every one counts.`;
 }
 
 // ── Comeback reminder ────────────────────────────────────────────────────────
@@ -150,7 +150,7 @@ export async function scheduleDailySummary(todayWalkAways: number, topDomain?: s
     await Notifications.cancelScheduledNotificationAsync('daily-summary').catch(() => {});
     await Notifications.scheduleNotificationAsync({
       identifier: 'daily-summary',
-      content: { title: 'Your day at a glance 📊', body, sound: false },
+      content: { title: 'Your day at a glance', body, sound: false },
       trigger: { date: eightPm } as any,
     });
   } catch {

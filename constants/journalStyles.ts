@@ -46,14 +46,22 @@ export const PEN_WIDTHS = [4, 9, 18] as const;   // in the 1000-unit page space
 
 export type StickerGroup = { id: string; label: string; items: string[] };
 export const STICKER_GROUPS: StickerGroup[] = [
-  { id: 'feel',   label: 'Feelings', items: ['😊', '🥹', '😌', '😤', '😴', '🤗', '🥳', '😭', '🫶', '💪', '🧠', '🌈'] },
-  { id: 'nature', label: 'Nature',   items: ['🌸', '🌻', '🌿', '🍀', '🌊', '☀️', '🌙', '⭐', '🔥', '🦋', '🐢', '🌴'] },
-  { id: 'treat',  label: 'Treats',   items: ['🍉', '🍓', '🥭', '🍵', '🍪', '🥑', '🧋', '🍜', '🍙', '🍍', '☕', '🍰'] },
-  { id: 'do',     label: 'Doing',    items: ['📚', '✏️', '🎧', '🏃', '🧘', '📞', '🎨', '🎸', '🚶', '🧹', '🌅', '🏄'] },
-  { id: 'marks',  label: 'Marks',    items: ['❤️', '✨', '✅', '📌', '💡', '🎯', '🏆', '🔑', '💬', '➡️', '❗', '🎀'] },
+  { id: 'feel',   label: 'Feelings', items: ['smile', 'meh', 'frown', 'heart', 'sun', 'cloud', 'moon', 'zap', 'coffee', 'music', 'star', 'award'] },
+  { id: 'nature', label: 'Nature',   items: ['sun', 'moon', 'cloud', 'cloud-rain', 'wind', 'droplet', 'feather', 'umbrella', 'sunrise', 'sunset', 'compass', 'anchor'] },
+  { id: 'treat',  label: 'Treats',   items: ['coffee', 'gift', 'heart', 'star', 'smile', 'award', 'music', 'film', 'camera', 'headphones', 'home', 'shopping-bag'] },
+  { id: 'do',     label: 'Doing',    items: ['book', 'book-open', 'edit-3', 'headphones', 'activity', 'phone', 'image', 'music', 'navigation', 'map-pin', 'sunrise', 'tool'] },
+  { id: 'marks',  label: 'Marks',    items: ['heart', 'star', 'check-circle', 'bookmark', 'sun', 'target', 'award', 'key', 'message-circle', 'arrow-right', 'alert-circle', 'flag'] },
 ];
 
-/** Sticker ids: `e:<emoji>` for an emoji, `m:<characterId>` for a companion sprite. */
+/** Sticker tints, picked by icon so the same icon always gets the same colour. */
+const STICKER_TINTS = ['#E5484D', '#F76B15', '#E5A000', '#30A46C', '#0091FF', '#8E4EC6', '#E93D82', '#12A37F'];
+export function stickerTint(icon: string): string {
+  let h = 0;
+  for (let i = 0; i < icon.length; i++) h = (h * 31 + icon.charCodeAt(i)) >>> 0;
+  return STICKER_TINTS[h % STICKER_TINTS.length];
+}
+
+/** Sticker ids: `i:<feather icon>` for an icon, `m:<characterId>` for a companion sprite. Older pages may hold `e:<emoji>`; those still draw (see resolveIcon). */
 export const MASCOT_STICKERS: CharacterId[] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
 export type PageTemplate = {
@@ -69,12 +77,12 @@ export type PageTemplate = {
 
 export const TEMPLATES: PageTemplate[] = [
   { id: 'blank',   label: 'Blank page',   blurb: 'Start from nothing.',                  paper: 'cream',    pattern: 'plain', body: '', stickers: [] },
-  { id: 'dump',    label: 'Brain dump',   blurb: 'Get the noise out of your head.',      paper: 'sky',      pattern: 'lined', body: 'Everything in my head right now:\n\n', stickers: ['🧠'] },
-  { id: 'thanks',  label: 'Three good things', blurb: 'What went right today.',          paper: 'butter',   pattern: 'dots',  body: 'Three things I am glad of today:\n1. \n2. \n3. ', stickers: ['🌻', '✨'] },
-  { id: 'urge',    label: 'Urge log',     blurb: 'Catch the craving and look at it.',    paper: 'lavender', pattern: 'lined', body: 'What pulled me in?\n\nWhat was I feeling just before?\n\nWhat will I do instead?\n', stickers: ['🌊'] },
-  { id: 'proud',   label: 'Proud of',     blurb: 'Small wins count.',                    paper: 'blush',    pattern: 'plain', body: 'Something I am proud of this week:\n\n', stickers: ['🏆', '💪'] },
-  { id: 'future',  label: 'Letter to future me', blurb: 'Say what you want to remember.', paper: 'mint',     pattern: 'lined', body: 'Dear future me,\n\n', stickers: ['💬'] },
-  { id: 'plan',    label: "Tomorrow's plan", blurb: 'Three things, that is all.',        paper: 'peach',    pattern: 'grid',  body: "Tomorrow I will:\n1. \n2. \n3. \n\nI'll know I did well if:\n", stickers: ['🎯'] },
+  { id: 'dump',    label: 'Brain dump',   blurb: 'Get the noise out of your head.',      paper: 'sky',      pattern: 'lined', body: 'Everything in my head right now:\n\n', stickers: ['shield'] },
+  { id: 'thanks',  label: 'Three good things', blurb: 'What went right today.',          paper: 'butter',   pattern: 'dots',  body: 'Three things I am glad of today:\n1. \n2. \n3. ', stickers: ['sun', 'star'] },
+  { id: 'urge',    label: 'Urge log',     blurb: 'Catch the craving and look at it.',    paper: 'lavender', pattern: 'lined', body: 'What pulled me in?\n\nWhat was I feeling just before?\n\nWhat will I do instead?\n', stickers: ['droplet'] },
+  { id: 'proud',   label: 'Proud of',     blurb: 'Small wins count.',                    paper: 'blush',    pattern: 'plain', body: 'Something I am proud of this week:\n\n', stickers: ['award', 'zap'] },
+  { id: 'future',  label: 'Letter to future me', blurb: 'Say what you want to remember.', paper: 'mint',     pattern: 'lined', body: 'Dear future me,\n\n', stickers: ['message-circle'] },
+  { id: 'plan',    label: "Tomorrow's plan", blurb: 'Three things, that is all.',        paper: 'peach',    pattern: 'grid',  body: "Tomorrow I will:\n1. \n2. \n3. \n\nI'll know I did well if:\n", stickers: ['target'] },
 ];
 
 export const PROMPTS = [

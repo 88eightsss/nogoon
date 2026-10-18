@@ -27,6 +27,7 @@ import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { useSafeTimeout } from '@/hooks/useSafeTimeout';
 import { HoldBreath } from './HoldBreath';
+import { Feather } from '@expo/vector-icons';
 
 // ─── Breath phases ────────────────────────────────────────────────────────────
 
@@ -173,7 +174,7 @@ export function BreathRhythm({ onComplete }: Props) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.readyContainer}>
-          <Text style={styles.readyEmoji}>🌬️</Text>
+          <Feather name="wind" size={56} color={COLORS.cyan} />
           <Text style={styles.readyTitle}>Breath Rhythm</Text>
           <View style={styles.readyCard}>
             <Text style={styles.readyLabel}>{mode === 'hold' ? 'HOLD TO BREATHE' : 'BOX BREATHING'}</Text>
@@ -251,7 +252,7 @@ export function BreathRhythm({ onComplete }: Props) {
         {/* ── Done overlay ── */}
         {phase === 'done' && (
           <View style={styles.doneOverlay}>
-            <Text style={styles.doneEmoji}>🌬️</Text>
+            <Feather name="wind" size={56} color={COLORS.cyan} />
             <Text style={styles.doneTitle}>Well done</Text>
             <Text style={styles.doneSub}>Nervous system reset</Text>
           </View>

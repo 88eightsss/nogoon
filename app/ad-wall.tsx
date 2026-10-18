@@ -21,6 +21,7 @@ import { AdBanner } from '@/components/ads/AdBanner';
 import { FONTS } from '@/constants/Colors';
 import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
+import { Feather } from '@expo/vector-icons';
 
 // ─── Fake ad data ─────────────────────────────────────────────────────────────
 // Parody ads that mirror real dark-pattern ads found online.
@@ -37,7 +38,7 @@ const FAKE_ADS: Array<{
 }> = [
   {
     bg: '#FF3B30',
-    text: '⚠️ YOUR IPHONE HAS A VIRUS',
+    text: 'YOUR IPHONE HAS A VIRUS',
     sub: 'Tap NOW to remove 3 threats',
     cta: 'CLEAN NOW — FREE',
     ctaBg: '#34C759',
@@ -47,11 +48,11 @@ const FAKE_ADS: Array<{
   },
   {
     bg: '#FF9500',
-    text: '🎉 CONGRATULATIONS! You\'ve been selected',
+    text: 'CONGRATULATIONS! You\'ve been selected',
     sub: 'Claim your FREE iPhone 15 Pro',
     cta: 'CLAIM PRIZE',
     ctaBg: '#FF3B30',
-    badge: '⏰ 00:02:41',
+    badge: '00:02:41',
     rotate: 0.8,
     height: 100,
   },
@@ -66,11 +67,11 @@ const FAKE_ADS: Array<{
   },
   {
     bg: '#007AFF',
-    text: '💬 You have (3) unread messages',
+    text: 'You have (3) unread messages',
     sub: 'Singles in your area are waiting',
     cta: 'View Messages',
     ctaBg: '#FF3B30',
-    badge: 'HOT 🔥',
+    badge: 'HOT',
     rotate: 1.2,
     height: 100,
   },
@@ -95,7 +96,7 @@ const FAKE_ADS: Array<{
   },
   {
     bg: '#FF2D55',
-    text: '🏆 You\'re our 1,000,000th visitor!',
+    text: 'You\'re our 1,000,000th visitor!',
     sub: 'Spin to win your guaranteed reward',
     cta: 'SPIN NOW',
     ctaBg: '#34C759',
@@ -115,11 +116,11 @@ const FAKE_ADS: Array<{
   },
   {
     bg: '#1C1C1E',
-    text: '🔒 Your data was leaked',
+    text: 'Your data was leaked',
     sub: 'Scan now to see what\'s exposed',
     cta: 'Free Scan →',
     ctaBg: '#FF3B30',
-    badge: '⚡ URGENT',
+    badge: 'URGENT',
     rotate: -0.7,
     height: 110,
   },
@@ -134,7 +135,7 @@ const FAKE_ADS: Array<{
   },
   {
     bg: '#FF3B30',
-    text: '🎮 Free Robux Generator',
+    text: 'Free Robux Generator',
     sub: 'No human verification required!',
     cta: 'Generate Robux',
     ctaBg: '#5856D6',
@@ -148,7 +149,7 @@ const FAKE_ADS: Array<{
     sub: 'Elon Musk\'s secret investment revealed',
     cta: 'Invest Now →',
     ctaBg: '#FF9500',
-    badge: '🚀 ACT FAST',
+    badge: 'ACT FAST',
     rotate: 0.9,
     height: 110,
   },
@@ -247,7 +248,7 @@ export default function AdWall() {
 
         {/* ── Footer ────────────────────────────────────────────────────── */}
         <View style={styles.footer}>
-          <Text style={styles.footerEmoji}>🛡️</Text>
+          <Feather name="shield" size={40} color={COLORS.green} />
           <Text style={styles.footerTitle}>NoGoon blocks this.</Text>
           <Text style={styles.footerSub}>
             Every intercept protects you from another algorithmic rabbit hole.

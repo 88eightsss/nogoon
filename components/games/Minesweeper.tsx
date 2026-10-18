@@ -3,7 +3,7 @@
 // Same mechanics as Minesweeper: tap to reveal, long-press to flag a Goon.
 // First tap always safe. Clear all safe cells to win. Hit a Goon = game over.
 //
-// Theme: 👹 Goon mascots are hiding in your brain grid. Dodge them all.
+// Theme: Goon mascots are hiding in your brain grid. Dodge them all.
 
 import { useRef, useState, useCallback, useMemo } from 'react';
 import {
@@ -19,6 +19,7 @@ import { FONTS } from '@/constants/Colors';
 import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { useSafeTimeout } from '@/hooks/useSafeTimeout';
+import { Feather } from '@expo/vector-icons';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -253,9 +254,9 @@ export function Minesweeper({ onComplete }: Props) {
                       (r === 0 && c === 2) ? styles.previewShield : null,
                     ]}
                   >
-                    {(r === 1 && c === 1) && <Text style={styles.previewEmoji}>👹</Text>}
-                    {(r === 2 && c === 3) && <Text style={styles.previewEmoji}>👹</Text>}
-                    {(r === 0 && c === 2) && <Text style={styles.previewEmoji}>🧠</Text>}
+                    {(r === 1 && c === 1) && <Feather name="alert-octagon" size={14} color={COLORS.danger} />}
+                    {(r === 2 && c === 3) && <Feather name="alert-octagon" size={14} color={COLORS.danger} />}
+                    {(r === 0 && c === 2) && <Feather name="shield" size={14} color={COLORS.green} />}
                     {(r === 1 && c === 2) && <Text style={[styles.previewNum, { color: '#4ade80' }]}>1</Text>}
                     {(r === 0 && c === 1) && <Text style={[styles.previewNum, { color: '#4ade80' }]}>1</Text>}
                     {(r === 2 && c === 2) && <Text style={[styles.previewNum, { color: '#f87171' }]}>3</Text>}
@@ -270,21 +271,21 @@ export function Minesweeper({ onComplete }: Props) {
           <View style={styles.ruleCard}>
             <Text style={styles.rule}>
               <Text style={ruleAccent}>Tap</Text> to reveal a cell.{'\n'}
-              Numbers show how many Goons 👹 are nearby.{'\n\n'}
-              <Text style={ruleAccent}>Long-press</Text> to mark a suspected Goon with your brain 🧠{'\n\n'}
+              Numbers show how many Goons are nearby.{'\n\n'}
+              <Text style={ruleAccent}>Long-press</Text> to mark a suspected Goon with your brain shield.{'\n\n'}
               Clear every safe cell to{' '}
               <Text style={ruleAccent}>escape</Text>.{'\n'}
-              Step on a Goon 👹 and it's over.
+              Step on a Goon and it's over.
             </Text>
           </View>
 
           <View style={styles.statsRow}>
             <View style={styles.statPill}>
-              <Text style={styles.statEmoji}>👹</Text>
+              <Feather name="alert-octagon" size={14} color={COLORS.danger} />
               <Text style={styles.statText}>{MINES} traps</Text>
             </View>
             <View style={styles.statPill}>
-              <Text style={styles.statEmoji}>🧠</Text>
+              <Feather name="shield" size={14} color={COLORS.green} />
               <Text style={styles.statText}>{ROWS}×{COLS} brain</Text>
             </View>
           </View>
@@ -300,7 +301,8 @@ export function Minesweeper({ onComplete }: Props) {
   // ── Playing / Won / Lost ──────────────────────────────────────────────────
 
   const done = phase === 'won' || phase === 'lost';
-  const faceIcon = phase === 'won' ? '✅' : phase === 'lost' ? '👹' : '🧠';
+  const faceIcon = phase === 'won' ? 'check-circle' : phase === 'lost' ? 'alert-octagon' : 'shield';
+  const faceColor = phase === 'won' ? COLORS.green : phase === 'lost' ? COLORS.danger : COLORS.cyan;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -309,16 +311,16 @@ export function Minesweeper({ onComplete }: Props) {
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.counterPill}>
-            <Text style={styles.counterEmoji}>👹</Text>
+            <Feather name="alert-octagon" size={14} color={COLORS.danger} />
             <Text style={styles.counterNum}>{String(Math.max(0, trapsLeft)).padStart(2, '0')}</Text>
           </View>
 
           <Pressable style={styles.faceBtn} onPress={startGame}>
-            <Text style={styles.faceIcon}>{faceIcon}</Text>
+            <Feather name={faceIcon} size={22} color={faceColor} />
           </Pressable>
 
           <View style={styles.counterPill}>
-            <Text style={styles.counterEmoji}>🧠</Text>
+            <Feather name="shield" size={14} color={COLORS.green} />
             <Text style={styles.counterNum}>{String(flagCount).padStart(2, '0')}</Text>
           </View>
         </View>
@@ -343,7 +345,7 @@ export function Minesweeper({ onComplete }: Props) {
                     disabled={done || cell.revealed}
                   >
                     {cell.revealed && cell.isMine && (
-                      <Text style={styles.trapEmoji}>👹</Text>
+                      <Feather name="alert-octagon" size={16} color={COLORS.danger} />
                     )}
                     {cell.revealed && !cell.isMine && cell.adjCount > 0 && (
                       <Text style={[styles.adjNum, { color: DIGIT_COLORS[cell.adjCount] ?? '#e5e7eb' }]}>
@@ -351,7 +353,7 @@ export function Minesweeper({ onComplete }: Props) {
                       </Text>
                     )}
                     {!cell.revealed && cell.flagged && (
-                      <Text style={styles.shieldEmoji}>🧠</Text>
+                      <Feather name="shield" size={16} color={COLORS.green} />
                     )}
                   </Pressable>
                 );
@@ -364,13 +366,13 @@ export function Minesweeper({ onComplete }: Props) {
         {done && (
           <View style={[styles.resultBanner, phase === 'won' ? styles.resultWin : styles.resultLoss]}>
             <Text style={[styles.resultText, { color: phase === 'won' ? '#4ade80' : '#f87171' }]}>
-              {phase === 'won' ? '✅ Brain cleared!' : '👹 Goon got you. Game over.'}
+              {phase === 'won' ? 'Brain cleared!' : 'Goon got you. Game over.'}
             </Text>
           </View>
         )}
 
         {!done && (
-          <Text style={styles.hint}>Long-press to mark a suspected Goon 👹</Text>
+          <Text style={styles.hint}>Long-press to mark a suspected Goon</Text>
         )}
 
       </ScrollView>

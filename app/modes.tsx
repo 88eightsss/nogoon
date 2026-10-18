@@ -10,6 +10,7 @@ import { View, Text, ScrollView, Pressable, StyleSheet, Alert, Switch } from 're
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
+import { Glyph } from '@/components/ui/Glyph';
 import { useTheme } from '@/hooks/useTheme';
 import { useModesStore, resolveActiveMode, DEFAULT_SCHEDULE, type ModePreset } from '@/stores/useModesStore';
 import { ScheduleEditor } from '@/components/ScheduleEditor';
@@ -94,9 +95,10 @@ export default function ModesScreen() {
                     <Text style={[styles.time, { color: s.enabled ? colors.text : colors.textMuted }]}>
                       {format12(s.start)} – {format12(s.end)}
                     </Text>
-                    <Text style={[styles.cardName, { color: colors.text }]}>
-                      {mode.emoji}  {mode.name}
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Glyph name={mode.emoji} size={16} color={colors.text} />
+                      <Text style={[styles.cardName, { color: colors.text }]}>{mode.name}</Text>
+                    </View>
                     <Text style={[styles.cardDesc, { color: colors.textMuted }]}>
                       {s.enabled ? daysLabel(s.days) : 'Schedule off'} · {mode.blockedApps.length} apps · {mode.blockedDomains.length} sites
                     </Text>
