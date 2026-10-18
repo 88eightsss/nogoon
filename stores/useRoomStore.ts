@@ -14,12 +14,12 @@ import {
 export const ROOM_NAME_MAX = 24;
 
 /** How the Today tab is laid out. */
-export type TodayLayout = 'room' | 'cards' | 'plain' | 'focus';
-export const TODAY_LAYOUTS: TodayLayout[] = ['room', 'cards', 'plain', 'focus'];
+export type TodayLayout = 'roomlast' | 'room' | 'cards' | 'plain' | 'focus';
+export const TODAY_LAYOUTS: TodayLayout[] = ['roomlast', 'room', 'cards', 'plain', 'focus'];
 /** How the bottom tab bar looks. */
 export type TabStyle = 'standard' | 'raised';
 const isLayout = (v: unknown): v is TodayLayout => typeof v === 'string' && (TODAY_LAYOUTS as string[]).includes(v);
-const hasRoom = (l: TodayLayout) => l === 'room' || l === 'cards';
+const hasRoom = (l: TodayLayout) => l === 'roomlast' || l === 'room' || l === 'cards';
 
 interface RoomState {
   roomView: boolean;            // true for the layouts that show the room (room, cards)
@@ -43,10 +43,10 @@ export const useRoomStore = create<RoomState>()(
       roomView: true,
       setRoomView: (on) => {
         const cur = get().todayLayout;
-        const todayLayout: TodayLayout = on ? (hasRoom(cur) ? cur : 'room') : 'plain';
+        const todayLayout: TodayLayout = on ? (hasRoom(cur) ? cur : 'roomlast') : 'plain';
         set({ roomView: on, todayLayout });
       },
-      todayLayout: 'room',
+      todayLayout: 'roomlast',
       setTodayLayout: (l) => set({ todayLayout: l, roomView: hasRoom(l) }),
       tabStyle: 'standard',
       setTabStyle: (t) => set({ tabStyle: t }),
@@ -76,7 +76,7 @@ export const useRoomStore = create<RoomState>()(
         for (const k of Object.keys(DEFAULT_DECOR) as DecorKey[]) {
           if (typeof p.decor?.[k] === 'boolean') decor[k] = p.decor[k];
         }
-        const todayLayout: TodayLayout = isLayout(p.todayLayout) ? p.todayLayout : (p.roomView === false ? 'plain' : 'room');
+        const todayLayout: TodayLayout = isLayout(p.todayLayout) ? p.todayLayout : (p.roomView === false ? 'plain' : 'roomlast');
         return {
           ...current,
           todayLayout,

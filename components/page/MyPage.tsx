@@ -136,30 +136,8 @@ export function MyPage() {
   const paper = paperOverride !== 'auto' ? paperOverride : (pack.parts.page.paper ?? 'none');
   const paperBase = paper !== 'none' && pack.parts.page.look.paper ? pack.parts.page.look.paper : colors.background;
 
-  return (
-    <View style={{ flex: 1, backgroundColor: paperBase }}>
-    <PaperBackground paper={paper} line={pack.parts.page.look.rule ?? colors.border} margin={pack.parts.page.look.margin} />
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <View style={styles.headRow}>
-        <Pressable onPress={onGreeting} style={{ flex: 1 }}>
-          <Text style={[styles.hello, { color: colors.text }]}>
-            {name ? `Welcome back, ${name}` : 'Welcome back'}
-          </Text>
-          <Text style={[styles.sub, { color: colors.textSecondary }]}>
-            {savedLabel} reclaimed so far.
-          </Text>
-        </Pressable>
-        <Pressable
-          onPress={() => router.push('/customize' as any)}
-          hitSlop={10}
-          accessibilityRole="button"
-          accessibilityLabel="Customize this page"
-          style={[styles.pencil, { borderColor: colors.border }]}
-        >
-          <Feather name="edit-2" size={16} color={colors.textSecondary} />
-        </Pressable>
-      </View>
-
+  const partA = (
+    <>
       {isFocus ? (
         <View style={styles.focusWrap}>
           <PackSprite char={char} stage={stage} cell={7} />
@@ -219,6 +197,10 @@ export function MyPage() {
         </>
       )}
 
+    </>
+  );
+  const partB = (
+    <>
       <Pressable
         onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setTempted(true); }}
         style={({ pressed }) => [styles.tempted, { backgroundColor: SUN, opacity: pressed ? 0.85 : 1 }]}
@@ -228,7 +210,15 @@ export function MyPage() {
         <Text style={styles.temptedText}>Need a minute</Text>
         <Text style={styles.temptedSub}>Tap here first. We'll get through it.</Text>
       </Pressable>
+    </>
+  );
+  const partC = (
+    <>
       <ReachOutTreat char={char} stage={stage} petName={petName} />
+    </>
+  );
+  const partD = (
+    <>
       <Pressable
         onPress={() => (blockingStatus === 'off' ? openSettings() : router.push('/(tabs)/blocklist' as any))}
         style={[styles.card, cardStyle, styles.row, { backgroundColor: colors.surface, borderColor: colors.cardBorder, alignItems: 'center' }]}
@@ -243,6 +233,10 @@ export function MyPage() {
         </View>
         <Feather name="chevron-right" size={18} color={colors.textMuted} />
       </Pressable>
+    </>
+  );
+  const partE = (
+    <>
       {isFocus || roomView ? null : pack.parts.page.frame === 'corner' ? (
         <Text style={[styles.cornerHint, { color: colors.textMuted }]}>
           {floatVisible ? `${petName} is in the corner. Drag them anywhere, tap to say hi.` : `${petName} is resting. Turn them back on in Customize.`}
@@ -261,6 +255,10 @@ export function MyPage() {
         </>
       )}
 
+    </>
+  );
+  const partF = (
+    <>
       {isFocus ? null : (
       <>
       <Pressable
@@ -321,9 +319,60 @@ export function MyPage() {
       </>
       )}
 
+    </>
+  );
+  const partG = (
+    <>
       <Pressable onPress={() => { Haptics.selectionAsync().catch(() => {}); setRoomView(!roomView); }} hitSlop={8} style={styles.switchView} accessibilityRole="button">
         <Text style={[styles.switchText, { color: colors.textMuted }]}>{roomView ? 'Switch to the plain page' : 'Switch to the room'}  ·  more layouts in Customize</Text>
       </Pressable>
+    </>
+  );
+
+  return (
+    <View style={{ flex: 1, backgroundColor: paperBase }}>
+    <PaperBackground paper={paper} line={pack.parts.page.look.rule ?? colors.border} margin={pack.parts.page.look.margin} />
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <View style={styles.headRow}>
+        <Pressable onPress={onGreeting} style={{ flex: 1 }}>
+          <Text style={[styles.hello, { color: colors.text }]}>
+            {name ? `Welcome back, ${name}` : 'Welcome back'}
+          </Text>
+          <Text style={[styles.sub, { color: colors.textSecondary }]}>
+            {savedLabel} reclaimed so far.
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={() => router.push('/customize' as any)}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel="Customize this page"
+          style={[styles.pencil, { borderColor: colors.border }]}
+        >
+          <Feather name="edit-2" size={16} color={colors.textSecondary} />
+        </Pressable>
+      </View>
+
+      {layout === 'roomlast' ? (
+        <>
+          {partC}
+          {partD}
+          {partF}
+          {partA}
+          {partB}
+          {partG}
+        </>
+      ) : (
+        <>
+          {partA}
+          {partB}
+          {partC}
+          {partD}
+          {partE}
+          {partF}
+          {partG}
+        </>
+      )}
     </ScrollView>
     <TemptedSheet visible={tempted} onClose={() => setTempted(false)} />
     </View>
