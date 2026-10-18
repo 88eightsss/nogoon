@@ -160,11 +160,6 @@ private fun WidgetContent(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "🔥",
-                        style = TextStyle(fontSize = 14.sp)
-                    )
-                    Spacer(modifier = GlanceModifier.width(2.dp))
-                    Text(
                         text = streak.toString(),
                         style = TextStyle(
                             color = androidx.glance.color.ColorProvider(day = Color(0xFFF59E0B), night = Color(0xFFF59E0B)),
