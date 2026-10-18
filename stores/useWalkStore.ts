@@ -51,6 +51,19 @@ export const useWalkStore = create<State>()(
       todaySteps: () => get().days[getLocalDateKey()]?.steps ?? 0,
       reset: () => set({ days: {}, gateWalk: false, gateGoal: 300 }),
     }),
-    { name: 'nogoon-walks', storage: createJSONStorage(() => AsyncStorage), version: 1 }
+    {
+      name: 'nogoon-walks',
+      storage: createJSONStorage(() => AsyncStorage),
+      version: 1,
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<State>;
+        return {
+          ...current,
+          days: p.days && typeof p.days === 'object' ? p.days : current.days,
+          gateWalk: p.gateWalk === true,
+          gateGoal: typeof p.gateGoal === 'number' && GATE_GOALS.includes(p.gateGoal) ? p.gateGoal : 300,
+        };
+      },
+    }
   )
 );

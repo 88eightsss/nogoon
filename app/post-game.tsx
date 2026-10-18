@@ -25,7 +25,8 @@ import {
   TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useWalkStore } from '@/stores/useWalkStore';
 import * as Haptics from 'expo-haptics';
 import { Feather } from '@expo/vector-icons';
 import { useUserStore } from '@/stores/useUserStore';
@@ -238,6 +239,10 @@ export default function PostGameScreen() {
   // Whether BRICKED or Cold Turkey mode is active
   const isBrickedMode    = brickedParam === '1' || coldTurkeyParam === '1';
   const isColdTurkeyMode = coldTurkeyParam === '1';
+  // "Walk to get in" locks the other routes: only a walk opens the app. (Real hard modes are in the store.)
+  const gateWalkOn = useWalkStore((s) => s.gateWalk);
+  const storeHard = useUserStore((s) => s.isBricked || s.isColdTurkey);
+  const walkOnly = isBrickedMode && gateWalkOn && !storeHard && !isColdTurkeyMode;
 
   // ── Store ──────────────────────────────────────────────────────────────────
   const {
@@ -657,13 +662,24 @@ export default function PostGameScreen() {
               <Feather name={isColdTurkeyMode ? 'slash' : 'lock'} size={28} color={COLORS.danger} />
               <View style={styles.brickedLockText}>
                 <Text style={styles.brickedLockTitle}>
-                  {isColdTurkeyMode ? 'Cold Turkey Active' : 'Hard Mode Active'}
+                  {isColdTurkeyMode ? 'Cold Turkey Active' : walkOnly ? 'Walk to get in' : 'Hard Mode Active'}
                 </Text>
                 <Text style={styles.brickedLockSub}>
                   {isColdTurkeyMode
                     ? 'Zero unlock path. There is no way through. Walk away.'
-                    : 'You disabled unlocking. Well done — walk away.'}
+                    : walkOnly
+                      ? 'The only way in is a walk with your pal. Or just walk away.'
+                      : 'You disabled unlocking. Well done — walk away.'}
                 </Text>
+                {walkOnly && (
+                  <Pressable
+                    style={styles.unlockLink}
+                    onPress={() => router.replace({ pathname: '/walk', params: { gate: '1', app, domain, isBricked: '0', isColdTurkey: '0' } } as any)}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.unlockLinkText}>Take your pal for a walk</Text>
+                  </Pressable>
+                )}
               </View>
             </View>
           ) : (

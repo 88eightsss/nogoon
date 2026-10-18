@@ -196,7 +196,10 @@ export default function WalkScreen() {
     }, 500);
   }, [bump, stopSensors]);
 
+  const finishedRef = useRef(false);
+  const leftRef = useRef(false);   // a double tap must not record two walk-aways
   const finish = useCallback(() => {
+    if (inGate) { if (finishedRef.current || leftRef.current) return; finishedRef.current = true; }
     stopSensors();
     setMoving(false);
     const final = stepsRef.current;
@@ -253,7 +256,13 @@ export default function WalkScreen() {
 
   const leave = () => {
     stopSensors();
-    if (inGate) { recordWalkAway(); exitGate(); return; }
+    if (inGate) {
+      if (leftRef.current) return;
+      leftRef.current = true;
+      recordWalkAway();
+      exitGate();
+      return;
+    }
     router.back();
   };
   leaveRef.current = leave;

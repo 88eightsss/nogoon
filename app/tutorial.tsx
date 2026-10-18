@@ -124,6 +124,7 @@ export default function TutorialScreen() {
     return () => sub.remove();
   }, [chapterIdx, toHub]);
 
+  useEffect(() => { if (all === '1') markTutorialSeen(); }, [all, markTutorialSeen]);
   useEffect(() => { scroller.current?.scrollTo({ y: 0, animated: false }); }, [chapterIdx, stepIdx, finished]);
 
   const next = () => {

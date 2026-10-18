@@ -575,7 +575,7 @@ export default function OnboardingScreen() {
 
               {/* Why first: Android only lets NoGoon block after this, so it leads the setup. */}
               {!serviceEnabled && (
-                <View style={styles.whyBox} accessible accessibilityLabel="Why NoGoon needs Accessibility Access">
+                <View style={styles.whyBox}>
                   <Text style={styles.whyTitle}>Why NoGoon needs Accessibility</Text>
                   {[
                     ['eye', 'To notice the moment you open a blocked app or site, so the pause shows up before it loads.'],

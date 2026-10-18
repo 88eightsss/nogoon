@@ -5,7 +5,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Animated, type LayoutChangeEvent } from 'react-native';
-import { router, type Href } from 'expo-router';
+import { router, useSegments, type Href } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -47,14 +47,23 @@ export function TabCoach() {
 
   // Right after setup the whole interactive tour opens once, and people click through it.
   // (This spotlight below never starts by itself; it runs when someone asks for it in the tour.)
+  // Waits for the saved tour state to load (otherwise someone who already saw it could be shown it
+  // again) and for the tabs to actually be the screen on top (not the gate or another page).
+  const segments = useSegments();
+  const onTabs = segments[0] === '(tabs)';
+  const [tourLoaded, setTourLoaded] = useState(() => useTourStore.persist.hasHydrated());
   useEffect(() => {
-    if (!hasOnboarded || offered) return;
+    if (tourLoaded) return;
+    return useTourStore.persist.onFinishHydration(() => setTourLoaded(true));
+  }, [tourLoaded]);
+  useEffect(() => {
+    if (!tourLoaded || !hasOnboarded || offered || !onTabs) return;
     const t = setTimeout(() => {
       markOffered();
       router.push({ pathname: '/tutorial', params: { all: '1' } } as Href);
     }, 1200);
     return () => clearTimeout(t);
-  }, [hasOnboarded, offered, markOffered]);
+  }, [tourLoaded, hasOnboarded, offered, onTabs, markOffered]);
 
   useEffect(() => {
     if (seen || !requested || !hasOnboarded) { setReady(false); return; }

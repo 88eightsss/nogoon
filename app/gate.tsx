@@ -557,12 +557,12 @@ function NoGoonScreen() {
           pointsEarned: String(score),
           gameName: selectedGame ?? 'Mini-Game',
           domain: displayDomain,
-          isBricked: (isBricked || isColdTurkey) ? '1' : '0',
+          isBricked: (isBricked || isColdTurkey || gateWalk) ? '1' : '0',
           isColdTurkey: isColdTurkey ? '1' : '0',
         },
       });
     },
-    [selectedGame, isBricked, isColdTurkey, displayDomain, maybeShowInterstitial]
+    [selectedGame, isBricked, isColdTurkey, gateWalk, displayDomain, maybeShowInterstitial]
   );
 
   // ── Context line shown on calm screen ────────────────────────────────────
@@ -1261,7 +1261,7 @@ function NoGoonScreen() {
             pathname: '/waiting-room',
             params: {
               app: domain, pointsEarned: '0', gameName: 'Waiting Room', domain: displayDomain,
-              isBricked: (isBricked || isColdTurkey) ? '1' : '0',
+              isBricked: (isBricked || isColdTurkey || gateWalk) ? '1' : '0',
               isColdTurkey: isColdTurkey ? '1' : '0',
             },
           });
@@ -1549,7 +1549,7 @@ function NoGoonScreen() {
                     pointsEarned: '0',
                     gameName: 'Waiting Room',
                     domain: displayDomain,
-                    isBricked: (isBricked || isColdTurkey) ? '1' : '0',
+                    isBricked: (isBricked || isColdTurkey || gateWalk) ? '1' : '0',
                     isColdTurkey: isColdTurkey ? '1' : '0',
                   },
                 });

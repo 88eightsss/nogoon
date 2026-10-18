@@ -2,7 +2,7 @@
 // Walk-aways and walks earn treats. This card is where they get spent: one tap feeds the
 // companion you picked as your favorite and moves it toward its next evolution.
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Animated, Easing } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -19,6 +19,14 @@ export function FeedPal({ petName }: { petName?: string }) {
   const treats = useMascotStore((s) => s.treats);
   const name = petName || CHARACTER_LABELS[char];
   const [note, setNote] = useState('');
+
+  // The thank-you line clears itself, and never outlives a change of favorite.
+  useEffect(() => {
+    if (!note) return;
+    const t = setTimeout(() => setNote(''), 3500);
+    return () => clearTimeout(t);
+  }, [note]);
+  useEffect(() => { setNote(''); }, [char]);
 
   const hop = useRef(new Animated.Value(0)).current;
   const heart = useRef(new Animated.Value(0)).current;

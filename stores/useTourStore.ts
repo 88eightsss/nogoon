@@ -33,6 +33,12 @@ export const useTourStore = create<State>()(
       clearCoachSeen: (tab) => set((s) => { const c = { ...s.coachSeen }; delete c[tab]; return { coachSeen: c }; }),
       resetTour: () => set({ done: {}, coachSeen: {}, offered: false, coachRequested: false }),
     }),
-    { name: 'nogoon-tour', storage: createJSONStorage(() => AsyncStorage), version: 1 }
+    {
+      name: 'nogoon-tour',
+      storage: createJSONStorage(() => AsyncStorage),
+      version: 1,
+      // A half-finished spotlight request must not come back on the next launch.
+      partialize: (s) => ({ done: s.done, coachSeen: s.coachSeen, offered: s.offered }) as State,
+    }
   )
 );
