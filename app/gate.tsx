@@ -71,6 +71,7 @@ import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { resolveOffers, type OfferDef } from '@/constants/offers';
 import { useOfferStore } from '@/stores/useOfferStore';
+import { useWalkStore } from '@/stores/useWalkStore';
 import { GATE_GAMES, CALM_GAMES as CALM_CATEGORY_GAMES, pickRandomGame, getGameById, type GameId } from '@/constants/games';
 import { useThemeStore } from '@/stores/useThemeStore';
 import { useAdInterstitial } from '@/components/ads/AdInterstitial';
@@ -223,6 +224,8 @@ function NoGoonScreen() {
   const { disabledGateGames, enabledCalmGateGames } = useThemeStore();
   const bundleIds = useOfferStore((st) => st.bundleIds);
   const customOffersList = useOfferStore((st) => st.custom);
+  const gateWalk = useWalkStore((st) => st.gateWalk);
+  const gateGoal = useWalkStore((st) => st.gateGoal);
 
   // Theme-reactive palette — matches whatever theme/accent the user picked on
   // their home screen, instead of a fixed standalone palette. `textPrimary`,
@@ -1231,10 +1234,16 @@ function NoGoonScreen() {
   // get past than before.
   // ══════════════════════════════════════════════════════════════════════════
   if (phase === 'offer') {
-    const offers = resolveOffers({
+    const baseOffers = resolveOffers({
       bundleIds, custom: customOffersList, windDown: isWindDown, hour: nowHour,
       day: Math.floor(Date.now() / 86400000), noGames,
     });
+    // Opt-in: when walking is switched on as a blocking step, it leads the list and is the way in.
+    const palOffer: OfferDef = {
+      id: 'pal', icon: 'activity', label: 'Take your pal for a walk',
+      sub: `Walk ${gateGoal} steps together${isBricked || isColdTurkey ? '' : ' and you can go in'}`, kind: 'pal',
+    };
+    const offers = gateWalk ? [palOffer, ...baseOffers.slice(0, 3)] : baseOffers;
     const runOffer = (o: OfferDef) => {
       switch (o.kind) {
         case 'game': {
@@ -1261,6 +1270,16 @@ function NoGoonScreen() {
           router.replace({
             pathname: '/offer-timer',
             params: { label: o.label, seconds: String(o.seconds ?? 60), note: o.note ?? '' },
+          } as any);
+          break;
+        case 'pal':
+          router.replace({
+            pathname: '/walk',
+            params: {
+              gate: '1', app: domain, domain: displayDomain,
+              isBricked: (isBricked || isColdTurkey) ? '1' : '0',
+              isColdTurkey: isColdTurkey ? '1' : '0',
+            },
           } as any);
           break;
         case 'sms':
@@ -1320,7 +1339,7 @@ function NoGoonScreen() {
             ))}
           </View>
 
-          {!isBricked && !isColdTurkey && (
+          {!isBricked && !isColdTurkey && !gateWalk && (
             <Pressable onPress={() => setPhase('calm')} style={styles.exitTextRow}>
               <Text style={[styles.exitText, { color: C.textSecondary }]}>Keep going to {displayDomain}</Text>
             </Pressable>

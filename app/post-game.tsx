@@ -270,7 +270,7 @@ export default function PostGameScreen() {
     // Pass the score and a simplified game ID so it's stored in Supabase game_sessions
     // and can power the weekly chart on the home screen
     // Sitting in the Waiting Room isn't a game — don't inflate games played / the weekly chart.
-    if (gameName !== 'Waiting Room') {
+    if (gameName !== 'Waiting Room' && gameName !== 'Walk') {
       recordGamePlayed(pointsEarned, gameName.toLowerCase().replace(/\s+/g, '_'));
     }
   }, [addPoints, addXP, recordGamePlayed, pointsEarned, xpEarned, gameName]);

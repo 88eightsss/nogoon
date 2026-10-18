@@ -18,6 +18,7 @@ import type { CharacterId } from '@/stores/usePetStore';
 import type { GoonStage } from '@/constants/sprites';
 import { BUNDLES, CUSTOM_LEN, CUSTOM_MAX } from '@/constants/offers';
 import { useOfferStore } from '@/stores/useOfferStore';
+import { useWalkStore, GATE_GOALS } from '@/stores/useWalkStore';
 import { useRoomStore, ROOM_NAME_MAX, type TodayLayout, type TabStyle } from '@/stores/useRoomStore';
 import { RoomScene } from '@/components/page/RoomScene';
 import { LOOK_PARTS, ROOM_SWATCHES, DECOR_UNLOCK, type DecorKey } from '@/constants/room';
@@ -199,6 +200,10 @@ export default function CustomizeScreen() {
   const redeemCode    = usePackStore((s) => s.redeemCode);
   const gateNote      = usePackStore((s) => s.gateNote);
   const bundleIds     = useOfferStore((s) => s.bundleIds);
+  const gateWalk      = useWalkStore((s) => s.gateWalk);
+  const gateGoal      = useWalkStore((s) => s.gateGoal);
+  const setGateWalk   = useWalkStore((s) => s.setGateWalk);
+  const setGateGoal   = useWalkStore((s) => s.setGateGoal);
   const myList        = useOfferStore((s) => s.custom);
   const toggleBundle  = useOfferStore((s) => s.toggleBundle);
   const todayLayout   = useRoomStore((s) => s.todayLayout);
@@ -598,6 +603,45 @@ export default function CustomizeScreen() {
 
         {section === 'gate' && (
         <>
+        <Text style={[styles.section, { color: colors.textMuted }]}>Walk to get in</Text>
+        <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+          <View style={styles.rowBetween}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.body, { color: colors.text }]}>Take your pal for a walk</Text>
+              <Text style={[styles.hint, { color: colors.textMuted }]}>
+                Off by default. When on, the gate leads with a walk, and walking the steps is the way into a blocked app. Hard modes never unlock; the walk just counts as walking away.
+              </Text>
+            </View>
+            <Switch
+              value={gateWalk}
+              onValueChange={setGateWalk}
+              trackColor={{ false: colors.border, true: colors.accent }}
+              thumbColor="#fff"
+              accessibilityLabel="Walk to get in"
+            />
+          </View>
+          {gateWalk && (
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+              {GATE_GOALS.map((g) => {
+                const on = g === gateGoal;
+                return (
+                  <Pressable
+                    key={g}
+                    onPress={() => setGateGoal(g)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: on }}
+                    accessibilityLabel={`${g} steps`}
+                    style={{ flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 12, borderWidth: 1, backgroundColor: on ? colors.accent : colors.surfaceHigh, borderColor: on ? colors.accent : colors.cardBorder }}
+                  >
+                    <Text style={{ fontFamily: FONTS.bodyBold, fontSize: 15, color: on ? colors.background : colors.text }}>{g}</Text>
+                    <Text style={{ fontFamily: FONTS.body, fontSize: 11, color: on ? colors.background : colors.textMuted }}>steps</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
+        </View>
+
         <Text style={[styles.section, { color: colors.textMuted }]}>Instead bundles</Text>
         <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
           <Text style={[styles.body, { color: colors.textSecondary }]}>

@@ -16,6 +16,7 @@ export type OfferKind =
   | 'wait'     // the Waiting Room, then the normal walk-away choice
   | 'timer'    // a short do-it-now timer (app/offer-timer.tsx)
   | 'sms'      // opens the messaging app
+  | 'pal'      // walk with your companion; steps are how you get past the gate (opt-in)
   | 'custom';  // the user's own "instead I'll..." line
 
 export type OfferDef = {

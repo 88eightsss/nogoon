@@ -6,10 +6,10 @@
 // leaves the phone.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, ScrollView, StyleSheet, AppState, Platform } from 'react-native';
+import { View, Text, Pressable, ScrollView, StyleSheet, AppState, BackHandler, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/hooks/useTheme';
@@ -18,6 +18,8 @@ import { SPACING } from '@/constants/Spacing';
 import { CHARACTER_LABELS, useMascot } from '@/components/page/useCharacter';
 import { WalkScene } from '@/components/walk/WalkScene';
 import { useMascotStore } from '@/stores/useMascotStore';
+import { useUserStore } from '@/stores/useUserStore';
+import { exitGate } from '@/utils/exitGate';
 import { useWalkStore, METRES_PER_STEP, WALK_MIN_STEPS_TO_FEED, WALK_MAX_FEEDS_PER_DAY } from '@/stores/useWalkStore';
 
 type Phase = 'ready' | 'walking' | 'done';
@@ -58,9 +60,16 @@ export default function WalkScreen() {
   const { char, stage } = useMascot();
   const name = CHARACTER_LABELS[char];
   const fedToday = useWalkStore((s) => s.todayFed());
+  // Opened from the gate (only when the person switched "Walk to get in" on): the goal is fixed,
+  // and reaching it is what lets them through (or, in hard modes, counts as walking away).
+  const params = useLocalSearchParams<{ gate?: string; app?: string; domain?: string; isBricked?: string; isColdTurkey?: string }>();
+  const inGate = params.gate === '1' && !!params.app;
+  const hardMode = params.isBricked === '1' || params.isColdTurkey === '1';
+  const gateGoalSteps = useWalkStore((s) => s.gateGoal);
+  const recordWalkAway = useUserStore((s) => s.recordWalkAway);
 
   const [phase, setPhase] = useState<Phase>('ready');
-  const [goal, setGoal] = useState<number>(1000);
+  const [goal, setGoal] = useState<number>(inGate ? gateGoalSteps : 1000);
   const [steps, setSteps] = useState(0);
   const [seconds, setSeconds] = useState(0);
   const [moving, setMoving] = useState(false);
@@ -194,9 +203,22 @@ export default function WalkScreen() {
     const got = useWalkStore.getState().finishWalk(final);
     if (got) useMascotStore.getState().feed(1);
     setEarned(got);
-    setPhase('done');
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-  }, [stopSensors]);
+    if (inGate) {
+      if (hardMode) {
+        // Hard modes never unlock: the walk counts as walking away.
+        recordWalkAway();
+        exitGate();
+      } else {
+        router.replace({
+          pathname: '/post-game',
+          params: { pointsEarned: '0', gameName: 'Walk', app: params.app, domain: params.domain, isBricked: params.isBricked, isColdTurkey: params.isColdTurkey },
+        });
+      }
+      return;
+    }
+    setPhase('done');
+  }, [stopSensors, inGate, hardMode, recordWalkAway, params.app, params.domain, params.isBricked, params.isColdTurkey]);
 
   // If the app is sent away mid-walk the step sensor keeps counting but motion pauses; nothing to do
   // except make sure the timer does not run on after the screen is gone.
@@ -206,6 +228,14 @@ export default function WalkScreen() {
     });
     return () => sub.remove();
   }, [phase, bump]);
+
+  // Opened from the gate there is nothing behind this screen but the blocked app, so Back = walk away.
+  const leaveRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    if (!inGate) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { leaveRef.current(); return true; });
+    return () => sub.remove();
+  }, [inGate]);
 
   const pct = Math.min(1, steps / goal);
   const r = (RING - STROKE) / 2;
@@ -221,7 +251,12 @@ export default function WalkScreen() {
     return 'Off we go!';
   }, [phase, earned, goalHit, moving, steps, pct]);
 
-  const leave = () => { stopSensors(); router.back(); };
+  const leave = () => {
+    stopSensors();
+    if (inGate) { recordWalkAway(); exitGate(); return; }
+    router.back();
+  };
+  leaveRef.current = leave;
 
   return (
     <SafeAreaView style={[s.safe, { backgroundColor: colors.background }]}>
@@ -239,12 +274,19 @@ export default function WalkScreen() {
         {phase === 'ready' && (
           <>
             <Text style={[s.h, { color: colors.text }]}>Take {name} for a walk</Text>
+            {inGate && (
+              <Text style={[s.p, { color: colors.textSecondary }]}>
+                {hardMode
+                  ? `Walk ${goal} steps with ${name}. This app stays closed, but the walk counts as walking away.`
+                  : `Walk ${goal} steps with ${name} and you can go in. Stopping here counts as walking away.`}
+              </Text>
+            )}
             <Text style={[s.p, { color: colors.textSecondary }]}>
               Hold your phone or keep it in a pocket and walk. {name} trots along while you move and waits when you stop.
               A walk of {WALK_MIN_STEPS_TO_FEED}+ steps feeds {name}, up to {WALK_MAX_FEEDS_PER_DAY} times a day.
             </Text>
-            <Text style={[s.label, { color: colors.textMuted }]}>GOAL</Text>
-            <View style={s.chips}>
+            {!inGate && <Text style={[s.label, { color: colors.textMuted }]}>GOAL</Text>}
+            {!inGate && <View style={s.chips}>
               {GOALS.map((g) => {
                 const on = g === goal;
                 return (
@@ -261,7 +303,7 @@ export default function WalkScreen() {
                   </Pressable>
                 );
               })}
-            </View>
+            </View>}
             <Pressable onPress={start} style={[s.btn, { backgroundColor: colors.accent }]} accessibilityRole="button" accessibilityLabel="Start walking">
               <Feather name="play" size={18} color={colors.background} />
               <Text style={[s.btnText, { color: colors.background }]}>Start walking</Text>
@@ -307,10 +349,26 @@ export default function WalkScreen() {
               </Text>
             )}
 
-            <Pressable onPress={finish} style={[s.btn, { backgroundColor: goalHit ? colors.success : colors.surface, borderWidth: goalHit ? 0 : 1, borderColor: colors.cardBorder }]} accessibilityRole="button" accessibilityLabel="Finish walk">
-              <Feather name="flag" size={18} color={goalHit ? colors.background : colors.text} />
-              <Text style={[s.btnText, { color: goalHit ? colors.background : colors.text }]}>{goalHit ? 'We did it, finish' : 'Finish walk'}</Text>
+            <Pressable
+              onPress={finish}
+              disabled={inGate && !goalHit}
+              style={[s.btn, { backgroundColor: goalHit ? colors.success : colors.surface, borderWidth: goalHit ? 0 : 1, borderColor: colors.cardBorder, opacity: inGate && !goalHit ? 0.6 : 1 }]}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: inGate && !goalHit }}
+              accessibilityLabel={inGate ? (goalHit ? 'Finish the walk' : `${Math.max(0, goal - steps)} steps to go`) : 'Finish walk'}
+            >
+              <Feather name={inGate && !goalHit ? 'lock' : 'flag'} size={18} color={goalHit ? colors.background : colors.text} />
+              <Text style={[s.btnText, { color: goalHit ? colors.background : colors.text }]}>
+                {inGate && !goalHit
+                  ? `${Math.max(0, goal - steps).toLocaleString()} steps to go`
+                  : goalHit ? (inGate ? (hardMode ? 'We did it' : `We did it, go in`) : 'We did it, finish') : 'Finish walk'}
+              </Text>
             </Pressable>
+            {inGate && (
+              <Pressable onPress={leave} hitSlop={8} accessibilityRole="button" accessibilityLabel="Never mind, walk away">
+                <Text style={[s.link, { color: colors.textMuted }]}>Never mind</Text>
+              </Pressable>
+            )}
           </>
         )}
 

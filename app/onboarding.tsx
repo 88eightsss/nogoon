@@ -568,10 +568,70 @@ export default function OnboardingScreen() {
 
             {/* Title */}
             <Text style={styles.title} accessibilityRole="header">Set it up in{'\n'}30 seconds</Text>
-            <Text style={styles.sub}>Two quick steps and you're protected. The rest is optional.</Text>
+            <Text style={styles.sub}>Turn on blocking first, then pick what to block. The rest is optional.</Text>
 
             {/* Setup card with action rows */}
             <View style={styles.setupCard}>
+
+              {/* Why first: Android only lets NoGoon block after this, so it leads the setup. */}
+              {!serviceEnabled && (
+                <View style={styles.whyBox} accessible accessibilityLabel="Why NoGoon needs Accessibility Access">
+                  <Text style={styles.whyTitle}>Why NoGoon needs Accessibility</Text>
+                  {[
+                    ['eye', 'To notice the moment you open a blocked app or site, so the pause shows up before it loads.'],
+                    ['list', 'It only sees which app is in front and the address bar of your browser, to match the list you choose.'],
+                    ['layers', 'To show the gate on top of that app: a breath, a quick game, or a walk with your pal.'],
+                    ['lock', 'It never reads what you type, your passwords or messages, and nothing leaves your phone.'],
+                    ['toggle-right', 'Android makes you switch it on yourself, and you can switch it off any time in Settings.'],
+                  ].map(([icon, text]) => (
+                    <View key={text} style={styles.whyRow}>
+                      <Feather name={icon as any} size={15} color={c.accentBright} style={{ marginTop: 3 }} />
+                      <Text style={styles.whyText}>{text}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {/* Row 2 — Enable accessibility / app blocking */}
+              <View style={styles.setupRow}>
+                <View style={styles.setupRowLeft}>
+                  <View style={styles.setupRowIcon}><Feather name="smartphone" size={20} color={c.accentBright} /></View>
+                  <View style={styles.setupRowText}>
+                    <Text style={styles.setupRowTitle}>Enable app blocking</Text>
+                    <Text style={styles.setupRowSub}>Blocks apps like TikTok</Text>
+                  </View>
+                </View>
+
+                {/* Turns into a checkmark automatically when permission is granted */}
+                {serviceEnabled ? (
+                  <Feather name="check-circle" size={28} color={c.success} />
+                ) : (
+                  <EnableButton delay={0} label="Enable" onPress={openSettings} bg={btn.bg} fg={btn.fg}
+                    style={styles.setupEnableButton} textStyle={styles.setupEnableButtonText} />
+                )}
+              </View>
+
+              {/* Step-by-step instructions — only shown before permission is granted */}
+              {!serviceEnabled && (
+                <View style={styles.accessibilitySteps}>
+                  <Text style={styles.accessibilityStepsTitle}>How to enable:</Text>
+                  {[
+                    'Tap "Enable" above',
+                    'Tap "Installed apps" or scroll to find NoGoon',
+                    'Tap NoGoon, then toggle it ON',
+                    'Tap "Allow" on the confirmation dialog',
+                    'Come back here — the checkmark will appear automatically',
+                  ].map((instruction, i) => (
+                    <View key={i} style={styles.accessibilityStep}>
+                      <Text style={styles.accessibilityStepNum}>{i + 1}</Text>
+                      <Text style={styles.accessibilityStepText}>{instruction}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {/* Divider */}
+              <View style={styles.setupDivider} />
 
               {/* Row 1 — Block sites */}
               <View style={styles.setupRow}>
@@ -625,47 +685,6 @@ export default function OnboardingScreen() {
                       Block {selectedDomains.size} site{selectedDomains.size === 1 ? '' : 's'}
                     </Text>
                   </Pressable>
-                </View>
-              )}
-
-              {/* Divider */}
-              <View style={styles.setupDivider} />
-
-              {/* Row 2 — Enable accessibility / app blocking */}
-              <View style={styles.setupRow}>
-                <View style={styles.setupRowLeft}>
-                  <View style={styles.setupRowIcon}><Feather name="smartphone" size={20} color={c.accentBright} /></View>
-                  <View style={styles.setupRowText}>
-                    <Text style={styles.setupRowTitle}>Enable app blocking</Text>
-                    <Text style={styles.setupRowSub}>Blocks apps like TikTok</Text>
-                  </View>
-                </View>
-
-                {/* Turns into a checkmark automatically when permission is granted */}
-                {serviceEnabled ? (
-                  <Feather name="check-circle" size={28} color={c.success} />
-                ) : (
-                  <EnableButton delay={0} label="Enable" onPress={openSettings} bg={btn.bg} fg={btn.fg}
-                    style={styles.setupEnableButton} textStyle={styles.setupEnableButtonText} />
-                )}
-              </View>
-
-              {/* Step-by-step instructions — only shown before permission is granted */}
-              {!serviceEnabled && (
-                <View style={styles.accessibilitySteps}>
-                  <Text style={styles.accessibilityStepsTitle}>How to enable:</Text>
-                  {[
-                    'Tap "Enable" above',
-                    'Tap "Installed apps" or scroll to find NoGoon',
-                    'Tap NoGoon, then toggle it ON',
-                    'Tap "Allow" on the confirmation dialog',
-                    'Come back here — the checkmark will appear automatically',
-                  ].map((instruction, i) => (
-                    <View key={i} style={styles.accessibilityStep}>
-                      <Text style={styles.accessibilityStepNum}>{i + 1}</Text>
-                      <Text style={styles.accessibilityStepText}>{instruction}</Text>
-                    </View>
-                  ))}
                 </View>
               )}
 
@@ -1016,6 +1035,10 @@ const makeStyles = (c: ThemePalette, card: ReturnType<typeof useTheme>['cardStyl
   chipAddBtn: { minHeight: 48, backgroundColor: btn.bg, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
   chipAddBtnText: { fontFamily: FONTS.bodyBold, fontSize: 15, color: btn.fg },
 
+  whyBox: { marginHorizontal: SPACING.lg, marginTop: SPACING.lg, backgroundColor: c.background, borderRadius: 12, padding: SPACING.md, gap: SPACING.sm },
+  whyTitle: { fontFamily: FONTS.bodyBold, fontSize: 12, color: c.textMuted, textTransform: 'uppercase', letterSpacing: 1 },
+  whyRow: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.sm },
+  whyText: { fontFamily: FONTS.body, fontSize: 13.5, color: c.textSecondary, flex: 1, lineHeight: 20 },
   accessibilitySteps: { marginHorizontal: SPACING.lg, marginBottom: SPACING.lg, backgroundColor: c.background, borderRadius: 12, padding: SPACING.md, gap: SPACING.xs },
   accessibilityStepsTitle: { fontFamily: FONTS.bodyBold, fontSize: 12, color: c.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: SPACING.xs },
   accessibilityStep: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.sm },

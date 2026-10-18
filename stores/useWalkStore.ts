@@ -8,11 +8,17 @@ import { getLocalDateKey } from '@/utils/date';
 export const WALK_MIN_STEPS_TO_FEED = 500;
 export const WALK_MAX_FEEDS_PER_DAY = 2;
 export const METRES_PER_STEP = 0.75;
+export const GATE_GOALS = [150, 300, 500];
 
 type Day = { steps: number; walks: number; fed: number };
 
 interface State {
   days: Record<string, Day>;
+  /** Optional: walking is how you get past the gate. Off unless the person turns it on. */
+  gateWalk: boolean;
+  gateGoal: number;
+  setGateWalk: (on: boolean) => void;
+  setGateGoal: (steps: number) => void;
   /** Saves a finished walk. Returns true when it earned a feeding. */
   finishWalk: (steps: number) => boolean;
   todayFed: () => number;
@@ -24,6 +30,10 @@ export const useWalkStore = create<State>()(
   persist(
     (set, get) => ({
       days: {},
+      gateWalk: false,
+      gateGoal: 300,
+      setGateWalk: (on) => set({ gateWalk: on }),
+      setGateGoal: (steps) => set({ gateGoal: GATE_GOALS.includes(steps) ? steps : 300 }),
       finishWalk: (steps) => {
         const key = getLocalDateKey();
         const cur = get().days[key] ?? { steps: 0, walks: 0, fed: 0 };
@@ -39,7 +49,7 @@ export const useWalkStore = create<State>()(
       },
       todayFed: () => get().days[getLocalDateKey()]?.fed ?? 0,
       todaySteps: () => get().days[getLocalDateKey()]?.steps ?? 0,
-      reset: () => set({ days: {} }),
+      reset: () => set({ days: {}, gateWalk: false, gateGoal: 300 }),
     }),
     { name: 'nogoon-walks', storage: createJSONStorage(() => AsyncStorage), version: 1 }
   )
