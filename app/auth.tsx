@@ -1,14 +1,12 @@
 // ─── Auth Screen ─────────────────────────────────────────────────────────────
 //
-// The sign in / sign up screen. Shown when the user has no active session.
-// After successful auth, _layout.tsx redirects to onboarding (new users)
-// or the main tabs (returning users).
+// Sign in / create account. Shown when there is no session. After success, _layout.tsx moves the
+// person on (onboarding for new users, the tabs for returning ones).
 //
-// Two modes toggled by a tab at the top:
-//   Sign In — email + password for existing accounts
-//   Sign Up — email + password + name for new accounts
+// Looks like the rest of the app: the person's theme, a companion to greet them, and the same
+// promise as the Today tab: NoGoon is a way in to better habits, not just a block.
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -19,20 +17,41 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  Animated,
+  Easing,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { FONTS } from '@/constants/Colors';
-import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
-import { SPACING, RADIUS } from '@/constants/Spacing';
+import { useTheme } from '@/hooks/useTheme';
+import type { ThemePalette } from '@/constants/Themes';
+import { SPACING } from '@/constants/Spacing';
+import { PackSprite } from '@/components/page/PackSprite';
+import type { CharacterId } from '@/stores/usePetStore';
 
 type AuthMode = 'signin' | 'signup';
+type FeatherName = React.ComponentProps<typeof Feather>['name'];
+
+const TERMS_URL = 'https://88eightsss.github.io/nogoon-legal/terms-of-service.html';
+const PRIVACY_URL = 'https://88eightsss.github.io/nogoon-legal/privacy-policy.html';
+
+// Companions that greet a new visitor (the first few starters).
+const GREETERS: CharacterId[] = [0, 1, 2];
+
+const PROMISES: { icon: FeatherName; text: string }[] = [
+  { icon: 'pause-circle', text: 'Pause before the scroll starts' },
+  { icon: 'sun',          text: 'Swap it for something better' },
+  { icon: 'heart',        text: 'Grow a companion as you go' },
+];
+
+const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 
 export default function AuthScreen() {
-  const COLORS = useThemedColors();
-  const styles = useMemo(() => makeStyles(COLORS), [COLORS]);
+  const { colors, cardStyle } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { signIn, signUp } = useAuthStore();
 
   const [mode, setMode]         = useState<AuthMode>('signin');
@@ -44,204 +63,247 @@ export default function AuthScreen() {
   const [error, setError]       = useState<string | null>(null);
   const [info, setInfo]         = useState<string | null>(null);
 
+  const emailRef = useRef<TextInput>(null);
+  const passRef = useRef<TextInput>(null);
+
+  // A different companion each time the screen opens; it bobs gently.
+  const greeter = useMemo(() => GREETERS[Math.floor(Math.random() * GREETERS.length)], []);
+  const bob = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(bob, { toValue: 1, duration: 1400, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(bob, { toValue: 0, duration: 1400, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [bob]);
+
+  const switchMode = (m: AuthMode) => { setMode(m); setError(null); setInfo(null); };
+
   const handleSubmit = async () => {
+    if (loading) return;
     setError(null);
     setInfo(null);
 
-    // Basic validation
-    if (!email.trim() || !password.trim()) {
-      setError('Please enter your email and password.');
-      return;
-    }
-    if (mode === 'signup' && !name.trim()) {
-      setError('Please enter your name.');
-      return;
-    }
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters.');
-      return;
-    }
+    if (mode === 'signup' && !name.trim()) { setError('What should we call you?'); return; }
+    if (!isEmail(email.trim())) { setError('That email does not look right. Check it and try again.'); return; }
+    if (password.length < 6) { setError('Pick a password with at least 6 characters.'); return; }
 
     setLoading(true);
-
     let err: { message: string } | null = null;
     let needsConfirmation = false;
-    if (mode === 'signup') {
-      const res = await signUp(email.trim(), password, name.trim());
-      err = res.error;
-      needsConfirmation = res.needsConfirmation;
-    } else {
-      err = await signIn(email.trim(), password);
+    try {
+      if (mode === 'signup') {
+        const res = await signUp(email.trim(), password, name.trim());
+        err = res.error;
+        needsConfirmation = res.needsConfirmation;
+      } else {
+        err = await signIn(email.trim(), password);
+      }
+    } catch {
+      err = { message: 'network' };
     }
-
     setLoading(false);
 
     if (!err && needsConfirmation) {
-      // Account exists but there's no session until the email is confirmed —
-      // without this message the screen just sat there looking broken.
+      // The account exists but there is no session until the email is confirmed.
       setMode('signin');
+      setPassword('');
       setInfo('Account created. Check your email to confirm it, then sign in.');
       return;
     }
 
     if (err) {
-      // Make Supabase error messages friendlier
-      if (err.message.includes('Invalid login credentials')) {
-        setError('Wrong email or password. Try again.');
-      } else if (err.message.includes('already registered')) {
-        setError('An account with this email already exists. Sign in instead.');
-      } else {
-        setError(err.message);
-      }
+      const m = err.message.toLowerCase();
+      if (m.includes('invalid login credentials')) setError('Wrong email or password. Try again.');
+      else if (m.includes('already registered')) setError('An account with this email already exists. Sign in instead.');
+      else if (m.includes('email not confirmed')) setError('Confirm your email first. Check your inbox for the link.');
+      else if (m.includes('network') || m.includes('fetch')) setError('Could not reach NoGoon. Check your connection and try again.');
+      else setError(err.message);
     }
-    // On success, _layout.tsx's auth listener will redirect automatically
+    // On success, _layout.tsx's auth listener redirects automatically.
   };
+
+  const field = (label: string, node: React.ReactNode) => (
+    <View style={styles.fieldGroup}>
+      <Text style={styles.label}>{label}</Text>
+      {node}
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.safe}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <ScrollView
-          contentContainerStyle={styles.scroll}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
 
-          {/* ── Logo / wordmark ── */}
-          <View style={styles.logoArea}>
-            <View style={styles.logoBadge}>
-              <Feather name="shield" size={34} color={COLORS.background} />
-            </View>
-            <Text style={styles.logoText}>NoGoon</Text>
-            <Text style={styles.tagline}>Take back your attention.</Text>
+          {/* ── Welcome ── */}
+          <View style={styles.hero}>
+            <Animated.View
+              style={{ transform: [{ translateY: bob.interpolate({ inputRange: [0, 1], outputRange: [0, -6] }) }] }}
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+            >
+              <PackSprite char={greeter} stage={1} cell={8} />
+            </Animated.View>
+            <Text style={styles.wordmark} accessibilityRole="header">NoGoon</Text>
+            <Text style={styles.tagline}>
+              {mode === 'signin' ? 'Welcome back. Your companion kept your spot.' : 'A gateway to better habits.'}
+            </Text>
           </View>
 
+          {/* ── What it is, in three lines (create-account only, so sign-in stays quick) ── */}
+          {mode === 'signup' && (
+            <View style={styles.promises}>
+              {PROMISES.map((p) => (
+                <View key={p.text} style={styles.promiseRow}>
+                  <View style={styles.promiseIcon}><Feather name={p.icon} size={15} color={colors.accent} /></View>
+                  <Text style={styles.promiseText}>{p.text}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
           {/* ── Mode toggle ── */}
-          <View style={styles.modeTabs}>
-            <Pressable
-              style={[styles.modeTab, mode === 'signin' && styles.modeTabActive]}
-              onPress={() => { setMode('signin'); setError(null); }}
-            >
-              <Text style={[styles.modeTabText, mode === 'signin' && styles.modeTabTextActive]}>
-                Sign In
-              </Text>
-            </Pressable>
-            <Pressable
-              style={[styles.modeTab, mode === 'signup' && styles.modeTabActive]}
-              onPress={() => { setMode('signup'); setError(null); }}
-            >
-              <Text style={[styles.modeTabText, mode === 'signup' && styles.modeTabTextActive]}>
-                Create Account
-              </Text>
-            </Pressable>
+          <View style={styles.modeTabs} accessibilityRole="tablist">
+            {(['signin', 'signup'] as const).map((m) => {
+              const on = mode === m;
+              return (
+                <Pressable
+                  key={m}
+                  style={[styles.modeTab, on && styles.modeTabActive]}
+                  onPress={() => switchMode(m)}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: on }}
+                >
+                  <Text style={[styles.modeTabText, on && styles.modeTabTextActive]}>
+                    {m === 'signin' ? 'Sign in' : 'Create account'}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
 
           {/* ── Form ── */}
-          <View style={styles.form}>
-
-            {/* Name field — only shown for sign up */}
-            {mode === 'signup' && (
-              <View style={styles.fieldGroup}>
-                <Text style={styles.label}>Your Name</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="e.g. Alex"
-                  placeholderTextColor={COLORS.textMuted}
-                  value={name}
-                  onChangeText={setName}
-                  autoCapitalize="words"
-                  returnKeyType="next"
-                />
-              </View>
-            )}
-
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Email</Text>
+          <View style={[styles.form, cardStyle, { borderColor: colors.cardBorder, backgroundColor: colors.surface }]}>
+            {mode === 'signup' && field('Your name', (
               <TextInput
                 style={styles.input}
+                placeholder="e.g. Alex"
+                placeholderTextColor={colors.textMuted}
+                value={name}
+                onChangeText={setName}
+                autoCapitalize="words"
+                autoComplete="given-name"
+                textContentType="givenName"
+                returnKeyType="next"
+                onSubmitEditing={() => emailRef.current?.focus()}
+                blurOnSubmit={false}
+                maxLength={40}
+              />
+            ))}
+
+            {field('Email', (
+              <TextInput
+                ref={emailRef}
+                style={styles.input}
                 placeholder="you@example.com"
-                placeholderTextColor={COLORS.textMuted}
+                placeholderTextColor={colors.textMuted}
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
+                autoComplete="email"
+                textContentType="emailAddress"
                 returnKeyType="next"
+                onSubmitEditing={() => passRef.current?.focus()}
+                blurOnSubmit={false}
               />
-            </View>
+            ))}
 
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Password</Text>
-              <View style={styles.passwordWrap}>
-                <TextInput
-                  style={styles.passwordInput}
-                  placeholder={mode === 'signup' ? 'At least 6 characters' : '••••••••'}
-                  placeholderTextColor={COLORS.textMuted}
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  returnKeyType="done"
-                  onSubmitEditing={handleSubmit}
-                />
-                <Pressable
-                  style={styles.eyeBtn}
-                  onPress={() => setShowPassword((v) => !v)}
-                  hitSlop={10}
-                >
-                  <Feather
-                    name={showPassword ? 'eye-off' : 'eye'}
-                    size={19}
-                    color={COLORS.textMuted}
+            {field('Password', (
+              <>
+                <View style={styles.passwordWrap}>
+                  <TextInput
+                    ref={passRef}
+                    style={[styles.input, { paddingRight: 52 }]}
+                    placeholder={mode === 'signup' ? 'At least 6 characters' : 'Your password'}
+                    placeholderTextColor={colors.textMuted}
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                    textContentType={mode === 'signup' ? 'newPassword' : 'password'}
+                    returnKeyType="go"
+                    onSubmitEditing={handleSubmit}
                   />
-                </Pressable>
-              </View>
-              {mode === 'signin' && (
-                <Pressable
-                  style={styles.forgotLink}
-                  onPress={() => router.push('/forgot-password' as any)}
-                  hitSlop={8}
-                >
-                  <Text style={styles.forgotLinkText}>Forgot password?</Text>
-                </Pressable>
-              )}
-            </View>
+                  <Pressable
+                    style={styles.eyeBtn}
+                    onPress={() => setShowPassword((v) => !v)}
+                    hitSlop={10}
+                    accessibilityRole="button"
+                    accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    <Feather name={showPassword ? 'eye-off' : 'eye'} size={19} color={colors.textMuted} />
+                  </Pressable>
+                </View>
+                {mode === 'signin' && (
+                  <Pressable
+                    style={styles.forgotLink}
+                    onPress={() => router.push('/forgot-password' as any)}
+                    hitSlop={8}
+                    accessibilityRole="link"
+                  >
+                    <Text style={styles.forgotLinkText}>Forgot password?</Text>
+                  </Pressable>
+                )}
+              </>
+            ))}
 
             {info && (
-              <View style={[styles.errorBox, { backgroundColor: COLORS.green + '18', borderColor: COLORS.green + '44' }]}>
-                <Text style={[styles.errorText, { color: COLORS.green }]}>{info}</Text>
+              <View style={[styles.notice, { backgroundColor: colors.successDim, borderColor: colors.success + '55' }]} accessibilityLiveRegion="polite">
+                <Feather name="check-circle" size={16} color={colors.success} />
+                <Text style={[styles.noticeText, { color: colors.success }]}>{info}</Text>
               </View>
             )}
-
-            {/* Error message */}
             {error && (
-              <View style={styles.errorBox}>
-                <Text style={styles.errorText}>{error}</Text>
+              <View style={[styles.notice, { backgroundColor: colors.dangerDim, borderColor: colors.danger + '55' }]} accessibilityLiveRegion="polite">
+                <Feather name="alert-circle" size={16} color={colors.danger} />
+                <Text style={[styles.noticeText, { color: colors.danger }]}>{error}</Text>
               </View>
             )}
 
-            {/* Submit button */}
             <Pressable
               style={[styles.submitButton, loading && styles.submitButtonLoading]}
               onPress={handleSubmit}
               disabled={loading}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: loading, busy: loading }}
             >
               {loading ? (
-                <ActivityIndicator color={COLORS.background} />
+                <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.submitButtonText}>
-                  {mode === 'signin' ? 'Sign In' : 'Create Account'}
-                </Text>
+                <Text style={styles.submitButtonText}>{mode === 'signin' ? 'Sign in' : 'Create my account'}</Text>
               )}
             </Pressable>
           </View>
 
+          <Text style={styles.why}>
+            {mode === 'signup'
+              ? 'An account keeps your streak, companion and settings safe if you change phones.'
+              : 'New here? Tap Create account above.'}
+          </Text>
+
           {/* ── Fine print ── */}
           <Text style={styles.finePrint}>
-            By continuing you agree to our Terms of Service and Privacy Policy.
+            By continuing you agree to our{' '}
+            <Text style={styles.finePrintLink} onPress={() => Linking.openURL(TERMS_URL).catch(() => {})} accessibilityRole="link">Terms of Service</Text>
+            {' '}and{' '}
+            <Text style={styles.finePrintLink} onPress={() => Linking.openURL(PRIVACY_URL).catch(() => {})} accessibilityRole="link">Privacy Policy</Text>.
           </Text>
 
         </ScrollView>
@@ -250,166 +312,52 @@ export default function AuthScreen() {
   );
 }
 
-const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  flex: {
-    flex: 1,
-  },
-  scroll: {
-    flexGrow: 1,
-    paddingHorizontal: SPACING.lg,
-    paddingBottom: SPACING.xl,
-  },
+const makeStyles = (c: ThemePalette) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: c.background },
+  flex: { flex: 1 },
+  scroll: { flexGrow: 1, paddingHorizontal: SPACING.lg, paddingBottom: SPACING.xl },
 
-  // ── Logo ──
-  logoArea: {
-    alignItems: 'center',
-    paddingTop: SPACING.huge,
-    paddingBottom: SPACING.xxxl,
-  },
-  logoBadge: {
-    width: 72,
-    height: 72,
-    borderRadius: 24,
-    backgroundColor: COLORS.indigo,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: SPACING.md,
-  },
-  logoText: {
-    fontFamily: FONTS.display,
-    fontSize: 36,
-    color: COLORS.indigo,
-    letterSpacing: 0.5,
-  },
-  tagline: {
-    fontFamily: FONTS.body,
-    fontSize: 15,
-    color: COLORS.textSecondary,
-    marginTop: SPACING.sm,
-  },
+  // Welcome
+  hero: { alignItems: 'center', paddingTop: SPACING.xl, paddingBottom: SPACING.lg, gap: 4 },
+  wordmark: { fontFamily: FONTS.display, fontSize: 34, color: c.text, letterSpacing: -0.5, marginTop: SPACING.sm },
+  tagline: { fontFamily: FONTS.body, fontSize: 15, color: c.textSecondary, textAlign: 'center', paddingHorizontal: SPACING.lg },
 
-  // ── Mode tabs ──
+  promises: { gap: 8, marginBottom: SPACING.lg, paddingHorizontal: SPACING.sm },
+  promiseRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  promiseIcon: { width: 28, height: 28, borderRadius: 14, backgroundColor: c.accentDim, alignItems: 'center', justifyContent: 'center' },
+  promiseText: { fontFamily: FONTS.bodyMedium, fontSize: 14, color: c.text, flex: 1 },
+
+  // Mode tabs
   modeTabs: {
-    flexDirection: 'row',
-    backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.cardBorder,
-    padding: 4,
-    marginBottom: SPACING.xl,
+    flexDirection: 'row', backgroundColor: c.surfaceHigh, borderRadius: 999,
+    borderWidth: 1, borderColor: c.cardBorder, padding: 3, marginBottom: SPACING.md,
   },
-  modeTab: {
-    flex: 1,
-    paddingVertical: SPACING.sm,
-    borderRadius: RADIUS.sm,
-    alignItems: 'center',
-  },
-  modeTabActive: {
-    backgroundColor: COLORS.indigo,
-  },
-  modeTabText: {
-    fontFamily: FONTS.bodyMedium,
-    fontSize: 14,
-    color: COLORS.textMuted,
-  },
-  modeTabTextActive: {
-    color: COLORS.background,
-    fontFamily: FONTS.bodyBold,
-  },
+  modeTab: { flex: 1, paddingVertical: 10, borderRadius: 999, alignItems: 'center' },
+  modeTabActive: { backgroundColor: c.accent },
+  modeTabText: { fontFamily: FONTS.bodyMedium, fontSize: 14, color: c.textSecondary },
+  modeTabTextActive: { color: '#FFFFFF', fontFamily: FONTS.bodyBold },
 
-  // ── Form ──
-  form: {
-    gap: SPACING.md,
-  },
-  fieldGroup: {
-    gap: SPACING.xs,
-  },
-  label: {
-    fontFamily: FONTS.bodyMedium,
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    marginLeft: 2,
-  },
+  // Form card
+  form: { padding: SPACING.lg, gap: SPACING.md },
+  fieldGroup: { gap: 6 },
+  label: { fontFamily: FONTS.bodyMedium, fontSize: 13, color: c.textSecondary, marginLeft: 2 },
   input: {
-    backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.cardBorder,
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-    fontFamily: FONTS.body,
-    fontSize: 16,
-    color: COLORS.textPrimary,
+    backgroundColor: c.background, borderRadius: 14, borderWidth: 1, borderColor: c.cardBorder,
+    paddingHorizontal: SPACING.md, paddingVertical: 13, fontFamily: FONTS.body, fontSize: 16, color: c.text,
   },
-  passwordWrap: {
-    position: 'relative',
-    justifyContent: 'center',
-  },
-  passwordInput: {
-    backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.cardBorder,
-    paddingHorizontal: SPACING.lg,
-    paddingRight: SPACING.xl + SPACING.lg,
-    paddingVertical: SPACING.md,
-    fontFamily: FONTS.body,
-    fontSize: 16,
-    color: COLORS.textPrimary,
-  },
-  eyeBtn: {
-    position: 'absolute',
-    right: SPACING.md,
-    padding: 4,
-  },
-  forgotLink: {
-    alignSelf: 'flex-end',
-    marginTop: SPACING.xs,
-  },
-  forgotLinkText: {
-    fontFamily: FONTS.bodyMedium,
-    fontSize: 13,
-    color: COLORS.indigoBright,
-  },
-  errorBox: {
-    backgroundColor: COLORS.danger + '18',
-    borderRadius: RADIUS.sm,
-    borderWidth: 1,
-    borderColor: COLORS.danger + '44',
-    padding: SPACING.md,
-  },
-  errorText: {
-    fontFamily: FONTS.body,
-    fontSize: 14,
-    color: COLORS.danger,
-  },
-  submitButton: {
-    backgroundColor: COLORS.indigo,
-    borderRadius: RADIUS.md,
-    paddingVertical: SPACING.lg,
-    alignItems: 'center',
-    marginTop: SPACING.sm,
-  },
-  submitButtonLoading: {
-    opacity: 0.7,
-  },
-  submitButtonText: {
-    fontFamily: FONTS.bodyBold,
-    fontSize: 16,
-    color: COLORS.background,
-  },
+  passwordWrap: { position: 'relative', justifyContent: 'center' },
+  eyeBtn: { position: 'absolute', right: 6, width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  forgotLink: { alignSelf: 'flex-end', paddingVertical: 4 },
+  forgotLinkText: { fontFamily: FONTS.bodyMedium, fontSize: 13, color: c.accentBright },
 
-  // ── Fine print ──
-  finePrint: {
-    fontFamily: FONTS.body,
-    fontSize: 11,
-    color: COLORS.textMuted,
-    textAlign: 'center',
-    marginTop: SPACING.xl,
-    lineHeight: 17,
-  },
+  notice: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: 12, borderWidth: 1, padding: SPACING.md },
+  noticeText: { fontFamily: FONTS.body, fontSize: 14, flex: 1, lineHeight: 19 },
+
+  submitButton: { backgroundColor: c.accent, borderRadius: 999, paddingVertical: 15, alignItems: 'center', marginTop: 4 },
+  submitButtonLoading: { opacity: 0.7 },
+  submitButtonText: { fontFamily: FONTS.bodyBold, fontSize: 16, color: '#FFFFFF' },
+
+  why: { fontFamily: FONTS.body, fontSize: 13, color: c.textMuted, textAlign: 'center', marginTop: SPACING.md, paddingHorizontal: SPACING.md },
+  finePrint: { fontFamily: FONTS.body, fontSize: 11.5, color: c.textMuted, textAlign: 'center', marginTop: SPACING.lg, lineHeight: 18 },
+  finePrintLink: { color: c.accentBright, textDecorationLine: 'underline' },
 });
