@@ -14,6 +14,8 @@ import { useOfferStore } from '@/stores/useOfferStore';
 import { PLACE_MAX, nearbyUrl, type Nearby } from '@/constants/elsewhere';
 import { getCommunityEvents, KIND_LABELS, type CommunityEvent, type EventKind } from '@/lib/events';
 import { FONTS } from '@/constants/Colors';
+import { ConstructionSign } from '@/components/ui/Construction';
+import { UNDER_CONSTRUCTION } from '@/constants/construction';
 import { SPACING } from '@/constants/Spacing';
 
 type FeatherName = React.ComponentProps<typeof Feather>['name'];
@@ -79,6 +81,9 @@ export default function EventsScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        {UNDER_CONSTRUCTION.events && (
+          <ConstructionSign note="We are still adding events by hand, so your area may be empty for now. Check back soon." />
+        )}
         <Text style={[styles.body, { color: colors.textSecondary }]}>
           The point of cutting back is more life. Here is what is on in your community, with a link to the organiser for every one.
         </Text>

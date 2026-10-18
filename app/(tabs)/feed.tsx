@@ -18,6 +18,8 @@ import { useBriefingPrefs } from '@/stores/useBriefingPrefs';
 import { usePackStore } from '@/stores/usePackStore';
 import { useOfferStore } from '@/stores/useOfferStore';
 import { FONTS } from '@/constants/Colors';
+import { ConstructionBadge } from '@/components/ui/Construction';
+import { UNDER_CONSTRUCTION } from '@/constants/construction';
 import { SPACING } from '@/constants/Spacing';
 
 const PROMPTS = [
@@ -102,6 +104,7 @@ export default function FeedScreen() {
       <View style={{ gap: SPACING.sm }}>
         <View>
           <Text style={[styles.section, { color: colors.textMuted }]}>{title}</Text>
+          {title === 'Good news' && UNDER_CONSTRUCTION.goodNews ? <ConstructionBadge label="Sample stories for now" /> : null}
           {hint ? <Text style={[styles.sub, { color: colors.textMuted }]}>{hint}</Text> : null}
         </View>
         {items.map((it, i) => <Story key={`${it.headline}-${i}`} item={it} big={title === 'Good news' && i === 0} />)}
@@ -141,6 +144,9 @@ export default function FeedScreen() {
           <View style={{ flex: 1 }}>
             <Text style={[styles.rowTitle, { color: colors.text }]}>{r.label}</Text>
             <Text style={[styles.rowBody, { color: colors.textSecondary }]}>{r.body}</Text>
+            {((r.label === 'The Wall' && UNDER_CONSTRUCTION.wall) || (r.label === 'Happening near you' && UNDER_CONSTRUCTION.events)) ? (
+              <View style={{ marginTop: 6 }}><ConstructionBadge /></View>
+            ) : null}
           </View>
           <Feather name="chevron-right" size={18} color={colors.textMuted} />
         </Pressable>

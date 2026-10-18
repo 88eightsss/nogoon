@@ -12,6 +12,8 @@ import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
 import { FONTS } from '@/constants/Colors';
+import { ConstructionSign } from '@/components/ui/Construction';
+import { UNDER_CONSTRUCTION } from '@/constants/construction';
 import { SPACING } from '@/constants/Spacing';
 import { ADVERTISE_URL, WALL_CATEGORY_LABELS } from '@/constants/wall';
 import { getWall, reportTile, tapTile, inkOn, type WallTile, type WallStats } from '@/lib/wall';
@@ -59,6 +61,12 @@ export default function WallScreen() {
         <Text style={[styles.title, { color: colors.text }]}>The Wall</Text>
         <View style={{ width: 22 }} />
       </View>
+
+      {UNDER_CONSTRUCTION.wall && (
+        <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
+          <ConstructionSign note="The Wall is built but not open yet. Tiles you see may be examples." />
+        </View>
+      )}
 
       <View style={styles.intro}>
         <Text style={[styles.sub, { color: colors.textSecondary }]}>

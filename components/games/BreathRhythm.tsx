@@ -82,11 +82,25 @@ export function BreathRhythm({ onComplete }: Props) {
   const animRef   = useRef<Animated.CompositeAnimation | null>(null);
   const stepTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const aliveRef  = useRef(true);
+  const stepStart = useRef(Date.now());
+  const [secLeft, setSecLeft] = useState(0);
+
+  // Countdown for the current step (one tick a bit faster than a second so the number never lags).
+  useEffect(() => {
+    if (phase !== 'breathing') return;
+    const id = setInterval(() => {
+      const left = currentStep.duration - (Date.now() - stepStart.current);
+      setSecLeft(Math.max(0, Math.ceil(left / 1000)));
+    }, 200);
+    return () => clearInterval(id);
+  }, [phase, currentStep]);
 
   // ── Run the breath sequence ───────────────────────────────────────────────
 
   const runStep = (idx: number, cycleNum: number) => {
     const step = STEPS[idx];
+    stepStart.current = Date.now();
+    setSecLeft(Math.ceil(step.duration / 1000));
     setCurrentStep(step);
     setStepIdx(idx);
 
@@ -236,16 +250,23 @@ export function BreathRhythm({ onComplete }: Props) {
           <Animated.View style={[styles.orb, { transform: [{ scale: orbScale }] }]}>
             <View style={styles.orbInner} />
           </Animated.View>
+
+          {/* Guide rings: the orb grows to the outer ring and settles on the inner one */}
+          <View pointerEvents="none" style={[styles.guide, { width: ORB_SIZE * 1.35, height: ORB_SIZE * 1.35, borderRadius: ORB_SIZE * 0.675, borderColor: COLORS.textMuted }]} />
+          <View pointerEvents="none" style={[styles.guide, { width: ORB_SIZE * 0.75, height: ORB_SIZE * 0.75, borderRadius: ORB_SIZE * 0.375, borderColor: '#FFFFFFCC' }]} />
+          {phase === 'breathing' && (
+            <Text pointerEvents="none" style={styles.count}>{secLeft > 0 ? secLeft : ''}</Text>
+          )}
         </View>
 
         {/* ── Label ── */}
         <Animated.View style={[styles.labelWrap, { opacity: labelOpacity }]}>
           <Text style={styles.breathLabel}>{currentStep.label}</Text>
           <Text style={styles.breathSub}>
-            {currentStep.phase === 'in'       ? 'expand with your lungs' :
-             currentStep.phase === 'hold-in'  ? '— stay full' :
-             currentStep.phase === 'out'      ? 'release slowly' :
-                                                '— stay empty'}
+            {currentStep.phase === 'in'       ? 'fill up to the outer ring' :
+             currentStep.phase === 'hold-in'  ? 'stay full' :
+             currentStep.phase === 'out'      ? 'empty down to the inner ring' :
+                                                'stay empty'}
           </Text>
         </Animated.View>
 
@@ -407,6 +428,9 @@ const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
     alignItems:      'center',
     justifyContent:  'center',
   },
+
+  guide: { position: 'absolute', borderWidth: 2, borderStyle: 'dashed' },
+  count: { position: 'absolute', fontFamily: FONTS.display, fontSize: 38, color: '#FFFFFF' },
 
   orbInner: {
     width:           ORB_SIZE * 0.55,

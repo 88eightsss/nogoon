@@ -13,6 +13,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Animated, Easing, AppState } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Svg, { Circle } from 'react-native-svg';
 import { FONTS } from '@/constants/Colors';
 import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { SPACING } from '@/constants/Spacing';
@@ -30,13 +31,19 @@ const SMALL = 0.8;
 type Stage = 'idle' | 'in' | 'full' | 'out' | 'short' | 'rest';
 
 const COPY: Record<Stage, { title: string; sub: string }> = {
-  idle:  { title: 'Press and hold',        sub: 'Hold the orb and breathe in through your nose' },
-  in:    { title: 'Breathe in…',           sub: 'Keep holding, nice and slow' },
+  idle:  { title: 'Press and hold',        sub: 'Hold the orb and breathe in until it fills the outer ring' },
+  in:    { title: 'Breathe in…',           sub: 'Keep holding until the ring is full' },
   full:  { title: 'Full. Let go slowly.',  sub: 'Lift your finger and breathe out' },
-  out:   { title: 'Breathe out…',          sub: 'Longer than the way in. Let it all go' },
-  short: { title: 'A little longer',       sub: 'Hold until you feel the buzz' },
+  out:   { title: 'Breathe out…',          sub: 'Slowly, until the orb shrinks to the inner ring' },
+  short: { title: 'A little longer',       sub: 'Hold until the ring is full and you feel the buzz' },
   rest:  { title: 'Lovely.',               sub: 'Hold again when you are ready' },
 };
+
+// Guide rings: the orb's edge should land exactly on these.
+const RING_FULL = 140 * BIG;    // outer ring: lungs full
+const RING_EMPTY = 140 * SMALL; // inner ring: lungs empty
+const ARC = RING_FULL + 28;     // progress arc sits just outside the outer ring
+const ARC_STROKE = 6;
 
 export function HoldBreath({ onComplete, onSwitch }: { onComplete: (score: number) => void; onSwitch: () => void }) {
   const COLORS = useThemedColors();
@@ -54,6 +61,9 @@ export function HoldBreath({ onComplete, onSwitch }: { onComplete: (score: numbe
   const holding = useRef(false);
   const fullTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const doneRef = useRef(0);
+  const outStart = useRef(0);
+  // Live countdown for the ring and the number in the orb.
+  const [prog, setProg] = useState({ pct: 0, sec: 0 });
 
   const clearFull = () => { if (fullTimer.current) { clearTimeout(fullTimer.current); fullTimer.current = null; } };
 
@@ -70,6 +80,7 @@ export function HoldBreath({ onComplete, onSwitch }: { onComplete: (score: numbe
     if (finished) return;
     holding.current = true;
     holdStart.current = Date.now();
+    setProg({ pct: 0, sec: Math.ceil(FULL_AT_MS / 1000) });
     setStage('in');
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     // Grow from wherever the orb currently is.
@@ -93,6 +104,8 @@ export function HoldBreath({ onComplete, onSwitch }: { onComplete: (score: numbe
       return;
     }
     setStage('out');
+    outStart.current = Date.now();
+    setProg({ pct: 1, sec: Math.ceil(OUT_MS / 1000) });
     run(SMALL, 0.06, OUT_MS, Easing.inOut(Easing.quad), (ok) => {
       if (!ok) return; // interrupted by another hold: that breath does not count
       doneRef.current += 1;
@@ -107,6 +120,21 @@ export function HoldBreath({ onComplete, onSwitch }: { onComplete: (score: numbe
       }
     });
   };
+
+  // Tick the countdown while breathing in (toward full) and out (toward empty).
+  useEffect(() => {
+    if (stage !== 'in' && stage !== 'out') return;
+    const id = setInterval(() => {
+      if (stage === 'in') {
+        const e = Date.now() - holdStart.current;
+        setProg({ pct: Math.min(1, e / FULL_AT_MS), sec: Math.max(0, Math.ceil((FULL_AT_MS - e) / 1000)) });
+      } else {
+        const e = Date.now() - outStart.current;
+        setProg({ pct: 1 - Math.min(1, e / OUT_MS), sec: Math.max(0, Math.ceil((OUT_MS - e) / 1000)) });
+      }
+    }, 100);
+    return () => clearInterval(id);
+  }, [stage]);
 
   // Stop everything if the app is backgrounded; cleanup on unmount.
   useEffect(() => {
@@ -136,11 +164,27 @@ export function HoldBreath({ onComplete, onSwitch }: { onComplete: (score: numbe
           accessibilityHint="Press and hold to breathe in, release to breathe out"
           style={styles.orbArea}
         >
-          <Animated.View style={[styles.halo2, { opacity: glow, transform: [{ scale }] }]} />
-          <Animated.View style={[styles.halo1, { opacity: Animated.multiply(glow, 1.6), transform: [{ scale }] }]} />
-          <Animated.View style={[styles.orb, { transform: [{ scale }] }]}>
-            <View style={styles.orbInner} />
-          </Animated.View>
+          {/* Progress arc: fills as you breathe in, drains as you breathe out */}
+          <Svg width={ARC} height={ARC} style={styles.arc} pointerEvents="none">
+            <Circle cx={ARC / 2} cy={ARC / 2} r={(ARC - ARC_STROKE) / 2} stroke={COLORS.border} strokeWidth={ARC_STROKE} fill="none" />
+            <Circle
+              cx={ARC / 2} cy={ARC / 2} r={(ARC - ARC_STROKE) / 2}
+              stroke={stage === 'out' ? COLORS.green : BLUE} strokeWidth={ARC_STROKE} fill="none" strokeLinecap="round"
+              strokeDasharray={`${Math.PI * (ARC - ARC_STROKE)} ${Math.PI * (ARC - ARC_STROKE)}`}
+              strokeDashoffset={Math.PI * (ARC - ARC_STROKE) * (1 - ((stage === 'in' || stage === 'out') ? prog.pct : stage === 'full' ? 1 : 0))}
+              transform={`rotate(-90 ${ARC / 2} ${ARC / 2})`}
+            />
+          </Svg>
+          <Animated.View style={[styles.halo1, { opacity: glow, transform: [{ scale }] }]} />
+          <Animated.View style={[styles.orb, { transform: [{ scale }] }]} />
+          {/* Guide rings drawn over the orb so its edge has a clear start and finish line */}
+          <View pointerEvents="none" style={[styles.guide, { width: RING_FULL, height: RING_FULL, borderRadius: RING_FULL / 2, borderColor: stage === 'full' ? COLORS.green : COLORS.textMuted }]} />
+          <View pointerEvents="none" style={[styles.guide, { width: RING_EMPTY, height: RING_EMPTY, borderRadius: RING_EMPTY / 2, borderColor: '#FFFFFFCC' }]} />
+          <Text pointerEvents="none" style={[styles.guideLabel, { top: (320 - RING_FULL) / 2 - 22, color: COLORS.textMuted }]}>FULL</Text>
+          <Text pointerEvents="none" style={[styles.guideLabel, { top: (320 + RING_EMPTY) / 2 + 4, color: '#FFFFFFCC' }]}>EMPTY</Text>
+          <Text pointerEvents="none" style={styles.count}>
+            {stage === 'in' ? (prog.sec > 0 ? String(prog.sec) : 'Full') : stage === 'full' ? 'Full' : stage === 'out' ? (prog.sec > 0 ? String(prog.sec) : '') : ''}
+          </Text>
         </Pressable>
 
         <View style={styles.labelWrap}>
@@ -164,10 +208,12 @@ const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
   dot: { width: 12, height: 12, borderRadius: 6, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.cardBorder },
   dotDone: { backgroundColor: BLUE, borderColor: BLUE },
   orbArea: { width: 320, height: 320, alignItems: 'center', justifyContent: 'center' },
-  halo2: { position: 'absolute', width: 210, height: 210, borderRadius: 105, backgroundColor: BLUE },
-  halo1: { position: 'absolute', width: 170, height: 170, borderRadius: 85, backgroundColor: BLUE },
-  orb: { width: ORB, height: ORB, borderRadius: ORB / 2, backgroundColor: BLUE, alignItems: 'center', justifyContent: 'center' },
-  orbInner: { width: ORB * 0.55, height: ORB * 0.55, borderRadius: (ORB * 0.55) / 2, backgroundColor: 'rgba(255,255,255,0.25)' },
+  arc: { position: 'absolute' },
+  halo1: { position: 'absolute', width: ORB + 14, height: ORB + 14, borderRadius: (ORB + 14) / 2, backgroundColor: BLUE },
+  orb: { position: 'absolute', width: ORB, height: ORB, borderRadius: ORB / 2, backgroundColor: BLUE, borderWidth: 3, borderColor: '#FFFFFF' },
+  guide: { position: 'absolute', borderWidth: 2, borderStyle: 'dashed' },
+  guideLabel: { position: 'absolute', fontFamily: FONTS.bodyBold, fontSize: 10, letterSpacing: 1.5 },
+  count: { position: 'absolute', fontFamily: FONTS.display, fontSize: 40, color: '#FFFFFF' },
   labelWrap: { alignItems: 'center', gap: SPACING.sm, minHeight: 70 },
   title: { fontFamily: FONTS.display, fontSize: 28, color: COLORS.textPrimary, textAlign: 'center' },
   sub: { fontFamily: FONTS.body, fontSize: 14, color: COLORS.textMuted, textAlign: 'center' },
