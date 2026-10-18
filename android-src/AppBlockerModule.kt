@@ -65,6 +65,7 @@ class AppBlockerModule(reactContext: ReactApplicationContext) :
         private const val TAG = "NoGoon"
         private const val CRASH_NOTIFICATION_ID      = 9900
         private const val CRASH_NOTIFICATION_CHANNEL = "nogoon-crash"
+        private const val CRASH_FILE                 = "last_crash.txt"
 
         // Ensures we only install the crash handler once even if the module
         // is instantiated multiple times during the React Native bridge lifecycle.
@@ -102,6 +103,16 @@ class AppBlockerModule(reactContext: ReactApplicationContext) :
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
 
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            // Keep the stack trace on disk so it can be read and shared from inside the app
+            // (Me > Help > Last crash report), no computer or adb needed.
+            try {
+                val sw = java.io.StringWriter()
+                throwable.printStackTrace(java.io.PrintWriter(sw))
+                val stamp = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US).format(java.util.Date())
+                java.io.File(appContext.filesDir, CRASH_FILE).writeText(
+                    "NoGoon crash $stamp\nthread=${thread.name}\nandroid=${Build.VERSION.RELEASE} (sdk ${Build.VERSION.SDK_INT}) device=${Build.MANUFACTURER} ${Build.MODEL}\n\n$sw".take(12000)
+                )
+            } catch (_: Exception) { /* never let logging cause a second crash */ }
             try {
                 val nm = appContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
@@ -135,6 +146,44 @@ class AppBlockerModule(reactContext: ReactApplicationContext) :
             // Always delegate to the default handler so Android can log the crash
             // and show the "App stopped" system dialog.
             defaultHandler?.uncaughtException(thread, throwable)
+        }
+    }
+
+    // Sends the phone to its home screen. Used when the person walks away at the gate, so the
+    // blocked app underneath is left behind instead of reappearing when the gate closes.
+    @ReactMethod
+    fun goHome(promise: Promise) {
+        try {
+            val intent = Intent(Intent.ACTION_MAIN).apply {
+                addCategory(Intent.CATEGORY_HOME)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            reactApplicationContext.startActivity(intent)
+            promise.resolve(true)
+        } catch (e: Exception) {
+            Log.e(TAG, "goHome failed", e)
+            promise.resolve(false)
+        }
+    }
+
+    // The last uncaught crash (stack trace + device), or "" when there has been none.
+    @ReactMethod
+    fun getLastCrash(promise: Promise) {
+        try {
+            val f = java.io.File(reactApplicationContext.filesDir, CRASH_FILE)
+            promise.resolve(if (f.exists()) f.readText() else "")
+        } catch (e: Exception) {
+            promise.resolve("")
+        }
+    }
+
+    @ReactMethod
+    fun clearLastCrash(promise: Promise) {
+        try {
+            java.io.File(reactApplicationContext.filesDir, CRASH_FILE).delete()
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.resolve(false)
         }
     }
 

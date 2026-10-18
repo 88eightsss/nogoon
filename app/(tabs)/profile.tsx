@@ -1123,6 +1123,14 @@ export default function MeScreen() {
             <Text style={[ctrlStyles.label, { color: colors.text, flex: 1 }]}>Terms of service</Text>
             <Feather name="external-link" size={16} color={colors.textMuted} />
           </Pressable>
+          <Pressable
+            style={[ctrlStyles.row, { borderBottomColor: colors.border }]}
+            onPress={() => router.push('/crash-report' as any)}
+          >
+            <Feather name="alert-triangle" size={16} color={colors.textMuted} />
+            <Text style={[ctrlStyles.label, { color: colors.text, flex: 1 }]}>Last crash report</Text>
+            <Feather name="chevron-right" size={16} color={colors.textMuted} />
+          </Pressable>
           <View style={[ctrlStyles.row, { borderBottomColor: colors.border }]}>
             <Feather name="info" size={16} color={colors.textMuted} />
             <Text style={[ctrlStyles.label, { color: colors.text, flex: 1 }]}>Version</Text>

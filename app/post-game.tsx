@@ -361,7 +361,7 @@ export default function PostGameScreen() {
     const target = app || domain;
     const granted = target ? await grantTemporaryUnlock(target, unlockMinutes) : false;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    exitGate();
+    exitGate({ keepApp: true });
     if (granted && app) launchBlockedApp(app);
   };
 
@@ -375,7 +375,7 @@ export default function PostGameScreen() {
       const target = app || domain;
       const granted = target ? await grantTemporaryUnlock(target, unlockMinutes) : false;
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      exitGate();
+      exitGate({ keepApp: true });
       if (granted && app) launchBlockedApp(app);
     }
   };

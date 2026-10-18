@@ -326,7 +326,7 @@ function NoGoonScreen() {
       // briefly and open it. Not a give-in: the user did nothing wrong.
       (async () => {
         const ok = await grantTemporaryUnlock(domain, DEFAULT_UNLOCK_MINUTES, false);
-        exitGate();
+        exitGate({ keepApp: true });
         if (ok && isAppBlock) launchBlockedApp(domain);
       })();
     }
@@ -948,7 +948,7 @@ function NoGoonScreen() {
               // Actually grant the unlock. Before, this only dismissed the screen,
               // so the gate fired again within seconds.
               const granted = await grantTemporaryUnlock(domain);
-              exitGate();
+              exitGate({ keepApp: true });
               if (granted && isAppBlock) launchBlockedApp(domain);
             }}
             disabled={!isMatch}
@@ -1266,7 +1266,7 @@ function NoGoonScreen() {
         case 'sms':
           recordWalkAway();
           Linking.openURL('sms:').catch(() => {});
-          exitGate();
+          exitGate({ keepApp: true });
           break;
         case 'custom':
           recordWalkAway();
