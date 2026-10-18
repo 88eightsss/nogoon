@@ -1,0 +1,18 @@
+// Gradle init script: signs the release build with your Play upload key.
+// Used by scripts\build-aab.ps1 (passed with -I). Reads the key from environment variables,
+// so nothing secret is ever written into the project.
+allprojects {
+    afterEvaluate { p ->
+        if (p.plugins.hasPlugin('com.android.application')) {
+            def ks = System.getenv('NOGOON_KEYSTORE')
+            if (ks) {
+                def cfg = p.android.signingConfigs.create('upload')
+                cfg.storeFile = new File(ks)
+                cfg.storePassword = System.getenv('NOGOON_STORE_PASSWORD')
+                cfg.keyAlias = System.getenv('NOGOON_KEY_ALIAS')
+                cfg.keyPassword = System.getenv('NOGOON_KEY_PASSWORD')
+                p.android.buildTypes.release.signingConfig = cfg
+            }
+        }
+    }
+}

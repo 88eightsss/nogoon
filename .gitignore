@@ -48,3 +48,6 @@ yarn-error.*
 build-*.txt
 build-*.gz
 eas-build.log
+*.keystore
+*.p12
+credentials.json
