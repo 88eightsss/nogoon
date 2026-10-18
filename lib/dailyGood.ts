@@ -48,15 +48,17 @@ export async function getTodaysBriefing(): Promise<Briefing> {
   try {
     const cached = await AsyncStorage.getItem(cacheKey());
     if (cached) {
-      const b = JSON.parse(cached) as Briefing;
-      if (b?.good?.length || b?.curious?.length || b?.world?.length) return { ...EMPTY, ...b };
+      const b = JSON.parse(cached) as Briefing & { at?: number };
+      // A batch from an earlier day (cached before today's job ran) is only trusted for 2 hours.
+      const fresh = b?.day === getLocalDateKey() || (typeof b?.at === 'number' && Date.now() - b.at < 2 * 3600 * 1000);
+      if (fresh && (b?.good?.length || b?.curious?.length || b?.world?.length)) return { ...EMPTY, ...b };
     }
   } catch { /* ignore bad cache */ }
 
   let b: Briefing = EMPTY;
   try { b = await fromTable(); } catch { /* fall through */ }
   if (!b.good.length) { try { b = { ...b, good: await fromFunction() }; } catch { /* fall through */ } }
-  if (b.good.length || b.curious.length || b.world.length) AsyncStorage.setItem(cacheKey(), JSON.stringify(b)).catch(() => {});
+  if (b.good.length || b.curious.length || b.world.length) AsyncStorage.setItem(cacheKey(), JSON.stringify({ ...b, at: Date.now() })).catch(() => {});
   return b;
 }
 
