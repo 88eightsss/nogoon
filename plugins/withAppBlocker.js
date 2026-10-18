@@ -345,12 +345,26 @@ function withAppBlockerFiles(config) {
     android:accessibilityFeedbackType="feedbackGeneric"
     android:accessibilityFlags="flagDefault"
     android:canRetrieveWindowContent="true"
+    android:description="@string/nogoon_a11y_description"
     android:notificationTimeout="100"
     android:settingsActivity="${packageName}.MainActivity" />
 `;
       fs.writeFileSync(
         path.join(xmlDir, 'accessibility_service_config.xml'),
         xmlContent,
+        'utf8'
+      );
+
+      // The text Android shows under NoGoon in Settings > Accessibility.
+      const valuesDir = path.join(xmlDir, '..', 'values');
+      fs.mkdirSync(valuesDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(valuesDir, 'nogoon_a11y.xml'),
+        `<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="nogoon_a11y_description">NoGoon uses this only to notice when you open an app or website you chose to block, so it can pause you before you start scrolling. It does not read passwords or messages, and what it sees stays on your device.</string>
+</resources>
+`,
         'utf8'
       );
 
