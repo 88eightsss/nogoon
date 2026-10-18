@@ -117,20 +117,20 @@ type Tone = 'protect' | 'calm' | 'arcade' | 'me';
 const SLIDES: { icon: FeatherName; title: string; body: string; tone: Tone }[] = [
   {
     icon: 'shield',
-    title: 'NoGoon blocks the\napps that pull you in',
-    body: "Open a blocked app and NoGoon steps in before the scroll starts. No willpower needed.",
+    title: 'Not just a blocker.\nA better habit.',
+    body: "Open a blocked app and NoGoon steps in first, then points you somewhere better: a breath, a quick game, a walk with your pal.",
     tone: 'protect',
   },
   {
     icon: 'refresh-cw',
     title: 'Pause. Play.\nThen choose.',
-    body: "A quick game breaks the urge. Most people walk away. If you still want in, a short wait unlocks it.",
+    body: "A game, a breath or a short walk breaks the urge. Most people walk away. If you still want in, a short wait unlocks it.",
     tone: 'calm',
   },
   {
     icon: 'grid',
     title: 'Five tabs,\none home',
-    body: "Protect, Calm, Today, Arcade and Me. Each one explains itself the first time you open it.",
+    body: "Protect, Briefing, Today, Unwind and Me. Each one has a small ? that explains it.",
     tone: 'me',
   },
   {

@@ -45,7 +45,7 @@ export function TabCoach() {
   const [ready, setReady] = useState(false);
   const pulse = useRef(new Animated.Value(0)).current;
 
-  // Right after setup the whole interactive tour opens once, and people click through it.
+  // Right after setup the tour's topic list opens once, so people choose where to start (or play it all).
   // (This spotlight below never starts by itself; it runs when someone asks for it in the tour.)
   // Waits for the saved tour state to load (otherwise someone who already saw it could be shown it
   // again) and for the tabs to actually be the screen on top (not the gate or another page).
@@ -60,7 +60,7 @@ export function TabCoach() {
     if (!tourLoaded || !hasOnboarded || offered || !onTabs) return;
     const t = setTimeout(() => {
       markOffered();
-      router.push({ pathname: '/tutorial', params: { all: '1' } } as Href);
+      router.push('/tutorial' as Href);
     }, 1200);
     return () => clearTimeout(t);
   }, [tourLoaded, hasOnboarded, offered, onTabs, markOffered]);
