@@ -12,7 +12,7 @@
 // The SafeAreaProvider here wraps everything so any screen can use
 // useSafeAreaInsets() to avoid the phone's notch and gesture bars.
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, AppState } from 'react-native';
 import { Stack, router, useSegments, useRootNavigationState } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -37,6 +37,7 @@ import {
   JetBrainsMono_700Bold,
 } from '@expo-google-fonts/jetbrains-mono';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { useTourStore } from '@/stores/useTourStore';
 import { useUserStore } from '@/stores/useUserStore';
 import { getTodaysBriefing } from '@/lib/dailyGood';
 import { initMascots } from '@/services/mascotInit';
@@ -293,14 +294,34 @@ export default function RootLayout() {
     // Pull the cloud copy FIRST, then run the streak check. The other way round, the
     // cloud merge (max of local and cloud) resurrected a streak the check had just ended.
     loadFromSupabase(userId).finally(() => checkStreakContinuity());
-    // Request notification permission then schedule weekly recap
-    requestNotificationPermission().then((granted) => {
-      if (granted) {
-        const { dailyWalkAways: dw, streak: st } = useUserStore.getState();
-        scheduleWeeklyRecap(walkAwaysThisWeek(dw), st);
-      }
-    });
   }, [ready, userId, hasOnboarded]);
+
+  // Ask for notification permission (then schedule the weekly recap) only once the tour has
+  // had its turn and the tabs are showing, so two system prompts never stack up on first run.
+  const tourOffered = useTourStore((st) => st.offered);
+  const tourLoaded = useSyncExternalStore(
+    (cb) => useTourStore.persist.onFinishHydration(cb),
+    () => useTourStore.persist.hasHydrated(),
+    () => false,
+  );
+  const topSegment = segments[0];
+  const askedNotifRef = useRef(false);
+  useEffect(() => {
+    if (askedNotifRef.current) return;
+    if (!ready || !userId || !hasOnboarded || !tourLoaded || !tourOffered || topSegment !== '(tabs)') return;
+    let fired = false;
+    const t = setTimeout(() => {
+      fired = true;
+      askedNotifRef.current = true;
+      requestNotificationPermission().then((granted) => {
+        if (granted) {
+          const { dailyWalkAways: dw, streak: st } = useUserStore.getState();
+          scheduleWeeklyRecap(walkAwaysThisWeek(dw), st);
+        }
+      });
+    }, 1500);
+    return () => { if (!fired) clearTimeout(t); };
+  }, [ready, userId, hasOnboarded, tourLoaded, tourOffered, topSegment]);
 
   // Warm today's briefing as soon as the app is up, so the Briefing tab opens with the full
   // daily feed already loaded instead of a spinner. getTodaysBriefing caches per local day, so

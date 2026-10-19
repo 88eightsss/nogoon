@@ -101,8 +101,9 @@ export default function WalkScreen() {
 
   // Folds the sensors into one number that can only go up. Once the phone's step sensor has
   // reported, it is the source of truth (motion can over-count); until then motion counts.
+  const pedOnlyRef = useRef(false);   // gate walk with a working step sensor: shaking the phone must not count
   const bump = useCallback(() => {
-    const next = pedSteps.current > 0 ? Math.max(pedSteps.current, stepsRef.current) : Math.max(accelSteps.current, stepsRef.current);
+    const next = pedSteps.current > 0 || pedOnlyRef.current ? Math.max(pedSteps.current, stepsRef.current) : Math.max(accelSteps.current, stepsRef.current);
     lastTick.current = Date.now();
     const prev = stepsRef.current;
     if (next <= prev) return;
@@ -124,6 +125,7 @@ export default function WalkScreen() {
     accelSteps.current = 0;
     stepsRef.current = 0;
     goalHitRef.current = false;
+    pedOnlyRef.current = false;
     lastTick.current = 0;
     lastBuzz.current = 0;
     setSteps(0);
@@ -156,6 +158,7 @@ export default function WalkScreen() {
           });
           subs.current.push(sub);
           usingPed = true;
+          pedOnlyRef.current = inGate;
           setSource('step sensor');
         }
       }
@@ -194,7 +197,7 @@ export default function WalkScreen() {
       setSeconds(Math.round((Date.now() - began) / 1000));
       setMoving(Date.now() - lastTick.current < MOVING_WINDOW_MS && lastTick.current > 0);
     }, 500);
-  }, [bump, stopSensors]);
+  }, [bump, stopSensors, inGate]);
 
   const finishedRef = useRef(false);
   const leftRef = useRef(false);   // a double tap must not record two walk-aways

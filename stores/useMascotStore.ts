@@ -9,6 +9,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { isCharacterId } from '@/constants/sprites';
+import { getLocalDateKey } from '@/utils/date';
 import type { CharacterId } from '@/stores/usePetStore';
 
 /** Older builds kept the chosen companion here; the gate screen still reads it. */
@@ -44,11 +45,19 @@ interface MascotState {
   feed: (n?: number) => void;
   /** Bank a treat (a walk-away or a walk earns one). */
   addTreat: (n?: number) => void;
+  /** Bank a treat for a walk-away, at most WALK_AWAY_TREATS_PER_DAY a day so it can't be farmed. */
+  addWalkAwayTreat: () => void;
+  /** Local date (YYYY-MM-DD) of the walk-away treat count below. */
+  awayDay: string;
+  awayToday: number;
   /** Spend one treat to feed the active companion. Returns false when there is none. */
   feedWithTreat: () => boolean;
   /** One-off: credit lifetime walk-aways to the companion this install already had. */
   migrate: (active: CharacterId, walkAways: number) => void;
 }
+
+/** Walk-aways that earn a treat each day. More still count for streaks; they just stop paying treats. */
+export const WALK_AWAY_TREATS_PER_DAY = 5;
 
 export const useMascotStore = create<MascotState>()(
   persist(
@@ -57,6 +66,8 @@ export const useMascotStore = create<MascotState>()(
       fed: {},
       migrated: false,
       treats: 0,
+      awayDay: '',
+      awayToday: 0,
       setActive: (id) => {
         if (!isCharacterId(id)) return;
         set({ active: id });
@@ -67,6 +78,13 @@ export const useMascotStore = create<MascotState>()(
         set({ fed: { ...fed, [active]: (fed[active] ?? 0) + n } });
       },
       addTreat: (n = 1) => set({ treats: Math.min(99, get().treats + n) }),
+      addWalkAwayTreat: () => {
+        const today = getLocalDateKey();
+        const { awayDay, awayToday, treats } = get();
+        const used = awayDay === today ? awayToday : 0;
+        if (used >= WALK_AWAY_TREATS_PER_DAY) return;
+        set({ treats: Math.min(99, treats + 1), awayDay: today, awayToday: used + 1 });
+      },
       feedWithTreat: () => {
         const { treats, active, fed } = get();
         if (treats < 1) return false;
@@ -94,6 +112,8 @@ export const useMascotStore = create<MascotState>()(
           fed,
           migrated: p.migrated === true,
           treats: typeof p.treats === 'number' && Number.isFinite(p.treats) ? Math.max(0, Math.min(99, Math.floor(p.treats))) : 0,
+          awayDay: typeof p.awayDay === 'string' ? p.awayDay : '',
+          awayToday: typeof p.awayToday === 'number' && Number.isFinite(p.awayToday) ? Math.max(0, Math.floor(p.awayToday)) : 0,
         };
       },
     },

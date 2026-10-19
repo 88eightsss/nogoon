@@ -27,7 +27,7 @@ interface ThemeState {
   enabledCalmGateGames: string[];
 
   // Brightness dial — 0 = Dark, 50 = Grey, 100 = Light (see constants/Themes.ts).
-  // Default is 0 so the shipped-default Forest theme keeps its original all-dark look.
+  // New installs start light (matches the welcome slides); the palette screen lets people go dark.
   themeBrightness: number;
 
   setTheme: (id: ThemeId) => void;
@@ -48,7 +48,7 @@ export const useThemeStore = create<ThemeState>()(
       strugglingDate:    '',
       disabledGateGames: [],
       enabledCalmGateGames: [],
-      themeBrightness:    0,
+      themeBrightness:    100,
 
       setTheme:  (id) => set({ themeId: id }),
       setBorder: (id) => set({ borderId: id }),
