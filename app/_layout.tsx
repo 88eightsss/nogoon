@@ -14,7 +14,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, AppState } from 'react-native';
-import { Stack, router, useSegments } from 'expo-router';
+import { Stack, router, useSegments, useRootNavigationState } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
 import { useFonts } from 'expo-font';
@@ -260,8 +260,13 @@ export default function RootLayout() {
   // somewhere they shouldn't be, never when they're already in the right place.
   // In particular it must not touch a gate that the blocker service just
   // launched via deep link (cold start) or a flow in progress.
+  // The navigator only exists once this layout has rendered the Stack. Navigating before that
+  // throws "Attempted to navigate before mounting the Root Layout" and closes the app, which
+  // is what happened when everything else became ready on the very first render.
+  const navKey = useRootNavigationState()?.key;
+  const navReady = !!navKey;
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || !navReady) return;
     const top = segmentsRef.current[0];
 
     if (!userId) {
@@ -276,7 +281,7 @@ export default function RootLayout() {
       const onEntryScreen = top === undefined || top === 'auth' || top === 'onboarding' || top === 'index';
       if (!inApp && onEntryScreen) router.replace('/(tabs)');
     }
-  }, [ready, userId, hasOnboarded, cloudCheckedFor]);
+  }, [ready, navReady, userId, hasOnboarded, cloudCheckedFor]);
 
   // Once per login / app start (not per token refresh): pull cloud data and set
   // up per-open housekeeping.
