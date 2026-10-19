@@ -249,7 +249,7 @@ class NoGoonAccessibilityService : AccessibilityService() {
         // Cache the prefs instance once — avoids getSharedPreferences() in the hot event path
         prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
         // Remove accumulated stale keys from prior sessions
-        pruneExpiredKeys()
+        try { pruneExpiredKeys() } catch (e: Exception) { Log.e(TAG, "prune failed", e) }
         // Show the persistent "protection active" notification and mark this
         // service as a foreground service (see PROTECTION_NOTIFICATION_ID above).
         startProtectionForeground()
@@ -612,10 +612,17 @@ class NoGoonAccessibilityService : AccessibilityService() {
     // Used to catch already-open tabs on blocked domains.
 
     private fun scheduleBrowserRecheck(packageName: String) {
+        // One pending pair per browser: clear the earlier ones so they never pile up, and never let
+        // a stale accessibility node on the main thread take the whole app down.
+        mainHandler.removeCallbacksAndMessages(packageName)
         for (delayMs in longArrayOf(350L, 1_100L)) {
-            mainHandler.postDelayed({
-                if (currentForegroundPackage == packageName) checkBrowserUrlNow(packageName)
-            }, delayMs)
+            androidx.core.os.HandlerCompat.postDelayed(mainHandler, {
+                try {
+                    if (currentForegroundPackage == packageName) checkBrowserUrlNow(packageName)
+                } catch (e: Exception) {
+                    Log.e(TAG, "browser recheck failed", e)
+                }
+            }, packageName, delayMs)
         }
     }
 

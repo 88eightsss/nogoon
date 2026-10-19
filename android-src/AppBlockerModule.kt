@@ -66,6 +66,7 @@ class AppBlockerModule(reactContext: ReactApplicationContext) :
         private const val CRASH_NOTIFICATION_ID      = 9900
         private const val CRASH_NOTIFICATION_CHANNEL = "nogoon-crash"
         private const val CRASH_FILE                 = "last_crash.txt"
+        private const val EXIT_FILE                  = "last_exit.txt"
 
         // Ensures we only install the crash handler once even if the module
         // is instantiated multiple times during the React Native bridge lifecycle.
@@ -85,7 +86,37 @@ class AppBlockerModule(reactContext: ReactApplicationContext) :
         // Make sure the protection watchdog is scheduled. Idempotent (KEEP
         // policy) — this just confirms the periodic background check is
         // running, it doesn't reset its timer on every app launch.
-        ProtectionWatchdogWorker.schedule(reactContext.applicationContext)
+        try { ProtectionWatchdogWorker.schedule(reactContext.applicationContext) }
+        catch (e: Exception) { Log.e(TAG, "watchdog schedule failed", e) }
+        // Ask Android why the app last died, so native crashes, out-of-memory kills and
+        // hangs (which skip the handler above) still show up in Last crash report.
+        recordLastExit(reactContext.applicationContext)
+    }
+
+    private fun recordLastExit(ctx: Context) {
+        try {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
+            val am = ctx.getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+            val bad = am.getHistoricalProcessExitReasons(ctx.packageName, 0, 8).firstOrNull {
+                it.reason in intArrayOf(
+                    android.app.ApplicationExitInfo.REASON_CRASH_NATIVE,
+                    android.app.ApplicationExitInfo.REASON_CRASH,
+                    android.app.ApplicationExitInfo.REASON_ANR,
+                    android.app.ApplicationExitInfo.REASON_LOW_MEMORY,
+                    android.app.ApplicationExitInfo.REASON_INITIALIZATION_FAILURE,
+                    android.app.ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE,
+                    android.app.ApplicationExitInfo.REASON_SIGNALED
+                )
+            } ?: return
+            val f = java.io.File(ctx.filesDir, EXIT_FILE)
+            val stamp = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US).format(java.util.Date(bad.timestamp))
+            if (f.exists() && f.readText().startsWith("NoGoon exit $stamp")) return
+            val trace = try { bad.traceInputStream?.bufferedReader()?.readText()?.take(6000) } catch (_: Exception) { null }
+            f.writeText(
+                "NoGoon exit $stamp\nreason=${bad.reason} status=${bad.status} importance=${bad.importance}\n" +
+                "description=${bad.description}\nandroid=${Build.VERSION.RELEASE} (sdk ${Build.VERSION.SDK_INT}) device=${Build.MANUFACTURER} ${Build.MODEL}\n\n${trace ?: ""}"
+            )
+        } catch (_: Exception) { /* never let logging cause a crash */ }
     }
 
     override fun getName(): String = NAME
@@ -170,8 +201,10 @@ class AppBlockerModule(reactContext: ReactApplicationContext) :
     @ReactMethod
     fun getLastCrash(promise: Promise) {
         try {
-            val f = java.io.File(reactApplicationContext.filesDir, CRASH_FILE)
-            promise.resolve(if (f.exists()) f.readText() else "")
+            val dir = reactApplicationContext.filesDir
+            val f = java.io.File(dir, CRASH_FILE)
+            val e = java.io.File(dir, EXIT_FILE)
+            promise.resolve(if (f.exists()) f.readText() else if (e.exists()) e.readText() else "")
         } catch (e: Exception) {
             promise.resolve("")
         }
@@ -181,6 +214,7 @@ class AppBlockerModule(reactContext: ReactApplicationContext) :
     fun clearLastCrash(promise: Promise) {
         try {
             java.io.File(reactApplicationContext.filesDir, CRASH_FILE).delete()
+            java.io.File(reactApplicationContext.filesDir, EXIT_FILE).delete()
             promise.resolve(true)
         } catch (e: Exception) {
             promise.resolve(false)

@@ -415,6 +415,7 @@ export default function RootLayout() {
           <Stack.Screen name="elsewhere" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="events" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="crash-report" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="setup-help" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="walk" options={{ animation: 'slide_from_right' }} />
 
           {/* Personal milestones / achievement badges */}

@@ -50,7 +50,7 @@ const HUB: { id: MeSection | 'customize'; icon: ComponentProps<typeof Feather>['
   { id: 'look',      icon: 'droplet',     title: 'Look & companions',     sub: 'Companions, home screen, theme' },
   { id: 'customize', icon: 'sliders',     title: 'Customize my page',     sub: 'Skins, instead bundles, colour, paper' },
   { id: 'progress',  icon: 'trending-up', title: 'Progress',              sub: 'Insights, weekly recap, journal' },
-  { id: 'account',   icon: 'user',        title: 'Account & help',        sub: 'Tour, tips, privacy, sign out' },
+  { id: 'account',   icon: 'user',        title: 'Account & help',        sub: 'Setup & fixes, tour, tips, sign out' },
 ];
 const meStyles = StyleSheet.create({
   back:      { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4 },
@@ -1091,6 +1091,17 @@ export default function MeScreen() {
         <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Account</Text>
 
         <View style={[ctrlStyles.board, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+          <Pressable
+            style={[ctrlStyles.row, { borderBottomColor: colors.border }]}
+            onPress={() => router.push('/setup-help' as any)}
+          >
+            <Feather name="tool" size={16} color={colors.accent} />
+            <View style={{ flex: 1 }}>
+              <Text style={[ctrlStyles.label, { color: colors.text }]}>Setup & fixes</Text>
+              <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>Turn blocking back on if it stops</Text>
+            </View>
+            <Feather name="chevron-right" size={16} color={colors.textMuted} />
+          </Pressable>
           <Pressable
             style={[ctrlStyles.row, { borderBottomColor: colors.border }]}
             onPress={() => router.push('/tutorial')}
