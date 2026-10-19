@@ -102,10 +102,7 @@ class AppBlockerModule(reactContext: ReactApplicationContext) :
                     android.app.ApplicationExitInfo.REASON_CRASH_NATIVE,
                     android.app.ApplicationExitInfo.REASON_CRASH,
                     android.app.ApplicationExitInfo.REASON_ANR,
-                    android.app.ApplicationExitInfo.REASON_LOW_MEMORY,
-                    android.app.ApplicationExitInfo.REASON_INITIALIZATION_FAILURE,
-                    android.app.ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE,
-                    android.app.ApplicationExitInfo.REASON_SIGNALED
+                    android.app.ApplicationExitInfo.REASON_INITIALIZATION_FAILURE
                 )
             } ?: return
             val f = java.io.File(ctx.filesDir, EXIT_FILE)
@@ -204,7 +201,14 @@ class AppBlockerModule(reactContext: ReactApplicationContext) :
             val dir = reactApplicationContext.filesDir
             val f = java.io.File(dir, CRASH_FILE)
             val e = java.io.File(dir, EXIT_FILE)
-            promise.resolve(if (f.exists()) f.readText() else if (e.exists()) e.readText() else "")
+            // Whichever record is newer wins (a native crash never writes last_crash.txt).
+            val pick = when {
+                f.exists() && e.exists() -> if (e.lastModified() > f.lastModified()) e else f
+                f.exists() -> f
+                e.exists() -> e
+                else -> null
+            }
+            promise.resolve(pick?.readText() ?: "")
         } catch (e: Exception) {
             promise.resolve("")
         }

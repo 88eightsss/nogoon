@@ -14,7 +14,7 @@
 
 import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, AppState } from 'react-native';
-import { Stack, router, useSegments, useRootNavigationState } from 'expo-router';
+import { Stack, router, useSegments, useNavigationContainerRef } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
 import { useFonts } from 'expo-font';
@@ -73,6 +73,10 @@ interface ErrorBoundaryState {
   error: Error | null;
   attempt: number;
 }
+
+// Module-level so useSyncExternalStore does not resubscribe on every render.
+const subscribeTourHydration = (cb: () => void) => useTourStore.persist.onFinishHydration(cb);
+const tourHydrated = () => useTourStore.persist.hasHydrated();
 
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -264,8 +268,16 @@ export default function RootLayout() {
   // The navigator only exists once this layout has rendered the Stack. Navigating before that
   // throws "Attempted to navigate before mounting the Root Layout" and closes the app, which
   // is what happened when everything else became ready on the very first render.
-  const navKey = useRootNavigationState()?.key;
-  const navReady = !!navKey;
+  // (useRootNavigationState().key is defined from the first render, so it cannot be used for this;
+  // the navigation container's own isReady() is the signal router.replace itself checks.)
+  const navRef = useNavigationContainerRef();
+  const [navReady, setNavReady] = useState(() => navRef.isReady());
+  useEffect(() => {
+    if (navReady) return;
+    if (navRef.isReady()) { setNavReady(true); return; }
+    const id = setInterval(() => { if (navRef.isReady()) { setNavReady(true); clearInterval(id); } }, 50);
+    return () => clearInterval(id);
+  }, [navRef, navReady]);
   useEffect(() => {
     if (!ready || !navReady) return;
     const top = segmentsRef.current[0];
@@ -299,11 +311,7 @@ export default function RootLayout() {
   // Ask for notification permission (then schedule the weekly recap) only once the tour has
   // had its turn and the tabs are showing, so two system prompts never stack up on first run.
   const tourOffered = useTourStore((st) => st.offered);
-  const tourLoaded = useSyncExternalStore(
-    (cb) => useTourStore.persist.onFinishHydration(cb),
-    () => useTourStore.persist.hasHydrated(),
-    () => false,
-  );
+  const tourLoaded = useSyncExternalStore(subscribeTourHydration, tourHydrated, () => false);
   const topSegment = segments[0];
   const askedNotifRef = useRef(false);
   useEffect(() => {

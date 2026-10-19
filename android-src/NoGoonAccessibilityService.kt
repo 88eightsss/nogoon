@@ -179,6 +179,7 @@ class NoGoonAccessibilityService : AccessibilityService() {
     // Grayscale overlay — managed on the main thread via handler.
     private var grayscaleOverlay: View? = null
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val recheckToken = Any()
 
     // ── Unlock-time tracking ──────────────────────────────────────────────────
     // When a temporarily-unlocked target comes to the foreground, we record the
@@ -614,7 +615,7 @@ class NoGoonAccessibilityService : AccessibilityService() {
     private fun scheduleBrowserRecheck(packageName: String) {
         // One pending pair per browser: clear the earlier ones so they never pile up, and never let
         // a stale accessibility node on the main thread take the whole app down.
-        mainHandler.removeCallbacksAndMessages(packageName)
+        mainHandler.removeCallbacksAndMessages(recheckToken)
         for (delayMs in longArrayOf(350L, 1_100L)) {
             androidx.core.os.HandlerCompat.postDelayed(mainHandler, {
                 try {
@@ -622,7 +623,7 @@ class NoGoonAccessibilityService : AccessibilityService() {
                 } catch (e: Exception) {
                     Log.e(TAG, "browser recheck failed", e)
                 }
-            }, packageName, delayMs)
+            }, recheckToken, delayMs)
         }
     }
 

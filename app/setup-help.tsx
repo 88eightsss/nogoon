@@ -40,6 +40,30 @@ const FIXES: [string, string][] = [
   ['Still nothing', 'Open Last crash report, tap Share, and send it over. It has the error and your phone model, nothing personal.'],
 ];
 
+type Colors = ReturnType<typeof useTheme>['colors'];
+
+function Btn({ label, onPress, disabled, bg, fg }: { label: string; onPress: () => void; disabled?: boolean; bg: string; fg: string }) {
+  return (
+    <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" style={[s.btn, { backgroundColor: bg, opacity: disabled ? 0.5 : 1 }]}>
+      <Text style={[s.btnText, { color: fg }]}>{label}</Text>
+    </Pressable>
+  );
+}
+function Done({ c }: { c: Colors }) { return <Feather name="check-circle" size={26} color={c.success} />; }
+function Divider({ c }: { c: Colors }) { return <View style={[s.divider, { backgroundColor: c.cardBorder }]} />; }
+function Row({ c, icon, title, sub, right }: { c: Colors; icon: FeatherName; title: string; sub: string; right: React.ReactNode }) {
+  return (
+    <View style={s.row}>
+      <View style={[s.rowIcon, { backgroundColor: c.accentDim }]}><Feather name={icon} size={19} color={c.accentBright} /></View>
+      <View style={{ flex: 1, gap: 2 }}>
+        <Text style={[s.rowTitle, { color: c.text }]}>{title}</Text>
+        <Text style={[s.rowSub, { color: c.textSecondary }]}>{sub}</Text>
+      </View>
+      {right}
+    </View>
+  );
+}
+
 export default function SetupHelpScreen() {
   const { colors, cardStyle } = useTheme();
   const bg = useMemo(() => readableOn(colors.accent, colors.surface, 3), [colors.accent, colors.surface]);
@@ -67,25 +91,6 @@ export default function SetupHelpScreen() {
 
   const android = Platform.OS === 'android';
   const allGood = serviceEnabled && batteryExempt;
-
-  const Btn = ({ label, onPress, disabled }: { label: string; onPress: () => void; disabled?: boolean }) => (
-    <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" style={[s.btn, { backgroundColor: bg, opacity: disabled ? 0.5 : 1 }]}>
-      <Text style={[s.btnText, { color: fg }]}>{label}</Text>
-    </Pressable>
-  );
-  const Done = () => <Feather name="check-circle" size={26} color={colors.success} />;
-
-  const Row = ({ icon, title, sub, right }: { icon: FeatherName; title: string; sub: string; right: React.ReactNode }) => (
-    <View style={s.row}>
-      <View style={[s.rowIcon, { backgroundColor: colors.accentDim }]}><Feather name={icon} size={19} color={colors.accentBright} /></View>
-      <View style={{ flex: 1, gap: 2 }}>
-        <Text style={[s.rowTitle, { color: colors.text }]}>{title}</Text>
-        <Text style={[s.rowSub, { color: colors.textSecondary }]}>{sub}</Text>
-      </View>
-      {right}
-    </View>
-  );
-  const Divider = () => <View style={[s.divider, { backgroundColor: colors.cardBorder }]} />;
 
   return (
     <SafeAreaView style={[s.safe, { backgroundColor: colors.background }]}>
@@ -120,10 +125,11 @@ export default function SetupHelpScreen() {
 
             <View style={[s.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
               <Row
+                c={colors}
                 icon="smartphone"
                 title="App blocking"
                 sub="Accessibility access, so NoGoon can pause blocked apps"
-                right={serviceEnabled ? <Done /> : <Btn label="Turn on" onPress={openSettings} />}
+                right={serviceEnabled ? <Done c={colors} /> : <Btn bg={bg} fg={fg} label="Turn on" onPress={openSettings} />}
               />
 
               {!serviceEnabled && (
@@ -154,35 +160,38 @@ export default function SetupHelpScreen() {
                 </View>
               )}
 
-              <Divider />
+              <Divider c={colors} />
               <Row
+                c={colors}
                 icon="zap"
                 title="Keep NoGoon always on"
                 sub="Stops Android from closing it to save battery"
-                right={batteryExempt ? <Done /> : <Btn label="Turn on" onPress={openBatterySettings} />}
+                right={batteryExempt ? <Done c={colors} /> : <Btn bg={bg} fg={fg} label="Turn on" onPress={openBatterySettings} />}
               />
 
               {isKnownOemOffender && (
                 <>
-                  <Divider />
+                  <Divider c={colors} />
                   <Row
+                c={colors}
                     icon="alert-triangle"
                     title="Your phone's battery manager"
                     sub="Your brand has its own, separate from Android's. Also try locking NoGoon in your recent apps."
-                    right={<Btn label="Open" onPress={openOemAutostartSettings} />}
+                    right={<Btn bg={bg} fg={fg} label="Open" onPress={openOemAutostartSettings} />}
                   />
                 </>
               )}
 
-              <Divider />
+              <Divider c={colors} />
               <Row
+                c={colors}
                 icon="bell-off"
                 title="Notification filter"
                 sub="Optional. Quiets notifications from blocked apps"
-                right={notifGranted && notifEnabled ? <Done /> : <Btn label={notifLoading ? '...' : 'Turn on'} disabled={notifLoading} onPress={() => (notifGranted ? toggleNotif(true) : openNotifSettings())} />}
+                right={notifGranted && notifEnabled ? <Done c={colors} /> : <Btn bg={bg} fg={fg} label={notifLoading ? '...' : 'Turn on'} disabled={notifLoading} onPress={() => (notifGranted ? toggleNotif(true) : openNotifSettings())} />}
               />
 
-              <Divider />
+              <Divider c={colors} />
               <Pressable onPress={() => router.push('/(tabs)/blocklist' as any)} accessibilityRole="button" style={s.linkRow}>
                 <Feather name="shield" size={18} color={colors.textMuted} />
                 <Text style={[s.rowTitle, { color: colors.text, flex: 1 }]}>Choose what to block</Text>
@@ -195,20 +204,20 @@ export default function SetupHelpScreen() {
             <View style={[s.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
               {FIXES.map(([q, a], i) => (
                 <View key={q}>
-                  {i > 0 && <Divider />}
+                  {i > 0 && <Divider c={colors} />}
                   <View style={{ padding: SPACING.md, gap: 4 }}>
                     <Text style={[s.rowTitle, { color: colors.text }]}>{q}</Text>
                     <Text style={[s.rowSub, { color: colors.textSecondary }]}>{a}</Text>
                   </View>
                 </View>
               ))}
-              <Divider />
+              <Divider c={colors} />
               <Pressable onPress={() => router.push('/crash-report' as any)} accessibilityRole="button" style={s.linkRow}>
                 <Feather name="alert-triangle" size={18} color={colors.textMuted} />
                 <Text style={[s.rowTitle, { color: colors.text, flex: 1 }]}>Last crash report</Text>
                 <Feather name="chevron-right" size={18} color={colors.textMuted} />
               </Pressable>
-              <Divider />
+              <Divider c={colors} />
               <Pressable onPress={() => router.push('/tutorial' as any)} accessibilityRole="button" style={s.linkRow}>
                 <Feather name="map" size={18} color={colors.textMuted} />
                 <Text style={[s.rowTitle, { color: colors.text, flex: 1 }]}>Replay the tour</Text>

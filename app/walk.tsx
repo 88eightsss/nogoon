@@ -195,6 +195,9 @@ export default function WalkScreen() {
     const began = Date.now();
     timer.current = setInterval(() => {
       setSeconds(Math.round((Date.now() - began) / 1000));
+      // A step sensor that never reports (some battery-restricted phones) must not trap a gate walk:
+      // after 20 s of silence motion counts again.
+      if (pedOnlyRef.current && pedSteps.current === 0 && Date.now() - began > 20000) pedOnlyRef.current = false;
       setMoving(Date.now() - lastTick.current < MOVING_WINDOW_MS && lastTick.current > 0);
     }, 500);
   }, [bump, stopSensors, inGate]);
