@@ -8,7 +8,8 @@
 $ErrorActionPreference = 'Stop'
 $ref = 'hadcagughbyouagwpdhq'
 
-# Every Supabase call below is written out in full as `npx --yes supabase@latest ...`, exactly as you would
+# The CLI version is pinned (2.109.1): the newest release (2.121, rewritten) printed only help screens on Windows.
+# Every Supabase call below is written out in full as `npx --yes supabase@2.109.1 ...`, exactly as you would
 # type it. (An earlier wrapper function passed its arguments on in a way Windows PowerShell dropped, so each
 # call only printed the help screen and did nothing.) Check() stops the script if a call failed.
 function Check([string]$what) { if ($LASTEXITCODE -ne 0) { throw "$what failed (exit code $LASTEXITCODE). Scroll up for the first red line." } }
@@ -23,18 +24,23 @@ function Ask([string]$label, [switch]$Secret) {
 }
 function SetSecret([string]$name, [string]$value) {
   if ([string]::IsNullOrWhiteSpace($value)) { Write-Host "  skipped $name"; return }
-  npx --yes supabase@latest secrets set "$name=$value" --project-ref $ref
+  npx --yes supabase@2.109.1 secrets set "$name=$value" --project-ref $ref
   Check "setting $name"
   Write-Host "  set $name"
 }
 
+Write-Host "`n0/6  Checking the Supabase CLI"
+npx --yes supabase@2.109.1 --version
+Check 'supabase --version'
+Write-Host "     (should print 2.109.1 above. If you see a long help screen instead, stop and send me the top of it.)"
+
 Write-Host "`n1/6  Logging in and linking the project"
 Write-Host "     (if this is your first time: run  supabase login  in another window first)"
-npx --yes supabase@latest link --project-ref $ref
+npx --yes supabase@2.109.1 link --project-ref $ref
 Check 'link'
 
 Write-Host "`n2/6  Database migrations (shows what will run, asks before applying)"
-npx --yes supabase@latest migration list
+npx --yes supabase@2.109.1 migration list
 Check 'migration list'
 Write-Host "     If you ever ran any of these by hand in the Supabase SQL editor, say which so they are not run twice."
 Write-Host "     Type their dates separated by spaces (for example: 20260819 20260922 20261005), or press Enter for none."
@@ -42,10 +48,10 @@ Write-Host "     (Type only the 8-digit dates here. Do not paste commands.)"
 $already = Read-Host "     Already run by hand"
 foreach ($v in ($already -split '\s+' | Where-Object { $_ })) {
   if ($v -notmatch '^\d{8}$') { Write-Host "     ignored '$v' (not an 8-digit date)"; continue }
-  npx --yes supabase@latest migration repair --status applied $v
+  npx --yes supabase@2.109.1 migration repair --status applied $v
   Check "repair $v"
 }
-npx --yes supabase@latest db push
+npx --yes supabase@2.109.1 db push
 Check 'db push'
 
 Write-Host "`n3/6  Secrets (press Enter to skip any you do not have yet)"
@@ -59,14 +65,18 @@ SetSecret 'WALL_WEB_URL'           (Ask 'Where the advertise page is hosted (htt
 SetSecret 'STRIPE_WEBHOOK_SECRET'  (Ask 'Stripe webhook signing secret (whsec_...), or Enter to add later' -Secret)
 
 Write-Host "`n4/6  Edge functions"
-npx --yes supabase@latest functions deploy feed-daily --project-ref $ref --no-verify-jwt
+npx --yes supabase@2.109.1 functions deploy feed-daily --project-ref $ref --no-verify-jwt
 Check 'deploy feed-daily'
-npx --yes supabase@latest functions deploy events-draft --project-ref $ref --no-verify-jwt
+npx --yes supabase@2.109.1 functions deploy events-draft --project-ref $ref --no-verify-jwt
 Check 'deploy events-draft'
-npx --yes supabase@latest functions deploy wall --project-ref $ref
+npx --yes supabase@2.109.1 functions deploy wall --project-ref $ref
 Check 'deploy wall'
-npx --yes supabase@latest functions deploy wall-webhook --project-ref $ref --no-verify-jwt
+npx --yes supabase@2.109.1 functions deploy wall-webhook --project-ref $ref --no-verify-jwt
 Check 'deploy wall-webhook'
+
+Write-Host "`n     Deployed functions on the project (feed-daily, events-draft, wall, wall-webhook should all be listed):"
+npx --yes supabase@2.109.1 functions list --project-ref $ref
+Check 'functions list'
 
 Write-Host "`n5/6  Daily schedules"
 $sql = @"
