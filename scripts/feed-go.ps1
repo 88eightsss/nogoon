@@ -30,10 +30,14 @@ select cron.schedule('events-draft', '0 13 * * 1',
        ); `$`$);
 select cron.schedule('wall-maintenance', '5 * * * *', `$`$ select public.wall_maintenance(); `$`$);
 "@
+$sqlFile = Join-Path $env:TEMP "nogoon-cron.sql"
+Set-Content -Path $sqlFile -Value $sql -Encoding UTF8
 Set-Clipboard -Value $sql
+Start-Process notepad.exe $sqlFile
 Write-Host "`nThe schedule SQL (with the NEW secret) is on your clipboard."
 Write-Host "Supabase > SQL Editor > New query > paste > Run. (Re-running it just updates the existing schedules.)"
 Read-Host "Press Enter once it has run"
+Remove-Item $sqlFile -Force -ErrorAction SilentlyContinue
 
 Write-Host "`nRunning the briefing once (can take 30-60 seconds)"
 try {
