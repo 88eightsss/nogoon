@@ -84,10 +84,12 @@ alter table public.ad_campaigns enable row level security;
 alter table public.ad_events    enable row level security;
 
 -- Anyone (anon or authed) can read active campaigns
+drop policy if exists "read_active_campaigns" on public.ad_campaigns;
 create policy "read_active_campaigns" on public.ad_campaigns
   for select using (status = 'active');
 
 -- Anyone can insert events (anon = no user_id)
+drop policy if exists "insert_events" on public.ad_events;
 create policy "insert_events" on public.ad_events
   for insert with check (true);
 

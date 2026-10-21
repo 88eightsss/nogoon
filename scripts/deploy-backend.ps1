@@ -33,6 +33,10 @@ SB link --project-ref $ref
 
 Write-Host "`n2/6  Database migrations (shows what will run, asks before applying)"
 SB migration list
+Write-Host "     If you ever ran any of these by hand in the Supabase SQL editor, say which so they are not run twice."
+Write-Host "     Type their dates separated by spaces (for example: 20260819 20260922 20261005), or press Enter for none."
+$already = Read-Host "     Already run by hand"
+foreach ($v in ($already -split '\s+' | Where-Object { $_ })) { SB migration repair --status applied $v }
 SB db push
 
 Write-Host "`n3/6  Secrets (press Enter to skip any you do not have yet)"

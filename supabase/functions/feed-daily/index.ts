@@ -89,9 +89,13 @@ async function wikiRows(key: string, day: string): Promise<Row[]> {
   // Yesterday (UTC): the day with complete pageview data.
   const y = new Date(Date.now() - 86400000);
   const path = `${y.getUTCFullYear()}/${String(y.getUTCMonth() + 1).padStart(2, '0')}/${String(y.getUTCDate()).padStart(2, '0')}`;
-  const res = await fetch(`https://api.wikimedia.org/feed/v1/wikipedia/en/featured/${path}`, {
-    headers: { 'User-Agent': 'NoGoonFeed/1.0 (contact via the NoGoon app listing)' },
-  });
+  // Same feed, two doors. api.wikimedia.org is tried first; if it is down or retired, the
+  // Wikipedia REST door answers with the identical JSON.
+  const headers = { 'User-Agent': 'NoGoonFeed/1.0 (contact via the NoGoon app listing)' };
+  let res = await fetch(`https://api.wikimedia.org/feed/v1/wikipedia/en/featured/${path}`, { headers }).catch(() => null);
+  if (!res || !res.ok) {
+    res = await fetch(`https://en.wikipedia.org/api/rest_v1/feed/featured/${path}`, { headers });
+  }
   if (!res.ok) throw new Error(`wikimedia ${res.status}`);
   const feed = await res.json();
   const out: Row[] = [];
