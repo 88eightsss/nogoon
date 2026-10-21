@@ -8,8 +8,8 @@
 // Length is the reader's choice (toggle at the top): "20 stories" caps the day at 20 and ends,
 // "Endless" keeps loading older stories as you scroll. Every item links to its source.
 
-import { useCallback, useEffect, useState, type ComponentProps } from 'react';
-import { ScrollView, View, Text, Pressable, ActivityIndicator, Linking, StyleSheet, type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native';
+import { useCallback, useEffect, useMemo, useState, type ComponentProps } from 'react';
+import { ScrollView, View, Text, Pressable, ActivityIndicator, Linking, Platform, StyleSheet, type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
@@ -22,7 +22,9 @@ import { ConstructionBadge, ConstructionSign } from '@/components/ui/Constructio
 import { UNDER_CONSTRUCTION } from '@/constants/construction';
 import { isLightColor } from '@/utils/colorLuminance';
 import { SPACING } from '@/constants/Spacing';
+import { getLocalDateKey } from '@/utils/date';
 
+const EMPTY_READ: string[] = [];
 const PROMPTS = [
   "What's one thing you did instead of scrolling?",
   'What were you really looking for the last time you reached for your phone?',
@@ -37,36 +39,53 @@ const todaysPrompt = () => PROMPTS[Math.floor(Date.now() / 86400000) % PROMPTS.l
 type Kind = 'good' | 'curious' | 'world';
 const KIND_ICON: Record<Kind, ComponentProps<typeof Feather>['name']> = { good: 'sun', curious: 'search', world: 'globe' };
 
+// The Briefing is deliberately styled like clippings from a news site, not like the rest of the app,
+// so it feels like a place to read rather than another app to scroll. Serif headlines, a masthead
+// line with the publisher, a thin rule, "x sec read", and a link out to the real article.
+const SERIF = Platform.select({ ios: 'Georgia', android: 'serif', default: 'serif' });
+const paperFor = (light: boolean) => light
+  ? { bg: '#FAF8F3', ink: '#1B1A17', sub: '#4A4740', rule: '#DDD8CA', muted: '#7E796E' }
+  : { bg: '#1E1E20', ink: '#EEEBE4', sub: '#B9B5AB', rule: '#3A3A3E', muted: '#8C887F' };
+const readTime = (it: GoodItem) => {
+  const secs = Math.max(10, Math.round(`${it.headline} ${it.summary}`.split(/\s+/).length / 3.8));
+  return secs < 60 ? `${Math.ceil(secs / 5) * 5} sec read` : `${Math.round(secs / 60)} min read`;
+};
+const storyKey = (it: GoodItem) => it.url ?? it.headline;
+
 function Story({ item, big, tint }: { item: GoodItem; big?: boolean; tint: string }) {
-  const { colors, cardStyle } = useTheme();
+  const { colors } = useTheme();
+  const paper = paperFor(isLightColor(colors.background));
+  const key = storyKey(item);
+  const today = getLocalDateKey();
+  const read = useBriefingPrefs((s) => s.readDay === today && s.read.includes(key));
+  const markRead = useBriefingPrefs((s) => s.markRead);
   const url = item.url;
-  const go = url ? () => { Linking.openURL(url).catch(() => {}); } : undefined;
+  const go = () => { markRead(key); if (url) Linking.openURL(url).catch(() => {}); };
+  const letter = (item.source || '?').trim().charAt(0).toUpperCase() || '?';
   return (
     <Pressable
       onPress={go}
-      disabled={!go}
-      accessibilityRole={go ? 'link' : undefined}
-      accessibilityLabel={go ? `${item.headline}. Opens ${item.source || 'the source'}.` : undefined}
-      style={[
-        styles.card, cardStyle,
-        { backgroundColor: colors.surface, borderColor: colors.cardBorder, minHeight: 0 },
-        big && { borderLeftWidth: 4, borderLeftColor: tint, paddingVertical: SPACING.xl },
-      ]}
+      accessibilityRole={url ? 'link' : 'button'}
+      accessibilityLabel={`${item.headline}. ${item.source ? `From ${item.source}. ` : ''}${read ? 'Already read. ' : ''}${url ? 'Opens the article.' : ''}`}
+      style={[styles.clip, { backgroundColor: paper.bg, borderColor: paper.rule }, read && { opacity: 0.6 }]}
     >
-      <Text style={[styles.headline, !big && styles.headlineSmall, { color: colors.text }]}>{item.headline}</Text>
-      <Text style={[styles.body, { color: colors.textSecondary }]} numberOfLines={big ? undefined : 3}>{item.summary}</Text>
-      <View style={styles.sourceRow}>
-        <View style={styles.sourceTag}>
-          <View style={[styles.dot, { backgroundColor: tint }]} />
-          <Text style={[styles.source, { color: colors.textMuted }]} numberOfLines={1}>{item.source || 'Source'}</Text>
+      <View style={[styles.mast, { borderBottomColor: paper.rule }]}>
+        <View style={[styles.monogram, { backgroundColor: tint }]}>
+          <Text style={[styles.monogramLetter, { color: isLightColor(tint) ? '#111111' : '#FFFFFF' }]}>{letter}</Text>
         </View>
-        {go ? (
-          <View style={styles.readRow}>
-            <Text style={[styles.btnText, { color: colors.accent }]}>Read</Text>
-            <Feather name="arrow-up-right" size={14} color={colors.accent} />
-          </View>
-        ) : null}
+        <Text numberOfLines={1} style={[styles.mastName, { color: paper.muted }]}>{(item.source || 'Source').toUpperCase()}</Text>
+        {read
+          ? <Feather name="check-circle" size={15} color={tint} />
+          : <Text style={[styles.mastTag, { color: paper.muted }]}>{readTime(item)}</Text>}
       </View>
+      <Text style={[styles.clipHead, big && styles.clipHeadBig, { color: paper.ink, fontFamily: SERIF }]}>{item.headline}</Text>
+      <Text style={[styles.clipBody, { color: paper.sub }]} numberOfLines={big ? undefined : 4}>{item.summary}</Text>
+      {url ? (
+        <View style={styles.readRow}>
+          <Text style={[styles.readLink, { color: tint }]}>Read the full article</Text>
+          <Feather name="arrow-up-right" size={14} color={tint} />
+        </View>
+      ) : null}
     </Pressable>
   );
 }
@@ -77,16 +96,17 @@ function Section({ title, hint, items, kind }: { title: string; hint?: string; i
   const tint = kind === 'good' ? colors.warning : colors.accent;
   return (
     <View style={{ gap: SPACING.sm }}>
-      <View style={{ gap: 2 }}>
-        <View style={styles.sectionHead}>
-          <Feather name={KIND_ICON[kind]} size={14} color={tint} />
-          <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>{title}</Text>
-          <Text style={[styles.sectionCount, { color: colors.textMuted }]}>{items.length}</Text>
+      <View style={{ gap: 4 }}>
+        <View style={styles.rubric}>
+          <View style={[styles.rubricLine, { backgroundColor: colors.cardBorder }]} />
+          <Feather name={KIND_ICON[kind]} size={13} color={tint} />
+          <Text style={[styles.rubricTitle, { color: colors.textMuted }]}>{title}</Text>
+          <View style={[styles.rubricLine, { backgroundColor: colors.cardBorder }]} />
         </View>
-        {kind === 'good' && UNDER_CONSTRUCTION.goodNews ? <ConstructionBadge label="Sample stories for now" /> : null}
-        {hint ? <Text style={[styles.sub, { color: colors.textMuted }]}>{hint}</Text> : null}
+        {kind === 'good' && UNDER_CONSTRUCTION.goodNews ? <View style={{ alignSelf: 'center' }}><ConstructionBadge label="Sample stories for now" /></View> : null}
+        {hint ? <Text style={[styles.sub, { color: colors.textMuted, textAlign: 'center' }]}>{hint}</Text> : null}
       </View>
-      {items.map((it, i) => <Story key={`${it.url ?? it.headline}-${i}`} item={it} big={kind === 'good' && i === 0} tint={tint} />)}
+      {items.map((it, i) => <Story key={`${storyKey(it)}-${i}`} item={it} big={kind === 'good' && i === 0} tint={tint} />)}
     </View>
   );
 }
@@ -146,6 +166,14 @@ export default function FeedScreen() {
   const curious = cap(brief.curious, 20 - good.length);
   const world = showWorldNews ? cap(brief.world, 20 - good.length - curious.length) : [];
   const total = good.length + curious.length + world.length;
+  const todayKey = getLocalDateKey();
+  const readKeys = useBriefingPrefs((st) => (st.readDay === todayKey ? st.read : EMPTY_READ));
+  const readCount = useMemo(
+    () => [...good, ...curious, ...world].filter((it) => readKeys.includes(storyKey(it))).length,
+    [good, curious, world, readKeys],
+  );
+  const caughtUp = total > 0 && readCount >= total;
+  const dateLine = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
 
   const yourTurn = (
     <>
@@ -184,7 +212,8 @@ export default function FeedScreen() {
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={styles.content} onScroll={onScroll} scrollEventThrottle={200}>
-      <Text style={[styles.title, { color: colors.text }]}>Today's briefing</Text>
+      <Text style={[styles.dateLine, { color: colors.textMuted }]}>{dateLine.toUpperCase()}</Text>
+      <Text style={[styles.title, { color: colors.text, fontFamily: SERIF }]}>Today's briefing</Text>
       {UNDER_CONSTRUCTION.goodNews ? <View style={{ alignSelf: 'flex-start' }}><ConstructionBadge label="Still being built" /></View> : null}
       <Text style={[styles.sub, { color: colors.textSecondary }]}>
         {endless ? 'Keeps loading older stories as you scroll.' : total > 0 ? `${total} ${total === 1 ? 'story' : 'stories'} today. When it's done, it's done.` : "A small batch, once a day. When it's done, it's done."}
@@ -207,6 +236,17 @@ export default function FeedScreen() {
         })}
       </View>
 
+      {!loading && !endless && total > 0 && (
+        <View style={{ gap: 6 }} accessible accessibilityLabel={`${readCount} of ${total} stories read`}>
+          <View style={styles.progress}>
+            {Array.from({ length: total }, (_, i) => (
+              <View key={i} style={[styles.progressSeg, { backgroundColor: i < readCount ? colors.accent : colors.cardBorder }]} />
+            ))}
+          </View>
+          <Text style={[styles.sub, { color: colors.textMuted }]}>{readCount} of {total} read</Text>
+        </View>
+      )}
+
       {loading && (
         <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
           <ActivityIndicator color={colors.accent} />
@@ -223,7 +263,15 @@ export default function FeedScreen() {
       )}
 
       {!loading && total > 0 && !endless && (
-        <Text style={[styles.sub, { color: colors.textMuted, textAlign: 'center' }]}>That's everything for today. See you tomorrow.</Text>
+        caughtUp ? (
+          <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder, minHeight: 0, alignItems: 'center' }]}>
+            <Feather name="sunrise" size={22} color={colors.accent} />
+            <Text style={[styles.headline, styles.headlineSmall, { color: colors.text, fontFamily: SERIF, textAlign: 'center' }]}>You're all caught up.</Text>
+            <Text style={[styles.body, { color: colors.textSecondary, textAlign: 'center' }]}>That was the whole paper for today. Put the phone down. It will all still be here tomorrow.</Text>
+          </View>
+        ) : (
+          <Text style={[styles.sub, { color: colors.textMuted, textAlign: 'center' }]}>That's everything for today. See you tomorrow.</Text>
+        )
       )}
       {!loading && failed && (
         <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
@@ -241,7 +289,7 @@ export default function FeedScreen() {
       {endless && !loading && !failed && (
         <View style={{ gap: SPACING.sm }}>
           <Text style={[styles.section, { color: colors.textMuted }]}>Earlier stories</Text>
-          {older.map((it, i) => <Story key={`${it.url ?? it.headline}-${i}`} item={it} tint={colors.accent} />)}
+          {older.map((it, i) => <Story key={`${storyKey(it)}-${i}`} item={it} tint={colors.accent} />)}
           {loadingMore && <ActivityIndicator color={colors.accent} />}
           {exhausted && (
             <Text style={[styles.sub, { color: colors.textMuted, textAlign: 'center' }]}>That's everything we have stored right now. Fresh stories arrive tomorrow.</Text>
@@ -257,7 +305,23 @@ const styles = StyleSheet.create({
   segBtn:   { paddingVertical: 7, paddingHorizontal: 18, borderRadius: 999 },
   segText:  { fontFamily: FONTS.bodyBold, fontSize: 13 },
   content:  { padding: SPACING.lg, gap: SPACING.md, paddingBottom: SPACING.huge },
-  title:    { fontFamily: FONTS.display, fontSize: 26 },
+  title:    { fontSize: 30, fontWeight: '700', lineHeight: 36 },
+  dateLine: { fontFamily: FONTS.mono, fontSize: 11, letterSpacing: 1.4 },
+  progress: { flexDirection: 'row', gap: 3 },
+  progressSeg: { flex: 1, height: 4, borderRadius: 2 },
+  clip:     { borderWidth: 1, borderRadius: 6, paddingHorizontal: SPACING.lg, paddingBottom: SPACING.lg, gap: SPACING.sm },
+  mast:     { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: SPACING.sm, borderBottomWidth: StyleSheet.hairlineWidth },
+  monogram: { width: 20, height: 20, borderRadius: 4, alignItems: 'center', justifyContent: 'center' },
+  monogramLetter: { fontFamily: FONTS.bodyBold, fontSize: 12 },
+  mastName: { flex: 1, fontFamily: FONTS.mono, fontSize: 10.5, letterSpacing: 1.2 },
+  mastTag:  { fontFamily: FONTS.mono, fontSize: 10.5 },
+  clipHead: { fontSize: 19, lineHeight: 25, fontWeight: '700' },
+  clipHeadBig: { fontSize: 24, lineHeight: 31 },
+  clipBody: { fontFamily: FONTS.body, fontSize: 14.5, lineHeight: 22 },
+  readLink: { fontFamily: FONTS.bodyBold, fontSize: 13 },
+  rubric:   { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: SPACING.md },
+  rubricLine: { flex: 1, height: StyleSheet.hairlineWidth },
+  rubricTitle: { fontFamily: FONTS.bodyMedium, fontSize: 12, letterSpacing: 1, textTransform: 'uppercase' },
   sub:      { fontFamily: FONTS.body, fontSize: 13 },
   card:     { padding: SPACING.lg, gap: SPACING.sm, minHeight: 120, justifyContent: 'center' },
   headline: { fontFamily: FONTS.bodyBold, fontSize: 19, lineHeight: 26 },
