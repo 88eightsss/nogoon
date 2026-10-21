@@ -6,6 +6,6 @@ export const UNDER_CONSTRUCTION = {
   wall: true,
   /** Happening near you: the community events list is still being filled in by hand. */
   events: true,
-  /** Good news in the Briefing: shows sample stories until the daily feed backend is deployed. */
-  goodNews: true,
+  /** Good news in the Briefing: the daily feed backend is live (feed-daily returned stored 10, wiki 6 on 2026-10-21). */
+  goodNews: false,
 } as const;
