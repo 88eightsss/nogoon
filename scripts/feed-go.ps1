@@ -1,19 +1,24 @@
 # Sets the real Anthropic key, makes a fresh cron secret, refreshes the daily schedules, and runs the briefing once.
 # Run from the repo root:  powershell -ExecutionPolicy Bypass -File scripts\feed-go.ps1
+param([switch]$SkipKey)   # -SkipKey: keep the Anthropic key already stored, only refresh the cron secret and run the briefing
 $ref = 'hadcagughbyouagwpdhq'
 $env:DO_NOT_TRACK = '1'; $env:SUPABASE_TELEMETRY_DISABLED = '1'
 
-$s = Read-Host 'Paste your Anthropic API key (sk-ant-..., hidden as you type)' -AsSecureString
-$p = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($s)
-try { $key = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($p) } finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($p) }
-if ($key -notmatch '^sk-ant-[A-Za-z0-9_\-]{20,}$') { Write-Host "That does not look like a real key (it must start with sk-ant- and be long). Nothing changed."; exit 1 }
+$key = $null
+if (-not $SkipKey) {
+  $s = Read-Host 'Paste your Anthropic API key (sk-ant-..., hidden as you type)' -AsSecureString
+  $p = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($s)
+  try { $key = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($p) } finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($p) }
+  if ($key -notmatch '^sk-ant-[A-Za-z0-9_\-]{20,}$') { Write-Host "That does not look like a real key (it must start with sk-ant- and be long). Nothing changed."; exit 1 }
+}
 
 $bytes = New-Object byte[] 32
 [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
 $cron = ($bytes | ForEach-Object { $_.ToString('x2') }) -join ''
 
 Write-Host "`nSetting secrets"
-npx --yes supabase@2.109.1 secrets set "ANTHROPIC_API_KEY=$key" "CRON_SECRET=$cron" --project-ref $ref
+if ($key) { npx --yes supabase@2.109.1 secrets set "ANTHROPIC_API_KEY=$key" "CRON_SECRET=$cron" --project-ref $ref }
+else      { npx --yes supabase@2.109.1 secrets set "CRON_SECRET=$cron" --project-ref $ref }
 
 $sql = @"
 create extension if not exists pg_cron;

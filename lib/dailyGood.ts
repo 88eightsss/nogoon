@@ -9,22 +9,29 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '@/lib/supabase';
 import { getLocalDateKey } from '@/utils/date';
 
-export type GoodItem = { headline: string; summary: string; source: string; url?: string };
+export type GoodItem = { headline: string; summary: string; source: string; url?: string; image?: string; imageCredit?: string };
 export type Briefing = { good: GoodItem[]; curious: GoodItem[]; world: GoodItem[]; day?: string };
 
 const cacheKey = () => `nogoon_brief_${getLocalDateKey()}`;
 const EMPTY: Briefing = { good: [], curious: [], world: [] };
 
-type Row = { headline: string; summary: string; source: string | null; url: string; day: string; rank: number; section?: string };
-const toItem = (r: Row): GoodItem => ({ headline: r.headline, summary: r.summary, source: r.source ?? '', url: r.url });
+type Row = { headline: string; summary: string; source: string | null; url: string; day: string; rank: number; section?: string; image_url?: string | null; image_credit?: string | null };
+const toItem = (r: Row): GoodItem => ({
+  headline: r.headline, summary: r.summary, source: r.source ?? '', url: r.url,
+  ...(r.image_url && /^https:\/\//.test(r.image_url) ? { image: r.image_url, imageCredit: r.image_credit ?? undefined } : {}),
+});
 
 async function fromTable(): Promise<Briefing> {
-  // `section` exists after the 20261015 migration; fall back to the old shape if it does not.
-  let res = await supabase.from('feed_items').select('headline, summary, source, url, day, rank, section')
-    .order('day', { ascending: false }).order('rank', { ascending: true }).limit(90);
+  // `image_url` exists after the 20261022 migration and `section` after 20261015; fall back to the older shapes if not.
+  let res = await supabase.from('feed_items').select('headline, summary, source, url, day, rank, section, image_url, image_credit')
+    .order('day', { ascending: false }).order('rank', { ascending: true }).limit(90) as any;
+  if (res.error) {
+    res = await supabase.from('feed_items').select('headline, summary, source, url, day, rank, section')
+      .order('day', { ascending: false }).order('rank', { ascending: true }).limit(90) as any;
+  }
   if (res.error) {
     res = await supabase.from('feed_items').select('headline, summary, source, url, day, rank')
-      .order('day', { ascending: false }).order('rank', { ascending: true }).limit(20) as typeof res;
+      .order('day', { ascending: false }).order('rank', { ascending: true }).limit(20) as any;
   }
   const data = res.data as Row[] | null;
   if (res.error || !data?.length) return EMPTY;
@@ -81,14 +88,18 @@ export async function getOneGood(): Promise<GoodItem | null> {
  */
 export async function getOlderStories(beforeDay: string, offset: number, includeWorld: boolean, pageSize = 15): Promise<GoodItem[]> {
   try {
-    let q = supabase.from('feed_items').select('headline, summary, source, url, day, rank, section')
-      .lt('day', beforeDay)
-      .order('day', { ascending: false }).order('rank', { ascending: true })
-      .range(offset, offset + pageSize - 1);
-    if (!includeWorld) q = q.in('section', ['good', 'curious']);
-    const { data, error } = await q;
+    const build = (cols: string) => {
+      let q = supabase.from('feed_items').select(cols)
+        .lt('day', beforeDay)
+        .order('day', { ascending: false }).order('rank', { ascending: true })
+        .range(offset, offset + pageSize - 1);
+      if (!includeWorld) q = q.in('section', ['good', 'curious']);
+      return q;
+    };
+    let { data, error } = await build('headline, summary, source, url, day, rank, section, image_url, image_credit');
+    if (error) ({ data, error } = await build('headline, summary, source, url, day, rank, section'));
     if (error || !data) return [];
-    return (data as Row[]).map(toItem);
+    return (data as unknown as Row[]).map(toItem);
   } catch {
     return [];
   }

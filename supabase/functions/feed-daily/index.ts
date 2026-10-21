@@ -43,12 +43,26 @@ const FEEDS: { name: string; url: string }[] = [
 const PER_FEED = 12;
 const PICK = 10;
 
-type Candidate = { title: string; link: string; desc: string; source: string };
+type Candidate = { title: string; link: string; desc: string; source: string; image?: string };
 
 const strip = (s: string) =>
   s.replace(/<!\[CDATA\[|\]\]>/g, '').replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&')
    .replace(/&#8217;|&#039;|&apos;/g, "'").replace(/&quot;|&#8220;|&#8221;/g, '"')
    .replace(/\s+/g, ' ').trim();
+
+// A story photo, if the feed offers one: media:thumbnail / media:content, an image enclosure, or the first
+// <img> in the item. https only, no data: URIs. We link to it, we never copy it.
+function imageOf(item: string): string | undefined {
+  const dec = item.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&amp;/g, '&');
+  const m =
+    dec.match(/<media:thumbnail[^>]*\burl=["']([^"']+)["']/i) ??
+    dec.match(/<media:content[^>]*\burl=["']([^"']+\.(?:jpe?g|png|webp)[^"']*)["']/i) ??
+    dec.match(/<enclosure[^>]*\burl=["']([^"']+)["'][^>]*type=["']image\//i) ??
+    dec.match(/<enclosure[^>]*type=["']image\/[^"']*["'][^>]*\burl=["']([^"']+)["']/i) ??
+    dec.match(/<img[^>]*\bsrc=["']([^"']+)["']/i);
+  const url = m?.[1]?.trim();
+  return url && /^https:\/\//.test(url) && url.length <= 500 ? url : undefined;
+}
 
 function parseRss(xml: string, source: string): Candidate[] {
   const items = xml.match(/<item[\s\S]*?<\/item>/g) ?? [];
@@ -57,11 +71,11 @@ function parseRss(xml: string, source: string): Candidate[] {
     const title = strip(pick('title'));
     const link = strip(pick('link'));
     const desc = strip(pick('description')).slice(0, 400);
-    return title && /^https:\/\//.test(link) ? [{ title, link, desc, source }] : [];
+    return title && /^https:\/\//.test(link) ? [{ title, link, desc, source, image: imageOf(it) }] : [];
   });
 }
 
-type Row = { day: string; rank: number; headline: string; summary: string; source: string; url: string; category: string; section: 'good' | 'curious' | 'world' };
+type Row = { day: string; rank: number; headline: string; summary: string; source: string; url: string; category: string; section: 'good' | 'curious' | 'world'; image_url?: string | null; image_credit?: string | null };
 
 async function askClaude(key: string, prompt: string, maxTokens = 900): Promise<any[]> {
   const ai = await fetch('https://api.anthropic.com/v1/messages', {
@@ -77,6 +91,7 @@ async function askClaude(key: string, prompt: string, maxTokens = 900): Promise<
 }
 
 // ── Wikipedia: "curious" (most read) + "world" (in the news) ─────────────────────────────────
+const wikiImage = (u: unknown): string | null => (typeof u === 'string' && /^https:\/\/upload\.wikimedia\.org\//.test(u) && u.length <= 500 ? u : null);
 const SKIP_TITLES = /^(Main_Page|Special:|Wikipedia:|Portal:|Help:|File:|Category:|Template:|Talk:|Deaths_in_)/;
 
 // One upsert cannot touch the same (day, url) twice, and a model may pick the same story twice.
@@ -111,12 +126,12 @@ async function wikiRows(key: string, day: string): Promise<Row[]> {
     picks.slice(0, 6).forEach((p, rank) => {
       const a = read[p.i];
       const url = a?.content_urls?.desktop?.page;
-      if (a && url && p.headline && p.summary) out.push({ day, rank, headline: String(p.headline).slice(0, 140), summary: String(p.summary).slice(0, 400), source: 'Wikipedia', url, category: 'curious', section: 'curious' });
+      if (a && url && p.headline && p.summary) out.push({ day, rank, headline: String(p.headline).slice(0, 140), summary: String(p.summary).slice(0, 400), source: 'Wikipedia', url, category: 'curious', section: 'curious', image_url: wikiImage(a?.thumbnail?.source), image_credit: wikiImage(a?.thumbnail?.source) ? 'Wikimedia Commons' : null });
     });
   }
 
   const news = (feed?.news ?? []).slice(0, 10)
-    .map((n: any) => ({ story: strip(n?.story ?? ''), url: n?.links?.[0]?.content_urls?.desktop?.page as string | undefined }))
+    .map((n: any) => ({ story: strip(n?.story ?? ''), url: n?.links?.[0]?.content_urls?.desktop?.page as string | undefined, img: wikiImage(n?.links?.[0]?.thumbnail?.source) }))
     .filter((n: any) => n.story && n.url);
   if (news.length >= 2) {
     const list = news.map((n: any, i: number) => `${i}. ${n.story}`).join('\n');
@@ -126,7 +141,7 @@ async function wikiRows(key: string, day: string): Promise<Row[]> {
       `Skip an item if it cannot be told calmly. Respond ONLY with JSON: [{"i": <number>, "headline": "...", "summary": "..."}]`, 1000);
     picks.slice(0, 5).forEach((p, rank) => {
       const n = news[p.i];
-      if (n && p.headline && p.summary) out.push({ day, rank, headline: String(p.headline).slice(0, 140), summary: String(p.summary).slice(0, 400), source: 'Wikipedia', url: n.url!, category: 'world', section: 'world' });
+      if (n && p.headline && p.summary) out.push({ day, rank, headline: String(p.headline).slice(0, 140), summary: String(p.summary).slice(0, 400), source: 'Wikipedia', url: n.url!, category: 'world', section: 'world', image_url: n.img, image_credit: n.img ? 'Wikimedia Commons' : null });
     });
   }
   return uniqueByUrl(out);
@@ -195,6 +210,7 @@ serve(async (req: Request) => {
       return [{
         day, rank, headline: p.headline.slice(0, 140), summary: p.summary.slice(0, 400),
         source: c.source, url: c.link, category: p.category ?? 'good', section: 'good',
+        image_url: c.image ?? null, image_credit: c.image ? c.source : null,
       }];
     }));
     if (rows.length === 0) throw new Error('no usable picks');

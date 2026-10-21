@@ -9,7 +9,7 @@
 // "Endless" keeps loading older stories as you scroll. Every item links to its source.
 
 import { useCallback, useEffect, useMemo, useState, type ComponentProps } from 'react';
-import { ScrollView, View, Text, Pressable, ActivityIndicator, Linking, Platform, StyleSheet, type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native';
+import { ScrollView, View, Text, Pressable, ActivityIndicator, Linking, Platform, Image, StyleSheet, type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
@@ -52,8 +52,12 @@ const readTime = (it: GoodItem) => {
 };
 const storyKey = (it: GoodItem) => it.url ?? it.headline;
 
-function Story({ item, big, tint }: { item: GoodItem; big?: boolean; tint: string }) {
+// Photos on every other story that has one (1st, 3rd, 5th ...), so the page stays calm and text-first.
+const photoFlags = (items: GoodItem[]) => { let n = 0; return items.map((it) => (it.image ? n++ % 2 === 0 : false)); };
+
+function Story({ item, big, tint, photo }: { item: GoodItem; big?: boolean; tint: string; photo?: boolean }) {
   const { colors } = useTheme();
+  const [imgFailed, setImgFailed] = useState(false);
   const paper = paperFor(isLightColor(colors.background));
   const key = storyKey(item);
   const today = getLocalDateKey();
@@ -78,6 +82,18 @@ function Story({ item, big, tint }: { item: GoodItem; big?: boolean; tint: strin
           ? <Feather name="check-circle" size={15} color={tint} />
           : <Text style={[styles.mastTag, { color: paper.muted }]}>{readTime(item)}</Text>}
       </View>
+      {photo && item.image && !imgFailed ? (
+        <View>
+          <Image
+            source={{ uri: item.image }}
+            style={[styles.photo, { backgroundColor: paper.rule }]}
+            resizeMode="cover"
+            onError={() => setImgFailed(true)}
+            accessible={false}
+          />
+          {item.imageCredit ? <Text style={[styles.photoCredit, { color: paper.muted }]}>Photo: {item.imageCredit}</Text> : null}
+        </View>
+      ) : null}
       <Text style={[styles.clipHead, big && styles.clipHeadBig, { color: paper.ink, fontFamily: SERIF }]}>{item.headline}</Text>
       <Text style={[styles.clipBody, { color: paper.sub }]} numberOfLines={big ? undefined : 4}>{item.summary}</Text>
       {url ? (
@@ -94,6 +110,7 @@ function Section({ title, hint, items, kind }: { title: string; hint?: string; i
   const { colors } = useTheme();
   if (items.length === 0) return null;
   const tint = kind === 'good' ? colors.warning : colors.accent;
+  const flags = photoFlags(items);
   return (
     <View style={{ gap: SPACING.sm }}>
       <View style={{ gap: 4 }}>
@@ -106,7 +123,7 @@ function Section({ title, hint, items, kind }: { title: string; hint?: string; i
         {kind === 'good' && UNDER_CONSTRUCTION.goodNews ? <View style={{ alignSelf: 'center' }}><ConstructionBadge label="Sample stories for now" /></View> : null}
         {hint ? <Text style={[styles.sub, { color: colors.textMuted, textAlign: 'center' }]}>{hint}</Text> : null}
       </View>
-      {items.map((it, i) => <Story key={`${storyKey(it)}-${i}`} item={it} big={kind === 'good' && i === 0} tint={tint} />)}
+      {items.map((it, i) => <Story key={`${storyKey(it)}-${i}`} item={it} big={kind === 'good' && i === 0} tint={tint} photo={flags[i]} />)}
     </View>
   );
 }
@@ -289,7 +306,7 @@ export default function FeedScreen() {
       {endless && !loading && !failed && (
         <View style={{ gap: SPACING.sm }}>
           <Text style={[styles.section, { color: colors.textMuted }]}>Earlier stories</Text>
-          {older.map((it, i) => <Story key={`${storyKey(it)}-${i}`} item={it} tint={colors.accent} />)}
+          {(() => { const flags = photoFlags(older); return older.map((it, i) => <Story key={`${storyKey(it)}-${i}`} item={it} tint={colors.accent} photo={flags[i]} />); })()}
           {loadingMore && <ActivityIndicator color={colors.accent} />}
           {exhausted && (
             <Text style={[styles.sub, { color: colors.textMuted, textAlign: 'center' }]}>That's everything we have stored right now. Fresh stories arrive tomorrow.</Text>
@@ -315,6 +332,8 @@ const styles = StyleSheet.create({
   monogramLetter: { fontFamily: FONTS.bodyBold, fontSize: 12 },
   mastName: { flex: 1, fontFamily: FONTS.mono, fontSize: 10.5, letterSpacing: 1.2 },
   mastTag:  { fontFamily: FONTS.mono, fontSize: 10.5 },
+  photo:    { width: '100%', aspectRatio: 16 / 9, borderRadius: 3 },
+  photoCredit: { fontFamily: FONTS.mono, fontSize: 9.5, marginTop: 4 },
   clipHead: { fontSize: 19, lineHeight: 25, fontWeight: '700' },
   clipHeadBig: { fontSize: 24, lineHeight: 31 },
   clipBody: { fontFamily: FONTS.body, fontSize: 14.5, lineHeight: 22 },
