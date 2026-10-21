@@ -12,7 +12,7 @@ import { getLocalDateKey } from '@/utils/date';
 export type GoodItem = { headline: string; summary: string; source: string; url?: string; image?: string; imageCredit?: string };
 export type Briefing = { good: GoodItem[]; curious: GoodItem[]; world: GoodItem[]; day?: string };
 
-const cacheKey = () => `nogoon_brief_${getLocalDateKey()}`;
+const cacheKey = () => `nogoon_brief2_${getLocalDateKey()}`; // v2: items now carry photo links, so older cached batches are skipped
 const EMPTY: Briefing = { good: [], curious: [], world: [] };
 
 type Row = { headline: string; summary: string; source: string | null; url: string; day: string; rank: number; section?: string; image_url?: string | null; image_credit?: string | null };
