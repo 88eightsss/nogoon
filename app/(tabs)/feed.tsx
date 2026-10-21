@@ -8,7 +8,7 @@
 // Length is the reader's choice (toggle at the top): "20 stories" caps the day at 20 and ends,
 // "Endless" keeps loading older stories as you scroll. Every item links to its source.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ComponentProps } from 'react';
 import { ScrollView, View, Text, Pressable, ActivityIndicator, Linking, StyleSheet, type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -33,6 +33,63 @@ const PROMPTS = [
   'What is one thing you are proud of this week?',
 ];
 const todaysPrompt = () => PROMPTS[Math.floor(Date.now() / 86400000) % PROMPTS.length];
+
+type Kind = 'good' | 'curious' | 'world';
+const KIND_ICON: Record<Kind, ComponentProps<typeof Feather>['name']> = { good: 'sun', curious: 'search', world: 'globe' };
+
+function Story({ item, big, tint }: { item: GoodItem; big?: boolean; tint: string }) {
+  const { colors, cardStyle } = useTheme();
+  const url = item.url;
+  const go = url ? () => { Linking.openURL(url).catch(() => {}); } : undefined;
+  return (
+    <Pressable
+      onPress={go}
+      disabled={!go}
+      accessibilityRole={go ? 'link' : undefined}
+      accessibilityLabel={go ? `${item.headline}. Opens ${item.source || 'the source'}.` : undefined}
+      style={[
+        styles.card, cardStyle,
+        { backgroundColor: colors.surface, borderColor: colors.cardBorder, minHeight: 0 },
+        big && { borderLeftWidth: 4, borderLeftColor: tint, paddingVertical: SPACING.xl },
+      ]}
+    >
+      <Text style={[styles.headline, !big && styles.headlineSmall, { color: colors.text }]}>{item.headline}</Text>
+      <Text style={[styles.body, { color: colors.textSecondary }]} numberOfLines={big ? undefined : 3}>{item.summary}</Text>
+      <View style={styles.sourceRow}>
+        <View style={styles.sourceTag}>
+          <View style={[styles.dot, { backgroundColor: tint }]} />
+          <Text style={[styles.source, { color: colors.textMuted }]} numberOfLines={1}>{item.source || 'Source'}</Text>
+        </View>
+        {go ? (
+          <View style={styles.readRow}>
+            <Text style={[styles.btnText, { color: colors.accent }]}>Read</Text>
+            <Feather name="arrow-up-right" size={14} color={colors.accent} />
+          </View>
+        ) : null}
+      </View>
+    </Pressable>
+  );
+}
+
+function Section({ title, hint, items, kind }: { title: string; hint?: string; items: GoodItem[]; kind: Kind }) {
+  const { colors } = useTheme();
+  if (items.length === 0) return null;
+  const tint = kind === 'good' ? colors.warning : colors.accent;
+  return (
+    <View style={{ gap: SPACING.sm }}>
+      <View style={{ gap: 2 }}>
+        <View style={styles.sectionHead}>
+          <Feather name={KIND_ICON[kind]} size={14} color={tint} />
+          <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>{title}</Text>
+          <Text style={[styles.sectionCount, { color: colors.textMuted }]}>{items.length}</Text>
+        </View>
+        {kind === 'good' && UNDER_CONSTRUCTION.goodNews ? <ConstructionBadge label="Sample stories for now" /> : null}
+        {hint ? <Text style={[styles.sub, { color: colors.textMuted }]}>{hint}</Text> : null}
+      </View>
+      {items.map((it, i) => <Story key={`${it.url ?? it.headline}-${i}`} item={it} big={kind === 'good' && i === 0} tint={tint} />)}
+    </View>
+  );
+}
 
 export default function FeedScreen() {
   const showSponsors = useOfferStore((s) => s.showSponsors);
@@ -83,36 +140,6 @@ export default function FeedScreen() {
     if (layoutMeasurement.height + contentOffset.y > contentSize.height - 700) loadMore();
   };
 
-  const open = (url?: string) => { if (url) Linking.openURL(url).catch(() => {}); };
-
-  const Story = ({ item, big }: { item: GoodItem; big?: boolean }) => (
-    <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder, minHeight: 0 }]}>
-      <Text style={[styles.headline, !big && styles.headlineSmall, { color: colors.text }]}>{item.headline}</Text>
-      <Text style={[styles.body, { color: colors.textSecondary }]}>{item.summary}</Text>
-      <View style={styles.sourceRow}>
-        {item.source ? <Text style={[styles.source, { color: colors.textMuted }]}>{item.source}</Text> : <View />}
-        {item.url ? (
-          <Pressable onPress={() => open(item.url)} hitSlop={8} accessibilityRole="link" accessibilityLabel={`Read more from ${item.source}`}>
-            <Text style={[styles.btnText, { color: colors.accent }]}>Read more</Text>
-          </Pressable>
-        ) : null}
-      </View>
-    </View>
-  );
-
-  const Section = ({ title, hint, items }: { title: string; hint?: string; items: GoodItem[] }) => (
-    items.length === 0 ? null : (
-      <View style={{ gap: SPACING.sm }}>
-        <View>
-          <Text style={[styles.section, { color: colors.textMuted }]}>{title}</Text>
-          {title === 'Good news' && UNDER_CONSTRUCTION.goodNews ? <ConstructionBadge label="Sample stories for now" /> : null}
-          {hint ? <Text style={[styles.sub, { color: colors.textMuted }]}>{hint}</Text> : null}
-        </View>
-        {items.map((it, i) => <Story key={`${it.headline}-${i}`} item={it} big={title === 'Good news' && i === 0} />)}
-      </View>
-    )
-  );
-
   // "20 stories" mode caps the day at 20 (good news first, major news last). Endless shows the whole batch.
   const cap = (list: GoodItem[], room: number) => (endless ? list : list.slice(0, Math.max(0, room)));
   const good = cap(brief.good, 20);
@@ -160,7 +187,7 @@ export default function FeedScreen() {
       <Text style={[styles.title, { color: colors.text }]}>Today's briefing</Text>
       {UNDER_CONSTRUCTION.goodNews ? <View style={{ alignSelf: 'flex-start' }}><ConstructionBadge label="Still being built" /></View> : null}
       <Text style={[styles.sub, { color: colors.textSecondary }]}>
-        {endless ? 'Keeps loading older stories as you scroll.' : "A small batch, once a day. When it's done, it's done."}
+        {endless ? 'Keeps loading older stories as you scroll.' : total > 0 ? `${total} ${total === 1 ? 'story' : 'stories'} today. When it's done, it's done.` : "A small batch, once a day. When it's done, it's done."}
       </Text>
       <View style={[styles.seg, { backgroundColor: colors.surfaceHigh, borderColor: colors.cardBorder }]}>
         {([['twenty', 'Up to 20'], ['endless', 'Endless']] as const).map(([id, label]) => {
@@ -186,9 +213,9 @@ export default function FeedScreen() {
         </View>
       )}
 
-      {!loading && <Section title="Good news" items={good} />}
-      {!loading && <Section title="What people are looking up" hint="The topics the world got curious about yesterday." items={curious} />}
-      {!loading && showWorldNews && <Section title="Major news" hint="Calm and factual. A few items, then it ends." items={world} />}
+      {!loading && <Section kind="good" title="Good news" items={good} />}
+      {!loading && <Section kind="curious" title="What people are looking up" hint="The topics the world got curious about yesterday." items={curious} />}
+      {!loading && showWorldNews && <Section kind="world" title="Major news" hint="Calm and factual. A few items, then it ends." items={world} />}
       {!loading && !showWorldNews && (
         <Pressable onPress={() => router.push('/customize' as any)} accessibilityRole="button">
           <Text style={[styles.sub, { color: colors.textMuted }]}>Major news is off. You can add a short, calm summary in Customize.</Text>
@@ -214,7 +241,7 @@ export default function FeedScreen() {
       {endless && !loading && !failed && (
         <View style={{ gap: SPACING.sm }}>
           <Text style={[styles.section, { color: colors.textMuted }]}>Earlier stories</Text>
-          {older.map((it, i) => <Story key={`${it.url ?? it.headline}-${i}`} item={it} />)}
+          {older.map((it, i) => <Story key={`${it.url ?? it.headline}-${i}`} item={it} tint={colors.accent} />)}
           {loadingMore && <ActivityIndicator color={colors.accent} />}
           {exhausted && (
             <Text style={[styles.sub, { color: colors.textMuted, textAlign: 'center' }]}>That's everything we have stored right now. Fresh stories arrive tomorrow.</Text>
@@ -236,7 +263,13 @@ const styles = StyleSheet.create({
   headline: { fontFamily: FONTS.bodyBold, fontSize: 19, lineHeight: 26 },
   body:     { fontFamily: FONTS.body, fontSize: 14.5, lineHeight: 21 },
   headlineSmall: { fontSize: 16, lineHeight: 22 },
-  sourceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  sourceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: SPACING.sm, marginTop: 2 },
+  sourceTag: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
+  dot:      { width: 7, height: 7, borderRadius: 4 },
+  readRow:  { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  sectionHead: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: SPACING.sm },
+  sectionTitle: { fontFamily: FONTS.bodyMedium, fontSize: 12, letterSpacing: 0.6, textTransform: 'uppercase' },
+  sectionCount: { fontFamily: FONTS.mono, fontSize: 11 },
   source:   { fontFamily: FONTS.body, fontSize: 12 },
   btn:      { alignSelf: 'flex-start', borderWidth: 1, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 16 },
   btnText:  { fontFamily: FONTS.bodyBold, fontSize: 13 },
