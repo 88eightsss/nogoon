@@ -8,6 +8,11 @@
 $ErrorActionPreference = 'Stop'
 $ref = 'hadcagughbyouagwpdhq'
 
+# The CLI's usage-stats (PostHog) upload can time out on shutdown and turn a successful command into exit code 1.
+# Turn it off so exit codes can be trusted.
+$env:DO_NOT_TRACK = '1'
+$env:SUPABASE_TELEMETRY_DISABLED = '1'
+
 # The CLI version is pinned (2.109.1): the newest release (2.121, rewritten) printed only help screens on Windows.
 # Every Supabase call below is written out in full as `npx --yes supabase@2.109.1 ...`, exactly as you would
 # type it. (An earlier wrapper function passed its arguments on in a way Windows PowerShell dropped, so each
@@ -37,7 +42,7 @@ Write-Host "     (should print 2.109.1 above. If you see a long help screen inst
 Write-Host "`n1/6  Logging in and linking the project"
 Write-Host "     (if this is your first time: run  supabase login  in another window first)"
 npx --yes supabase@2.109.1 link --project-ref $ref
-Check 'link'
+if ($LASTEXITCODE -ne 0) { Write-Host "     (link reported exit code $LASTEXITCODE; if it said 'Finished supabase link' above, that is only the usage-stats upload timing out. Continuing.)" }
 
 Write-Host "`n2/6  Database migrations (shows what will run, asks before applying)"
 npx --yes supabase@2.109.1 migration list
