@@ -7,13 +7,15 @@ export type WallTile = {
   id: string; x: number; y: number; w: number; h: number;
   company: string; headline: string | null; url: string; image_url: string | null;
   color: string; category: string; region: string | null;
+  /** 'supporter' tiles are a small picture with no name and no link. Missing on older data = sponsor. */
+  kind?: 'sponsor' | 'supporter';
 };
 export type WallStats = {
-  cols: number; rows: number; total: number; sold: number;
+  cols: number; rows: number; total: number; sold: number; supporters?: number;
   base_cents: number; top_cents: number; unit_cents_now: number;
 };
 
-const DEFAULT_STATS: WallStats = { cols: 60, rows: 50, total: 3000, sold: 0, base_cents: 50, top_cents: 500, unit_cents_now: 50 };
+const DEFAULT_STATS: WallStats = { cols: 100, rows: 100, total: 10000, sold: 0, base_cents: 50, top_cents: 500, unit_cents_now: 50 };
 
 let cache: { at: number; tiles: WallTile[]; stats: WallStats } | null = null;
 const TTL = 10 * 60 * 1000;
@@ -22,10 +24,16 @@ export async function getWall(force = false): Promise<{ tiles: WallTile[]; stats
   if (!force && cache && Date.now() - cache.at < TTL) return cache;
   try {
     const [t, s] = await Promise.all([
-      supabase.from('wall_public').select('id,x,y,w,h,company,headline,url,image_url,color,category,region'),
+      supabase.from('wall_public').select('id,x,y,w,h,company,headline,url,image_url,color,category,region,kind'),
       supabase.rpc('wall_stats'),
     ]);
-    const tiles = (t.data as WallTile[] | null) ?? [];
+    let rows = t.data as WallTile[] | null;
+    if (t.error) {
+      // Before the supporter migration the view has no `kind` column; ask for the older shape.
+      const old = await supabase.from('wall_public').select('id,x,y,w,h,company,headline,url,image_url,color,category,region');
+      rows = old.data as WallTile[] | null;
+    }
+    const tiles = rows ?? [];
     const stats = (s.data as WallStats | null) ?? DEFAULT_STATS;
     cache = { at: Date.now(), tiles, stats };
     return cache;
@@ -57,7 +65,8 @@ export function pickSponsors(tiles: WallTile[], place: string, day: number, max 
   const want = place.trim().toLowerCase();
   const near = (t: WallTile) => !!want && !!t.region && (t.region.toLowerCase().includes(want) || want.includes(t.region.toLowerCase()));
   const anywhere = (t: WallTile) => !t.region || /^online$|^everywhere$/i.test(t.region);
-  const pool = want ? tiles.filter((t) => near(t) || anywhere(t)) : tiles.slice();
+  const sponsors = tiles.filter((t) => t.kind !== 'supporter');   // supporter tiles are never shown as sponsors
+  const pool = want ? sponsors.filter((t) => near(t) || anywhere(t)) : sponsors.slice();
   pool.sort((a, b) => Number(near(b)) - Number(near(a)) || a.id.localeCompare(b.id));
   const head = pool.filter(near), rest = pool.filter((t) => !near(t));
   const rot = <T,>(a: T[]) => (a.length ? a.map((_, i) => a[(i + day) % a.length]) : a);

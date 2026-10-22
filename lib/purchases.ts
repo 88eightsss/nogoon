@@ -30,6 +30,7 @@
 //    actual purchases won't process until you build with EAS.
 
 import type {
+  RCProduct,
   RCCustomerInfo,
   RCOfferings,
   RCPackage,
@@ -67,11 +68,16 @@ let Purchases: {
   getOfferings: () => Promise<RCOfferings>;
   purchasePackage: (pkg: RCPackage) => Promise<RCPurchaseResult>;
   restorePurchases: () => Promise<RCCustomerInfo>;
+  getProducts: (ids: string[], type?: string) => Promise<RCProduct[]>;
+  purchaseStoreProduct: (product: RCProduct) => Promise<unknown>;
 } | null = null;
+let PURCHASE_TYPE_INAPP = 'inapp';
 
 try {
   // This import will succeed in a proper EAS build but fail in Expo Go
-  Purchases = require('react-native-purchases').default;
+  const mod = require('react-native-purchases');
+  Purchases = mod.default;
+  PURCHASE_TYPE_INAPP = mod.PURCHASE_TYPE?.INAPP ?? 'inapp';
 } catch {
   // Expected in Expo Go — silently skip
   console.log('[Purchases] react-native-purchases not available (Expo Go)');
@@ -157,5 +163,29 @@ export async function restorePurchases(): Promise<boolean> {
     return info.entitlements.active['nogoon_pro'] !== undefined;
   } catch {
     return false;
+  }
+}
+
+// ─── One-time (consumable) products ─────────────────────────────────────────── //
+// Used by the Wall's supporter tile. Returns the product with its real local price (for the button), or null.
+export async function getOneTimeProduct(productId: string): Promise<RCProduct | null> {
+  if (!Purchases) return null;
+  try {
+    const list = await Purchases.getProducts([productId], PURCHASE_TYPE_INAPP);
+    return list.find((p) => p.identifier === productId) ?? list[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Opens the Google Play sheet for a one-time product. 'paid' once Play confirms, 'cancelled' if the person backed out. */
+export async function buyOneTimeProduct(product: RCProduct): Promise<'paid' | 'cancelled'> {
+  if (!Purchases) throw new Error('Payments are not available in this build.');
+  try {
+    await Purchases.purchaseStoreProduct(product);
+    return 'paid';
+  } catch (e: unknown) {
+    if (e && typeof e === 'object' && 'userCancelled' in e && (e as { userCancelled: boolean }).userCancelled) return 'cancelled';
+    throw e;
   }
 }

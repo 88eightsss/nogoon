@@ -31,6 +31,7 @@ const USER_TABLES: { table: string; column: string }[] = [
   { table: 'blocklist', column: 'user_id' },
   { table: 'game_sessions', column: 'user_id' },
   { table: 'journal_entries', column: 'user_id' },
+  { table: 'wall_supporters', column: 'user_id' },
   { table: 'profiles', column: 'id' },
 ];
 
@@ -57,6 +58,11 @@ serve(async (req: Request) => {
     const { data: userData, error: userError } = await admin.auth.getUser(token);
     if (userError || !userData?.user) return json({ error: 'Invalid session' }, 401);
     const userId = userData.user.id;
+
+    // 0. Supporter tile pictures live in storage, which the row delete below does not touch.
+    const { data: pics } = await admin.from('wall_supporters').select('image_path').eq('user_id', userId);
+    const picPaths = (pics ?? []).map((p: { image_path: string | null }) => p.image_path).filter((p: string | null): p is string => !!p);
+    if (picPaths.length) await admin.storage.from('wall-supporters').remove(picPaths);
 
     // 1. Delete the user's rows. Errors on a missing table are ignored; any other
     //    failure stops the deletion so we never leave an orphaned half-account.

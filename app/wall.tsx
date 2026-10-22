@@ -15,7 +15,8 @@ import { FONTS } from '@/constants/Colors';
 import { ConstructionSign } from '@/components/ui/Construction';
 import { UNDER_CONSTRUCTION } from '@/constants/construction';
 import { SPACING } from '@/constants/Spacing';
-import { ADVERTISE_URL, WALL_CATEGORY_LABELS } from '@/constants/wall';
+import { ADVERTISE_URL, WALL_CATEGORY_LABELS, SUPPORTERS_ENABLED, SUPPORTER_PRICE_FALLBACK } from '@/constants/wall';
+import { reportSupporterTile } from '@/lib/supporter';
 import { getWall, reportTile, tapTile, inkOn, type WallTile, type WallStats } from '@/lib/wall';
 
 const CELL = 28;
@@ -49,7 +50,9 @@ export default function WallScreen() {
     try { await Linking.openURL(t.url); } catch { /* no browser available */ }
   };
   const report = async (t: WallTile) => {
-    setReported(await reportTile(t.id, 'Reported from the app'));
+    setReported(t.kind === 'supporter'
+      ? await reportSupporterTile(t.id, 'Reported from the app')
+      : await reportTile(t.id, 'Reported from the app'));
   };
 
   return (
@@ -70,11 +73,11 @@ export default function WallScreen() {
 
       <View style={styles.intro}>
         <Text style={[styles.sub, { color: colors.textSecondary }]}>
-          Sponsored. Local businesses and makers who paid for a tile. It never shows up when you are tempted, and nothing here follows you.
+          Sponsored tiles are local businesses and makers who paid for a spot. Small picture tiles are from supporters who chipped in. It never shows up when you are tempted, and nothing here follows you.
         </Text>
         {stats ? (
           <Text style={[styles.meta, { color: colors.textMuted }]}>
-            {stats.sold.toLocaleString()} of {stats.total.toLocaleString()} tiles taken
+            {stats.sold.toLocaleString()} sponsor tiles{stats.supporters ? ` · ${stats.supporters.toLocaleString()} supporters` : ''} · {stats.total.toLocaleString()} tiles in all
           </Text>
         ) : null}
       </View>
@@ -108,13 +111,13 @@ export default function WallScreen() {
                     key={t.id}
                     onPress={() => { setReported(false); setOpen(t); }}
                     accessibilityRole="button"
-                    accessibilityLabel={`Sponsored: ${t.company}`}
-                    style={[styles.tile, { left: t.x * CELL + 1, top: t.y * CELL + 1, width: t.w * CELL - 2, height: t.h * CELL - 2, backgroundColor: t.color }]}
+                    accessibilityLabel={t.kind === 'supporter' ? 'A supporter tile' : `Sponsored: ${t.company}`}
+                    style={[styles.tile, { left: t.x * CELL + 1, top: t.y * CELL + 1, width: t.w * CELL - 2, height: t.h * CELL - 2, backgroundColor: t.color }, t.kind === 'supporter' && { padding: 0, overflow: 'hidden', borderRadius: 6 }]}
                   >
                     {t.image_url && !badImg.has(t.id) ? (
                       <Image
                         source={{ uri: t.image_url }}
-                        resizeMode="contain"
+                        resizeMode={t.kind === 'supporter' ? 'cover' : 'contain'}
                         accessibilityIgnoresInvertColors
                         onError={() => setBadImg((p) => new Set(p).add(t.id))}
                         style={StyleSheet.absoluteFill}
@@ -130,6 +133,15 @@ export default function WallScreen() {
             </ScrollView>
           </ScrollView>
 
+          {SUPPORTERS_ENABLED ? (
+            <Pressable
+              onPress={() => router.push('/supporter' as any)}
+              style={[styles.advertise, { borderColor: colors.accent, backgroundColor: colors.accentDim }]}
+              accessibilityRole="button"
+            >
+              <Text style={[styles.advertiseText, { color: colors.accent }]}>Become a supporter · {SUPPORTER_PRICE_FALLBACK}</Text>
+            </Pressable>
+          ) : null}
           {ADVERTISE_URL ? (
             <Pressable
               onPress={() => Linking.openURL(ADVERTISE_URL).catch(() => {})}
@@ -149,15 +161,24 @@ export default function WallScreen() {
               <>
                 <View style={[styles.chip, { backgroundColor: colors.surfaceHigh }]}>
                   <Text style={[styles.chipText, { color: colors.textMuted }]}>
-                    Sponsored · {WALL_CATEGORY_LABELS[open.category] ?? 'Sponsor'}
+                    {open.kind === 'supporter' ? 'Supporter' : `Sponsored · ${WALL_CATEGORY_LABELS[open.category] ?? 'Sponsor'}`}
                   </Text>
                 </View>
-                <Text style={[styles.sheetTitle, { color: colors.text }]}>{open.company}</Text>
-                {open.headline ? <Text style={[styles.sub, { color: colors.textSecondary }]}>{open.headline}</Text> : null}
-                <Pressable onPress={() => visit(open)} style={[styles.visit, { backgroundColor: colors.accent }]} accessibilityRole="link">
-                  <Text style={[styles.visitText, { color: colors.background }]}>Visit site</Text>
-                </Pressable>
-                <Text style={[styles.meta, { color: colors.textMuted }]}>Opens in your browser. NoGoon has no say in what is on the other side.</Text>
+                {open.kind === 'supporter' ? (
+                  <>
+                    {open.image_url ? <Image source={{ uri: open.image_url }} style={{ width: 120, height: 120, borderRadius: 14 }} accessibilityIgnoresInvertColors /> : null}
+                    <Text style={[styles.sub, { color: colors.textSecondary }]}>Someone who chipped in to help NoGoon grow. Thank you.</Text>
+                  </>
+                ) : (
+                  <>
+                    <Text style={[styles.sheetTitle, { color: colors.text }]}>{open.company}</Text>
+                    {open.headline ? <Text style={[styles.sub, { color: colors.textSecondary }]}>{open.headline}</Text> : null}
+                    <Pressable onPress={() => visit(open)} style={[styles.visit, { backgroundColor: colors.accent }]} accessibilityRole="link">
+                      <Text style={[styles.visitText, { color: colors.background }]}>Visit site</Text>
+                    </Pressable>
+                    <Text style={[styles.meta, { color: colors.textMuted }]}>Opens in your browser. NoGoon has no say in what is on the other side.</Text>
+                  </>
+                )}
                 <Pressable onPress={() => report(open)} disabled={reported} hitSlop={8}>
                   <Text style={[styles.meta, { color: colors.textMuted, textDecorationLine: 'underline' }]}>
                     {reported ? 'Thanks. We will take a look.' : 'Report this tile'}

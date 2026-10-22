@@ -24,5 +24,11 @@ if ($LASTEXITCODE -ne 0) { Write-Host "     (deploy reported exit code $LASTEXIT
 npx --yes supabase@2.109.1 functions deploy place-search --project-ref $ref
 if ($LASTEXITCODE -ne 0) { Write-Host "     (deploy reported exit code $LASTEXITCODE. If it said 'Deployed Functions', carry on.)" }
 
+npx --yes supabase@2.109.1 functions deploy supporter --project-ref $ref
+if ($LASTEXITCODE -ne 0) { Write-Host "     (deploy reported exit code $LASTEXITCODE. If it said 'Deployed Functions', carry on.)" }
+
+npx --yes supabase@2.109.1 functions deploy supporter-webhook --project-ref $ref --no-verify-jwt
+if ($LASTEXITCODE -ne 0) { Write-Host "     (deploy reported exit code $LASTEXITCODE. If it said 'Deployed Functions', carry on.)" }
+
 Write-Host "`n3/3  Refreshing the schedule and running the briefing"
 & "$PSScriptRoot\feed-go.ps1" -SkipKey

@@ -80,6 +80,10 @@ npx --yes supabase@2.109.1 functions deploy wall-webhook --project-ref $ref --no
 Check 'deploy wall-webhook'
 npx --yes supabase@2.109.1 functions deploy place-search --project-ref $ref
 Check 'deploy place-search'
+npx --yes supabase@2.109.1 functions deploy supporter --project-ref $ref
+Check 'deploy supporter'
+npx --yes supabase@2.109.1 functions deploy supporter-webhook --project-ref $ref --no-verify-jwt
+Check 'deploy supporter-webhook'
 
 Write-Host "`n     Deployed functions on the project (feed-daily, events-draft, wall, wall-webhook should all be listed):"
 npx --yes supabase@2.109.1 functions list --project-ref $ref
