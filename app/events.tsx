@@ -62,6 +62,19 @@ export default function EventsScreen() {
   const kinds = useMemo(() => Array.from(new Set((events ?? []).map((e) => e.kind))), [events]);
   const list = (events ?? []).filter((e) => (region === 'All' || e.region === region) && (kind === 'all' || e.kind === kind));
 
+  // Grouped like a feed: what is on in the next 7 days, what is coming up, and the things that happen every week.
+  const groups = useMemo(() => {
+    const now = Date.now();
+    const week = now + 7 * 86400000;
+    const dated = list.filter((e) => !e.recurring);
+    const soon = dated.filter((e) => e.starts_at && Date.parse(e.starts_at) < week);
+    return [
+      { title: 'This week', items: soon },
+      { title: 'Coming up', items: dated.filter((e) => !soon.includes(e)) },
+      { title: 'Every week', items: list.filter((e) => e.recurring) },
+    ].filter((g) => g.items.length > 0);
+  }, [list]);
+
   const chip = (label: string, on: boolean, press: () => void) => (
     <Pressable
       key={label} onPress={press} accessibilityRole="button" accessibilityState={{ selected: on }}
@@ -85,7 +98,7 @@ export default function EventsScreen() {
           <ConstructionSign note="We are still adding events by hand, so your area may be empty for now. Check back soon." />
         )}
         <Text style={[styles.body, { color: colors.textSecondary }]}>
-          The point of cutting back is more life. Here is what is on in your community, with a link to the organiser for every one.
+          The point of cutting back is more life. Here is what is on in your community, refreshed twice a week, with a link to the source for every one.
         </Text>
 
         {events === null ? (
@@ -102,12 +115,21 @@ export default function EventsScreen() {
 
             {list.length === 0 ? (
               <Text style={[styles.body, { color: colors.textMuted, textAlign: 'center' }]}>Nothing listed for that yet.</Text>
-            ) : list.map((e) => (
+            ) : groups.flatMap((g) => [
+              <Text key={`h-${g.title}`} style={[styles.section, { color: colors.textMuted }]}>{g.title}</Text>,
+              ...g.items.map((e) => (
               <View key={e.id} style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
                 <View style={styles.cardTop}>
-                  <View style={[styles.icon, { backgroundColor: colors.accentDim }]}>
-                    <Feather name={KIND_ICON[e.kind]} size={18} color={colors.accent} />
-                  </View>
+                  {!e.recurring && e.starts_at ? (
+                    <View style={[styles.icon, { backgroundColor: colors.accentDim }]} accessible={false}>
+                      <Text style={[styles.tileDay, { color: colors.accent }]}>{new Date(e.starts_at).toLocaleDateString(undefined, { weekday: 'short' }).toUpperCase()}</Text>
+                      <Text style={[styles.tileNum, { color: colors.accent }]}>{new Date(e.starts_at).getDate()}</Text>
+                    </View>
+                  ) : (
+                    <View style={[styles.icon, { backgroundColor: colors.accentDim }]}>
+                      <Feather name={KIND_ICON[e.kind]} size={18} color={colors.accent} />
+                    </View>
+                  )}
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.cardTitle, { color: colors.text }]}>{e.title}</Text>
                     <Text style={[styles.meta, { color: colors.textSecondary }]}>
@@ -128,7 +150,8 @@ export default function EventsScreen() {
                   </Pressable>
                 </View>
               </View>
-            ))}
+              )),
+            ])}
           </>
         ) : (
           <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
@@ -166,7 +189,7 @@ export default function EventsScreen() {
         ))}
 
         <Text style={[styles.meta, { color: colors.textMuted, textAlign: 'center', marginTop: SPACING.sm }]}>
-          Listings come from the organisers' own pages and are checked by hand. Details can change, so check the link before you go.
+          Listings are gathered automatically each week from local news and organisers' pages, and every one links to its source. Details can change or be wrong, so check the link before you go.
         </Text>
       </ScrollView>
     </SafeAreaView>
@@ -182,7 +205,9 @@ const styles = StyleSheet.create({
   chipText: { fontFamily: FONTS.bodyMedium, fontSize: 13 },
   card: { padding: SPACING.md, gap: SPACING.sm },
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
-  icon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  icon: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  tileDay: { fontFamily: FONTS.mono, fontSize: 9, letterSpacing: 0.8, lineHeight: 11 },
+  tileNum: { fontFamily: FONTS.display, fontSize: 17, lineHeight: 19 },
   cardTitle: { fontFamily: FONTS.bodyBold, fontSize: 15 },
   meta: { fontFamily: FONTS.body, fontSize: 12.5, lineHeight: 17 },
   cost: { paddingVertical: 3, paddingHorizontal: 9, borderRadius: 999 },

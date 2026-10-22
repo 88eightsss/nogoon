@@ -28,7 +28,7 @@ select cron.schedule('feed-daily', '0 14 * * *',
          url := 'https://$ref.supabase.co/functions/v1/feed-daily',
          headers := jsonb_build_object('x-cron-secret', '$cron')
        ); `$`$);
-select cron.schedule('events-draft', '0 13 * * 1',
+select cron.schedule('events-draft', '0 13 * * 1,4',
   `$`$ select net.http_post(
          url := 'https://$ref.supabase.co/functions/v1/events-draft',
          headers := jsonb_build_object('x-cron-secret', '$cron')
@@ -51,4 +51,14 @@ try {
 } catch {
   Write-Host "feed-daily failed: $($_.Exception.Message)"
   Write-Host "Open Supabase > Edge Functions > feed-daily > Logs and send me the newest red line."
+}
+
+Write-Host "`nReading local news and event pages (can take a minute or two)"
+try {
+  $e = Invoke-RestMethod -Method Post -Uri "https://$ref.supabase.co/functions/v1/events-draft" -Headers @{ 'x-cron-secret' = $cron } -TimeoutSec 175
+  Write-Host "events-draft answered (number = events found, or the reason a source failed):"
+  $e.drafted.PSObject.Properties | ForEach-Object { Write-Host "  $($_.Name): $($_.Value)" }
+} catch {
+  Write-Host "events-draft failed: $($_.Exception.Message)"
+  Write-Host "Open Supabase > Edge Functions > events-draft > Logs and send me the newest red line."
 }

@@ -92,7 +92,7 @@ select cron.schedule('feed-daily', '0 14 * * *',
          url := 'https://$ref.supabase.co/functions/v1/feed-daily',
          headers := jsonb_build_object('x-cron-secret', '$cron')
        ); `$`$);
-select cron.schedule('events-draft', '0 13 * * 1',
+select cron.schedule('events-draft', '0 13 * * 1,4',
   `$`$ select net.http_post(
          url := 'https://$ref.supabase.co/functions/v1/events-draft',
          headers := jsonb_build_object('x-cron-secret', '$cron')
