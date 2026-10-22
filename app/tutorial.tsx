@@ -67,10 +67,10 @@ export const CHAPTERS: Chapter[] = [
     ],
   },
   {
-    id: 'briefing', title: 'Briefing and near you', blurb: 'Good news with an ending, and real things to do', icon: 'sun', tone: 'accent',
+    id: 'briefing', title: 'Briefing and Local', blurb: 'Good news with an ending, and real things to do', icon: 'sun', tone: 'accent',
     steps: [
       { title: 'A feed that ends', body: 'The Briefing is good news and what the world is curious about. Choose Up to 20 stories (then it ends) or Endless.', demo: 'briefing' },
-      { title: 'Happening near you', body: 'Farmers markets, volunteering and community events, checked by hand, each linking to the organiser. A reason to go outside.', demo: 'nearby' },
+      { title: 'Happening near you', body: 'In the Local tab, pick your place and see farmers markets, volunteering and community events, each linking to its source. They are gathered automatically, so check the link before you go.', demo: 'nearby' },
     ],
   },
   {

@@ -4,7 +4,8 @@
 // not just during a gate intercept. Accessible from the Home screen.
 //
 // Flow:
-//   Pick phase → choose BreathRhythm or GroundingExercise
+//   Pick phase → "Guide me" (Breathe, then Ground, then the Waiting Room urge timer, about 3 minutes),
+//                or choose Breathe, Ground Yourself or Sit with the urge (Waiting Room) on its own
 //   Playing phase → game runs full-screen
 //   Done phase → brief "well done" message → goes back
 
@@ -28,16 +29,23 @@ const OPTIONS = [
   {
     id:      'breathing' as const,
     emoji:   'droplet',
-    title:   'Breathing',
+    title:   'Breathe',
     sub:     'Hold to breathe in, let go to breathe out · 1 minute',
     color:   '#4ecdc4', // teal accent, matches breathing exercise
   },
   {
     id:      'grounding' as const,
     emoji:   'feather',
-    title:   'Grounding',
-    sub:     'Type what you notice · anchors you here',
+    title:   'Ground Yourself',
+    sub:     'Type what you notice · anchors you here · 2 minutes',
     color:   '#2E7D32', // forest green accent, matches grounding exercise
+  },
+  {
+    id:      'waiting' as const,
+    emoji:   'clock',
+    title:   'Sit with the urge',
+    sub:     'Watch it rise and pass on its own · the Waiting Room',
+    color:   '#0277BD',
   },
 ];
 
@@ -48,6 +56,8 @@ export default function BreatheScreen() {
     mode === 'breathing' ? 'breathing' :
     'pick'
   );
+  // True while running "Guide me": Breathe, then Ground, then the Waiting Room.
+  const [guided, setGuided] = useState(false);
   const C = useThemedColors();
   const insets = useSafeAreaInsets();
 
@@ -94,7 +104,7 @@ export default function BreatheScreen() {
   if (phase === 'breathing') {
     return (
       <View style={styles.flex}>
-        <BreathRhythm onComplete={() => setPhase('done')} />
+        <BreathRhythm onComplete={() => setPhase(guided ? 'grounding' : 'done')} />
         {closeButton}
       </View>
     );
@@ -102,7 +112,7 @@ export default function BreatheScreen() {
   if (phase === 'grounding') {
     return (
       <View style={styles.flex}>
-        <GroundingExercise onComplete={() => setPhase('done')} />
+        <GroundingExercise onComplete={() => (guided ? router.replace('/waiting-room' as any) : setPhase('done'))} />
         {closeButton}
       </View>
     );
@@ -125,6 +135,28 @@ export default function BreatheScreen() {
           Pick what sounds right.
         </Text>
 
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Guide me. Breathe, then ground yourself, then sit with the urge. About 3 minutes."
+          style={({ pressed }) => [
+            styles.optionCard,
+            { backgroundColor: pressed ? C.surfaceHigh : C.surface, borderColor: C.cyan + '88', marginBottom: SPACING.md },
+          ]}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setGuided(true);
+            setPhase('breathing');
+          }}
+        >
+          <View style={{ width: 40, alignItems: 'center' }}><Feather name="navigation" size={26} color={C.cyan} /></View>
+          <View style={styles.optionText}>
+            <Text style={[styles.optionTitle, { color: C.textPrimary }]}>Guide me</Text>
+            <Text style={[styles.optionSub, { color: C.textSecondary }]}>Breathe, then ground, then sit with the urge · about 3 minutes</Text>
+          </View>
+          <Feather name="chevron-right" size={18} color={C.cyan} />
+        </Pressable>
+
+        <Text style={[styles.subheading, { color: C.textMuted, marginBottom: SPACING.sm }]}>Or pick one</Text>
         <View style={styles.options}>
           {OPTIONS.map((opt) => (
             <Pressable
@@ -138,6 +170,8 @@ export default function BreatheScreen() {
               ]}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                if (opt.id === 'waiting') { router.replace('/waiting-room' as any); return; }
+                setGuided(false);
                 setPhase(opt.id);
               }}
             >

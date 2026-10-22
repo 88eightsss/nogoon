@@ -1,9 +1,9 @@
 // ─── Unwind Tab (the Calm route) ──────────────────────────────────────────────
 //
-// The "do something better than scroll" hub. Three groups, each row opens its own screen:
-//   Right now   Breathe, Waiting Room, Ground Yourself (urge tools)
-//   Play        Games (the Arcade, kept as its own route)
-//   Get it out  Journal, Brain Bubbles, Dead Reckoning, Insights
+// The "do something better than scroll" hub, laid out like a remote control:
+//   One big "I need a minute" button → /breathe (Guide me, or Breathe, Ground, Sit with the urge)
+//   Six square buttons, two per row: blue (Journal, Brain Bubbles, Dead Reckoning) first,
+//   then orange (Walk, Games, Beyond the screen). "What helps first = Game" puts the orange ones first.
 // plus the nightly pre-commitment ritual at the bottom.
 // No stats, no scores — just things that help.
 //
@@ -11,141 +11,73 @@
 // "Set tonight's rule" → stored in useUserStore.nightlyCommitment
 // and surfaced on the gate calm screen the following day.
 
-import { ScrollView, View, Text, Pressable, StyleSheet, Alert, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { ScrollView, View, Text, Pressable, StyleSheet, TextInput, KeyboardAvoidingView, Platform, useWindowDimensions } from 'react-native';
 import { useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import type { Href } from 'expo-router';
 import { FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { TYPE } from '@/constants/Typography';
 import { useTheme } from '@/hooks/useTheme';
-import { readableOn } from '@/utils/colorLuminance';
+import { readableOn, isLightColor } from '@/utils/colorLuminance';
 import { useUserStore } from '@/stores/useUserStore';
 import { PageGuide } from '@/components/PageGuide';
-import { useUnlockedFeatures, lockHint } from '@/stores/useProgressStore';
 import { useRoomStore } from '@/stores/useRoomStore';
-import { UNWIND_GROUP_ORDER, type UnwindGroupId } from '@/constants/setupQuestions';
 
-type Group = UnwindGroupId;
-
-type Tool = {
+type Tile = {
   id: string;
-  group: Group;
-  icon: React.ComponentProps<typeof Feather>['name'];
-  iconColor: string;
   title: string;
-  subtitle: string;
+  hint: string;
   route: Href;
+  /** Feather glyph, or the solid footprints icon. */
+  icon: React.ComponentProps<typeof Feather>['name'] | 'footsteps';
 };
 
-const TOOLS: Tool[] = [
-  {
-    id:        'breathe',
-    group:     'now',
-    icon:      'wind',
-    iconColor: '#4d8bff',
-    title:     'Breathe',
-    subtitle:  'Hold the orb to breathe in, let go to breathe out · 1 min',
-    route:     '/breathe',
-  },
-  {
-    id:        'waitingroom',
-    group:     'now',
-    icon:      'clock',
-    iconColor: '#0277BD',
-    title:     'Waiting Room',
-    subtitle:  'Sit with the urge · watch it pass on its own',
-    route:     '/waiting-room',
-  },
-  {
-    id:        'ground',
-    group:     'now',
-    icon:      'anchor',
-    iconColor: '#2E7D32',
-    title:     'Ground Yourself',
-    subtitle:  '5-4-3-2-1 · anchor to the present moment',
-    route:     { pathname: '/breathe', params: { mode: 'grounding' } },
-  },
-  {
-    id:        'walk',
-    group:     'play',
-    icon:      'activity',
-    iconColor: '#16a34a',
-    title:     'Take your pal for a walk',
-    subtitle:  'Count your steps · your companion trots along',
-    route:     '/walk',
-  },
-  {
-    id:        'games',
-    group:     'play',
-    icon:      'zap',
-    iconColor: '#7c3aed',
-    title:     'Games',
-    subtitle:  'Quick and calm · give your hands something to do',
-    route:     '/(tabs)/arcade' as Href,
-  },
-  {
-    id:        'journal',
-    group:     'out',
-    icon:      'book-open',
-    iconColor: '#0277BD',
-    title:     'Journal',
-    subtitle:  'Colourful pages, stickers and doodles · plus thought bubbles to empty your head',
-    route:     '/journal' as Href,
-  },
-  {
-    id:        'deadreckoning',
-    group:     'out',
-    icon:      'compass',
-    iconColor: '#7c3aed',
-    title:     'Dead Reckoning',
-    subtitle:  'Guess your urges today, then see the real number',
-    route:     '/dead-reckoning',
-  },
-  {
-    id:        'elsewhere',
-    group:     'play',
-    icon:      'map-pin',
-    iconColor: '#12A37F',
-    title:     'Beyond the screen',
-    subtitle:  'Calmer places online · things to do near you',
-    route:     '/elsewhere' as Href,
-  },
+// Blue = get it out. Orange = do something else.
+const BLUE_TILES: Tile[] = [
+  { id: 'journal',       title: 'Journal',        hint: 'Write it down',            icon: 'book-open', route: '/journal' as Href },
+  { id: 'bubbles',       title: 'Brain Bubbles',  hint: 'Pop a thought',            icon: 'circle',    route: '/bubbles' as Href },
+  { id: 'deadreckoning', title: 'Dead Reckoning', hint: 'Where did the time go',    icon: 'trending-up', route: '/dead-reckoning' as Href },
+];
+const ORANGE_TILES: Tile[] = [
+  { id: 'walk',      title: 'Walk',              hint: 'Count your steps with your pal', icon: 'footsteps', route: '/walk' as Href },
+  { id: 'games',     title: 'Games',             hint: 'Quick, calm, no pressure',        icon: 'zap',       route: '/(tabs)/arcade' as Href },
+  { id: 'elsewhere', title: 'Beyond the screen', hint: 'Calmer apps and things near you', icon: 'map-pin',   route: '/elsewhere' as Href },
 ];
 
-function ToolRow({ tool }: { tool: Tool }) {
+function TileGrid({ tiles, tint }: { tiles: Tile[]; tint: string }) {
   const { colors } = useTheme();
-  const { unlocked } = useUnlockedFeatures();
-  // Insights is gated behind walk-aways everywhere else (Me tab); keep Calm consistent.
-  const locked = tool.id === 'insights' && !unlocked.has('insights');
+  const { width } = useWindowDimensions();
+  const GAP = 10;
+  const side = Math.floor((width - SPACING.md * 2 - GAP) / 2);
+  const ink = readableOn(tint, colors.background, 4.5);
   return (
-    <Pressable
-      style={({ pressed }) => [styles.row, pressed && { backgroundColor: colors.surfaceHigh }]}
-      onPress={() => {
-        if (locked) { Alert.alert('Still locked', lockHint('insights')); return; }
-        router.push(tool.route);
-      }}
-      android_ripple={{ color: colors.border }}
-    >
-      <View style={[styles.iconWrap, { backgroundColor: tool.iconColor + '18' }]}>
-        <Feather name={tool.icon} size={20} color={tool.iconColor} />
-      </View>
-      <View style={styles.rowText}>
-        <Text style={[styles.rowTitle, { color: colors.text }]}>{tool.title}</Text>
-        <Text style={[styles.rowSub, { color: colors.textSecondary }]}>{locked ? lockHint('insights') : tool.subtitle}</Text>
-      </View>
-      <Feather name={locked ? 'lock' : 'chevron-right'} size={18} color={colors.textMuted} />
-    </Pressable>
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GAP }}>
+      {tiles.map((t) => (
+        <Pressable
+          key={t.id}
+          onPress={() => router.push(t.route)}
+          accessibilityRole="button"
+          accessibilityLabel={`${t.title}. ${t.hint}`}
+          android_ripple={{ color: tint + '33' }}
+          style={({ pressed }) => [
+            styles.tile,
+            { width: side, height: side, backgroundColor: tint + (pressed ? '2E' : '1F'), borderColor: tint + '4D' },
+          ]}
+        >
+          <View style={[styles.tileChip, { backgroundColor: colors.surface }]}>
+            {t.icon === 'footsteps'
+              ? <Ionicons name="footsteps" size={30} color={ink} />
+              : <Feather name={t.icon} size={28} color={ink} />}
+          </View>
+          <Text style={[styles.tileTitle, { color: colors.text }]} numberOfLines={2}>{t.title}</Text>
+        </Pressable>
+      ))}
+    </View>
   );
 }
-
-const GROUPS: { id: Group; title: string; hint?: string }[] = [
-  { id: 'now',  title: 'Right now',  hint: 'Urges peak and fade. Give one of these 2 minutes.' },
-  { id: 'play', title: 'Do something else' },
-  { id: 'out',  title: 'Get it out' },
-];
 
 function SectionLabel({ title, hint }: { title: string; hint?: string }) {
   const { colors } = useTheme();
@@ -257,11 +189,25 @@ function NightlyCommitmentCard() {
 
 export default function CalmScreen() {
   const { colors } = useTheme();
-  // "What helps first" (setup questions / Customize) only reorders the groups.
+  // "What helps first" (setup questions / Customize): Game puts the orange "do something else" tiles first.
   const helpFirst = useRoomStore((s) => s.helpFirst);
-  const groups = UNWIND_GROUP_ORDER[helpFirst]
-    .map((id) => GROUPS.find((g) => g.id === id))
-    .filter((g): g is (typeof GROUPS)[number] => !!g);
+  const orangeFirst = helpFirst === 'game';
+  const blue = colors.me;
+  const orange = colors.calm;
+  const heroInk = isLightColor(colors.protect) ? '#10201F' : '#FFFFFF';
+
+  const blueBlock = (
+    <View key="blue" style={{ gap: SPACING.sm }}>
+      <SectionLabel title="Get it out" />
+      <TileGrid tiles={BLUE_TILES} tint={blue} />
+    </View>
+  );
+  const orangeBlock = (
+    <View key="orange" style={{ gap: SPACING.sm }}>
+      <SectionLabel title="Do something else" />
+      <TileGrid tiles={ORANGE_TILES} tint={orange} />
+    </View>
+  );
 
   return (
     <>
@@ -276,26 +222,28 @@ export default function CalmScreen() {
         <View style={styles.header}>
           <Text style={[styles.headerTitle, { color: colors.text }]}>Unwind</Text>
           <Text style={[styles.headerSub, { color: colors.textSecondary }]}>
-            Something better to do than scroll. Pick one and give it 2 minutes.
+            Pick a button. No scores, just help.
           </Text>
         </View>
 
-        {groups.map((g) => {
-          const tools = TOOLS.filter((t) => t.group === g.id);
-          return (
-            <View key={g.id}>
-              <SectionLabel title={g.title} hint={g.hint} />
-              <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                {tools.map((tool, i) => (
-                  <View key={tool.id}>
-                    <ToolRow tool={tool} />
-                    {i < tools.length - 1 && <View style={[styles.divider, { backgroundColor: colors.border }]} />}
-                  </View>
-                ))}
-              </View>
-            </View>
-          );
-        })}
+        {/* The one big button */}
+        <Pressable
+          onPress={() => router.push('/breathe' as Href)}
+          accessibilityRole="button"
+          accessibilityLabel="I need a minute. Breathe, ground yourself, or sit with the urge."
+          android_ripple={{ color: '#FFFFFF33' }}
+          style={({ pressed }) => [styles.hero, { backgroundColor: colors.protect, opacity: pressed ? 0.9 : 1 }]}
+        >
+          <View style={[styles.heroChip, { backgroundColor: heroInk === '#FFFFFF' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.12)' }]}>
+            <Feather name="wind" size={30} color={heroInk} />
+          </View>
+          <View style={{ flex: 1, gap: 3 }}>
+            <Text style={[styles.heroTitle, { color: heroInk }]}>I need a minute</Text>
+            <Text style={[styles.heroSub, { color: heroInk }]}>Breathe, ground yourself, or sit with the urge</Text>
+          </View>
+        </Pressable>
+
+        {orangeFirst ? [orangeBlock, blueBlock] : [blueBlock, orangeBlock]}
 
         {/* Nightly commitment */}
         <SectionLabel title="Tonight" />
@@ -320,8 +268,8 @@ export default function CalmScreen() {
       hint="Something better to do than scroll"
       subtitle="Urge tools, quick games, and places to put your thoughts. No scores, just help."
       points={[
-        { icon: 'wind',      title: 'Right now',         body: 'Breathe, ground yourself or sit it out. Under 2 minutes.' },
-        { icon: 'zap',       title: 'Play',              body: 'Quick, calm games when your hands need something to do.' },
+        { icon: 'wind',      title: 'I need a minute',   body: 'One big button. Be guided through breathing, grounding and the urge timer, or pick one.' },
+        { icon: 'zap',       title: 'Square buttons',    body: 'Blue ones help you get it out. Orange ones give you something else to do.' },
         { icon: 'moon',      title: "Tonight's rule",    body: 'A nightly commitment that shows up if you hit a block.' },
       ]}
     />
@@ -330,6 +278,16 @@ export default function CalmScreen() {
 }
 
 const styles = StyleSheet.create({
+  hero: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.md,
+    minHeight: 104, paddingHorizontal: 18, paddingVertical: 16, borderRadius: 22,
+  },
+  heroChip: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
+  heroTitle: { fontFamily: FONTS.display, fontSize: 22, lineHeight: 26 },
+  heroSub: { fontFamily: FONTS.body, fontSize: 14, lineHeight: 19, opacity: 0.92 },
+  tile: { borderRadius: 20, borderWidth: 1, alignItems: 'center', justifyContent: 'center', gap: 10, padding: 8 },
+  tileChip: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
+  tileTitle: { fontFamily: FONTS.bodyBold, fontSize: 15, textAlign: 'center', lineHeight: 18 },
   root: {
     flex: 1,
   },

@@ -410,13 +410,6 @@ export default function ProtectScreen() {
             )}
           </View>
 
-          {/* AI teaser */}
-          <View style={[teaserStyles.wrap, { backgroundColor: colors.accentDim }]}>
-            <Text style={[teaserStyles.text, { color: colors.accent }]}>
-              AI suggestions coming soon — it'll learn what to block based on your patterns
-            </Text>
-          </View>
-
           <View style={{ height: SPACING.xl }} />
         </ScrollView>
       </KeyboardAvoidingView>
@@ -511,18 +504,6 @@ const addStyles = StyleSheet.create({
   },
 });
 
-const teaserStyles = StyleSheet.create({
-  wrap: {
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    borderRadius: RADIUS.md,
-  },
-  text: {
-    fontFamily: FONTS.body,
-    fontSize: 12,
-    lineHeight: 18,
-  },
-});
 
 const appStyles = StyleSheet.create({
   row: {

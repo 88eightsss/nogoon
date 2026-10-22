@@ -1,7 +1,8 @@
 // ─── Tab Bar Layout ────────────────────────────────────────────────────────────
 //
-// 4-tab navigation — each tab maps to a user intent:
+// 5-tab navigation — each tab maps to a user intent:
 //   Briefing → the finite daily read (amber)
+//   Local    → Happening near you, Journal, The Wall, and the place picker (teal)
 //   Today    → daily status + focus CTA (green)
 //   Unwind   → recovery tools when struggling (amber) — breathing, grounding,
 //              waiting room, games, journal.
@@ -62,7 +63,7 @@ export default function TabsLayout() {
   const accentOverride = usePackStore((s) => s.accentOverride);
   const colors = resolveSkinPalette(themeId, themeBrightness, pack, accentOverride);
   const requestGuideReopen = useUserStore((s) => s.requestGuideReopen);
-  // The raised centre button needs an odd number of tabs; with four there is no centre slot.
+  // The raised centre button option was retired in the reorganization; Today is the centre tab.
   const raised = false;
 
   // Tab definitions use live theme colors — updates whenever theme changes.
@@ -111,8 +112,9 @@ export default function TabsLayout() {
     },
   ];
 
-  // Four tabs, one intent each —
-  //   Briefing → read the finite daily batch · Today → status + "Need a minute" ·
+  // Five tabs, one intent each —
+  //   Briefing → read the finite daily batch · Local → what is on near you, Journal, The Wall ·
+  //   Today → status + "Need a minute" ·
   //   Unwind → do something better (urge tools, games, journal) ·
   //   Me → protection (blocking), customizing, progress and account.
   // Arcade and Protect's old screen (Apps & sites) stay routes, opened from Unwind, Today, Me and the tempted sheet.
@@ -120,8 +122,12 @@ export default function TabsLayout() {
     name: 'feed', title: 'Briefing', icon: 'sunrise' as FeatherName,
     color: colors.calm, pillBg: colors.warningDim, guidePage: 'feed',
   };
-  const byName = (n: string) => [...TABS, FEED_TAB].find((x) => x.name === n)!;
-  const visible = ['feed', 'index', 'calm', 'profile'].map(byName).map((x) =>
+  const LOCAL_TAB = {
+    name: 'local', title: 'Local', icon: 'map-pin' as FeatherName,
+    color: colors.protect, pillBg: colors.protect + '22', guidePage: 'local',
+  };
+  const byName = (n: string) => [...TABS, FEED_TAB, LOCAL_TAB].find((x) => x.name === n)!;
+  const visible = ['feed', 'local', 'index', 'calm', 'profile'].map(byName).map((x) =>
     x.name === 'calm' ? { ...x, title: 'Unwind' } : x);
   const hiddenTabs = ['arcade', 'blocklist'];
 

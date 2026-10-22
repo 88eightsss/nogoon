@@ -11,6 +11,8 @@ import * as Haptics from 'expo-haptics';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
 import { useOfferStore } from '@/stores/useOfferStore';
+import { usePlaceStore } from '@/stores/usePlaceStore';
+import { regionsToShow } from '@/constants/places';
 import { PLACE_MAX, nearbyUrl, type Nearby } from '@/constants/elsewhere';
 import { getCommunityEvents, KIND_LABELS, type CommunityEvent, type EventKind } from '@/lib/events';
 import { FONTS } from '@/constants/Colors';
@@ -51,10 +53,14 @@ export default function EventsScreen() {
   }, []);
 
   const regions = useMemo(() => ['All', ...Array.from(new Set((events ?? []).map((e) => e.region))).sort()], [events]);
-  // Start on the region that matches the town they typed in Beyond the screen, if any.
+  // Start on the region for the place chosen in Local (its island), else on the town typed below.
+  const picked = usePlaceStore((s) => s.place);
   useEffect(() => {
+    if (!events) return;
+    const mine = regionsToShow(picked)[0];
+    if (mine && regions.includes(mine)) { setRegion(mine); return; }
     const p = place.trim().toLowerCase();
-    if (!p || !events) return;
+    if (!p) return;
     const hit = regions.find((r) => r !== 'All' && (p.includes(r.toLowerCase()) || r.toLowerCase().includes(p)));
     if (hit) setRegion(hit);
   }, [events]);   // eslint-disable-line react-hooks/exhaustive-deps

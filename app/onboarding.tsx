@@ -118,8 +118,8 @@ const SLIDES: { icon: FeatherName; title: string; body: string; tone: Tone }[] =
   },
   {
     icon: 'grid',
-    title: 'Four tabs,\none home',
-    body: "Briefing, Today, Unwind and Me. Your blocking settings are in Me, under Protection. Each tab has a small ? that explains it.",
+    title: 'Five tabs,\none home',
+    body: "Briefing, Local, Today, Unwind and Me. Your blocking settings are in Me, under Protection. Each tab has a small ? that explains it.",
     tone: 'me',
   },
   {

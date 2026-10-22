@@ -4,7 +4,6 @@
 //   Good news          uplifting stories
 //   What people are looking up   most-read topics (Wikipedia), described in plain words
 //   Major news         calm summaries, ONLY if the user opted in (Me > Customize)
-//   Your turn          a journal prompt, Journal, Happening near you, and The Wall
 // Length is the reader's choice (toggle at the top): "20 stories" caps the day at 20 and ends,
 // "Endless" keeps loading older stories as you scroll. Every item links to its source.
 
@@ -17,7 +16,6 @@ import { useTheme } from '@/hooks/useTheme';
 import { getTodaysBriefing, getOlderStories, type Briefing, type GoodItem } from '@/lib/dailyGood';
 import { useBriefingPrefs } from '@/stores/useBriefingPrefs';
 import { usePackStore } from '@/stores/usePackStore';
-import { useOfferStore } from '@/stores/useOfferStore';
 import { FONTS } from '@/constants/Colors';
 import { ConstructionBadge, ConstructionSign } from '@/components/ui/Construction';
 import { UNDER_CONSTRUCTION } from '@/constants/construction';
@@ -26,16 +24,6 @@ import { SPACING } from '@/constants/Spacing';
 import { getLocalDateKey } from '@/utils/date';
 
 const EMPTY_READ: string[] = [];
-const PROMPTS = [
-  "What's one thing you did instead of scrolling?",
-  'What were you really looking for the last time you reached for your phone?',
-  'Name one thing that went right today, however small.',
-  'What would you like to be doing with the time you got back?',
-  'Who could you message today who would be glad to hear from you?',
-  'What does your body need right now?',
-  'What is one thing you are proud of this week?',
-];
-const todaysPrompt = () => PROMPTS[Math.floor(Date.now() / 86400000) % PROMPTS.length];
 
 type Kind = 'good' | 'curious' | 'world';
 const KIND_ICON: Record<Kind, ComponentProps<typeof Feather>['name']> = { good: 'sun', curious: 'search', world: 'globe' };
@@ -133,7 +121,6 @@ function Section({ title, hint, items, kind }: { title: string; hint?: string; i
 }
 
 export default function FeedScreen() {
-  const showSponsors = useOfferStore((s) => s.showSponsors);
   const { colors, cardStyle } = useTheme();
   const showWorldNews = usePackStore((s) => s.showWorldNews);
   const [brief, setBrief] = useState<Briefing>({ good: [], curious: [], world: [] });
@@ -195,41 +182,6 @@ export default function FeedScreen() {
   );
   const caughtUp = total > 0 && readCount >= total;
   const dateLine = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
-
-  const yourTurn = (
-    <>
-      <Text style={[styles.section, { color: colors.textMuted }]}>Your turn</Text>
-      <Pressable
-        onPress={() => router.push('/journal' as any)}
-        style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder, minHeight: 0 }]}
-        accessibilityRole="button"
-      >
-        <Text style={[styles.headline, styles.headlineSmall, { color: colors.text }]}>{todaysPrompt()}</Text>
-        <Text style={[styles.btnText, { color: colors.accent }]}>Write it down</Text>
-      </Pressable>
-      {[
-        { icon: 'book-open' as const, label: 'Journal', body: 'Colourful pages, stickers, doodles and thought bubbles for your head. Everything stays on your phone.', go: () => router.push('/journal' as any) },
-        { icon: 'map-pin' as const,   label: 'Happening near you', body: 'Farmers markets, volunteering and community events.', go: () => router.push('/events' as any) },
-        { icon: 'grid' as const,      label: 'The Wall', body: 'Sponsored. Local businesses and makers. Only when you choose to look.', go: () => router.push('/wall' as any) },
-      ].filter((r) => showSponsors || r.label !== 'The Wall').map((r) => (
-        <Pressable
-          key={r.label}
-          onPress={r.go}
-          style={[styles.row, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
-        >
-          <Feather name={r.icon} size={20} color={colors.accent} />
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.rowTitle, { color: colors.text }]}>{r.label}</Text>
-            <Text style={[styles.rowBody, { color: colors.textSecondary }]}>{r.body}</Text>
-            {((r.label === 'The Wall' && UNDER_CONSTRUCTION.wall) || (r.label === 'Happening near you' && UNDER_CONSTRUCTION.events)) ? (
-              <View style={{ marginTop: 6 }}><ConstructionBadge /></View>
-            ) : null}
-          </View>
-          <Feather name="chevron-right" size={18} color={colors.textMuted} />
-        </Pressable>
-      ))}
-    </>
-  );
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={styles.content} onScroll={onScroll} scrollEventThrottle={200}>
@@ -316,7 +268,6 @@ export default function FeedScreen() {
         </View>
       )}
 
-      {yourTurn}
       {endless && !loading && !failed && (
         <View style={{ gap: SPACING.sm }}>
           <Text style={[styles.section, { color: colors.textMuted }]}>Earlier stories</Text>

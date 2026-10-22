@@ -15,15 +15,16 @@ import { useUserStore } from '@/stores/useUserStore';
 import { FONTS } from '@/constants/Colors';
 
 const SEEN_KEY = 'tabs';
-const TAB_COUNT = 4;
+const TAB_COUNT = 5;
 const DIM = 'rgba(0,0,0,0.72)';
 
 type Stop = { slot: number | 'help'; title: string; body: string; route?: string };
 const STOPS: Stop[] = [
-  { slot: 0, title: 'Briefing', body: 'A daily dose of good news and curiosity that actually ends. Things happening near you live here too.', route: '/(tabs)/feed' },
-  { slot: 1, title: 'Today', body: 'Home. Your companion lives here, and the big yellow button is for when a craving hits.', route: '/(tabs)' },
-  { slot: 2, title: 'Unwind', body: 'Breathe, play a quick game, ground yourself, or empty your head in the Journal.', route: '/(tabs)/calm' },
-  { slot: 3, title: 'Me', body: 'Protection lives here: pick the apps and sites to block, set Modes and schedules, and turn on Hard Mode. Your progress, customizing and settings are here too.', route: '/(tabs)/profile' },
+  { slot: 0, title: 'Briefing', body: 'A daily dose of good news and curiosity that actually ends.', route: '/(tabs)/feed' },
+  { slot: 1, title: 'Local', body: 'Pick your place, then see what is on near you: markets, volunteering and events. The Journal and The Wall live here too.', route: '/(tabs)/local' },
+  { slot: 2, title: 'Today', body: 'Home. Your companion lives here, and the big yellow button is for when a craving hits.', route: '/(tabs)' },
+  { slot: 3, title: 'Unwind', body: 'One big button for when you need a minute, plus games, a walk, the Journal and more.', route: '/(tabs)/calm' },
+  { slot: 4, title: 'Me', body: 'Protection lives here: pick the apps and sites to block, set Modes and schedules, and turn on Hard Mode. Your progress, customizing and settings are here too.', route: '/(tabs)/profile' },
   { slot: 'help', title: 'Stuck? Tap the ?', body: 'Every tab has a question mark up here that explains that screen in a few lines.' },
 ];
 
@@ -36,7 +37,7 @@ export function TabCoach() {
   const offered = useTourStore((s) => s.offered);
   const markOffered = useTourStore((s) => s.markOffered);
   const hasOnboarded = useUserStore((s) => s.hasOnboarded);
-  const raised = false; // four tabs: no raised centre button
+  const raised = false; // the raised centre button was retired
 
   const [size, setSize] = useState({ w: 0, h: 0 });
   const [step, setStep] = useState(0);
