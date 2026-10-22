@@ -12,6 +12,7 @@ import Svg, { Circle } from 'react-native-svg';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { PerkCard } from '@/components/PerkCard';
 import { useTheme } from '@/hooks/useTheme';
 import { FONTS } from '@/constants/Colors';
 import { SPACING } from '@/constants/Spacing';
@@ -405,6 +406,7 @@ export default function WalkScreen() {
                     : `${name} is full for today. Walk again tomorrow to feed them.`}
               </Text>
             </View>
+            {!inGate && <PerkCard />}
             <Pressable onPress={() => router.replace('/journal')} style={[s.btn, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.cardBorder }]} accessibilityRole="button" accessibilityLabel="Write about it">
               <Feather name="edit-3" size={18} color={colors.text} />
               <Text style={[s.btnText, { color: colors.text }]}>Write about it</Text>

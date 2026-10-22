@@ -41,7 +41,7 @@ const TEST_REWARDED_ID_ANDROID  = 'ca-app-pub-3940256099942544/5224354917';
 const REAL_REWARDED_ID_ANDROID  = 'ca-app-pub-REPLACE_ME/REPLACE_ME';
 
 // Import IS_PRODUCTION from AdBanner so there's one flag to flip
-import { IS_PRODUCTION, isAdIdConfigured } from './AdBanner';
+import { IS_PRODUCTION, ADS_ENABLED, isAdIdConfigured } from './AdBanner';
 
 const REWARDED_ID = IS_PRODUCTION ? REAL_REWARDED_ID_ANDROID : TEST_REWARDED_ID_ANDROID;
 
@@ -135,8 +135,8 @@ function AdRewardedInner({ bonusPoints, onRewarded }: Required<AdRewardedProps>)
     }
   };
 
-  // Already watched — don't show the button again
-  if (used) return null;
+  // Ads are off, or already watched — don't show the button
+  if (!ADS_ENABLED || used) return null;
 
   return (
     <View style={styles.container}>

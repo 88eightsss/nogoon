@@ -9,6 +9,8 @@ export type WallTile = {
   color: string; category: string; region: string | null;
   /** 'supporter' tiles are a small picture with no name and no link. Missing on older data = sponsor. */
   kind?: 'sponsor' | 'supporter';
+  /** Optional short offer the sponsor attaches ("10% off a coffee"); shown after a finished walk. */
+  perk?: string | null;
 };
 export type WallStats = {
   cols: number; rows: number; total: number; sold: number; supporters?: number;
@@ -23,16 +25,14 @@ const TTL = 10 * 60 * 1000;
 export async function getWall(force = false): Promise<{ tiles: WallTile[]; stats: WallStats }> {
   if (!force && cache && Date.now() - cache.at < TTL) return cache;
   try {
-    const [t, s] = await Promise.all([
-      supabase.from('wall_public').select('id,x,y,w,h,company,headline,url,image_url,color,category,region,kind'),
-      supabase.rpc('wall_stats'),
-    ]);
-    let rows = t.data as WallTile[] | null;
-    if (t.error) {
-      // Before the supporter migration the view has no `kind` column; ask for the older shape.
-      const old = await supabase.from('wall_public').select('id,x,y,w,h,company,headline,url,image_url,color,category,region');
-      rows = old.data as WallTile[] | null;
+    const BASE = 'id,x,y,w,h,company,headline,url,image_url,color,category,region';
+    // Newest shape first; older databases (before the supporter / perk migrations) get the older shapes.
+    let rows: WallTile[] | null = null;
+    for (const cols of [`${BASE},kind,perk`, `${BASE},kind`, BASE]) {
+      const r = await supabase.from('wall_public').select(cols);
+      if (!r.error) { rows = r.data as unknown as WallTile[] | null; break; }
     }
+    const s = await supabase.rpc('wall_stats');
     const tiles = rows ?? [];
     const stats = (s.data as WallStats | null) ?? DEFAULT_STATS;
     cache = { at: Date.now(), tiles, stats };
@@ -71,6 +71,12 @@ export function pickSponsors(tiles: WallTile[], place: string, day: number, max 
   const head = pool.filter(near), rest = pool.filter((t) => !near(t));
   const rot = <T,>(a: T[]) => (a.length ? a.map((_, i) => a[(i + day) % a.length]) : a);
   return [...rot(head), ...rot(rest)].slice(0, max);
+}
+
+/** The one perk to show after a finished walk: a nearby sponsor first, then one with no place or "Online". Rotates by day. */
+export function pickPerk(tiles: WallTile[], place: string, day: number): WallTile | null {
+  const withPerk = tiles.filter((t) => typeof t.perk === 'string' && t.perk.trim().length >= 4 && /^https:\/\//i.test(t.url));
+  return pickSponsors(withPerk, place, day, 1)[0] ?? null;
 }
 
 export function inkOn(hex: string): string {

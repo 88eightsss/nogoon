@@ -53,7 +53,12 @@ export const IS_PRODUCTION = true;
 // Placeholder IDs ('REPLACE_ME') can never fill, so every ad component skips
 // loading entirely until real ones are pasted in — no failing requests, no
 // 30-second retry loops, no empty ad slots.
-export const isAdIdConfigured = (id?: string | null): boolean => !!id && !id.includes('REPLACE_ME');
+// Third-party (AdMob) ads are OFF: NoGoon shows no banners, no app-open, interstitial or rewarded ads.
+// Sponsors appear only as labelled Wall tiles and the optional thank-you perk after a walk. Flip to true
+// only together with real AdMob IDs, the EEA/UK consent prompt and the Play ads declaration.
+export const ADS_ENABLED = false;
+
+export const isAdIdConfigured = (id?: string | null): boolean => ADS_ENABLED && !!id && !id.includes('REPLACE_ME');
 
 export const BANNER_ID = Platform.select({
   android: IS_PRODUCTION ? REAL_BANNER_ID_ANDROID : TEST_BANNER_ID_ANDROID,
@@ -98,7 +103,7 @@ export function AdBanner({ size = 'banner', style }: AdBannerProps) {
   const { isPro } = useSubscriptionStore();
 
   // Pro users see no ads — this is a key selling point
-  if (isPro) return null;
+  if (!ADS_ENABLED || isPro) return null;
 
   const height = AD_HEIGHTS[size];
 

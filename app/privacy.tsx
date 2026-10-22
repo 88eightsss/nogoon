@@ -103,10 +103,10 @@ export default function PrivacyScreen() {
         <Section
           title="Advertising"
           body={
-            'NoGoon shows ads via Google AdMob. AdMob may use the Android Advertising ID to ' +
-            'serve relevant ads. You can opt out of personalized ads in your Android Settings under ' +
-            'Privacy → Ads. NoGoon itself does not pass personal data to AdMob beyond what ' +
-            'the AdMob SDK collects automatically.'
+            'NoGoon shows no third-party ads and does not use an advertising ID. Local businesses can ' +
+            'buy a labelled tile on The Wall, and may add a small thank-you offer that appears after you ' +
+            'finish a walk. These are clearly marked Sponsored, can be reported, and can be hidden under ' +
+            'Customize. Opening a sponsor link counts one tap for that business with no information about you.'
           }
         />
 
