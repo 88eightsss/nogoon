@@ -28,6 +28,7 @@ import { LOOK_PARTS, ROOM_SWATCHES, DECOR_UNLOCK, type DecorKey } from '@/consta
 import { useUserStore } from '@/stores/useUserStore';
 import { useMascotStore, stageOf, nextStageAt, STAGE_AT } from '@/stores/useMascotStore';
 import { SPACING } from '@/constants/Spacing';
+import { HELP_FIRST_CHOICES } from '@/constants/setupQuestions';
 
 const VOICES: { id: GateVoice; label: string }[] = [
   { id: 'gentle', label: 'Gentle' }, { id: 'hype', label: 'Hype' }, { id: 'dry', label: 'Dry' },
@@ -54,7 +55,7 @@ const HUB: { id: CustSection; icon: ComponentProps<typeof Feather>['name']; titl
   { id: 'companion', icon: 'smile',      title: 'Your companion',       sub: 'Which one, how it floats, how big' },
   { id: 'colour',    icon: 'droplet',    title: 'Colour & paper',       sub: 'Accent colour and page background' },
   { id: 'gate',      icon: 'shield',     title: 'At the gate',          sub: 'Instead bundles, your own list, your note' },
-  { id: 'layout',    icon: 'layout',     title: 'Layout & news',        sub: 'Today page, news, sponsors' },
+  { id: 'layout',    icon: 'layout',     title: 'Layout & news',        sub: 'Today page, what helps first, news' },
 ];
 
 const STAGE_LABELS = ['Dormant', 'Awakening', 'Standing', 'Powered', 'Legendary'];
@@ -227,6 +228,8 @@ export default function CustomizeScreen() {
   const toggleBundle  = useOfferStore((s) => s.toggleBundle);
   const todayLayout   = useRoomStore((s) => s.todayLayout);
   const setTodayLayout = useRoomStore((s) => s.setTodayLayout);
+  const helpFirst     = useRoomStore((s) => s.helpFirst);
+  const setHelpFirst  = useRoomStore((s) => s.setHelpFirst);
   const tabStyle       = useRoomStore((s) => s.tabStyle);
   const setTabStyle    = useRoomStore((s) => s.setTabStyle);
   const showSponsors  = useOfferStore((s) => s.showSponsors);
@@ -447,6 +450,14 @@ export default function CustomizeScreen() {
               </Pressable>
             );
           })}
+        </View>
+
+        <Text style={[styles.section, { color: colors.textMuted }]}>What helps first</Text>
+        <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+          <Text style={[styles.body, { color: colors.textSecondary }]}>
+            Shown first in Need a minute on Today, and puts its group first in Unwind. Nothing is hidden.
+          </Text>
+          <Chips items={HELP_FIRST_CHOICES} value={helpFirst} onChange={setHelpFirst} colors={colors} />
         </View>
 
         <Text style={[styles.section, { color: colors.textMuted }]}>Briefing and sponsors</Text>

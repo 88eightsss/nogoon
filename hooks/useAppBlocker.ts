@@ -81,6 +81,20 @@ export function appPackagesForDomains(domains: Iterable<string>): string[] {
   return BLOCKABLE_APPS.filter((a) => a.domain && wanted.has(a.domain)).map((a) => a.id);
 }
 
+// Of the given packages, the ones installed on this phone. Without the native method
+// (iOS, Expo Go, or a build from before it existed) the list comes back unchanged, which is
+// what the setup chips have always done: a package that isn't installed is simply never seen.
+export async function filterInstalledApps(packages: string[]): Promise<string[]> {
+  if (packages.length === 0) return [];
+  if (!hasNativeModule || typeof AppBlocker.filterInstalledApps !== 'function') return packages;
+  try {
+    const installed: unknown = await AppBlocker.filterInstalledApps(packages);
+    return Array.isArray(installed) ? installed.filter((p): p is string => typeof p === 'string') : packages;
+  } catch {
+    return packages;
+  }
+}
+
 // Map package name → friendly name for use in gate.tsx
 export const PACKAGE_TO_NAME: Record<string, string> = Object.fromEntries(
   BLOCKABLE_APPS.map((app) => [app.id, app.name])

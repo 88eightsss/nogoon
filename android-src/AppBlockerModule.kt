@@ -44,6 +44,7 @@ import android.provider.Settings
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.facebook.react.bridge.ActivityEventListener
+import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.BaseActivityEventListener
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
@@ -243,6 +244,25 @@ class AppBlockerModule(reactContext: ReactApplicationContext) :
         } catch (e: Exception) {
             Log.e(TAG, "launchApp failed for $packageName", e)
             promise.resolve(false)
+        }
+    }
+
+    // Which of the given packages are installed (and launchable) on this phone. Used by the
+    // onboarding setup questions so a starter blocklist only lists apps the person has.
+    // Relies on the MAIN/LAUNCHER <queries> entry the config plugin adds (Android 11+).
+    @ReactMethod
+    fun filterInstalledApps(packages: ReadableArray, promise: Promise) {
+        try {
+            val pm = reactApplicationContext.packageManager
+            val out = Arguments.createArray()
+            for (i in 0 until packages.size()) {
+                val pkg = packages.getString(i) ?: continue
+                if (pm.getLaunchIntentForPackage(pkg) != null) out.pushString(pkg)
+            }
+            promise.resolve(out)
+        } catch (e: Exception) {
+            Log.e(TAG, "filterInstalledApps failed", e)
+            promise.reject("FILTER_INSTALLED_FAILED", e)
         }
     }
 

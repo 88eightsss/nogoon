@@ -9,19 +9,25 @@ import { router } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
 import { FONTS } from '@/constants/Colors';
 import { SPACING } from '@/constants/Spacing';
+import { useRoomStore } from '@/stores/useRoomStore';
+import { TEMPTED_ORDER, type TemptedOptionId } from '@/constants/setupQuestions';
 
 type FeatherName = React.ComponentProps<typeof Feather>['name'];
 
-const OPTIONS: { icon: FeatherName; label: string; body: string; path: string }[] = [
-  { icon: 'wind',      label: 'Breathe for a minute', body: 'Let the urge pass.',           path: '/breathe' },
-  { icon: 'zap',       label: 'Play a quick game',    body: 'Give your hands something to do.', path: '/(tabs)/arcade' },
-  { icon: 'moon',      label: 'Calm down',            body: 'Slow the whole thing down.',   path: '/(tabs)/calm' },
-  { icon: 'book-open', label: 'Write it out',         body: 'Say what you are really after.', path: '/journal' },
-];
+const OPTIONS: Record<TemptedOptionId, { icon: FeatherName; label: string; body: string; path: string }> = {
+  briefing: { icon: 'file-text', label: "Read today's briefing", body: 'A short read with an end.',      path: '/(tabs)/feed' },
+  breathe:  { icon: 'wind',      label: 'Breathe for a minute', body: 'Let the urge pass.',           path: '/breathe' },
+  game:     { icon: 'zap',       label: 'Play a quick game',    body: 'Give your hands something to do.', path: '/(tabs)/arcade' },
+  calm:     { icon: 'moon',      label: 'Calm down',            body: 'Slow the whole thing down.',   path: '/(tabs)/calm' },
+  write:    { icon: 'book-open', label: 'Write it out',         body: 'Say what you are really after.', path: '/journal' },
+};
 
 export function TemptedSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const { colors, cardStyle } = useTheme();
   const go = (path: string) => { onClose(); router.push(path as any); };
+  // "What helps first" (setup questions / Customize) picks the first option; nothing is hidden.
+  const helpFirst = useRoomStore((s) => s.helpFirst);
+  const options = TEMPTED_ORDER[helpFirst].map((id) => OPTIONS[id]);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -30,7 +36,7 @@ export function TemptedSheet({ visible, onClose }: { visible: boolean; onClose: 
         <View style={[styles.grab, { backgroundColor: colors.border }]} />
         <Text style={[styles.title, { color: colors.text }]}>Pause. Pick one.</Text>
         <Text style={[styles.sub, { color: colors.textSecondary }]}>The urge is loudest for about ten minutes.</Text>
-        {OPTIONS.map((o) => (
+        {options.map((o) => (
           <Pressable
             key={o.label}
             onPress={() => go(o.path)}

@@ -10,6 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   DEFAULT_DECOR, DEFAULT_LOOK, ROOM_SWATCHES, type DecorKey, type LookPart, type RoomDecor, type RoomLook,
 } from '@/constants/room';
+import { isHelpFirst, type HelpFirst } from '@/constants/setupQuestions';
 
 export const ROOM_NAME_MAX = 24;
 
@@ -28,6 +29,10 @@ interface RoomState {
   setTodayLayout: (l: TodayLayout) => void;
   tabStyle: TabStyle;
   setTabStyle: (t: TabStyle) => void;
+  /** What Today's "Need a minute" sheet and Unwind put first. 'standard' = original order.
+   *  Set by the setup questions, changed in Customize > Layout & news. */
+  helpFirst: HelpFirst;
+  setHelpFirst: (h: HelpFirst) => void;
   roomName: string;
   setRoomName: (name: string) => void;
   look: RoomLook;
@@ -50,6 +55,8 @@ export const useRoomStore = create<RoomState>()(
       setTodayLayout: (l) => set({ todayLayout: l, roomView: hasRoom(l) }),
       tabStyle: 'standard',
       setTabStyle: (t) => set({ tabStyle: t }),
+      helpFirst: 'standard',
+      setHelpFirst: (h) => set({ helpFirst: isHelpFirst(h) ? h : 'standard' }),
       roomName: '',
       setRoomName: (name) => set({ roomName: name.slice(0, ROOM_NAME_MAX) }),
       look: DEFAULT_LOOK,
@@ -82,6 +89,7 @@ export const useRoomStore = create<RoomState>()(
           todayLayout,
           roomView: hasRoom(todayLayout),
           tabStyle: p.tabStyle === 'raised' ? 'raised' : 'standard',
+          helpFirst: isHelpFirst(p.helpFirst) ? p.helpFirst : 'standard',
           roomName: typeof p.roomName === 'string' ? p.roomName.slice(0, ROOM_NAME_MAX) : '',
           look, decor,
         };

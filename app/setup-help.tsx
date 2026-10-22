@@ -240,6 +240,15 @@ export default function SetupHelpScreen() {
                 <Text style={[s.rowTitle, { color: colors.text, flex: 1 }]}>Replay the tour</Text>
                 <Feather name="chevron-right" size={18} color={colors.textMuted} />
               </Pressable>
+              <Divider c={colors} />
+              <Pressable onPress={() => router.push('/setup-questions' as any)} accessibilityRole="button" style={s.linkRow}>
+                <Feather name="sliders" size={18} color={colors.textMuted} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.rowTitle, { color: colors.text }]}>Answer the setup questions again</Text>
+                  <Text style={[s.rowSub, { color: colors.textSecondary }]}>Adds to your settings. Nothing is removed.</Text>
+                </View>
+                <Feather name="chevron-right" size={18} color={colors.textMuted} />
+              </Pressable>
             </View>
           </>
         )}

@@ -25,8 +25,10 @@ import { readableOn } from '@/utils/colorLuminance';
 import { useUserStore } from '@/stores/useUserStore';
 import { PageGuide } from '@/components/PageGuide';
 import { useUnlockedFeatures, lockHint } from '@/stores/useProgressStore';
+import { useRoomStore } from '@/stores/useRoomStore';
+import { UNWIND_GROUP_ORDER, type UnwindGroupId } from '@/constants/setupQuestions';
 
-type Group = 'now' | 'play' | 'out';
+type Group = UnwindGroupId;
 
 type Tool = {
   id: string;
@@ -255,6 +257,11 @@ function NightlyCommitmentCard() {
 
 export default function CalmScreen() {
   const { colors } = useTheme();
+  // "What helps first" (setup questions / Customize) only reorders the groups.
+  const helpFirst = useRoomStore((s) => s.helpFirst);
+  const groups = UNWIND_GROUP_ORDER[helpFirst]
+    .map((id) => GROUPS.find((g) => g.id === id))
+    .filter((g): g is (typeof GROUPS)[number] => !!g);
 
   return (
     <>
@@ -273,7 +280,7 @@ export default function CalmScreen() {
           </Text>
         </View>
 
-        {GROUPS.map((g) => {
+        {groups.map((g) => {
           const tools = TOOLS.filter((t) => t.group === g.id);
           return (
             <View key={g.id}>
