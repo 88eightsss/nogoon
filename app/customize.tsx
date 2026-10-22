@@ -143,6 +143,7 @@ const LAYOUT_CHOICES: { id: TodayLayout; title: string; sub: string }[] = [
   { id: 'cards', title: 'Room and cards', sub: 'Smaller room, your numbers, good news' },
   { id: 'plain', title: 'Plain page',     sub: 'Paper, companion and stamps' },
   { id: 'focus', title: 'Just the button', sub: 'Streak, button, nothing else' },
+  { id: 'pet',   title: 'Just my pet',     sub: 'Your room and companion, nothing else' },
 ];
 
 function LayoutSketch({ kind, colors }: { kind: TodayLayout; colors: { accent: string; accentDim: string; border: string; surfaceHigh: string; textMuted: string } }) {
@@ -182,8 +183,9 @@ function LayoutSketch({ kind, colors }: { kind: TodayLayout; colors: { accent: s
           <View style={[line, { width: 20, height: 10, alignSelf: 'center', backgroundColor: colors.textMuted }]} />
         </>
       )}
-      <View style={yellow} />
-      {kind !== 'focus' && kind !== 'roomlast' && <View style={card} />}
+      {kind === 'pet' && <View style={{ height: 52, borderRadius: 4, backgroundColor: colors.accentDim }} />}
+      {kind !== 'pet' && <View style={yellow} />}
+      {kind !== 'focus' && kind !== 'roomlast' && kind !== 'pet' && <View style={card} />}
       {kind === 'plain' && <View style={card} />}
     </View>
   );

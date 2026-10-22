@@ -73,6 +73,9 @@ export function MyPage() {
   const setRoomView = useRoomStore((s) => s.setRoomView);
   const layout = useRoomStore((s) => s.todayLayout);
   const isFocus = layout === 'focus';
+  // "Just my pet": the room and the companion, nothing else. The other things (Need a minute, protection,
+  // the briefing) are one tap away in the tab bar.
+  const isPet = layout === 'pet';
   const showSponsors = useOfferStore((s) => s.showSponsors);
 
   const name          = useUserStore((s) => s.name);
@@ -154,7 +157,7 @@ export function MyPage() {
           char={char} stage={stage} streak={streak} walkAways={walkAways}
           headline={topGood?.headline ?? null} showSponsors={showSponsors} petName={petName}
           protectionOff={blockingStatus === 'off' || blockingStatus === 'empty'}
-          {...(layout === 'cards' ? { maxWidth: 300, outerPad: 96, showTicker: false } : {})}
+          {...(layout === 'cards' ? { maxWidth: 300, outerPad: 96, showTicker: false } : isPet ? { showTicker: false } : {})}
         />
         {layout === 'cards' && (
           <>
@@ -367,7 +370,13 @@ export function MyPage() {
         </Pressable>
       </View>
 
-      {layout === 'roomlast' ? (
+      {isPet ? (
+        <>
+          {partA}
+          <FeedPal petName={petName} />
+          {partG}
+        </>
+      ) : layout === 'roomlast' ? (
         <>
           {partC}
           {partD}

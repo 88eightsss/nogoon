@@ -15,18 +15,20 @@ import { isHelpFirst, type HelpFirst } from '@/constants/setupQuestions';
 export const ROOM_NAME_MAX = 24;
 
 /** How the Today tab is laid out. */
-export type TodayLayout = 'roomlast' | 'room' | 'cards' | 'plain' | 'focus';
-export const TODAY_LAYOUTS: TodayLayout[] = ['roomlast', 'room', 'cards', 'plain', 'focus'];
+export type TodayLayout = 'roomlast' | 'room' | 'cards' | 'plain' | 'focus' | 'pet';
+export const TODAY_LAYOUTS: TodayLayout[] = ['roomlast', 'room', 'cards', 'plain', 'focus', 'pet'];
 /** How the bottom tab bar looks. */
 export type TabStyle = 'standard' | 'raised';
 const isLayout = (v: unknown): v is TodayLayout => typeof v === 'string' && (TODAY_LAYOUTS as string[]).includes(v);
-const hasRoom = (l: TodayLayout) => l === 'roomlast' || l === 'room' || l === 'cards';
+const hasRoom = (l: TodayLayout) => l === 'roomlast' || l === 'room' || l === 'cards' || l === 'pet';
 
 interface RoomState {
   roomView: boolean;            // true for the layouts that show the room (room, cards)
   setRoomView: (on: boolean) => void;
   todayLayout: TodayLayout;
   setTodayLayout: (l: TodayLayout) => void;
+  /** The last layout that showed the room, so "Switch to the room" brings back the one they chose. */
+  roomLayoutPref: TodayLayout;
   tabStyle: TabStyle;
   setTabStyle: (t: TabStyle) => void;
   /** What Today's "Need a minute" sheet and Unwind put first. 'standard' = original order.
@@ -47,12 +49,13 @@ export const useRoomStore = create<RoomState>()(
     (set, get) => ({
       roomView: true,
       setRoomView: (on) => {
-        const cur = get().todayLayout;
-        const todayLayout: TodayLayout = on ? (hasRoom(cur) ? cur : 'roomlast') : 'plain';
-        set({ roomView: on, todayLayout });
+        const { todayLayout: cur, roomLayoutPref } = get();
+        const todayLayout: TodayLayout = on ? (hasRoom(cur) ? cur : roomLayoutPref) : 'plain';
+        set({ roomView: on, todayLayout, ...(hasRoom(cur) ? { roomLayoutPref: cur } : {}) });
       },
       todayLayout: 'roomlast',
-      setTodayLayout: (l) => set({ todayLayout: l, roomView: hasRoom(l) }),
+      roomLayoutPref: 'roomlast',
+      setTodayLayout: (l) => set({ todayLayout: l, roomView: hasRoom(l), ...(hasRoom(l) ? { roomLayoutPref: l } : {}) }),
       tabStyle: 'standard',
       setTabStyle: (t) => set({ tabStyle: t }),
       helpFirst: 'standard',
@@ -84,9 +87,12 @@ export const useRoomStore = create<RoomState>()(
           if (typeof p.decor?.[k] === 'boolean') decor[k] = p.decor[k];
         }
         const todayLayout: TodayLayout = isLayout(p.todayLayout) ? p.todayLayout : (p.roomView === false ? 'plain' : 'roomlast');
+        const roomLayoutPref: TodayLayout = hasRoom(todayLayout) ? todayLayout
+          : (isLayout(p.roomLayoutPref) && hasRoom(p.roomLayoutPref) ? p.roomLayoutPref : 'roomlast');
         return {
           ...current,
           todayLayout,
+          roomLayoutPref,
           roomView: hasRoom(todayLayout),
           tabStyle: p.tabStyle === 'raised' ? 'raised' : 'standard',
           helpFirst: isHelpFirst(p.helpFirst) ? p.helpFirst : 'standard',
