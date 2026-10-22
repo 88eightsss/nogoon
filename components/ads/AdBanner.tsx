@@ -53,9 +53,9 @@ export const IS_PRODUCTION = true;
 // Placeholder IDs ('REPLACE_ME') can never fill, so every ad component skips
 // loading entirely until real ones are pasted in — no failing requests, no
 // 30-second retry loops, no empty ad slots.
-// Third-party (AdMob) ads are OFF: NoGoon shows no banners, no app-open, interstitial or rewarded ads.
+// Third-party (AdMob) ads are OFF and the AdMob package is no longer in the build: NoGoon shows no banners, no app-open, interstitial or rewarded ads.
 // Sponsors appear only as labelled Wall tiles and the optional thank-you perk after a walk. Flip to true
-// only together with real AdMob IDs, the EEA/UK consent prompt and the Play ads declaration.
+// only together with: npm install react-native-google-mobile-ads, its app.json config, real AdMob IDs, the EEA/UK consent prompt and the Play ads declaration.
 export const ADS_ENABLED = false;
 
 export const isAdIdConfigured = (id?: string | null): boolean => ADS_ENABLED && !!id && !id.includes('REPLACE_ME');

@@ -30,21 +30,7 @@ function withAppBlockerManifest(config) {
     const application = manifest.application?.[0];
     if (!application) return cfg;
 
-    // ── AdMob App ID (react-native-google-mobile-ads has no config plugin) ─
-    if (!application['meta-data']) application['meta-data'] = [];
-    const admobMetaName = 'com.google.android.gms.ads.APPLICATION_ID';
-    const admobExists = application['meta-data'].some(
-      (m) => m.$?.['android:name'] === admobMetaName
-    );
-    if (!admobExists) {
-      application['meta-data'].push({
-        $: {
-          'android:name':  admobMetaName,
-          'android:value': 'ca-app-pub-3940256099942544~3347511713',
-        },
-      });
-    }
-
+    // (No third-party ads SDK: NoGoon ships without AdMob, so there is no ads App ID to declare.)
     // ── Add battery optimization permission ────────────────────────────────
     // This allows us to request that Android stop killing our Accessibility
     // Service in the background. Without this, blocking stops working when
@@ -491,72 +477,8 @@ function withAppBlockerFiles(config) {
   ]);
 }
 
-// ─── Step 3: Patch react-native-google-mobile-ads build.gradle ───────────────
-// AGP 8+ requires compileSdkVersion to be declared literally inside the
-// android {} block. react-native-google-mobile-ads v13 sets it only via the
-// io.invertase.gradle.build plugin extension, which AGP 8 no longer accepts.
-
-function withGoogleMobileAdsCompileSdk(config) {
-  return withDangerousMod(config, [
-    'android',
-    async (cfg) => {
-      const projectRoot = cfg.modRequest.projectRoot;
-      const buildGradlePath = path.join(
-        projectRoot,
-        'node_modules',
-        'react-native-google-mobile-ads',
-        'android',
-        'build.gradle'
-      );
-
-      if (!fs.existsSync(buildGradlePath)) {
-        console.warn('[withAppBlocker] react-native-google-mobile-ads build.gradle not found — skipping compileSdk patch');
-        return cfg;
-      }
-
-      let gradle = fs.readFileSync(buildGradlePath, 'utf8');
-
-      // Only patch if compileSdk directive is not already present as a standalone AGP statement
-      // AGP 8.3+ requires `compileSdk N` (not compileSdkVersion) declared directly in android {}
-      if (!/^\s*compileSdk\s+\d/m.test(gradle)) {
-        // Read the compileSdk value from the library's own package.json
-        let compileSdkValue = 34; // safe default for SDK 54
-        try {
-          const rngmaPackage = JSON.parse(
-            fs.readFileSync(
-              path.join(projectRoot, 'node_modules', 'react-native-google-mobile-ads', 'package.json'),
-              'utf8'
-            )
-          );
-          compileSdkValue = rngmaPackage?.sdkVersions?.android?.compileSdk ?? 34;
-        } catch (_) {}
-
-        // Insert `compileSdk N` as the first statement inside the android {} block.
-        // The block starts with "android {" — we target this specific occurrence by anchoring
-        // to the newline that follows (the block is always at the top-level of the file).
-        const androidBlockRx = /^android\s*\{/m;
-        if (androidBlockRx.test(gradle)) {
-          gradle = gradle.replace(
-            androidBlockRx,
-            `android {\n  compileSdk ${compileSdkValue}`
-          );
-          fs.writeFileSync(buildGradlePath, gradle, 'utf8');
-          console.log(`[withAppBlocker] Patched react-native-google-mobile-ads build.gradle: compileSdk ${compileSdkValue} ✓`);
-        } else {
-          console.warn('[withAppBlocker] Could not find top-level android {} block to patch compileSdk');
-        }
-      } else {
-        console.log('[withAppBlocker] react-native-google-mobile-ads compileSdk already present, skipping patch.');
-      }
-
-      return cfg;
-    },
-  ]);
-}
-
 module.exports = function withAppBlocker(config) {
   config = withAppBlockerManifest(config);
   config = withAppBlockerFiles(config);
-  config = withGoogleMobileAdsCompileSdk(config);
   return config;
 };
