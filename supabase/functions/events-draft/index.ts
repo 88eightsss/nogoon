@@ -99,6 +99,14 @@ async function extract(key: string, region: string, hint: string, pageUrl: strin
   }
 }
 
+// One row per run so the `health` function can tell when the weekly job stops. Never throws.
+async function logRun(job: string, ok: boolean, detail: Record<string, unknown>) {
+  try {
+    const db = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
+    await db.from('job_runs').insert({ job, ok, detail });
+  } catch (e) { console.error('[logRun]', e); }
+}
+
 serve(async (req: Request) => {
   const secret = Deno.env.get('CRON_SECRET');
   if (!secret || req.headers.get('x-cron-secret') !== secret) return new Response('Forbidden', { status: 403 });
@@ -146,9 +154,13 @@ serve(async (req: Request) => {
         report[src.url] = `failed: ${(e as Error).message}`;
       }
     }));
+    const failed = Object.values(report).filter((v) => typeof v === 'string').length;
+    // Healthy when at least one source could be read (a single broken feed should not raise the alarm).
+    await logRun('events-draft', failed < Math.max(1, Object.keys(report).length), { sources: Object.keys(report).length, failed, found: Object.values(report).filter((v) => typeof v === 'number').reduce((a, b) => a + (b as number), 0) });
     return new Response(JSON.stringify({ drafted: report }), { headers: { 'Content-Type': 'application/json' } });
   } catch (err) {
     console.error('[events-draft]', err);
+    await logRun('events-draft', false, { error: String((err as Error)?.message ?? err).slice(0, 200) });
     return new Response(JSON.stringify({ error: 'events-draft failed' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
   }
 });

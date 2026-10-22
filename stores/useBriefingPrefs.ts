@@ -10,6 +10,11 @@ interface State {
   length: BriefingLength;
   setLength: (v: BriefingLength) => void;
   /** Stories opened today (url or headline). Resets each local day; drives the "3 of 16 read" bar. */
+  /** Optional local reminder that today's briefing is ready. Off by default. */
+  remind: boolean;
+  remindAt: string;          // 'HH:MM', 24-hour
+  setRemind: (on: boolean) => void;
+  setRemindAt: (hhmm: string) => void;
   readDay: string;
   read: string[];
   markRead: (key: string) => void;
@@ -20,6 +25,10 @@ export const useBriefingPrefs = create<State>()(
     (set) => ({
       length: 'twenty',
       setLength: (length) => set({ length }),
+      remind: false,
+      remindAt: '08:00',
+      setRemind: (remind) => set({ remind }),
+      setRemindAt: (remindAt) => set({ remindAt }),
       readDay: '',
       read: [],
       markRead: (key) => set((st) => {

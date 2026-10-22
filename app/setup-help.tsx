@@ -4,7 +4,7 @@
 // everything needed to put it back is on this one screen, with the reasons for each.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, Pressable, ScrollView, StyleSheet, AppState, Platform } from 'react-native';
+import { View, Text, Pressable, ScrollView, StyleSheet, AppState, Platform, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -13,6 +13,7 @@ import { useAppBlocker } from '@/hooks/useAppBlocker';
 import { useNotificationListener } from '@/hooks/useNotificationListener';
 import { FONTS } from '@/constants/Colors';
 import { SPACING } from '@/constants/Spacing';
+import { crashReportingOn, setCrashReportingOn } from '@/lib/crashReport';
 import { isLightColor, readableOn } from '@/utils/colorLuminance';
 
 type FeatherName = React.ComponentProps<typeof Feather>['name'];
@@ -76,6 +77,8 @@ export default function SetupHelpScreen() {
   const { isGranted: notifGranted, isFilterEnabled: notifEnabled, isLoading: notifLoading, toggleFilter: toggleNotif, openSettings: openNotifSettings } = useNotificationListener();
   const [batteryExempt, setBatteryExempt] = useState(false);
   const [showWhy, setShowWhy] = useState(false);
+  const [crashOn, setCrashOn] = useState(true);
+  useEffect(() => { crashReportingOn().then(setCrashOn); }, []);
 
   const refresh = useCallback(() => {
     checkServiceStatus();
@@ -211,6 +214,20 @@ export default function SetupHelpScreen() {
                   </View>
                 </View>
               ))}
+              <Divider c={colors} />
+              <View style={s.linkRow}>
+                <Feather name="send" size={18} color={colors.textMuted} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.rowTitle, { color: colors.text }]}>Send anonymous crash reports</Text>
+                  <Text style={[s.rowSub, { color: colors.textSecondary }]}>If the app crashes, it sends the error, the app version and your phone model. No account, name or contents.</Text>
+                </View>
+                <Switch
+                  value={crashOn}
+                  onValueChange={(v) => { setCrashOn(v); setCrashReportingOn(v); }}
+                  accessibilityLabel="Send anonymous crash reports"
+                  trackColor={{ true: colors.accent, false: colors.cardBorder }}
+                />
+              </View>
               <Divider c={colors} />
               <Pressable onPress={() => router.push('/crash-report' as any)} accessibilityRole="button" style={s.linkRow}>
                 <Feather name="alert-triangle" size={18} color={colors.textMuted} />

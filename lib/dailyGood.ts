@@ -10,7 +10,8 @@ import { supabase } from '@/lib/supabase';
 import { getLocalDateKey } from '@/utils/date';
 
 export type GoodItem = { headline: string; summary: string; source: string; url?: string; image?: string; imageCredit?: string };
-export type Briefing = { good: GoodItem[]; curious: GoodItem[]; world: GoodItem[]; day?: string };
+export type Briefing = { good: GoodItem[]; curious: GoodItem[]; world: GoodItem[]; day?: string; /** true when this is an older saved batch shown because today's could not be loaded */ stale?: boolean };
+const LAST_KEY = 'nogoon_brief_last';
 
 const cacheKey = () => `nogoon_brief2_${getLocalDateKey()}`; // v2: items now carry photo links, so older cached batches are skipped
 const EMPTY: Briefing = { good: [], curious: [], world: [] };
@@ -65,7 +66,20 @@ export async function getTodaysBriefing(): Promise<Briefing> {
   let b: Briefing = EMPTY;
   try { b = await fromTable(); } catch { /* fall through */ }
   if (!b.good.length) { try { b = { ...b, good: await fromFunction() }; } catch { /* fall through */ } }
-  if (b.good.length || b.curious.length || b.world.length) AsyncStorage.setItem(cacheKey(), JSON.stringify({ ...b, at: Date.now() })).catch(() => {});
+  if (b.good.length || b.curious.length || b.world.length) {
+    const saved = JSON.stringify({ ...b, at: Date.now() });
+    AsyncStorage.setItem(cacheKey(), saved).catch(() => {});
+    AsyncStorage.setItem(LAST_KEY, saved).catch(() => {});     // the most recent good batch, for offline use
+    return b;
+  }
+  // Nothing could be loaded (offline, or the backend is down): show the last batch we saved, marked as older.
+  try {
+    const last = await AsyncStorage.getItem(LAST_KEY);
+    if (last) {
+      const l = JSON.parse(last) as Briefing;
+      if (l?.good?.length || l?.curious?.length || l?.world?.length) return { ...EMPTY, ...l, stale: true };
+    }
+  } catch { /* nothing saved */ }
   return b;
 }
 

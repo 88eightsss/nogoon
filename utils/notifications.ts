@@ -157,3 +157,38 @@ export async function scheduleDailySummary(todayWalkAways: number, topDomain?: s
     // Permissions not granted or unavailable — fail silently
   }
 }
+
+// ── Daily "briefing is ready" reminder ───────────────────────────────────────
+// Optional, off by default, and the same words every day: no streak pressure, no teasers.
+// A local notification (no server). Rescheduling replaces the old one.
+const BRIEFING_CHANNEL = 'nogoon-briefing';
+const BRIEFING_ID = 'briefing-ready';
+
+/** Turn the reminder on (asking for permission if needed) or off. Returns false if permission was refused. */
+export async function setBriefingReminder(on: boolean, hhmm: string): Promise<boolean> {
+  try {
+    await Notifications.cancelScheduledNotificationAsync(BRIEFING_ID).catch(() => {});
+    if (!on) return true;
+    if (!(await requestNotificationPermission())) return false;
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync(BRIEFING_CHANNEL, {
+        name: 'Daily briefing',
+        importance: Notifications.AndroidImportance.DEFAULT,
+      });
+    }
+    const [h, m] = hhmm.split(':').map((n) => parseInt(n, 10));
+    await Notifications.scheduleNotificationAsync({
+      identifier: BRIEFING_ID,
+      content: { title: "Today's briefing is ready", body: 'A small batch, once a day. Read it, then put the phone down.', sound: false },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        hour: Number.isFinite(h) ? h : 8,
+        minute: Number.isFinite(m) ? m : 0,
+        channelId: BRIEFING_CHANNEL,
+      },
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}

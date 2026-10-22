@@ -61,6 +61,15 @@ import { useNativeSync } from '@/hooks/useNativeSync';
 import { useTheme } from '@/hooks/useTheme';
 import { AccessibilityDisclosure } from '@/components/AccessibilityDisclosure';
 import { isLightColor } from '@/utils/colorLuminance';
+import { reportCrash, flushPendingCrash } from '@/lib/crashReport';
+
+// Any uncaught JavaScript error: send an anonymous report (if the person has not turned that off),
+// then let React Native's own handler run as before.
+const prevGlobalHandler = (globalThis as any).ErrorUtils?.getGlobalHandler?.();
+(globalThis as any).ErrorUtils?.setGlobalHandler?.((e: unknown, isFatal?: boolean) => {
+  reportCrash('js', e);
+  prevGlobalHandler?.(e, isFatal);
+});
 
 // ─── Error Boundary ─────────────────────────────────────────────────────────── //
 //
@@ -92,8 +101,8 @@ class ErrorBoundary extends React.Component<
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
-    // Log to console for debugging — swap with a crash reporter later
     console.error('[NoGoon] Uncaught error:', error, info.componentStack);
+    reportCrash('boundary', Object.assign(new Error(error.message), { stack: `${error.stack ?? ''}\n${info.componentStack ?? ''}` }));
   }
 
   handleReset = () => {
@@ -107,7 +116,7 @@ class ErrorBoundary extends React.Component<
           <Text style={[errorStyles.emoji, { fontFamily: undefined }]}>!</Text>
           <Text style={errorStyles.title}>Something went wrong</Text>
           <Text style={errorStyles.message}>
-            The app hit an unexpected error. This has been logged.
+            The app hit an unexpected error. Tap Try Again. If it keeps happening, open Profile, then Setup & fixes.
           </Text>
           {__DEV__ && this.state.error && (
             <Text style={errorStyles.detail}>
@@ -226,6 +235,8 @@ export default function RootLayout() {
 
   // Credit an existing install's walk-aways to its companion, once.
   useEffect(() => { initMascots(); }, []);
+  // A crash the app could not report before it closed is sent now (a few seconds after launch).
+  useEffect(() => { const t = setTimeout(() => { flushPendingCrash(); }, 4000); return () => clearTimeout(t); }, []);
 
   // Keep the current route in a ref so the routing effect can look at it
   // without re-running every time the user navigates.

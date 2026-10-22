@@ -147,6 +147,15 @@ async function wikiRows(key: string, day: string): Promise<Row[]> {
   return uniqueByUrl(out);
 }
 
+// One row per run so the `health` function can tell when the daily job stops. Never throws.
+async function logRun(job: string, ok: boolean, detail: Record<string, unknown>) {
+  try {
+    const db = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
+    await db.from('job_runs').insert({ job, ok, detail });
+    if (Math.random() < 0.1) await db.from('job_runs').delete().lt('ran_at', new Date(Date.now() - 90 * 86400000).toISOString());
+  } catch (e) { console.error('[logRun]', e); }
+}
+
 serve(async (req: Request) => {
   const secret = Deno.env.get('CRON_SECRET');
   if (!secret || req.headers.get('x-cron-secret') !== secret) {
@@ -218,9 +227,11 @@ serve(async (req: Request) => {
     const { error } = await admin.from('feed_items').upsert(rows, { onConflict: 'day,url' });
     if (error) throw error;
 
+    await logRun('feed-daily', true, { stored: rows.length, wiki: wikiStored });
     return new Response(JSON.stringify({ day, stored: rows.length, wiki: wikiStored }), { headers: { 'Content-Type': 'application/json' } });
   } catch (err) {
     console.error('[feed-daily]', err);
+    await logRun('feed-daily', false, { error: String((err as Error)?.message ?? err).slice(0, 200) });
     return new Response(JSON.stringify({ error: 'feed-daily failed' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
   }
 });

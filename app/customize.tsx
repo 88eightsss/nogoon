@@ -18,6 +18,9 @@ import type { CharacterId } from '@/stores/usePetStore';
 import type { GoonStage } from '@/constants/sprites';
 import { BUNDLES, CUSTOM_LEN, CUSTOM_MAX } from '@/constants/offers';
 import { useOfferStore } from '@/stores/useOfferStore';
+import { useBriefingPrefs } from '@/stores/useBriefingPrefs';
+import { setBriefingReminder } from '@/utils/notifications';
+import { TimeField } from '@/components/TimeField';
 import { useWalkStore, GATE_GOALS } from '@/stores/useWalkStore';
 import { useRoomStore, ROOM_NAME_MAX, type TodayLayout, type TabStyle } from '@/stores/useRoomStore';
 import { RoomScene } from '@/components/page/RoomScene';
@@ -200,6 +203,15 @@ function TabSketch({ kind, colors }: { kind: TabStyle; colors: { accent: string;
 export default function CustomizeScreen() {
   const { colors, cardStyle } = useTheme();
   const showWorldNews = usePackStore((s) => s.showWorldNews);
+  const remind = useBriefingPrefs((s) => s.remind);
+  const remindAt = useBriefingPrefs((s) => s.remindAt);
+  const setRemind = useBriefingPrefs((s) => s.setRemind);
+  const setRemindAt = useBriefingPrefs((s) => s.setRemindAt);
+  const toggleRemind = async (on: boolean) => {
+    const ok = await setBriefingReminder(on, remindAt);
+    setRemind(on && ok);                       // stays off if notifications were refused
+  };
+  const changeRemindAt = (v: string) => { setRemindAt(v); if (remind) setBriefingReminder(true, v); };
   const setShowWorldNews = usePackStore((s) => s.setShowWorldNews);
   const activePackId  = usePackStore((s) => s.activePackId);
   const unlockedIds   = usePackStore((s) => s.unlockedIds);
@@ -475,6 +487,24 @@ export default function CustomizeScreen() {
               thumbColor="#fff"
             />
           </View>
+        </View>
+
+        <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+          <View style={styles.rowBetween}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.cardTitle, { color: colors.text }]}>Daily briefing reminder</Text>
+              <Text style={[styles.body, { color: colors.textSecondary }]}>
+                One quiet notification a day when your briefing is ready, instead of reaching for a feed. Off by default.
+              </Text>
+            </View>
+            <Switch
+              value={remind}
+              onValueChange={toggleRemind}
+              trackColor={{ false: colors.border, true: colors.accent }}
+              thumbColor="#fff"
+            />
+          </View>
+          {remind ? <View style={{ marginTop: 8 }}><TimeField label="Remind me at" value={remindAt} onChange={changeRemindAt} colors={colors} /></View> : null}
         </View>
 
         <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>

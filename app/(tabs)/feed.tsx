@@ -9,8 +9,9 @@
 // "Endless" keeps loading older stories as you scroll. Every item links to its source.
 
 import { useCallback, useEffect, useMemo, useState, type ComponentProps } from 'react';
-import { ScrollView, View, Text, Pressable, ActivityIndicator, Linking, Platform, Image, StyleSheet, type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native';
+import { ScrollView, View, Text, Pressable, ActivityIndicator, Linking, Platform, StyleSheet, type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
 import { getTodaysBriefing, getOlderStories, type Briefing, type GoodItem } from '@/lib/dailyGood';
@@ -87,7 +88,10 @@ function Story({ item, big, tint, photo }: { item: GoodItem; big?: boolean; tint
           <Image
             source={{ uri: item.image }}
             style={[styles.photo, { backgroundColor: paper.rule }]}
-            resizeMode="cover"
+            contentFit="cover"
+            transition={150}
+            cachePolicy="disk"
+            recyclingKey={item.image}
             onError={() => setImgFailed(true)}
             accessible={false}
           />
@@ -253,6 +257,16 @@ export default function FeedScreen() {
         })}
       </View>
 
+      {!loading && brief.stale && (
+        <View style={[styles.offline, { borderColor: colors.cardBorder, backgroundColor: colors.surfaceHigh }]}>
+          <Feather name="wifi-off" size={14} color={colors.textMuted} />
+          <Text style={[styles.sub, { color: colors.textSecondary, flex: 1 }]}>
+            {`Couldn't reach the internet. Showing the last briefing${brief.day ? ` from ${brief.day}` : ''}.`}
+          </Text>
+          <Pressable onPress={load} accessibilityRole="button" hitSlop={8}><Text style={[styles.btnText, { color: colors.accent }]}>Retry</Text></Pressable>
+        </View>
+      )}
+
       {!loading && !endless && total > 0 && (
         <View style={{ gap: 6 }} accessible accessibilityLabel={`${readCount} of ${total} stories read`}>
           <View style={styles.progress}>
@@ -324,6 +338,7 @@ const styles = StyleSheet.create({
   content:  { padding: SPACING.lg, gap: SPACING.md, paddingBottom: SPACING.huge },
   title:    { fontSize: 30, fontWeight: '700', lineHeight: 36 },
   dateLine: { fontFamily: FONTS.mono, fontSize: 11, letterSpacing: 1.4 },
+  offline:  { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 12 },
   progress: { flexDirection: 'row', gap: 3 },
   progressSeg: { flex: 1, height: 4, borderRadius: 2 },
   clip:     { borderWidth: 1, borderRadius: 6, paddingHorizontal: SPACING.lg, paddingBottom: SPACING.lg, gap: SPACING.sm },
