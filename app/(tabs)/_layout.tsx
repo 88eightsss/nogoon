@@ -1,13 +1,13 @@
 // ─── Tab Bar Layout ────────────────────────────────────────────────────────────
 //
-// 5-tab navigation — each tab maps to a user intent:
-//   Protect  → all blocking configuration (purple)
+// 4-tab navigation — each tab maps to a user intent:
+//   Briefing → the finite daily read (amber)
 //   Today    → daily status + focus CTA (green)
-//   Calm     → recovery tools when struggling (amber) — breathing, grounding,
-//              waiting room. No games here anymore; Arcade is its own tab so
-//              "I want a distraction" and "I'm struggling" aren't the same button.
-//   Arcade   → all games, browsable any time (violet)
-//   Me       → stats, insights, settings (cyan)
+//   Unwind   → recovery tools when struggling (amber) — breathing, grounding,
+//              waiting room, games, journal.
+//   Me       → Protection (blocking), Customize, Progress, Account (cyan)
+// The old Protect and Arcade tabs are still routes (opened from Me, Today and the tempted sheet);
+// they just are not in the bar.
 //
 // Active-tab indicator: a small color bar above the icon, a pill background
 // behind the icon, and a bold/colored label — three redundant signals so the
@@ -29,7 +29,6 @@ import { FloatingCompanion } from '@/components/page/FloatingCompanion';
 import { TabCoach } from '@/components/tour/TabCoach';
 import { PackSprite } from '@/components/page/PackSprite';
 import { useMascot } from '@/components/page/useCharacter';
-import { useRoomStore } from '@/stores/useRoomStore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeStore } from '@/stores/useThemeStore';
 import { useUserStore } from '@/stores/useUserStore';
@@ -63,7 +62,8 @@ export default function TabsLayout() {
   const accentOverride = usePackStore((s) => s.accentOverride);
   const colors = resolveSkinPalette(themeId, themeBrightness, pack, accentOverride);
   const requestGuideReopen = useUserStore((s) => s.requestGuideReopen);
-  const raised = useRoomStore((s) => s.tabStyle) === 'raised';
+  // The raised centre button needs an odd number of tabs; with four there is no centre slot.
+  const raised = false;
 
   // Tab definitions use live theme colors — updates whenever theme changes.
   // guidePage must match the `page` prop each tab's own <PageGuide/> uses.
@@ -75,14 +75,6 @@ export default function TabsLayout() {
     pillBg: string;
     guidePage: string;
   }[] = [
-    {
-      name:      'blocklist',
-      title:     'Protect',
-      icon:      'shield',
-      color:     colors.protect,
-      pillBg:    colors.protect + '22',
-      guidePage: 'blocklist',
-    },
     {
       name:      'calm',
       title:     'Calm',
@@ -112,30 +104,31 @@ export default function TabsLayout() {
     {
       name:      'profile',
       title:     'Me',
-      icon:      'user',
+      icon:      'shield',
       color:     colors.me,
       pillBg:    colors.me + '22',
       guidePage: 'profile',
     },
   ];
 
-  // Five tabs, one intent each —
-  //   Protect → set up blocking · Briefing → read the finite daily batch ·
-  //   Today → status + "Need a minute" (centre) · Unwind → do something better
-  //   (urge tools, games, journal) · Me → stats and settings.
-  // Arcade stays a route (opened from Unwind, Today and the tempted sheet).
+  // Four tabs, one intent each —
+  //   Briefing → read the finite daily batch · Today → status + "Need a minute" ·
+  //   Unwind → do something better (urge tools, games, journal) ·
+  //   Me → protection (blocking), customizing, progress and account.
+  // Arcade and Protect's old screen (Apps & sites) stay routes, opened from Unwind, Today, Me and the tempted sheet.
   const FEED_TAB = {
     name: 'feed', title: 'Briefing', icon: 'sunrise' as FeatherName,
     color: colors.calm, pillBg: colors.warningDim, guidePage: 'feed',
   };
   const byName = (n: string) => [...TABS, FEED_TAB].find((x) => x.name === n)!;
-  const visible = ['blocklist', 'feed', 'index', 'calm', 'profile'].map(byName).map((x) =>
+  const visible = ['feed', 'index', 'calm', 'profile'].map(byName).map((x) =>
     x.name === 'calm' ? { ...x, title: 'Unwind' } : x);
-  const hiddenTabs = ['arcade'];
+  const hiddenTabs = ['arcade', 'blocklist'];
 
   return (
     <View style={{ flex: 1 }}>
     <Tabs
+      backBehavior="history"
       screenOptions={{
         headerShown: true,
         headerStyle: { backgroundColor: colors.background },
@@ -193,11 +186,23 @@ export default function TabsLayout() {
                       : undefined
                   }
                 >
-                  <Feather
-                    name={tab.icon}
-                    size={size - 1}
-                    color={focused ? tab.color : colors.textMuted}
-                  />
+                  {tab.name === 'profile' ? (
+                    <View style={{ width: size - 1, height: size - 1, alignItems: 'center', justifyContent: 'center' }}>
+                      <Feather name="shield" size={size - 1} color={focused ? tab.color : colors.textMuted} />
+                      <Feather
+                        name="user"
+                        size={Math.round((size - 1) * 0.5)}
+                        color={focused ? tab.color : colors.textMuted}
+                        style={{ position: 'absolute', top: Math.round((size - 1) * 0.26) }}
+                      />
+                    </View>
+                  ) : (
+                    <Feather
+                      name={tab.icon}
+                      size={size - 1}
+                      color={focused ? tab.color : colors.textMuted}
+                    />
+                  )}
                 </View>
               </View>
             ),
@@ -217,7 +222,7 @@ export default function TabsLayout() {
         />
       ))}
       {hiddenTabs.map((n) => (
-        <Tabs.Screen key={n} name={n} options={{ href: null, title: n.charAt(0).toUpperCase() + n.slice(1) }} />
+        <Tabs.Screen key={n} name={n} options={{ href: null, title: n === 'blocklist' ? 'Apps & sites' : n.charAt(0).toUpperCase() + n.slice(1) }} />
       ))}
     </Tabs>
     <FloatingCompanion />

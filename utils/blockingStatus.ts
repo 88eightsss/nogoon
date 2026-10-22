@@ -35,7 +35,7 @@ export function describeBlockingStatus(status: BlockingStatus, colors: ThemePale
       return { visible: true, icon: 'pause-circle', label: 'Blocking paused', short: 'Paused',
                color: colors.warning, dim: colors.warningDim, alarm: false };
     case 'empty':
-      return { visible: true, icon: 'plus-circle', label: 'Nothing blocked yet — add an app on Protect', short: 'Nothing blocked yet',
+      return { visible: true, icon: 'plus-circle', label: 'Nothing blocked yet — add an app in Me, under Protection', short: 'Nothing blocked yet',
                color: colors.warning, dim: colors.warningDim, alarm: false };
     default:
       return { visible: false, icon: 'shield', label: '', short: '', color: colors.textMuted, dim: colors.surface, alarm: false };

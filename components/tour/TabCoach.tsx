@@ -12,20 +12,18 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/useTheme';
 import { useTourStore } from '@/stores/useTourStore';
 import { useUserStore } from '@/stores/useUserStore';
-import { useRoomStore } from '@/stores/useRoomStore';
 import { FONTS } from '@/constants/Colors';
 
 const SEEN_KEY = 'tabs';
-const TAB_COUNT = 5;
+const TAB_COUNT = 4;
 const DIM = 'rgba(0,0,0,0.72)';
 
 type Stop = { slot: number | 'help'; title: string; body: string; route?: string };
 const STOPS: Stop[] = [
-  { slot: 0, title: 'Protect', body: 'Choose which apps and sites to block, and set Modes that switch blocklists on and off like alarms.', route: '/(tabs)/blocklist' },
-  { slot: 1, title: 'Briefing', body: 'A daily dose of good news and curiosity that actually ends. Things happening near you live here too.', route: '/(tabs)/feed' },
-  { slot: 2, title: 'Today', body: 'Home. Your companion lives here, and the big yellow button is for when a craving hits.', route: '/(tabs)' },
-  { slot: 3, title: 'Unwind', body: 'Breathe, play a quick game, ground yourself, or empty your head in the Journal.', route: '/(tabs)/calm' },
-  { slot: 4, title: 'Me', body: 'Your progress, customizing, schedules and settings. The interactive tour is in here too.', route: '/(tabs)/profile' },
+  { slot: 0, title: 'Briefing', body: 'A daily dose of good news and curiosity that actually ends. Things happening near you live here too.', route: '/(tabs)/feed' },
+  { slot: 1, title: 'Today', body: 'Home. Your companion lives here, and the big yellow button is for when a craving hits.', route: '/(tabs)' },
+  { slot: 2, title: 'Unwind', body: 'Breathe, play a quick game, ground yourself, or empty your head in the Journal.', route: '/(tabs)/calm' },
+  { slot: 3, title: 'Me', body: 'Protection lives here: pick the apps and sites to block, set Modes and schedules, and turn on Hard Mode. Your progress, customizing and settings are here too.', route: '/(tabs)/profile' },
   { slot: 'help', title: 'Stuck? Tap the ?', body: 'Every tab has a question mark up here that explains that screen in a few lines.' },
 ];
 
@@ -38,7 +36,7 @@ export function TabCoach() {
   const offered = useTourStore((s) => s.offered);
   const markOffered = useTourStore((s) => s.markOffered);
   const hasOnboarded = useUserStore((s) => s.hasOnboarded);
-  const raised = useRoomStore((s) => s.tabStyle) === 'raised';
+  const raised = false; // four tabs: no raised centre button
 
   const [size, setSize] = useState({ w: 0, h: 0 });
   const [step, setStep] = useState(0);

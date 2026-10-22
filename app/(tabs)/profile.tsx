@@ -12,7 +12,7 @@ import { useState, useEffect, useRef, useCallback, type ComponentProps } from 'r
 import {
   View, Text, Pressable, ScrollView, StyleSheet,
   Alert, Switch, TextInput, Modal, PanResponder,
-  KeyboardAvoidingView, Platform, Linking, BackHandler,
+  KeyboardAvoidingView, Platform, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -43,19 +43,16 @@ import { TimeField } from '@/components/TimeField';
 // ─── Companion defaults ───────────────────────────────────────────────────────
 const DEFAULT_COMPANION_NAMES: Record<CharacterId, string> = CHARACTER_NAMES;
 
-// Me is a short hub; each row opens one section of this same screen.
+// Me is one page of four collapsible sections. Tapping a header opens that section in place.
 type MeSection = 'controls' | 'look' | 'progress' | 'account';
-const HUB: { id: MeSection | 'customize'; icon: ComponentProps<typeof Feather>['name']; title: string; sub: string }[] = [
-  { id: 'controls',  icon: 'shield',      title: 'Protection & controls', sub: 'Hard Mode, wind-down, focus, blocklist' },
-  { id: 'look',      icon: 'droplet',     title: 'Look & companions',     sub: 'Companions, home screen, theme' },
-  { id: 'customize', icon: 'sliders',     title: 'Customize my page',     sub: 'Skins, instead bundles, colour, paper' },
-  { id: 'progress',  icon: 'trending-up', title: 'Progress',              sub: 'Insights, weekly recap, journal' },
-  { id: 'account',   icon: 'user',        title: 'Account & help',        sub: 'Setup & fixes, tour, tips, sign out' },
+const HUB: { id: MeSection; icon: ComponentProps<typeof Feather>['name']; title: string; sub: string }[] = [
+  { id: 'controls', icon: 'shield',      title: 'Protection',         sub: 'Apps & sites, schedules, Hard Mode, focus' },
+  { id: 'look',     icon: 'sliders',     title: 'Customize my page',  sub: 'Companions, theme, skins, colour, paper' },
+  { id: 'progress', icon: 'trending-up', title: 'Progress',           sub: 'Insights, weekly recap, journal' },
+  { id: 'account',  icon: 'user',        title: 'Account & help',     sub: 'Setup & fixes, tour, tips, sign out' },
 ];
 const meStyles = StyleSheet.create({
-  back:      { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4 },
-  backText:  { fontFamily: FONTS.bodyMedium, fontSize: 14 },
-  backTitle: { fontFamily: FONTS.bodyBold, fontSize: 16, marginLeft: SPACING.sm },
+  head:      { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, paddingVertical: 14, paddingHorizontal: SPACING.lg, minHeight: 64 },
 });
 
 // ─── Time saved calculation ───────────────────────────────────────────────────
@@ -394,18 +391,10 @@ export default function MeScreen() {
   } = useUserStore();
 
   const { signOut, deleteAccount } = useAuthStore();
-  const [section, setSection] = useState<MeSection | null>(null);
+  const [section, setSection] = useState<MeSection | null>('controls');
   const scrollRef = useRef<ScrollView>(null);
-  // Back steps out of a section, but only while this tab is the one on screen (tabs stay
-  // mounted, so a plain effect would swallow Back on every other tab). Leaving Me returns it
-  // to the hub.
-  useFocusEffect(useCallback(() => {
-    const sub = section
-      ? BackHandler.addEventListener('hardwareBackPress', () => { setSection(null); return true; })
-      : null;
-    return () => sub?.remove();
-  }, [section]));
-  useFocusEffect(useCallback(() => () => setSection(null), []));
+  // Leaving Me puts the page back to its default: Protection open, the rest closed.
+  useFocusEffect(useCallback(() => () => setSection('controls'), []));
   const [showDelete, setShowDelete] = useState(false);
   const [showColdOff, setShowColdOff] = useState(false);
   const [coldText, setColdText] = useState('');
@@ -596,6 +585,34 @@ export default function MeScreen() {
 
   const timeSaved = getTimeSaved(getMinutesSaved(walkAwayCount));
 
+  // One collapsible header per section; the section's rows render right under it while it is open.
+  const hubHead = (id: MeSection) => {
+    const h = HUB.find((x) => x.id === id)!;
+    const open = section === id;
+    const alarm = id === 'controls' && blockingView.alarm;
+    const sub = id === 'controls' && blockingView.visible ? blockingView.short : h.sub;
+    return (
+      <Pressable
+        key={`head-${id}`}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        accessibilityLabel={`${h.title}. ${sub}`}
+        onPress={() => {
+          Haptics.selectionAsync().catch(() => {});
+          setSection(open ? null : id);
+        }}
+        style={[meStyles.head, cardStyle, { backgroundColor: colors.surface, borderColor: alarm ? colors.danger : colors.cardBorder }]}
+      >
+        <Feather name={h.icon} size={20} color={alarm ? colors.danger : colors.accent} style={{ width: 28, textAlign: 'center' }} />
+        <View style={{ flex: 1 }}>
+          <Text style={[ctrlStyles.label, { color: colors.text }]}>{h.title}</Text>
+          <Text style={[ctrlStyles.sub, { color: alarm ? colors.danger : colors.textMuted }]}>{sub}</Text>
+        </View>
+        <Feather name={open ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textMuted} />
+      </Pressable>
+    );
+  };
+
   return (
     <>
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
@@ -610,7 +627,6 @@ export default function MeScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {!section && (
         <>
         {/* ── Zone 1: Identity ── */}
         <View style={styles.zone1}>
@@ -648,100 +664,8 @@ export default function MeScreen() {
         </View>
 
         </>
-        )}
 
-        {!section && (
-          <View style={[ctrlStyles.board, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
-            {HUB.map((h, i) => {
-              const alarm = h.id === 'controls' && blockingView.alarm;
-              const sub = h.id === 'controls' && blockingView.visible ? `${blockingView.short} · ${h.sub}` : h.sub;
-              return (
-                <Pressable
-                  key={h.id}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${h.title}. ${sub}`}
-                  onPress={() => {
-                    Haptics.selectionAsync().catch(() => {});
-                    if (h.id === 'customize') router.push('/customize' as any);
-                    else { setSection(h.id as MeSection); scrollRef.current?.scrollTo({ y: 0, animated: false }); }
-                  }}
-                  style={[ctrlStyles.row, i === HUB.length - 1 ? { borderBottomWidth: 0 } : { borderBottomColor: colors.border }]}
-                >
-                  <Feather name={h.icon} size={20} color={alarm ? colors.danger : colors.accent} style={{ width: 28, textAlign: 'center' }} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={[ctrlStyles.label, { color: colors.text }]}>{h.title}</Text>
-                    <Text style={[ctrlStyles.sub, { color: alarm ? colors.danger : colors.textMuted }]}>{sub}</Text>
-                  </View>
-                  <Feather name="chevron-right" size={16} color={colors.textMuted} />
-                </Pressable>
-              );
-            })}
-          </View>
-        )}
-
-        {!!section && (
-          <Pressable onPress={() => setSection(null)} hitSlop={10} style={meStyles.back} accessibilityRole="button" accessibilityLabel="Back to Me">
-            <Feather name="chevron-left" size={20} color={colors.accent} />
-            <Text style={[meStyles.backText, { color: colors.accent }]}>Me</Text>
-            <Text style={[meStyles.backTitle, { color: colors.text }]}>{HUB.find((h) => h.id === section)?.title}</Text>
-          </Pressable>
-        )}
-
-        {section === 'look' && (
-        <>
-        {/* ── Companions ── */}
-        <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Companions</Text>
-
-        <View style={[ctrlStyles.board, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
-          {ALL_CHARACTER_IDS.map((id, idx) => (
-            <View
-              key={id}
-              style={[
-                ctrlStyles.row,
-                idx < ALL_CHARACTER_IDS.length - 1 ? { borderBottomColor: colors.border } : { borderBottomWidth: 0 },
-              ]}
-            >
-              <GoonSprite char={id} stage={stageOf(fedMap[id] ?? 0)} size={0.4} />
-              {editingCompanion === id ? (
-                <TextInput
-                  style={[companionStyles.input, { color: colors.text, borderBottomColor: colors.cardBorder }]}
-                  value={companionDraft}
-                  onChangeText={setCompanionDraft}
-                  onBlur={() => saveCompanionName(id)}
-                  onSubmitEditing={() => saveCompanionName(id)}
-                  autoFocus
-                  returnKeyType="done"
-                  maxLength={20}
-                />
-              ) : (
-                <Text style={[ctrlStyles.label, { color: colors.text, flex: 1 }]}>
-                  {companionNames[id]}
-                </Text>
-              )}
-              <Pressable
-                hitSlop={12}
-                onPress={() => {
-                  if (editingCompanion === id) {
-                    saveCompanionName(id);
-                  } else {
-                    setCompanionDraft(companionNames[id]);
-                    setEditingCompanion(id);
-                  }
-                }}
-              >
-                <Feather
-                  name={editingCompanion === id ? 'check' : 'edit-2'}
-                  size={14}
-                  color={editingCompanion === id ? colors.accent : colors.textMuted}
-                />
-              </Pressable>
-            </View>
-          ))}
-        </View>
-
-        </>
-        )}
-
+        {hubHead('controls')}
         {section === 'controls' && (
         <>
         {/* ── Zone 3: Control board ── */}
@@ -799,6 +723,22 @@ export default function MeScreen() {
           </Pressable>
 
           <Text style={[ctrlStyles.groupLabel, { color: colors.textMuted }]}>Blocklist</Text>
+
+          {/* Apps & sites: the old Protect tab screen, now opened from here */}
+          <Pressable
+            style={[ctrlStyles.row, { borderBottomColor: colors.border }]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push('/(tabs)/blocklist' as any);
+            }}
+          >
+            <Feather name="slash" size={16} color={colors.accent} />
+            <View style={{ flex: 1 }}>
+              <Text style={[ctrlStyles.label, { color: colors.text }]}>Apps &amp; sites</Text>
+              <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>Choose what gets blocked</Text>
+            </View>
+            <Feather name="chevron-right" size={16} color={colors.textMuted} />
+          </Pressable>
 
           {/* Modes */}
           <Pressable
@@ -969,6 +909,62 @@ export default function MeScreen() {
         </>
         )}
 
+        {hubHead('look')}
+        {section === 'look' && (
+        <>
+        {/* ── Companions ── */}
+        <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Companions</Text>
+
+        <View style={[ctrlStyles.board, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+          {ALL_CHARACTER_IDS.map((id, idx) => (
+            <View
+              key={id}
+              style={[
+                ctrlStyles.row,
+                idx < ALL_CHARACTER_IDS.length - 1 ? { borderBottomColor: colors.border } : { borderBottomWidth: 0 },
+              ]}
+            >
+              <GoonSprite char={id} stage={stageOf(fedMap[id] ?? 0)} size={0.4} />
+              {editingCompanion === id ? (
+                <TextInput
+                  style={[companionStyles.input, { color: colors.text, borderBottomColor: colors.cardBorder }]}
+                  value={companionDraft}
+                  onChangeText={setCompanionDraft}
+                  onBlur={() => saveCompanionName(id)}
+                  onSubmitEditing={() => saveCompanionName(id)}
+                  autoFocus
+                  returnKeyType="done"
+                  maxLength={20}
+                />
+              ) : (
+                <Text style={[ctrlStyles.label, { color: colors.text, flex: 1 }]}>
+                  {companionNames[id]}
+                </Text>
+              )}
+              <Pressable
+                hitSlop={12}
+                onPress={() => {
+                  if (editingCompanion === id) {
+                    saveCompanionName(id);
+                  } else {
+                    setCompanionDraft(companionNames[id]);
+                    setEditingCompanion(id);
+                  }
+                }}
+              >
+                <Feather
+                  name={editingCompanion === id ? 'check' : 'edit-2'}
+                  size={14}
+                  color={editingCompanion === id ? colors.accent : colors.textMuted}
+                />
+              </Pressable>
+            </View>
+          ))}
+        </View>
+
+        </>
+        )}
+
         {section === 'look' && (
         <>
         {/* ── Zone 4+5: Appearance (compact) ── */}
@@ -1023,6 +1019,7 @@ export default function MeScreen() {
         </>
         )}
 
+        {hubHead('progress')}
         {section === 'progress' && (
         <>
         {/* ── Stats & Insights ── */}
@@ -1085,6 +1082,7 @@ export default function MeScreen() {
         </>
         )}
 
+        {hubHead('account')}
         {section === 'account' && (
         <>
         {/* ── Zone 6: Account ── */}
@@ -1302,15 +1300,15 @@ export default function MeScreen() {
     </SafeAreaView>
     <PageGuide
       page="profile"
-      icon="user"
+      icon="shield"
       accent={colors.me}
       title="Me"
-      hint="Stats & settings"
-      subtitle="Your progress, controls and look."
+      hint="Protection & settings"
+      subtitle="Four sections. Tap a title to open or close it."
       points={[
-        { icon: 'trending-up', title: 'Stats',           body: 'Walk-aways and time saved over time.' },
-        { icon: 'sliders',     title: 'Control board',   body: 'Wind-down hours, hard mode and focus sessions.' },
-        { icon: 'droplet',     title: 'Look & feel',     body: 'Pick a theme and border style.' },
+        { icon: 'shield',      title: 'Protection',        body: 'Pick the apps and sites to block, set schedules, Hard Mode and focus sessions.' },
+        { icon: 'sliders',     title: 'Customize my page', body: 'Companions, theme, skins, colour and paper.' },
+        { icon: 'trending-up', title: 'Progress',          body: 'Walk-aways, time saved, your weekly recap and journal.' },
       ]}
     />
     </>

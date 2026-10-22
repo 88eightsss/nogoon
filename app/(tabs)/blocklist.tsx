@@ -299,7 +299,7 @@ export default function ProtectScreen() {
         >
           {/* Header */}
           <View style={styles.header}>
-            <Text style={[styles.title, { color: colors.text }]}>Protect</Text>
+            <Text style={[styles.title, { color: colors.text }]}>Apps &amp; sites</Text>
             {statusView.visible && (
               <PulseGlow active={statusView.alarm} color={statusView.color} radius={20}>
                 <Pressable
@@ -425,7 +425,7 @@ export default function ProtectScreen() {
       page="blocklist"
       icon="shield"
       accent={colors.protect}
-      title="Protect"
+      title="Apps & sites"
       hint="What gets blocked"
       subtitle="Choose what NoGoon steps in for."
       points={[

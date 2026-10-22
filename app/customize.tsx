@@ -54,7 +54,7 @@ const HUB: { id: CustSection; icon: ComponentProps<typeof Feather>['name']; titl
   { id: 'companion', icon: 'smile',      title: 'Your companion',       sub: 'Which one, how it floats, how big' },
   { id: 'colour',    icon: 'droplet',    title: 'Colour & paper',       sub: 'Accent colour and page background' },
   { id: 'gate',      icon: 'shield',     title: 'At the gate',          sub: 'Instead bundles, your own list, your note' },
-  { id: 'layout',    icon: 'layout',     title: 'Layout & news',        sub: 'Today page, tab bar, news, sponsors' },
+  { id: 'layout',    icon: 'layout',     title: 'Layout & news',        sub: 'Today page, news, sponsors' },
 ];
 
 const STAGE_LABELS = ['Dormant', 'Awakening', 'Standing', 'Powered', 'Legendary'];
@@ -443,28 +443,6 @@ export default function CustomizeScreen() {
                 <LayoutSketch kind={l.id} colors={colors} />
                 <Text style={[styles.cardTitle, { color: colors.text, textAlign: 'center' }]}>{l.title}</Text>
                 <Text style={[styles.hint, { color: colors.textSecondary, textAlign: 'center' }]}>{l.sub}</Text>
-                {on && <Feather name="check-circle" size={16} color={colors.accent} />}
-              </Pressable>
-            );
-          })}
-        </View>
-
-        <Text style={[styles.section, { color: colors.textMuted }]}>Tab bar</Text>
-        <View style={styles.tileGrid}>
-          {([['standard', 'Standard', 'Five equal tabs'], ['raised', 'Raised Today', 'Your companion in a round centre button']] as const).map(([id, title, sub]) => {
-            const on = tabStyle === id;
-            return (
-              <Pressable
-                key={id}
-                onPress={() => setTabStyle(id)}
-                accessibilityRole="button"
-                accessibilityState={{ selected: on }}
-                accessibilityLabel={`${title}. ${sub}`}
-                style={[styles.tile, cardStyle, { backgroundColor: on ? colors.accentDim : colors.surface, borderColor: on ? colors.accent : colors.cardBorder }]}
-              >
-                <TabSketch kind={id} colors={colors} />
-                <Text style={[styles.cardTitle, { color: colors.text, textAlign: 'center' }]}>{title}</Text>
-                <Text style={[styles.hint, { color: colors.textSecondary, textAlign: 'center' }]}>{sub}</Text>
                 {on && <Feather name="check-circle" size={16} color={colors.accent} />}
               </Pressable>
             );
