@@ -43,7 +43,6 @@ import { useOfferStore } from '@/stores/useOfferStore';
 type FeatherName = React.ComponentProps<typeof Feather>['name'];
 
 const SUN = '#FFC21A';
-const INK = '#12233D';
 
 const REACTIONS: Record<HabitatAction, { face: string; line: string }> = {
   feed: { face: '(｡•́‿•̀｡)', line: 'Yum. Thank you for the walk.' },
@@ -207,12 +206,12 @@ export function MyPage() {
     <>
       <Pressable
         onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setTempted(true); }}
-        style={({ pressed }) => [styles.tempted, { backgroundColor: SUN, opacity: pressed ? 0.85 : 1 }]}
+        style={({ pressed }) => [styles.tempted, { backgroundColor: SUN + '26', borderColor: SUN + '99', opacity: pressed ? 0.7 : 1 }]}
         accessibilityRole="button"
-        accessibilityLabel="Need a minute"
+        accessibilityLabel="Need a minute. Tap here first. We'll get through it."
       >
-        <Text style={styles.temptedText}>Need a minute</Text>
-        <Text style={styles.temptedSub}>Tap here first. We'll get through it.</Text>
+        <Feather name="wind" size={16} color={colors.textSecondary} />
+        <Text style={[styles.temptedText, { color: colors.textSecondary }]}>Need a minute</Text>
       </Pressable>
     </>
   );
@@ -414,9 +413,8 @@ const styles = StyleSheet.create({
   trioNum: { fontFamily: FONTS.display, fontSize: 20 },
   headRow: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.sm },
   pencil:  { width: 34, height: 34, borderRadius: 17, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
-  tempted: { borderRadius: 18, paddingVertical: 18, alignItems: 'center', gap: 2, borderBottomWidth: 3, borderBottomColor: '#D99E00' },
-  temptedText: { fontFamily: FONTS.display, fontSize: 22, color: INK },
-  temptedSub: { fontFamily: FONTS.body, fontSize: 12.5, color: '#12233Dcc' },
+  tempted: { flexDirection: 'row', alignSelf: 'center', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 999, borderWidth: 1, paddingVertical: 10, paddingHorizontal: 22, minHeight: 44 },
+  temptedText: { fontFamily: FONTS.bodyBold, fontSize: 14 },
   cardMeta: { fontFamily: FONTS.body, fontSize: 12, marginTop: 1 },
   hello:   { fontFamily: FONTS.display, fontSize: 26 },
   sub:     { fontFamily: FONTS.body, fontSize: 13, marginTop: 2 },
