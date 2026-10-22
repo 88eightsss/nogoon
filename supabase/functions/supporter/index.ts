@@ -11,11 +11,13 @@
 // Payment is NOT handled here. Google Play Billing (through RevenueCat) takes the $2.50 and
 // supporter-webhook moves the tile on to review.
 //
+// The picture check itself lives in ../_shared/scan.ts (also used by supporter-sweep).
 // Secrets: ANTHROPIC_API_KEY (the same one feed-daily uses). SUPABASE_* are provided automatically.
 // Deploy WITH JWT checking:  supabase functions deploy supporter
 
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { scanImage, sha256Hex, type Scan } from '../_shared/scan.ts';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -44,51 +46,6 @@ function decode(b64: string): Uint8Array | null {
 }
 const isJpeg = (b: Uint8Array) => b.length > 4 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff;
 const isPng = (b: Uint8Array) => b.length > 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47;
-
-type Scan = { allowed: boolean; reasons: string[]; checked: boolean };
-
-// Asks Claude whether the picture is fine for a small tile on an all-ages app. Fails CLOSED: anything
-// unclear, any error, any unparsable answer means the image is not accepted.
-async function scanImage(b64: string, mediaType: string): Promise<Scan> {
-  const key = Deno.env.get('ANTHROPIC_API_KEY');
-  if (!key) return { allowed: false, reasons: ['scanner_unavailable'], checked: false };
-  try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-      signal: AbortSignal.timeout(25000),
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 200,
-        system:
-          'You are a content-safety checker for small square pictures that people put on a public board inside a wellbeing app used by all ages. ' +
-          'Reply with JSON only: {"allowed": true|false, "reasons": [short codes]}. ' +
-          'Set allowed to false if the picture contains or suggests ANY of: nudity or sexual content or a sexually suggestive pose ("sexual"); ' +
-          'any sexual or suggestive depiction of a child, or a child in a state of undress ("minor"); graphic violence, gore or self-harm ("violence"); ' +
-          'hate symbols or harassment ("hate"); drugs, weapons or gambling promotion ("illegal"); readable web addresses, phone numbers, email addresses, QR codes or advertising text ("contact"); ' +
-          'a screenshot of private messages or personal documents ("private"). Also false if you cannot tell what it is. When unsure, set allowed to false. ' +
-          'Ordinary art, pets, nature, food, logos, memes without the above, selfies of clothed people and plain graphics are allowed.',
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'image', source: { type: 'base64', media_type: mediaType, data: b64 } },
-            { type: 'text', text: 'Check this picture. JSON only.' },
-          ],
-        }],
-      }),
-    });
-    if (!res.ok) return { allowed: false, reasons: [`scanner_http_${res.status}`], checked: false };
-    const data = await res.json();
-    const text: string = (data?.content ?? []).map((c: { text?: string }) => c.text ?? '').join('');
-    const m = text.match(/\{[\s\S]*\}/);
-    if (!m) return { allowed: false, reasons: ['unparsable'], checked: true };
-    const j = JSON.parse(m[0]);
-    const reasons = Array.isArray(j.reasons) ? j.reasons.slice(0, 6).map((r: unknown) => String(r).slice(0, 24)) : [];
-    return { allowed: j.allowed === true, reasons, checked: true };
-  } catch {
-    return { allowed: false, reasons: ['scanner_error'], checked: false };
-  }
-}
 
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
@@ -166,7 +123,14 @@ serve(async (req: Request) => {
         return json({ error: 'That does not look like a normal photo. Pick another.' }, 400);
       }
 
-      const scan = await scanImage(b64, type);
+      // A picture we already turned down (or took down) before is refused straight away, scanner or not.
+      const sha = await sha256Hex(bytes);
+      const { count: known } = await db.from('wall_supporters').select('id', { count: 'exact', head: true })
+        .in('status', ['rejected', 'removed']).filter('scan->>sha256', 'eq', sha);
+      const scan: Scan = (known ?? 0) > 0
+        ? { allowed: false, reasons: ['seen_before'], checked: true, at: new Date().toISOString() }
+        : await scanImage(b64, type);
+      scan.sha256 = sha;
       if (!scan.allowed) {
         const scannerDown = !scan.checked;
         if (!scannerDown) await db.from('wall_supporters').update({ status: 'rejected', scan, review_note: 'Automatic scan' }).eq('id', id);

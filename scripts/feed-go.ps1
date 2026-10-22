@@ -34,6 +34,11 @@ select cron.schedule('events-draft', '0 13 * * 1,4',
          headers := jsonb_build_object('x-cron-secret', '$cron')
        ); `$`$);
 select cron.schedule('wall-maintenance', '5 * * * *', `$`$ select public.wall_maintenance(); `$`$);
+select cron.schedule('supporter-sweep', '20 */6 * * *',
+  `$`$ select net.http_post(
+         url := 'https://$ref.supabase.co/functions/v1/supporter-sweep',
+         headers := jsonb_build_object('x-cron-secret', '$cron')
+       ); `$`$);
 "@
 $sqlFile = Join-Path $env:TEMP "nogoon-cron.sql"
 Set-Content -Path $sqlFile -Value $sql -Encoding UTF8

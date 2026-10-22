@@ -84,6 +84,8 @@ npx --yes supabase@2.109.1 functions deploy supporter --project-ref $ref
 Check 'deploy supporter'
 npx --yes supabase@2.109.1 functions deploy supporter-webhook --project-ref $ref --no-verify-jwt
 Check 'deploy supporter-webhook'
+npx --yes supabase@2.109.1 functions deploy supporter-sweep --project-ref $ref --no-verify-jwt
+Check 'deploy supporter-sweep'
 
 Write-Host "`n     Deployed functions on the project (feed-daily, events-draft, wall, wall-webhook should all be listed):"
 npx --yes supabase@2.109.1 functions list --project-ref $ref
@@ -104,6 +106,11 @@ select cron.schedule('events-draft', '0 13 * * 1,4',
          headers := jsonb_build_object('x-cron-secret', '$cron')
        ); `$`$);
 select cron.schedule('wall-maintenance', '5 * * * *', `$`$ select public.wall_maintenance(); `$`$);
+select cron.schedule('supporter-sweep', '20 */6 * * *',
+  `$`$ select net.http_post(
+         url := 'https://$ref.supabase.co/functions/v1/supporter-sweep',
+         headers := jsonb_build_object('x-cron-secret', '$cron')
+       ); `$`$);
 "@
 $tmp = Join-Path $env:TEMP 'nogoon-cron.sql'
 Set-Content -Path $tmp -Value $sql -Encoding UTF8
