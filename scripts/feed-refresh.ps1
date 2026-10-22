@@ -1,4 +1,4 @@
-# Applies the newest database migrations, redeploys the backend functions (briefing, events, crash reports, health), then refreshes the
+# Applies the newest database migrations, redeploys the backend functions (briefing, events, crash reports, health, place search), then refreshes the
 # cron secret/schedule and runs the briefing once (keeps the Anthropic key you already stored).
 # Run from the repo root:  powershell -ExecutionPolicy Bypass -File scripts\feed-refresh.ps1
 $ref = 'hadcagughbyouagwpdhq'
@@ -19,6 +19,9 @@ npx --yes supabase@2.109.1 functions deploy report-crash --project-ref $ref
 if ($LASTEXITCODE -ne 0) { Write-Host "     (deploy reported exit code $LASTEXITCODE. If it said 'Deployed Functions', carry on.)" }
 
 npx --yes supabase@2.109.1 functions deploy health --project-ref $ref --no-verify-jwt
+if ($LASTEXITCODE -ne 0) { Write-Host "     (deploy reported exit code $LASTEXITCODE. If it said 'Deployed Functions', carry on.)" }
+
+npx --yes supabase@2.109.1 functions deploy place-search --project-ref $ref
 if ($LASTEXITCODE -ne 0) { Write-Host "     (deploy reported exit code $LASTEXITCODE. If it said 'Deployed Functions', carry on.)" }
 
 Write-Host "`n3/3  Refreshing the schedule and running the briefing"
