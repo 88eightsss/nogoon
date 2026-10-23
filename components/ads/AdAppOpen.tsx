@@ -40,7 +40,9 @@ let AppOpenAdSDK: any = null;
 let AdEventType: any = null;
 
 try {
-  const AdMob   = require('react-native-google-mobile-ads');
+  // The AdMob package was removed (e3a6dc1): NoGoon ships with no third-party ads.
+  // A static require would still make Metro look for it, so this throws into the catch below.
+  const AdMob: any = null; if (!AdMob) throw new Error('ads removed');
   AppOpenAdSDK  = AdMob.AppOpenAd;
   AdEventType   = AdMob.AdEventType;
 } catch {

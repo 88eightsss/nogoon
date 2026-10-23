@@ -90,7 +90,9 @@ let BannerAdSize: any = null;
 try {
   // This will succeed in an EAS build with react-native-google-mobile-ads installed.
   // It fails silently in Expo Go — we show a placeholder instead.
-  const AdMob   = require('react-native-google-mobile-ads');
+  // The AdMob package was removed (e3a6dc1): NoGoon ships with no third-party ads.
+  // A static require would still make Metro look for it, so this throws into the catch below.
+  const AdMob: any = null; if (!AdMob) throw new Error('ads removed');
   BannerAd      = AdMob.BannerAd;
   BannerAdSize  = AdMob.BannerAdSize;
 } catch {
