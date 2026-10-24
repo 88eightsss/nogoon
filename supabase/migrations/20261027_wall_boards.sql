@@ -1,13 +1,14 @@
 -- ─── The Wall: a global board and a local board per place ─────────────────────────
 --
--- 'global'  the big board (100 x 100). Supporter tiles are $2.50. Sponsors who want everyone.
+-- 'global'  the big board (100 x 100). Supporter tiles are $2.50. Sponsors who want everyone: $1.50 per tile per month
+--           when empty, rising to $10 when full.
 -- 'Maui', 'Oahu'  small local boards (25 x 25) whose tiles are drawn bigger in the app, so they are a showcase.
---           Supporter tiles are $5.00. Sponsor tiles start at $1.00 per tile per month. A listing on a local
+--           Supporter tiles are $5.00. Sponsor tiles start at $2.00 per tile per month (rising to $15 as it fills). A listing on a local
 --           board gets region = the board name, so the app's "near you" logic picks it up.
 --
 -- Every board has its own size, price curve, supporter price and Play product (all editable in wall_config).
 -- Open a new place:  insert into public.wall_config (id, board, cols, rows, base_cents, top_cents, supporter_cents, supporter_product)
---                    values (4, 'Kauai', 25, 25, 100, 1000, 500, 'nogoon_wall_tile_local');
+--                    values (4, 'Kauai', 25, 25, 200, 1500, 500, 'nogoon_wall_tile_local');
 --                    (the board name must match the app's place names: see constants/places.ts)
 
 alter table public.wall_config drop constraint if exists wall_config_id_check;
@@ -19,10 +20,10 @@ do $$ begin
     alter table public.wall_config add constraint wall_config_board_key unique (board);
   end if;
 end $$;
-update public.wall_config set board = 'global', supporter_cents = 250, supporter_product = 'nogoon_wall_tile' where id = 1;
+update public.wall_config set board = 'global', supporter_cents = 250, supporter_product = 'nogoon_wall_tile', base_cents = 150, top_cents = 1000 where id = 1;
 insert into public.wall_config (id, board, cols, rows, base_cents, top_cents, curve, supporter_cents, supporter_product) values
-  (2, 'Maui', 25, 25, 100, 1000, 2, 500, 'nogoon_wall_tile_local'),
-  (3, 'Oahu', 25, 25, 100, 1000, 2, 500, 'nogoon_wall_tile_local')
+  (2, 'Maui', 25, 25, 200, 1500, 2, 500, 'nogoon_wall_tile_local'),
+  (3, 'Oahu', 25, 25, 200, 1500, 2, 500, 'nogoon_wall_tile_local')
 on conflict (id) do nothing;
 
 alter table public.wall_listings  add column if not exists board text not null default 'global' references public.wall_config(board);

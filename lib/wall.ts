@@ -21,7 +21,7 @@ export type WallStats = {
 };
 export type BoardInfo = { board: string; cols: number; rows: number; supporter_cents: number; supporter_product: string };
 
-const DEFAULT_STATS: WallStats = { cols: 100, rows: 100, total: 10000, sold: 0, base_cents: 50, top_cents: 500, unit_cents_now: 50 };
+const DEFAULT_STATS: WallStats = { cols: 100, rows: 100, total: 10000, sold: 0, base_cents: 150, top_cents: 1000, unit_cents_now: 150 };
 
 let cache: { at: number; tiles: WallTile[]; stats: WallStats } | null = null;
 const TTL = 10 * 60 * 1000;
