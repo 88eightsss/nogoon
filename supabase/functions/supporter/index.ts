@@ -3,7 +3,7 @@
 // Supporter tiles on the Wall (see supabase/migrations/20261025_wall_supporters.sql).
 // The app sends { action, ... } with the signed-in person's session token as the Bearer token.
 //   mine     — my tiles
-//   reserve  — hold one free tile for 20 minutes: { x, y }
+//   reserve  — hold one free tile for 20 minutes: { board ('global' by default, or a place like 'Maui'), x, y }
 //   upload   — send the image for that tile: { id, image (base64), type }. It is scanned first; only an image
 //              that passes is stored, and only then can the tile be paid for.
 //   cancel   — let go of a tile I have not paid for: { id }
@@ -81,12 +81,13 @@ serve(async (req: Request) => {
   switch (action) {
     case 'mine': {
       const { data } = await db.from('wall_supporters')
-        .select('id,x,y,status,image_url,reserved_until,ends_at,created_at')
+        .select('id,board,x,y,status,image_url,reserved_until,ends_at,created_at')
         .eq('user_id', uid).in('status', ['reserved', 'ready', 'pending_review', 'live']).order('created_at', { ascending: false }).limit(50);
       return json({ tiles: data ?? [] });
     }
 
     case 'reserve': {
+      const board = str(body.board, 40) || 'global';
       const x = int(body.x), y = int(body.y);
       if (Number.isNaN(x) || Number.isNaN(y) || x < 0 || y < 0) return json({ error: 'Pick a tile first.' }, 400);
       // Let go of any unpaid hold of mine, so one person cannot sit on many tiles.
@@ -95,12 +96,12 @@ serve(async (req: Request) => {
         .eq('user_id', uid).in('status', ['pending_review', 'live']);
       if ((count ?? 0) >= MAX_OPEN * 4) return json({ error: 'That is plenty of tiles for now. Thank you!' }, 429);
       const until = new Date(Date.now() + HOLD_RESERVE_MIN * 60000).toISOString();
-      const { data, error } = await db.from('wall_supporters').insert({ user_id: uid, x, y, status: 'reserved', reserved_until: until }).select('id,reserved_until').single();
+      const { data, error } = await db.from('wall_supporters').insert({ user_id: uid, board, x, y, status: 'reserved', reserved_until: until }).select('id,board,reserved_until').single();
       if (error) {
         const taken = /taken|outside/i.test(error.message);
         return json({ error: taken ? 'Someone just took that tile. Pick another.' : 'Could not hold that tile. Try again.' }, taken ? 409 : 500);
       }
-      return json({ id: data.id, reserved_until: data.reserved_until });
+      return json({ id: data.id, board: data.board, reserved_until: data.reserved_until });
     }
 
     case 'upload': {

@@ -5,7 +5,7 @@
 import { supabase } from '@/lib/supabase';
 
 export type MyTile = {
-  id: string; x: number; y: number;
+  id: string; board?: string; x: number; y: number;
   status: 'reserved' | 'ready' | 'pending_review' | 'live';
   image_url: string | null; reserved_until: string | null; ends_at: string | null;
 };
@@ -32,7 +32,7 @@ async function call<T>(body: Record<string, unknown>): Promise<Result<T>> {
 }
 
 export const myTiles = () => call<{ tiles: MyTile[] }>({ action: 'mine' });
-export const reserveTile = (x: number, y: number) => call<{ id: string; reserved_until: string }>({ action: 'reserve', x, y });
+export const reserveTile = (board: string, x: number, y: number) => call<{ id: string; board?: string; reserved_until: string }>({ action: 'reserve', board, x, y });
 export const cancelTile = (id: string) => call<Record<string, never>>({ action: 'cancel', id });
 export const reportSupporterTile = async (id: string, reason: string) => (await call<Record<string, never>>({ action: 'report', id, reason })).ok;
 

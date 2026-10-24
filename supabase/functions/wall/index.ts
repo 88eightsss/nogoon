@@ -2,7 +2,7 @@
 //
 // Public API for The Wall (see supabase/migrations/20261016_ad_wall.sql).
 // POST JSON { action, ... } with the project's anon key as the Bearer token:
-//   checkout  — reserve tiles + create a Stripe Checkout session; returns { url }
+//   checkout  — reserve tiles on a board ('global' or a place like 'Maui') + create a Stripe Checkout session; returns { url }
 //   inquiry   — "invoice me" request from the advertise page
 //   report    — report a listing from the app
 // Quotes and the live board are read straight from the database (wall_quote, wall_stats, wall_public).
@@ -69,7 +69,8 @@ serve(async (req) => {
       const x = int(body.x), y = int(body.y), w = int(body.w), h = int(body.h), months = int(body.months);
       const company = str(body.company, 40), headline = str(body.headline, 60);
       const url = str(body.url, 300), imageUrl = str(body.image_url, 300);
-      const region = str(body.region, 40);
+      const board = str(body.board, 40) || 'global';
+      const region = board === 'global' ? str(body.region, 40) : board;   // a local board IS the place
       const perk = str(body.perk, 80);
       const color = str(body.color, 7), category = str(body.category, 40), email = str(body.email, 120);
 
@@ -91,14 +92,14 @@ serve(async (req) => {
       if ((count ?? 0) >= 2) return json({ error: 'You have unpaid reservations. Finish those first, or wait an hour.' }, 429);
 
       // Price is always computed here, never taken from the browser.
-      const { data: quote, error: qErr } = await db.rpc('wall_quote', { p_x: x, p_y: y, p_w: w, p_h: h, p_months: months });
+      const { data: quote, error: qErr } = await db.rpc('wall_quote', { p_x: x, p_y: y, p_w: w, p_h: h, p_months: months, p_board: board });
       if (qErr || !quote) return json({ error: 'Could not price those tiles.' }, 400);
       if (!quote.free) return json({ error: 'Some of those tiles are taken or outside the wall. Pick again.' }, 409);
       const total = quote.total_cents as number;
       if (total < 50) return json({ error: 'Order is below the minimum.' }, 400);
 
       const { data: row, error: insErr } = await db.from('wall_listings').insert({
-        x, y, w, h, company, headline: headline || null, url, image_url: imageUrl || null, region: region || null, perk: perk || null, color, category,
+        board, x, y, w, h, company, headline: headline || null, url, image_url: imageUrl || null, region: region || null, perk: perk || null, color, category,
         contact_email: email, months, price_cents: total,
       }).select('id').single();
       if (insErr || !row) {

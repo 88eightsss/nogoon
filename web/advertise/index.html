@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Advertise on the NoGoon Wall</title>
-<meta name="description" content="Buy a spot on the NoGoon Wall: a finite board of 3,000 tiles inside a calm, anti-doomscroll app. Flat curve pricing, reviewed by hand.">
+<meta name="description" content="Buy a spot on the NoGoon Wall: finite boards of tiles, one global and one per place, inside a calm, anti-doomscroll app. Flat curve pricing, reviewed by hand.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
@@ -55,12 +55,16 @@ ul{margin:0;padding-left:20px;color:var(--ink2);display:flex;flex-direction:colu
   <header style="display:flex;flex-direction:column;gap:12px">
     <div class="eyebrow">NoGoon · The Wall</div>
     <h1>A small, finite board in a calm app</h1>
-    <p>NoGoon helps people step away from doomscrolling. The Wall is the one place in it where companies can be seen: 3,000 tiles, each labelled Sponsored, on a screen people choose to open. Never in the gate, never tracked.</p>
+    <p>NoGoon helps people step away from doomscrolling. The Wall is the one place in it where companies can be seen: boards of tiles, one global and one per place, each labelled Sponsored, on a screen people choose to open. Never in the gate, never tracked.</p>
     <div id="paidBanner" class="banner" hidden>Payment received. We review every tile by hand before it goes live, and refund you in full if we cannot approve it.</div>
   </header>
 
   <section class="card" aria-labelledby="pick">
     <h2 id="pick">1. Pick your tiles</h2>
+    <div class="row">
+      <label>Which wall?<select id="boardSel"><option value="global">Global wall (everyone)</option></select></label>
+    </div>
+    <p id="boardNote" style="font-size:14px;color:var(--muted)">The global wall is shown to everyone. A local wall is shown to people who pick that place, with bigger tiles, so it suits a business that serves that place.</p>
     <div class="stats" id="stats" aria-live="polite">Loading the wall…</div>
     <div class="board" id="boardWrap"><canvas id="board" aria-label="The wall. Click a tile to place the top-left corner of your banner." role="img"></canvas></div>
     <div class="row">
@@ -133,7 +137,7 @@ ul{margin:0;padding-left:20px;color:var(--ink2);display:flex;flex-direction:colu
   const $ = (id) => document.getElementById(id);
   const money = (c) => '$' + (c / 100).toFixed(2);
   const cv = $('board'), ctx = cv.getContext('2d');
-  let stats = null, tiles = [], pos = null, free = null, cell = 12;
+  let stats = null, tiles = [], pos = null, free = null, cell = 12, board = 'global';
 
   if (new URLSearchParams(location.search).get('paid')) $('paidBanner').hidden = false;
 
@@ -183,7 +187,7 @@ ul{margin:0;padding-left:20px;color:var(--ink2);display:flex;flex-direction:colu
     qTimer = setTimeout(async () => {
       const d = dims();
       try {
-        const q = await rpc('wall_quote', { p_x: pos.x, p_y: pos.y, p_w: d.w, p_h: d.h, p_months: +$('months').value });
+        const q = await rpc('wall_quote', { p_x: pos.x, p_y: pos.y, p_w: d.w, p_h: d.h, p_months: +$('months').value, p_board: board });
         if (q.message) throw new Error(q.message);
         free = q.free; draw();
         if (!q.free) { $('quote').innerHTML = 'Some of those tiles are taken, or run off the wall. Pick another spot.'; $('payBtn').disabled = true; return; }
@@ -208,8 +212,8 @@ ul{margin:0;padding-left:20px;color:var(--ink2);display:flex;flex-direction:colu
 
   async function load() {
     try {
-      stats = await rpc('wall_stats');
-      tiles = await fetch(SB + '/rest/v1/wall_public?select=*', { headers: H }).then((r) => r.json());
+      stats = await rpc('wall_stats', { p_board: board });
+      tiles = await fetch(SB + '/rest/v1/wall_public?select=*&board=eq.' + encodeURIComponent(board), { headers: H }).then((r) => r.json());
       if (!Array.isArray(tiles)) tiles = [];
       $('stats').innerHTML = '<span><b>' + stats.sold.toLocaleString() + '</b> of <b>' + stats.total.toLocaleString() + '</b> tiles taken</span>' +
         '<span>Right now: <b>' + money(stats.unit_cents_now) + '</b> per tile per month</span>' +
@@ -233,7 +237,7 @@ ul{margin:0;padding-left:20px;color:var(--ink2);display:flex;flex-direction:colu
     $('payBtn').disabled = true; say('Reserving your tiles…');
     try {
       const { url } = await call({
-        action: 'checkout', x: pos.x, y: pos.y, w: d.w, h: d.h, months: +$('months').value,
+        action: 'checkout', board, x: pos.x, y: pos.y, w: d.w, h: d.h, months: +$('months').value,
         company: $('company').value, headline: $('headline').value, url: $('url').value, image_url: $('image_url').value, region: $('region').value, perk: $('perk').value,
         color: $('color').value, category: $('category').value, email: $('email').value, agree: $('agree').checked, website: $('website').value,
       });
@@ -245,11 +249,27 @@ ul{margin:0;padding-left:20px;color:var(--ink2);display:flex;flex-direction:colu
     const company = $('company').value, email = $('email').value;
     if (company.trim().length < 2 || !/^[^@ ]+@[^@ ]+\.[^@ ]+$/.test(email)) return say('Add your company name and email above, then tap again.', 'err');
     const d = dims();
-    const note = pos ? 'Interested in ' + d.w + 'x' + d.h + ' tiles at (' + pos.x + ',' + pos.y + ') for ' + $('months').value + ' month(s). ' : '';
+    const note = pos ? 'Board: ' + board + '. Interested in ' + d.w + 'x' + d.h + ' tiles at (' + pos.x + ',' + pos.y + ') for ' + $('months').value + ' month(s). ' : '';
     try {
       await call({ action: 'inquiry', company, email, message: note + ($('headline').value || ''), website: $('website').value });
       say('Thanks. We will email you to arrange an invoice.', 'ok');
     } catch (err) { say(err.message, 'err'); }
+  });
+
+  // The list of walls (global plus a board per place).
+  (async () => {
+    try {
+      const list = await rpc('wall_boards');
+      if (Array.isArray(list) && list.length) {
+        $('boardSel').innerHTML = list.map((b) => '<option value="' + b.board.replace(/"/g, '') + '">' + (b.board === 'global' ? 'Global wall (everyone)' : b.board + ' wall (local, bigger tiles)') + '</option>').join('');
+      }
+    } catch (e) { /* keep the global option */ }
+  })();
+  $('boardSel').addEventListener('change', () => {
+    board = $('boardSel').value || 'global'; pos = null; free = null;
+    $('quote').textContent = 'Click the wall to place your banner.'; $('payBtn').disabled = true;
+    $('region').closest('label').hidden = board !== 'global';   // a local wall is the place
+    load();
   });
 
   load();

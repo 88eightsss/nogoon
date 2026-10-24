@@ -1,10 +1,10 @@
 // ─── The Wall ─────────────────────────────────────────────────────────────────
 //
-// A finite board of sponsor tiles (3,000 of them). Opt-in: reached from the Briefing, never from
+// Finite boards of sponsor and supporter tiles: a big global wall and a smaller local wall per place. Opt-in: reached from the Briefing, never from
 // the gate. Everything is labelled Sponsored; tapping a tile shows who it is and offers a link that
 // opens in the browser. Nothing about the viewer is tracked or sent.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, Pressable, ScrollView, Modal, Linking, StyleSheet, ActivityIndicator, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Line } from 'react-native-svg';
@@ -15,15 +15,17 @@ import { FONTS } from '@/constants/Colors';
 import { ConstructionSign } from '@/components/ui/Construction';
 import { UNDER_CONSTRUCTION } from '@/constants/construction';
 import { SPACING } from '@/constants/Spacing';
-import { ADVERTISE_URL, WALL_CATEGORY_LABELS, SUPPORTERS_ENABLED, SUPPORTER_PRICE_FALLBACK } from '@/constants/wall';
+import { ADVERTISE_URL, WALL_CATEGORY_LABELS, SUPPORTERS_ENABLED, SUPPORTER_PRICE_FALLBACK, SUPPORTER_PRICE_LOCAL_FALLBACK, GLOBAL_BOARD, cellSize } from '@/constants/wall';
+import { usePlaceStore } from '@/stores/usePlaceStore';
 import { reportSupporterTile } from '@/lib/supporter';
-import { getWall, reportTile, tapTile, inkOn, type WallTile, type WallStats } from '@/lib/wall';
-
-const CELL = 28;
+import { getWall, getBoards, getBoardStats, boardForPlace, reportTile, tapTile, inkOn, type WallTile, type WallStats, type BoardInfo } from '@/lib/wall';
 
 export default function WallScreen() {
   const { colors, cardStyle } = useTheme();
-  const [tiles, setTiles] = useState<WallTile[]>([]);
+  const regionKey = usePlaceStore((st) => st.place.regionKey);
+  const [allTiles, setAllTiles] = useState<WallTile[]>([]);
+  const [boards, setBoards] = useState<BoardInfo[]>([]);
+  const [board, setBoard] = useState<string | null>(null);
   const [stats, setStats] = useState<WallStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState<WallTile | null>(null);
@@ -32,17 +34,30 @@ export default function WallScreen() {
 
   const load = useCallback(async (force = false) => {
     setLoading(true);
-    const w = await getWall(force);
-    setTiles(w.tiles);
-    setStats(w.stats);
+    const [w, bs] = await Promise.all([getWall(force), getBoards()]);
+    setAllTiles(w.tiles);
+    setBoards(bs);
+    setBoard((cur) => cur ?? boardForPlace(bs, regionKey));   // open on the local wall for the picked place
     setLoading(false);
-  }, []);
+  }, [regionKey]);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    if (!board) return;
+    let live = true;
+    setStats(null);
+    getBoardStats(board).then((st) => { if (live) setStats(st); });
+    return () => { live = false; };
+  }, [board]);
 
-  const cols = stats?.cols ?? 60;
-  const rows = stats?.rows ?? 50;
+  const current = board ?? GLOBAL_BOARD;
+  const tiles = useMemo(() => allTiles.filter((t) => (t.board ?? GLOBAL_BOARD) === current), [allTiles, current]);
+  const CELL = cellSize(current);
+  const isLocal = current !== GLOBAL_BOARD;
+  const cols = stats?.cols ?? (isLocal ? 25 : 100);
+  const rows = stats?.rows ?? (isLocal ? 25 : 100);
   const W = cols * CELL, H = rows * CELL;
-  const left = stats ? stats.total - stats.sold : 3000;
+  const left = stats ? stats.total - stats.sold : cols * rows;
+  const supporterPrice = stats?.supporter_cents ? `$${(stats.supporter_cents / 100).toFixed(2)}` : (isLocal ? SUPPORTER_PRICE_LOCAL_FALLBACK : SUPPORTER_PRICE_FALLBACK);
 
   const visit = async (t: WallTile) => {
     if (!/^https:\/\//i.test(t.url)) return;
@@ -71,9 +86,29 @@ export default function WallScreen() {
         </View>
       )}
 
+      {boards.length > 1 ? (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.boardRow} style={{ flexGrow: 0 }}>
+          {boards.map((b) => {
+            const on = b.board === current;
+            return (
+              <Pressable
+                key={b.board}
+                onPress={() => setBoard(b.board)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: on }}
+                accessibilityLabel={b.board === GLOBAL_BOARD ? 'Global wall' : `${b.board} wall`}
+                style={[styles.boardChip, { borderColor: on ? colors.accent : colors.cardBorder, backgroundColor: on ? colors.accentDim : 'transparent' }]}
+              >
+                <Text style={[styles.boardChipText, { color: on ? colors.accent : colors.textSecondary }]}>{b.board === GLOBAL_BOARD ? 'Global' : b.board}</Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      ) : null}
+
       <View style={styles.intro}>
         <Text style={[styles.sub, { color: colors.textSecondary }]}>
-          Sponsored tiles are local businesses and makers who paid for a spot. Small picture tiles are from supporters who chipped in. It never shows up when you are tempted, and nothing here follows you.
+          {isLocal ? `The ${current} wall: tiles here are bigger, for businesses and supporters in and around ${current}. ` : ''}Sponsored tiles are businesses and makers who paid for a spot. Picture tiles are from supporters who chipped in. It never shows up when you are tempted, and nothing here follows you.
         </Text>
         {stats ? (
           <Text style={[styles.meta, { color: colors.textMuted }]}>
@@ -135,11 +170,11 @@ export default function WallScreen() {
 
           {SUPPORTERS_ENABLED ? (
             <Pressable
-              onPress={() => router.push('/supporter' as any)}
+              onPress={() => router.push({ pathname: '/supporter', params: { board: current } } as any)}
               style={[styles.advertise, { borderColor: colors.accent, backgroundColor: colors.accentDim }]}
               accessibilityRole="button"
             >
-              <Text style={[styles.advertiseText, { color: colors.accent }]}>Become a supporter · {SUPPORTER_PRICE_FALLBACK}</Text>
+              <Text style={[styles.advertiseText, { color: colors.accent }]}>Become a supporter · {supporterPrice}</Text>
             </Pressable>
           ) : null}
           {ADVERTISE_URL ? (
@@ -204,6 +239,9 @@ const styles = StyleSheet.create({
   emptyTitle: { fontFamily: FONTS.bodyBold, fontSize: 16 },
   tile:   { position: 'absolute', borderRadius: 4, padding: 3, justifyContent: 'center' },
   tileText: { fontFamily: FONTS.bodyBold, fontSize: 11 },
+  boardRow: { paddingHorizontal: SPACING.lg, gap: 8, paddingBottom: SPACING.sm },
+  boardChip: { borderWidth: 1, borderRadius: 999, paddingVertical: 6, paddingHorizontal: 14 },
+  boardChipText: { fontFamily: FONTS.bodyBold, fontSize: 13 },
   advertise: { alignSelf: 'center', marginVertical: SPACING.md, paddingVertical: 10, paddingHorizontal: 22, borderWidth: 1, borderRadius: 999 },
   advertiseText: { fontFamily: FONTS.bodyBold, fontSize: 14 },
   backdrop: { flex: 1, backgroundColor: 'rgba(18,35,61,0.45)', justifyContent: 'flex-end' },

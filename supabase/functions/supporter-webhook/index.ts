@@ -16,7 +16,8 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const PRODUCT_ID = 'nogoon_wall_tile';
+// One Play product per price: global tiles ($2.50) and local tiles ($5.00). wall_config says which board uses which.
+const PRODUCT_IDS = ['nogoon_wall_tile', 'nogoon_wall_tile_local'];
 const json = (b: unknown, status = 200) => new Response(JSON.stringify(b), { status, headers: { 'Content-Type': 'application/json' } });
 
 function same(a: string, b: string): boolean {
@@ -39,7 +40,7 @@ serve(async (req: Request) => {
   const product = String(ev.product_id ?? '');
   const txn = String(ev.transaction_id ?? ev.original_transaction_id ?? '');
   const uid = String(ev.app_user_id ?? '');
-  if (product !== PRODUCT_ID || !txn) return json({ ok: true, ignored: true });   // other products are not ours
+  if (!PRODUCT_IDS.includes(product) || !txn) return json({ ok: true, ignored: true });   // other products are not ours
 
   const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false, autoRefreshToken: false } });
 
@@ -60,10 +61,17 @@ serve(async (req: Request) => {
     return json({ ok: true });
   }
 
-  const { data: row } = await db.from('wall_supporters').select('id').eq('user_id', uid).eq('status', 'ready')
+  const { data: row } = await db.from('wall_supporters').select('id,board').eq('user_id', uid).eq('status', 'ready')
     .order('created_at', { ascending: false }).limit(1).maybeSingle();
   if (!row) {
     await db.from('supporter_purchases').update({ note: 'Paid, but no tile was ready. Refund it.' }).eq('txn_id', txn);
+    return json({ ok: true });
+  }
+
+  // The tile's board decides which price (product) is right. Paying the wrong one is refunded by hand.
+  const { data: cfg } = await db.from('wall_config').select('supporter_product').eq('board', row.board).maybeSingle();
+  if (cfg && cfg.supporter_product !== product) {
+    await db.from('supporter_purchases').update({ note: `Paid for ${product} but the tile is on the ${row.board} board (needs ${cfg.supporter_product}). Refund it.` }).eq('txn_id', txn);
     return json({ ok: true });
   }
 

@@ -8,23 +8,27 @@ import { View, Text, Pressable, ScrollView, StyleSheet, ActivityIndicator, Image
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Line } from 'react-native-svg';
 import { Feather } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { FONTS } from '@/constants/Colors';
 import { SPACING } from '@/constants/Spacing';
-import { SUPPORTERS_ENABLED, SUPPORTER_PRODUCT_ID, SUPPORTER_PRICE_FALLBACK, SUPPORTER_MONTHS } from '@/constants/wall';
-import { getWall, type WallTile, type WallStats } from '@/lib/wall';
+import { SUPPORTERS_ENABLED, SUPPORTER_PRODUCT_ID, SUPPORTER_PRODUCT_LOCAL_ID, SUPPORTER_PRICE_FALLBACK, SUPPORTER_PRICE_LOCAL_FALLBACK, SUPPORTER_MONTHS, GLOBAL_BOARD, cellSize } from '@/constants/wall';
+import { getWall, getBoardStats, type WallTile, type WallStats } from '@/lib/wall';
 import { reserveTile, cancelTile, uploadTileImage, pickTileImage } from '@/lib/supporter';
 import { getOneTimeProduct, buyOneTimeProduct, isPurchasesAvailable } from '@/lib/purchases';
 import type { RCProduct } from '@/types/purchases';
 
-const CELL = 24;
 type Step = 'pick' | 'image' | 'checking' | 'pay' | 'paying' | 'done';
 
 export default function SupporterScreen() {
   const { colors, cardStyle } = useTheme();
   const session = useAuthStore((s) => s.session);
+  const params = useLocalSearchParams<{ board?: string }>();
+  const board = (typeof params.board === 'string' && params.board) || GLOBAL_BOARD;   // which wall (global or a place)
+  const isLocal = board !== GLOBAL_BOARD;
+  const CELL = Math.round(cellSize(board) * 0.85);
+  const productId = isLocal ? SUPPORTER_PRODUCT_LOCAL_ID : SUPPORTER_PRODUCT_ID;
   const [tiles, setTiles] = useState<WallTile[]>([]);
   const [stats, setStats] = useState<WallStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -40,17 +44,18 @@ export default function SupporterScreen() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const w = await getWall(true);
-    setTiles(w.tiles); setStats(w.stats); setLoading(false);
-  }, []);
-  useEffect(() => { load(); getOneTimeProduct(SUPPORTER_PRODUCT_ID).then(setProduct).catch(() => {}); }, [load]);
+    const [w, st] = await Promise.all([getWall(true), getBoardStats(board)]);
+    setTiles(w.tiles.filter((t) => (t.board ?? GLOBAL_BOARD) === board)); setStats(st); setLoading(false);
+  }, [board]);
+  useEffect(() => { load(); getOneTimeProduct(productId).then(setProduct).catch(() => {}); }, [load, productId]);
 
   // Let go of an unpaid hold when leaving.
   useEffect(() => () => { if (idRef.current && !paid.current) cancelTile(idRef.current); }, []);
 
-  const cols = stats?.cols ?? 100, rows = stats?.rows ?? 100;
+  const cols = stats?.cols ?? (isLocal ? 25 : 100), rows = stats?.rows ?? (isLocal ? 25 : 100);
   const W = cols * CELL, H = rows * CELL;
-  const price = product?.priceString ?? SUPPORTER_PRICE_FALLBACK;
+  const fallbackPrice = stats?.supporter_cents ? `$${(stats.supporter_cents / 100).toFixed(2)}` : (isLocal ? SUPPORTER_PRICE_LOCAL_FALLBACK : SUPPORTER_PRICE_FALLBACK);
+  const price = product?.priceString ?? fallbackPrice;
 
   const taken = useMemo(() => {
     const s = new Set<string>();
@@ -91,7 +96,7 @@ export default function SupporterScreen() {
   const confirmTile = async () => {
     if (!sel || busy) return;
     setBusy(true); setMsg('');
-    const r = await reserveTile(sel.x, sel.y);
+    const r = await reserveTile(board, sel.x, sel.y);
     setBusy(false);
     if (!r.ok) { setMsg(r.message); load(); setSel(null); return; }
     idRef.current = r.id; setTileId(r.id); setStep('image');
@@ -134,7 +139,7 @@ export default function SupporterScreen() {
       {step === 'pick' && (
         <>
           <Text style={[styles.body, { color: colors.textSecondary, paddingHorizontal: SPACING.lg }]}>
-            One tile, {price}, with a picture of your choice for {SUPPORTER_MONTHS} months. Tap an empty tile on the wall.
+            One tile on the {isLocal ? `${board} wall (bigger tiles, a local showcase)` : 'global wall'}, {price}, with a picture of your choice for {SUPPORTER_MONTHS} months. Tap an empty tile.
           </Text>
           {msg ? <Text style={[styles.note, { color: colors.danger, paddingHorizontal: SPACING.lg }]}>{msg}</Text> : null}
           {loading ? <ActivityIndicator style={{ marginTop: SPACING.xl }} color={colors.accent} /> : (

@@ -11,11 +11,15 @@ export type WallTile = {
   kind?: 'sponsor' | 'supporter';
   /** Optional short offer the sponsor attaches ("10% off a coffee"); shown after a finished walk. */
   perk?: string | null;
+  /** Which wall: 'global' or a place like 'Maui'. Missing on older data = global. */
+  board?: string;
 };
 export type WallStats = {
   cols: number; rows: number; total: number; sold: number; supporters?: number;
   base_cents: number; top_cents: number; unit_cents_now: number;
+  board?: string; supporter_cents?: number; supporter_product?: string;
 };
+export type BoardInfo = { board: string; cols: number; rows: number; supporter_cents: number; supporter_product: string };
 
 const DEFAULT_STATS: WallStats = { cols: 100, rows: 100, total: 10000, sold: 0, base_cents: 50, top_cents: 500, unit_cents_now: 50 };
 
@@ -28,11 +32,12 @@ export async function getWall(force = false): Promise<{ tiles: WallTile[]; stats
     const BASE = 'id,x,y,w,h,company,headline,url,image_url,color,category,region';
     // Newest shape first; older databases (before the supporter / perk migrations) get the older shapes.
     let rows: WallTile[] | null = null;
-    for (const cols of [`${BASE},kind,perk`, `${BASE},kind`, BASE]) {
+    for (const cols of [`${BASE},kind,perk,board`, `${BASE},kind,perk`, `${BASE},kind`, BASE]) {
       const r = await supabase.from('wall_public').select(cols);
       if (!r.error) { rows = r.data as unknown as WallTile[] | null; break; }
     }
-    const s = await supabase.rpc('wall_stats');
+    let s = await supabase.rpc('wall_stats', { p_board: 'global' });
+    if (s.error) s = await supabase.rpc('wall_stats');   // database from before the boards migration
     const tiles = rows ?? [];
     const stats = (s.data as WallStats | null) ?? DEFAULT_STATS;
     cache = { at: Date.now(), tiles, stats };
@@ -40,6 +45,32 @@ export async function getWall(force = false): Promise<{ tiles: WallTile[]; stats
   } catch {
     return cache ?? { at: 0, tiles: [], stats: DEFAULT_STATS };
   }
+}
+
+const GLOBAL_INFO: BoardInfo = { board: 'global', cols: 100, rows: 100, supporter_cents: 250, supporter_product: 'nogoon_wall_tile' };
+
+/** The walls that exist: global first, then one per open place. Falls back to just the global wall. */
+export async function getBoards(): Promise<BoardInfo[]> {
+  try {
+    const { data, error } = await supabase.rpc('wall_boards');
+    if (!error && Array.isArray(data) && data.length) return data as BoardInfo[];
+  } catch { /* fall through */ }
+  return [GLOBAL_INFO];
+}
+
+/** Size, prices and counts for one wall. */
+export async function getBoardStats(board: string): Promise<WallStats> {
+  try {
+    const { data, error } = await supabase.rpc('wall_stats', { p_board: board });
+    if (!error && data) return data as WallStats;
+  } catch { /* fall through */ }
+  return board === 'global' ? DEFAULT_STATS : { ...DEFAULT_STATS, board, cols: 25, rows: 25, total: 625 };
+}
+
+/** The wall that fits a picked place: the local board with that name if there is one, else the global wall. */
+export function boardForPlace(boards: BoardInfo[], regionKey: string | null | undefined): string {
+  const hit = regionKey ? boards.find((b) => b.board.toLowerCase() === regionKey.toLowerCase()) : null;
+  return hit ? hit.board : 'global';
 }
 
 export async function reportTile(listingId: string, reason: string): Promise<boolean> {

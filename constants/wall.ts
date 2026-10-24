@@ -4,13 +4,18 @@ export const ADVERTISE_URL = '';
 
 // Supporter tiles: anyone signed in can buy ONE tile for a year and put a small picture on it (Google Play
 // Billing through RevenueCat). Keep this false until all of these are done, in this order:
-//   1. Play Console: in-app product `nogoon_wall_tile`, $2.50, and the app has been published with Billing.
+//   1. Play Console: in-app products `nogoon_wall_tile` ($2.50, global wall) and `nogoon_wall_tile_local` ($5.00, local walls), and the app has been published with Billing.
 //   2. RevenueCat: add that product (type: consumable) and set the webhook to supporter-webhook.
 //   3. Supabase: migration 20261025 run; functions `supporter` and `supporter-webhook` deployed with their secrets.
 //   4. The privacy policy and the Data Safety form mention uploaded pictures and the automatic safety check.
 export const SUPPORTERS_ENABLED = false;
-export const SUPPORTER_PRODUCT_ID = 'nogoon_wall_tile';
+export const SUPPORTER_PRODUCT_ID = 'nogoon_wall_tile';              // global wall, $2.50
+export const SUPPORTER_PRODUCT_LOCAL_ID = 'nogoon_wall_tile_local';  // local walls (Maui, Oahu), $5.00: bigger tiles, a showcase
 export const SUPPORTER_PRICE_FALLBACK = '$2.50';
+export const SUPPORTER_PRICE_LOCAL_FALLBACK = '$5.00';
+export const GLOBAL_BOARD = 'global';
+/** Size of one cell on screen: local boards are small, so their tiles are drawn bigger. */
+export const cellSize = (board: string) => (board === GLOBAL_BOARD ? 28 : 46);
 export const SUPPORTER_MONTHS = 12;
 
 export const WALL_CATEGORY_LABELS: Record<string, string> = {
