@@ -1,6 +1,6 @@
 // ─── Customize ────────────────────────────────────────────────────────────────
 //
-// One place for: the new My Page switch , skins (packs), a pack code, and the
+// One place for: the new My Page switch , skins (packs) and the
 // personal note shown at the gate. Hidden packs only appear after they are unlocked.
 
 import { useState, useCallback, type ComponentProps } from 'react';
@@ -51,7 +51,7 @@ const ACCENTS = ['#1B62C2', '#0B7A44', '#FF6F61', '#7A3FD1', '#12A37F', '#DB2777
 type CustSection = 'room' | 'layout' | 'skins' | 'companion' | 'gate' | 'colour';
 const HUB: { id: CustSection; icon: ComponentProps<typeof Feather>['name']; title: string; sub: string }[] = [
   { id: 'room',      icon: 'home',       title: 'Your room',            sub: 'Name, colours, decor' },
-  { id: 'skins',     icon: 'package',    title: 'Skins & codes',        sub: 'Enter a code for extras' },
+  { id: 'skins',     icon: 'package',    title: 'Skins',                sub: 'Change how the whole app looks' },
   { id: 'companion', icon: 'smile',      title: 'Your companion',       sub: 'Which one, how it floats, how big' },
   { id: 'colour',    icon: 'droplet',    title: 'Colour & paper',       sub: 'Accent colour and page background' },
   { id: 'gate',      icon: 'shield',     title: 'At the gate',          sub: 'Instead bundles, your own list, your note' },
@@ -219,7 +219,6 @@ export default function CustomizeScreen() {
   const activePackId  = usePackStore((s) => s.activePackId);
   const unlockedIds   = usePackStore((s) => s.unlockedIds);
   const setActivePack = usePackStore((s) => s.setActivePack);
-  const redeemCode    = usePackStore((s) => s.redeemCode);
   const gateNote      = usePackStore((s) => s.gateNote);
   const bundleIds     = useOfferStore((s) => s.bundleIds);
   const gateWalk      = useWalkStore((s) => s.gateWalk);
@@ -284,15 +283,9 @@ export default function CustomizeScreen() {
   const paperOverride    = usePackStore((s) => s.paperOverride);
   const setPaperOverride = usePackStore((s) => s.setPaperOverride);
 
-  const [code, setCode] = useState('');
-  const [codeMsg, setCodeMsg] = useState('');
   const packs = availablePacks(unlockedIds);
-
-  const redeem = () => {
-    const p = redeemCode(code);
-    if (p) { setCodeMsg(`Unlocked: ${p.name}`); setCode(''); }
-    else setCodeMsg("That code isn't valid.");
-  };
+  // Skins only appear once there is a second one to choose. Codes are for characters, not skins.
+  const hub = packs.length > 1 ? HUB : HUB.filter((h) => h.id !== 'skins');
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
@@ -306,7 +299,7 @@ export default function CustomizeScreen() {
 
         {!section && (
           <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder, padding: 0 }]}>
-            {HUB.map((h, i) => {
+            {hub.map((h, i) => {
               const sub = h.id === 'skins' && packs.length > 1 ? `Now: ${packs.find((p) => p.id === activePackId)?.name ?? 'Core'}` : h.sub;
               return (
                 <Pressable
@@ -314,7 +307,7 @@ export default function CustomizeScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={`${h.title}. ${sub}`}
                   onPress={() => { setSection(h.id); }}
-                  style={[styles.pack, i < HUB.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }]}
+                  style={[styles.pack, i < hub.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }]}
                 >
                   <Feather name={h.icon} size={20} color={colors.accent} style={{ width: 28, textAlign: 'center' }} />
                   <View style={{ flex: 1 }}>
@@ -538,27 +531,6 @@ export default function CustomizeScreen() {
             </Pressable>
           );
         })}
-
-        <Text style={[styles.section, { color: colors.textMuted }]}>Pack code</Text>
-        <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
-          <View style={styles.rowBetween}>
-            <TextInput
-              style={[styles.input, { color: colors.text, borderColor: colors.border, flex: 1 }]}
-              value={code}
-              onChangeText={(t) => { setCode(t); setCodeMsg(''); }}
-              placeholder="Got a code?"
-              placeholderTextColor={colors.textMuted}
-              autoCapitalize="characters"
-              autoCorrect={false}
-              onSubmitEditing={redeem}
-              returnKeyType="done"
-            />
-            <Pressable onPress={redeem} style={[styles.btn, { backgroundColor: colors.accent }]}>
-              <Text style={[styles.btnText, { color: colors.background }]}>Redeem</Text>
-            </Pressable>
-          </View>
-          {codeMsg ? <Text style={[styles.body, { color: colors.textSecondary }]}>{codeMsg}</Text> : null}
-        </View>
 
         </>
         )}
