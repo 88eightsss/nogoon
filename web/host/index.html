@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>List your event on NoGoon</title>
+<meta name="description" content="Markets, cleanups, classes and community events: list yours in NoGoon, a calm app that helps people step away from doomscrolling and into their community. Free, reviewed by hand.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ground:#EAF5FF; --card:#FFFFFF; --ink:#12233D; --ink2:#24385A; --muted:#566F8D;
+  --line:#C7DFF2; --sky:#1B62C2; --meadow:#0B7A44; --mint:#D3F2E0; --coral:#C93A25;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --ground:#0E1A2E; --card:#16263F; --ink:#EAF2FF; --ink2:#B4C6E4; --muted:#8CA2C6;
+         --line:#2A4266; --sky:#7DB2FF; --meadow:#4CD08B; --mint:#12372A; --coral:#FF8A78; }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:'DM Sans',system-ui,sans-serif;line-height:1.5}
+.wrap{max-width:760px;margin:0 auto;padding:32px 16px 72px;display:flex;flex-direction:column;gap:24px}
+h1,h2{font-family:'Bricolage Grotesque',system-ui,sans-serif;letter-spacing:-.4px;margin:0;text-wrap:balance}
+h1{font-size:clamp(28px,6vw,44px);line-height:1.08}
+h2{font-size:20px}
+.eyebrow{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--sky)}
+p{margin:0;color:var(--ink2);max-width:64ch}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:14px}
+.note{background:var(--mint);border-radius:12px;padding:14px 16px;font-size:15px;color:var(--ink)}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+label{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:700;color:var(--ink2)}
+small{font-weight:400;color:var(--muted)}
+input,select,textarea{font:inherit;font-weight:400;color:var(--ink);background:var(--ground);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-height:42px;width:100%}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible{outline:3px solid var(--sky);outline-offset:2px}
+.check{flex-direction:row;align-items:flex-start;gap:10px;font-weight:400}
+.check input{width:auto;min-height:0;margin-top:4px}
+button{font:inherit;font-weight:700;border:0;border-radius:999px;padding:12px 22px;cursor:pointer;background:var(--meadow);color:#fff;align-self:flex-start}
+button:disabled{opacity:.5;cursor:not-allowed}
+.msg{font-size:15px;min-height:22px}
+.err{color:var(--coral)} .ok{color:var(--meadow);font-weight:700}
+ul{margin:0;padding-left:20px;color:var(--ink2);display:flex;flex-direction:column;gap:6px}
+.hp{position:absolute;left:-9999px}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header style="display:flex;flex-direction:column;gap:12px">
+    <div class="eyebrow">NoGoon · For hosts</div>
+    <h1>List your event where people are looking for something real to do</h1>
+    <p>NoGoon is a calm app that helps people step away from doomscrolling. Its Step Out tab lists farmers markets, cleanups, classes and community events near them. Listing yours is free.</p>
+  </header>
+
+  <section class="note">
+    <b>How sign-ups work.</b> NoGoon does not take sign-ups or collect attendees' details. If you add a sign-up link, the app sends people to your own form, and it tells them that opening the link does not sign them up until they finish your form.
+  </section>
+
+  <form id="f" class="card" novalidate>
+    <h2>Your event</h2>
+    <div class="row">
+      <label>Your group or business<input id="org_name" maxlength="80" autocomplete="organization" required></label>
+      <label>Contact email <small>Only used to reach you about this listing.</small><input id="contact_email" type="email" maxlength="120" autocomplete="email" required></label>
+    </div>
+    <label>Event title<input id="title" maxlength="120" required></label>
+    <label>One line about it <small>Up to 300 characters.</small><textarea id="summary" maxlength="300" rows="2"></textarea></label>
+    <div class="row">
+      <label>Type
+        <select id="kind">
+          <option value="market">Market</option><option value="volunteer">Volunteer</option><option value="community" selected>Community</option>
+          <option value="outdoors">Outdoors</option><option value="class">Class</option><option value="music">Music</option><option value="other">Other</option>
+        </select>
+      </label>
+      <label>Where
+        <select id="region"><option value="Maui">Maui</option><option value="Oahu">Oahu</option><option value="Hawaii (statewide)">Statewide</option></select>
+      </label>
+    </div>
+    <div class="row">
+      <label>Venue or neighbourhood<input id="place_name" maxlength="120"></label>
+      <label>Cost <small>For example Free, or $5.</small><input id="cost" maxlength="40"></label>
+    </div>
+    <label>When, in words <small>What people read, for example "Saturdays 7:30 to 11 am".</small><input id="when_text" maxlength="120" required></label>
+    <div class="row">
+      <label>Next start <small>Optional. Leave empty for weekly events.</small><input id="starts_at" type="datetime-local"></label>
+      <label>Ends <small>Optional.</small><input id="ends_at" type="datetime-local"></label>
+    </div>
+    <label class="check"><input id="recurring" type="checkbox"> It repeats every week or month</label>
+    <label>Page about the event <small>Your website or social page. https:// only. Link shorteners are not accepted.</small><input id="url" type="url" maxlength="500" placeholder="https://" required></label>
+    <label>Sign-up link <small>Optional. Your own form or registration page. https:// only. Link shorteners are not accepted.</small><input id="signup_url" type="url" maxlength="500" placeholder="https://"></label>
+    <label class="hp" aria-hidden="true">Website<input id="website" tabindex="-1" autocomplete="off"></label>
+    <label class="check"><input id="agree" type="checkbox"> I have the right to list this event, the details are accurate, and I understand NoGoon links to my pages but does not take sign-ups.</label>
+    <button id="go" type="submit">Send for review</button>
+    <div id="msg" class="msg" role="status" aria-live="polite"></div>
+  </form>
+
+  <section class="card">
+    <h2>What happens next</h2>
+    <ul>
+      <li>We read every listing before it appears. This usually takes a few days, and not every listing is accepted.</li>
+      <li>We may contact you at the email you gave to check details.</li>
+      <li>People can report a listing that is wrong or unsafe, and a listing reported several times is paused until we check it.</li>
+      <li>To change or remove a listing, reply to the email we send you or write to the contact address in the app.</li>
+    </ul>
+  </section>
+</main>
+
+<script>
+(() => {
+  const SB = 'https://hadcagughbyouagwpdhq.supabase.co';
+  const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhhZGNhZ3VnaGJ5b3VhZ3dwZGhxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1ODkwNDcsImV4cCI6MjA5MTE2NTA0N30.mymHV-dateubiZ_VT_ZEe_a3pUIk23uoqqXCcMZqIR4';
+  const $ = (id) => document.getElementById(id);
+  const msg = (t, ok) => { const m = $('msg'); m.textContent = t; m.className = 'msg ' + (ok ? 'ok' : 'err'); };
+  const iso = (v) => (v ? new Date(v).toISOString() : null);
+  $('f').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!$('agree').checked) return msg('Please tick the box to confirm you can list this event.', false);
+    const body = {
+      org_name: $('org_name').value, contact_email: $('contact_email').value, title: $('title').value, summary: $('summary').value,
+      kind: $('kind').value, region: $('region').value, place_name: $('place_name').value, cost: $('cost').value,
+      when_text: $('when_text').value, starts_at: iso($('starts_at').value), ends_at: iso($('ends_at').value),
+      recurring: $('recurring').checked, url: $('url').value.trim(), signup_url: $('signup_url').value.trim(), website: $('website').value,
+    };
+    $('go').disabled = true; msg('Sending...', true);
+    try {
+      const r = await fetch(SB + '/functions/v1/event-submit', { method: 'POST', headers: { apikey: KEY, Authorization: 'Bearer ' + KEY, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok && j.ok) { msg('Thank you. Your event is waiting for review. It is not live yet.', true); $('f').reset(); }
+      else msg(j.error || 'Something went wrong. Please try again.', false);
+    } catch { msg('We could not reach the server. Check your connection and try again.', false); }
+    $('go').disabled = false;
+  });
+})();
+</script>
+</body>
+</html>

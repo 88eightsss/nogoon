@@ -37,6 +37,17 @@ const sameSite = (a: string, b: string) => {
   } catch { return false; }
 };
 
+// Same rule as public.url_ok() in the database: https only, no user@ tricks, no bare IPs, no link shorteners.
+const urlOk = (u: string): boolean => {
+  if (u.length > 500 || !/^https:\/\//i.test(u)) return false;
+  try {
+    const x = new URL(u);
+    const h = x.hostname.toLowerCase();
+    if (x.username || x.password || /^[0-9.]+$/.test(h) || h.includes(':')) return false;
+    return !/(^|\.)(bit\.ly|tinyurl\.com|t\.co|goo\.gl|ow\.ly|is\.gd|buff\.ly|rebrand\.ly|cutt\.ly|shorturl\.at|t\.ly|lnkd\.in)$/.test(h);
+  } catch { return false; }
+};
+
 const toText = (html: string) =>
   html.replace(/<!\[CDATA\[|\]\]>/g, ' ').replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<!--[\s\S]*?-->/g, ' ')
       .replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&')
@@ -133,6 +144,7 @@ serve(async (req: Request) => {
           // Only keep a link the model gave us if it is on the same site we read; otherwise use the source page.
           const link = clean(d.url, 500);
           const url = /^https:\/\//.test(link) && sameSite(link, src.url) ? link : src.url;
+          if (!urlOk(url)) return [];
           const kind = KINDS.includes(clean(d.kind, 20)) ? clean(d.kind, 20) : (KINDS.includes(src.kind_hint) ? src.kind_hint : 'other');
           return [{
             title, summary: clean(d.summary, 300), kind, region: src.region,

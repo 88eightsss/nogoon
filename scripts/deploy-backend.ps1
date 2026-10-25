@@ -76,6 +76,8 @@ npx --yes supabase@2.109.1 functions deploy events-draft --project-ref $ref --no
 Check 'deploy events-draft'
 npx --yes supabase@2.109.1 functions deploy local-news --project-ref $ref --no-verify-jwt
 Check 'deploy local-news'
+npx --yes supabase@2.109.1 functions deploy event-submit --project-ref $ref --no-verify-jwt
+Check 'deploy event-submit'
 npx --yes supabase@2.109.1 functions deploy wall --project-ref $ref
 Check 'deploy wall'
 npx --yes supabase@2.109.1 functions deploy wall-webhook --project-ref $ref --no-verify-jwt

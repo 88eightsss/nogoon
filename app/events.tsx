@@ -14,7 +14,7 @@ import { useOfferStore } from '@/stores/useOfferStore';
 import { usePlaceStore } from '@/stores/usePlaceStore';
 import { regionsToShow } from '@/constants/places';
 import { PLACE_MAX, nearbyUrl, type Nearby } from '@/constants/elsewhere';
-import { getCommunityEvents, KIND_LABELS, type CommunityEvent, type EventKind } from '@/lib/events';
+import { getCommunityEvents, KIND_LABELS, linkHost, safeLink, reportEvent, type CommunityEvent, type EventKind, type ReportReason } from '@/lib/events';
 import { OutingButton } from '@/components/OutingButton';
 import { calendarUrl, inviteText } from '@/lib/outings';
 import { FONTS } from '@/constants/Colors';
@@ -33,6 +33,28 @@ const SEARCHES: Nearby[] = [
   { id: 'events',    label: 'Free events this week', sub: 'Music, markets, talks',           icon: 'calendar',     kind: 'search', q: 'free community events this week' },
   { id: 'cleanup',   label: 'Beach and park cleanups', sub: 'Outside, useful, social',       icon: 'sun',          kind: 'search', q: 'beach cleanup or park cleanup volunteer' },
 ];
+
+const SIGNUP_NOTICE = 'Opening a sign-up link does not sign you up. Finish the form on the organizer\'s page, then check their own posting to see you are on the list.';
+
+function openSignup(e: CommunityEvent) {
+  if (!safeLink(e.signup_url)) return;
+  const host = linkHost(e.signup_url);
+  Alert.alert(
+    `Go to ${host}?`,
+    `${SIGNUP_NOTICE}\n\nNoGoon does not run this form and never sees what you enter.`,
+    [{ text: 'Cancel', style: 'cancel' }, { text: 'Open it', onPress: () => open(e.signup_url as string) }],
+  );
+}
+
+function reportListing(e: CommunityEvent) {
+  const send = (r: ReportReason) => { void reportEvent(e.id, r).then((ok) => Alert.alert(ok ? 'Thanks, we will check it' : "Couldn't send that", ok ? 'Listings reported a few times are pulled for review.' : 'Check your connection and try again.')); };
+  Alert.alert('Report this listing', e.title, [
+    { text: 'Cancel', style: 'cancel' },
+    { text: 'Wrong or out of date', onPress: () => send('wrong') },
+    { text: 'Spam or a bad link', onPress: () => send('spam') },
+    { text: 'Unsafe or inappropriate', onPress: () => send('unsafe') },
+  ]);
+}
 
 function open(url: string) {
   Haptics.selectionAsync().catch(() => {});
@@ -106,7 +128,7 @@ export default function EventsScreen() {
           <ConstructionSign note="We are still adding events by hand, so your area may be empty for now. Check back soon." />
         )}
         <Text style={[styles.body, { color: colors.textSecondary }]}>
-          The point of cutting back is more life. Here is what is on in your community, refreshed twice a week, with a link to the source for every one.
+          The point of cutting back is more life. Here is what is on in your community, refreshed twice a week, with a link to the source for every one. NoGoon does not take sign-ups: sign-up links go to the organizer's own page.
         </Text>
 
         {events === null ? (
@@ -153,10 +175,24 @@ export default function EventsScreen() {
                 {e.summary ? <Text style={[styles.body, { color: colors.textSecondary }]}>{e.summary}</Text> : null}
                 <View style={styles.cardFoot}>
                   <Text style={[styles.meta, { color: colors.textMuted, flex: 1 }]} numberOfLines={1}>{e.region}{e.source ? ` · via ${e.source}` : ''}</Text>
+                  <Pressable onPress={() => reportListing(e)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Report ${e.title}`}>
+                    <Text style={[styles.meta, { color: colors.textMuted }]}>Report</Text>
+                  </Pressable>
                   <Pressable onPress={() => open(e.url)} hitSlop={8} accessibilityRole="link" accessibilityLabel={`Details for ${e.title}`}>
                     <Text style={[styles.link, { color: colors.accent }]}>Details</Text>
                   </Pressable>
                 </View>
+                {safeLink(e.signup_url) ? (
+                  <View style={[styles.signup, { borderColor: colors.cardBorder, backgroundColor: colors.surfaceHigh }]}>
+                    <Pressable onPress={() => openSignup(e)} hitSlop={6} accessibilityRole="link" accessibilityLabel={`Sign up page for ${e.title}, on ${linkHost(e.signup_url)}`} style={[styles.signupBtn, { backgroundColor: colors.accent }]}>
+                      <Feather name="external-link" size={14} color={colors.background} />
+                      <Text style={[styles.signupText, { color: colors.background }]}>Sign up on {linkHost(e.signup_url)}</Text>
+                    </Pressable>
+                    <Text style={[styles.meta, { color: colors.textSecondary }]}>
+                      {SIGNUP_NOTICE}
+                    </Text>
+                  </View>
+                ) : null}
                 <View style={styles.actions}>
                   <OutingButton event={e} />
                   {calendarUrl(e) ? (
@@ -233,7 +269,10 @@ const styles = StyleSheet.create({
   meta: { fontFamily: FONTS.body, fontSize: 12.5, lineHeight: 17 },
   cost: { paddingVertical: 3, paddingHorizontal: 9, borderRadius: 999 },
   costText: { fontFamily: FONTS.bodyMedium, fontSize: 11.5 },
-  cardFoot: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  cardFoot: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 14 },
+  signup: { borderWidth: 1, borderRadius: 12, padding: SPACING.sm, gap: 8 },
+  signupBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 14, borderRadius: 999, minHeight: 44 },
+  signupText: { fontFamily: FONTS.bodyBold, fontSize: 14 },
   link: { fontFamily: FONTS.bodyBold, fontSize: 13 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
   act: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1 },

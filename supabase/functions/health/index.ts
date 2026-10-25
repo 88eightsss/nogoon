@@ -6,6 +6,7 @@
 //
 //   feed-daily   expected every day            -> overdue after 30 hours
 //   events-draft expected Monday and Thursday  -> overdue after 5 days
+//   local-news   expected every day            -> overdue after 30 hours
 //
 // Deploy WITHOUT JWT checking so the monitor can call it:  supabase functions deploy health --no-verify-jwt
 // Address: https://<project-ref>.supabase.co/functions/v1/health
@@ -16,6 +17,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const JOBS: { job: string; maxHours: number }[] = [
   { job: 'feed-daily', maxHours: 30 },
   { job: 'events-draft', maxHours: 24 * 5 },
+  { job: 'local-news', maxHours: 30 },
 ];
 
 serve(async () => {

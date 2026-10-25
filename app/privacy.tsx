@@ -107,7 +107,9 @@ export default function PrivacyScreen() {
             '"Check I am here", the app asks for your location once and compares it on your phone with the ' +
             'event venue. It is not saved and not sent to us. The venue name is looked up with your phone\'s ' +
             'place lookup (on Android, Google). "Just count it" uses no location. Requesting a place we do not ' +
-            'cover sends only that place name. Local news headlines open the publisher\'s own website.'
+            'cover sends only that place name. Local news headlines open the publisher\'s own website. ' +
+            'Event sign-up links open the organizer\'s own page: NoGoon does not run those forms, does not see what you enter, ' +
+            'and opening one does not sign you up. Reporting a listing sends only the listing and your reason.'
           }
         />
 
