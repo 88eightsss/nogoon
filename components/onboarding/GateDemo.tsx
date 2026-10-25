@@ -9,6 +9,7 @@ import { View, Text, Pressable, Animated, Easing, StyleSheet } from 'react-nativ
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { FONTS } from '@/constants/Colors';
+import { track } from '@/lib/usage';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import type { ThemePalette } from '@/constants/Themes';
 
@@ -109,7 +110,7 @@ export function GateDemo({ c, btn, onDone }: Props) {
               ['stressed', 'Stressed or anxious'],
               ['need', 'I actually need this'],
             ] as [Choice, string][]).map(([id, label]) => (
-              <Pressable key={id} style={s.option} onPress={() => { setChoice(id); setPhase('result'); }} accessibilityRole="button">
+              <Pressable key={id} style={s.option} onPress={() => { setChoice(id); setPhase('result'); track('demo_done'); }} accessibilityRole="button">
                 <Text style={s.optionText}>{label}</Text>
               </Pressable>
             ))}

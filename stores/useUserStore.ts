@@ -19,6 +19,7 @@ import { supabase } from '@/lib/supabase';
 import { maybeNotifyStreak, maybeNotifyWalkAway, scheduleDailySummary } from '@/utils/notifications';
 import { useModesStore } from '@/stores/useModesStore';
 import { useMascotStore } from '@/stores/useMascotStore';
+import { track } from '@/lib/usage';
 import { getLocalDateKey, getLocalMonthKey, localDateKeyDiffDays, parseLocalDateKey } from '@/utils/date';
 
 // Fire-and-forget helper: writes focusSessionEnd to SharedPreferences so the
@@ -995,6 +996,7 @@ export const useUserStore = create<UserState>()(
         incrementWalkAway();
         recordDailyWalkAway();
         useMascotStore.getState().addWalkAwayTreat();   // a walk-away earns a treat (capped per day); Feed on Today spends it
+        track('walk_away');
       },
 
       recordDailyWalkAway: () => {

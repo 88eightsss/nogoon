@@ -41,3 +41,6 @@ if ($LASTEXITCODE -ne 0) { Write-Host "     (deploy reported exit code $LASTEXIT
 
 Write-Host "`n3/3  Refreshing the schedule and running the briefing"
 & "$PSScriptRoot\feed-go.ps1" -SkipKey
+
+Write-Host "`nChecking that everything answers (scripts\smoke-test.ps1)"
+& "$PSScriptRoot\smoke-test.ps1"

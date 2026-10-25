@@ -114,6 +114,15 @@ export default function PrivacyScreen() {
         />
 
         <Section
+          title="Crash reports and usage counts"
+          body={
+            'If the app crashes it can send the error, the app version and your phone model. It also sends plain totals ' +
+            '(how many times the pause screen opened, walk-aways, outings) with a random code that changes every day, so ' +
+            'one day cannot be linked to the next. No account, name, email, location or anything you typed. ' +
+            'Turn both off in Profile > Setup & fixes.'
+          }
+        />
+        <Section
           title="Advertising"
           body={
             'NoGoon shows no third-party ads and does not use an advertising ID. Local businesses can ' +

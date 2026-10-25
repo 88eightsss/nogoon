@@ -14,6 +14,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getLocalDateKey } from '@/utils/date';
 import { useMascotStore } from '@/stores/useMascotStore';
+import { track } from '@/lib/usage';
 
 export type OutingProof = 'self' | 'place';
 
@@ -103,6 +104,7 @@ export const useOutingStore = create<OutingState>()(
         const nextLog = sameToday ? log.map((o) => (o === sameToday ? entry : o)) : [entry, ...log].slice(0, LOG_MAX);
         set({ log: nextLog, souvenirs: nextSouvenirs, progress: nextProgress });
         useMascotStore.getState().addTreat(treats);
+        track('outing');
         return { ok: true, treats, souvenir };
       },
     }),

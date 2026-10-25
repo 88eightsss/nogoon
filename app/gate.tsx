@@ -66,6 +66,7 @@ import { TypingChallenge }   from '@/components/games/TypingChallenge';
 import { PACKAGE_TO_NAME } from '@/hooks/useAppBlocker';
 import { grantTemporaryUnlock, launchBlockedApp, DEFAULT_UNLOCK_MINUTES } from '@/utils/tempUnlock';
 import { exitGate } from '@/utils/exitGate';
+import { track } from '@/lib/usage';
 import { useUserStore } from '@/stores/useUserStore';
 import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
@@ -359,6 +360,7 @@ function NoGoonScreen() {
       isCurfewTriggered || isFocusSession || Number(rapidCountStr) >= 5 ||
       (curfewEnabled && isWithinBlockSchedule(curfewStart, curfewEnd));
     incrementOpenCount(domain);
+    track('gate_open');
     if (deadEnd) return;
     recordDailyGateFire();
   // eslint-disable-next-line react-hooks/exhaustive-deps

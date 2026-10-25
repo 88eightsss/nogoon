@@ -62,6 +62,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { AccessibilityDisclosure } from '@/components/AccessibilityDisclosure';
 import { isLightColor } from '@/utils/colorLuminance';
 import { reportCrash, flushPendingCrash } from '@/lib/crashReport';
+import { flushUsage } from '@/lib/usage';
 
 // Any uncaught JavaScript error: send an anonymous report (if the person has not turned that off),
 // then let React Native's own handler run as before.
@@ -237,6 +238,12 @@ export default function RootLayout() {
   useEffect(() => { initMascots(); }, []);
   // A crash the app could not report before it closed is sent now (a few seconds after launch).
   useEffect(() => { const t = setTimeout(() => { flushPendingCrash(); }, 4000); return () => clearTimeout(t); }, []);
+  // Anonymous usage counts (lib/usage.ts): sent a few seconds after launch and when the app comes back to the front.
+  useEffect(() => {
+    const t = setTimeout(() => { void flushUsage(true); }, 8000);
+    const sub = AppState.addEventListener('change', (next) => { if (next === 'active') void flushUsage(); });
+    return () => { clearTimeout(t); sub.remove(); };
+  }, []);
 
   // Keep the current route in a ref so the routing effect can look at it
   // without re-running every time the user navigates.

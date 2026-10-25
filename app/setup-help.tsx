@@ -218,13 +218,13 @@ export default function SetupHelpScreen() {
               <View style={s.linkRow}>
                 <Feather name="send" size={18} color={colors.textMuted} />
                 <View style={{ flex: 1 }}>
-                  <Text style={[s.rowTitle, { color: colors.text }]}>Send anonymous crash reports</Text>
-                  <Text style={[s.rowSub, { color: colors.textSecondary }]}>If the app crashes, it sends the error, the app version and your phone model. No account, name or contents.</Text>
+                  <Text style={[s.rowTitle, { color: colors.text }]}>Send anonymous crash reports and usage counts</Text>
+                  <Text style={[s.rowSub, { color: colors.textSecondary }]}>If the app crashes, it sends the error, the app version and your phone model. It also sends plain totals (how many times the gate opened, walk-aways, outings) with a random code that changes every day. No account, name or contents.</Text>
                 </View>
                 <Switch
                   value={crashOn}
                   onValueChange={(v) => { setCrashOn(v); setCrashReportingOn(v); }}
-                  accessibilityLabel="Send anonymous crash reports"
+                  accessibilityLabel="Send anonymous crash reports and usage counts"
                   trackColor={{ true: colors.accent, false: colors.cardBorder }}
                 />
               </View>

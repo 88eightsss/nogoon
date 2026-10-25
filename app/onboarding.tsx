@@ -42,6 +42,7 @@ import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Breathe } from '@/components/Breathe';
 import { GateDemo } from '@/components/onboarding/GateDemo';
+import { track } from '@/lib/usage';
 import { useUserStore } from '@/stores/useUserStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useThemeStore } from '@/stores/useThemeStore';
@@ -314,6 +315,7 @@ export default function OnboardingScreen() {
   // deliberately leaves everything untouched. Both go on to the setup questions.
   const handleContinueSetup = () => {
     if (!sitesAdded && selectedDomains.size > 0) handleAddSelected();
+    if (serviceEnabled) track('accessibility_on');
     setSetupDone(true);
   };
 
@@ -321,6 +323,7 @@ export default function OnboardingScreen() {
   // The one place hasOnboarded flips to true: after the setup questions (answered
   // or skipped), so the user has been through the Accessibility instructions first.
   const handleExitSetup = () => {
+    track('onboarded');
     completeOnboarding();
     router.replace('/(tabs)');
   };
