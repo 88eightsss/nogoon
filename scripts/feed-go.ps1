@@ -33,6 +33,11 @@ select cron.schedule('events-draft', '0 13 * * 1,4',
          url := 'https://$ref.supabase.co/functions/v1/events-draft',
          headers := jsonb_build_object('x-cron-secret', '$cron')
        ); `$`$);
+select cron.schedule('local-news', '30 15 * * *',
+  `$`$ select net.http_post(
+         url := 'https://$ref.supabase.co/functions/v1/local-news',
+         headers := jsonb_build_object('x-cron-secret', '$cron')
+       ); `$`$);
 select cron.schedule('wall-maintenance', '5 * * * *', `$`$ select public.wall_maintenance(); `$`$);
 select cron.schedule('supporter-sweep', '20 */6 * * *',
   `$`$ select net.http_post(

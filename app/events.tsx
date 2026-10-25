@@ -4,7 +4,7 @@
 // (using the optional town from Beyond the screen) cover everywhere we have no curated list.
 
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, TextInput, Pressable, ScrollView, StyleSheet, Linking, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, Pressable, ScrollView, StyleSheet, Linking, Alert, ActivityIndicator, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -15,6 +15,8 @@ import { usePlaceStore } from '@/stores/usePlaceStore';
 import { regionsToShow } from '@/constants/places';
 import { PLACE_MAX, nearbyUrl, type Nearby } from '@/constants/elsewhere';
 import { getCommunityEvents, KIND_LABELS, type CommunityEvent, type EventKind } from '@/lib/events';
+import { OutingButton } from '@/components/OutingButton';
+import { calendarUrl, inviteText } from '@/lib/outings';
 import { FONTS } from '@/constants/Colors';
 import { ConstructionSign } from '@/components/ui/Construction';
 import { UNDER_CONSTRUCTION } from '@/constants/construction';
@@ -150,9 +152,22 @@ export default function EventsScreen() {
                 </View>
                 {e.summary ? <Text style={[styles.body, { color: colors.textSecondary }]}>{e.summary}</Text> : null}
                 <View style={styles.cardFoot}>
-                  <Text style={[styles.meta, { color: colors.textMuted }]}>{e.region}{e.source ? ` · via ${e.source}` : ''}</Text>
+                  <Text style={[styles.meta, { color: colors.textMuted, flex: 1 }]} numberOfLines={1}>{e.region}{e.source ? ` · via ${e.source}` : ''}</Text>
                   <Pressable onPress={() => open(e.url)} hitSlop={8} accessibilityRole="link" accessibilityLabel={`Details for ${e.title}`}>
                     <Text style={[styles.link, { color: colors.accent }]}>Details</Text>
+                  </Pressable>
+                </View>
+                <View style={styles.actions}>
+                  <OutingButton event={e} />
+                  {calendarUrl(e) ? (
+                    <Pressable onPress={() => open(calendarUrl(e) as string)} hitSlop={8} accessibilityRole="link" accessibilityLabel={`Add ${e.title} to my calendar`} style={[styles.act, { borderColor: colors.cardBorder }]}>
+                      <Feather name="calendar" size={14} color={colors.textSecondary} />
+                      <Text style={[styles.actText, { color: colors.textSecondary }]}>Add to calendar</Text>
+                    </Pressable>
+                  ) : null}
+                  <Pressable onPress={() => { Share.share({ message: inviteText(e) }).catch(() => {}); }} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Invite someone to ${e.title}`} style={[styles.act, { borderColor: colors.cardBorder }]}>
+                    <Feather name="user-plus" size={14} color={colors.textSecondary} />
+                    <Text style={[styles.actText, { color: colors.textSecondary }]}>Bring someone</Text>
                   </Pressable>
                 </View>
               </View>
@@ -220,6 +235,9 @@ const styles = StyleSheet.create({
   costText: { fontFamily: FONTS.bodyMedium, fontSize: 11.5 },
   cardFoot: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   link: { fontFamily: FONTS.bodyBold, fontSize: 13 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
+  act: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1 },
+  actText: { fontFamily: FONTS.bodyMedium, fontSize: 13 },
   section: { fontFamily: FONTS.bodyMedium, fontSize: 12, letterSpacing: 0.6, textTransform: 'uppercase', marginTop: SPACING.md },
   input: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontFamily: FONTS.body, fontSize: 14 },
   row: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, padding: SPACING.md },

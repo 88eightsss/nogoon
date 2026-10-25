@@ -1,6 +1,6 @@
 // ─── Choose your place ────────────────────────────────────────────────────────
 // Search any town in the world. The choice stays on the phone. Where we have a gathered events list
-// (today: Maui and Oahu) Local shows it; everywhere else it shows search links and says so.
+// (today: Maui and Oahu) Step Out shows it; everywhere else it shows search links and says so.
 
 import { useEffect, useRef, useState } from 'react';
 import { View, Text, TextInput, Pressable, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
@@ -77,7 +77,7 @@ export default function PlaceScreen() {
       </View>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={[styles.body, { color: colors.textSecondary }]}>
-          Search any town. It stays on your phone and decides what Local shows.
+          Search any town. It stays on your phone and decides what Step Out shows.
         </Text>
         <TextInput
           value={q}
@@ -102,7 +102,7 @@ export default function PlaceScreen() {
           ) : (
             <View style={{ gap: SPACING.sm }}>
               <Text style={[styles.body, { color: colors.textSecondary }]}>
-                No matches, or search is not reachable right now. You can still use what you typed. Local will show search links for it.
+                No matches, or search is not reachable right now. You can still use what you typed. Step Out will show search links for it.
               </Text>
               {row({ name: typed, admin: '', country: '', regionKey: regionKeyFor(typed, 'Hawaii', 'US') }, 'typed')}
             </View>

@@ -101,6 +101,17 @@ export default function PrivacyScreen() {
         />
 
         <Section
+          title="Outings and location"
+          body={
+            'In Step Out, "I went" and your outing history, goal and souvenirs stay on your phone. If you choose ' +
+            '"Check I am here", the app asks for your location once and compares it on your phone with the ' +
+            'event venue. It is not saved and not sent to us. The venue name is looked up with your phone\'s ' +
+            'place lookup (on Android, Google). "Just count it" uses no location. Requesting a place we do not ' +
+            'cover sends only that place name. Local news headlines open the publisher\'s own website.'
+          }
+        />
+
+        <Section
           title="Advertising"
           body={
             'NoGoon shows no third-party ads and does not use an advertising ID. Local businesses can ' +

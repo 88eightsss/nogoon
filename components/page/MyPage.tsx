@@ -5,6 +5,7 @@
 // Order: function first (day count, protection, "Need a minute"), flair second (companion,
 // stamps). Journal / Bubbles / Insights live in the Feed tab; the pencil opens Customize.
 
+import { NextOuting } from '@/components/NextOuting';
 import { useCallback, useRef, useState } from 'react';
 import { ScrollView, View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
@@ -381,6 +382,7 @@ export function MyPage() {
           {partD}
           {partA}
           <FeedPal petName={petName} />
+          <NextOuting />
           {partF}
           {partB}
           {partG}
@@ -389,6 +391,7 @@ export function MyPage() {
         <>
           {partA}
           <FeedPal petName={petName} />
+          <NextOuting />
           {partB}
           {partC}
           {partD}

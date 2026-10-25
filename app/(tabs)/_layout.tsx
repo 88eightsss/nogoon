@@ -2,7 +2,7 @@
 //
 // 5-tab navigation — each tab maps to a user intent:
 //   Briefing → the finite daily read (amber)
-//   Local    → Happening near you, Journal, The Wall, and the place picker (teal)
+//   Step Out → outing goal + passport, what is on near you, local news, Journal, The Wall, the place picker (teal)
 //   Today    → daily status + focus CTA (green)
 //   Unwind   → recovery tools when struggling (amber) — breathing, grounding,
 //              waiting room, games, journal.
@@ -113,7 +113,7 @@ export default function TabsLayout() {
   ];
 
   // Five tabs, one intent each —
-  //   Briefing → read the finite daily batch · Local → what is on near you, Journal, The Wall ·
+  //   Briefing → read the finite daily batch · Step Out → what is on near you, local news, Journal, The Wall ·
   //   Today → status + "Need a minute" ·
   //   Unwind → do something better (urge tools, games, journal) ·
   //   Me → protection (blocking), customizing, progress and account.
@@ -123,7 +123,7 @@ export default function TabsLayout() {
     color: colors.calm, pillBg: colors.warningDim, guidePage: 'feed',
   };
   const LOCAL_TAB = {
-    name: 'local', title: 'Local', icon: 'map-pin' as FeatherName,
+    name: 'local', title: 'Step Out', icon: 'map-pin' as FeatherName,
     color: colors.protect, pillBg: colors.protect + '22', guidePage: 'local',
   };
   const byName = (n: string) => [...TABS, FEED_TAB, LOCAL_TAB].find((x) => x.name === n)!;

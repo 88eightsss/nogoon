@@ -74,6 +74,8 @@ npx --yes supabase@2.109.1 functions deploy feed-daily --project-ref $ref --no-v
 Check 'deploy feed-daily'
 npx --yes supabase@2.109.1 functions deploy events-draft --project-ref $ref --no-verify-jwt
 Check 'deploy events-draft'
+npx --yes supabase@2.109.1 functions deploy local-news --project-ref $ref --no-verify-jwt
+Check 'deploy local-news'
 npx --yes supabase@2.109.1 functions deploy wall --project-ref $ref
 Check 'deploy wall'
 npx --yes supabase@2.109.1 functions deploy wall-webhook --project-ref $ref --no-verify-jwt
@@ -103,6 +105,11 @@ select cron.schedule('feed-daily', '0 14 * * *',
 select cron.schedule('events-draft', '0 13 * * 1,4',
   `$`$ select net.http_post(
          url := 'https://$ref.supabase.co/functions/v1/events-draft',
+         headers := jsonb_build_object('x-cron-secret', '$cron')
+       ); `$`$);
+select cron.schedule('local-news', '30 15 * * *',
+  `$`$ select net.http_post(
+         url := 'https://$ref.supabase.co/functions/v1/local-news',
          headers := jsonb_build_object('x-cron-secret', '$cron')
        ); `$`$);
 select cron.schedule('wall-maintenance', '5 * * * *', `$`$ select public.wall_maintenance(); `$`$);
