@@ -179,11 +179,11 @@ export default function StepOutScreen() {
             <Feather name="compass" size={20} color={accent} />
             <View style={{ flex: 1, gap: 6 }}>
               <Text style={[styles.rowTitle, { color: colors.text }]}>
-                {hasPlace ? `No list for ${place.name} yet` : 'Pick a place to see what is on'}
+                {hasPlace ? `${place.name} is not on the list yet` : 'Pick a place to see what is on'}
               </Text>
               <Text style={[styles.rowBody, { color: colors.textSecondary }]}>
                 {hasPlace
-                  ? 'We do not have a gathered list here yet. The search links find markets, volunteering and free events near you.'
+                  ? 'We are adding towns one at a time, starting in Hawaii. Tap Request and it goes on the list. Until then, the search links find markets, volunteering and free events near you.'
                   : 'Choose your town and we will show what is on, or point you to searches that find it.'}
               </Text>
               <Pressable onPress={() => router.push('/events' as any)} hitSlop={8} accessibilityRole="button">
@@ -239,8 +239,8 @@ export default function StepOutScreen() {
           <Text style={[styles.link, { color: colors.accent }]}>Write it down</Text>
         </Pressable>
 
-        {/* The Wall */}
-        {showSponsors ? (
+        {/* The Wall. Hidden until it is live (constants/construction.ts), so a new person never sees an unfinished sign. */}
+        {showSponsors && !UNDER_CONSTRUCTION.wall ? (
           <>
             <Text style={[styles.section, { color: colors.textMuted }]}>The Wall</Text>
             <Pressable

@@ -41,6 +41,7 @@ import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Breathe } from '@/components/Breathe';
+import { GateDemo } from '@/components/onboarding/GateDemo';
 import { useUserStore } from '@/stores/useUserStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useThemeStore } from '@/stores/useThemeStore';
@@ -106,8 +107,8 @@ type Tone = 'protect' | 'calm' | 'arcade' | 'me';
 const SLIDES: { icon: FeatherName; title: string; body: string; tone: Tone }[] = [
   {
     icon: 'shield',
-    title: 'Not just a blocker.\nA better habit.',
-    body: "Open a blocked app and NoGoon steps in first, then points you somewhere better: a breath, a quick game, a walk with your pal.",
+    title: 'Stop the scroll.\nStart something better.',
+    body: "When you open a feed you want to quit, NoGoon steps in first with a breath, a quick game or a walk, then lets you choose.",
     tone: 'protect',
   },
   {
@@ -118,8 +119,8 @@ const SLIDES: { icon: FeatherName; title: string; body: string; tone: Tone }[] =
   },
   {
     icon: 'grid',
-    title: 'Five tabs,\none home',
-    body: "Briefing, Step Out, Today, Unwind and Me. Your blocking settings are in Me, under Protection. Each tab has a small ? that explains it.",
+    title: 'Also in here',
+    body: "Briefing: a short daily news read that ends. Step Out: things to do near you. Today: your pal. Unwind: games and calm. Me: your settings and blocking.",
     tone: 'me',
   },
   {
@@ -209,6 +210,8 @@ export default function OnboardingScreen() {
   const [setupDone, setSetupDone]         = useState(false);
   const [sitesAdded, setSitesAdded]       = useState(false);
   const [batteryExempt, setBatteryExempt] = useState(false);
+  const [showDemo, setShowDemo] = useState(false);
+  const [showMore, setShowMore] = useState(false);
   const [selectedDomains, setSelectedDomains] = useState<Set<string>>(
     () => new Set(SITE_SUGGESTIONS.map((s) => s.domain))
   );
@@ -332,6 +335,7 @@ export default function OnboardingScreen() {
 
     // ── Setup step (shown after name is saved) ──────────────────────────────
     if (nameSaved && step === SLIDES.length) {
+      if (showDemo) return <GateDemo c={c} btn={btn} onDone={() => setShowDemo(false)} />;
       return (
         <SafeAreaView style={styles.safe}>
           <ScrollView
@@ -344,6 +348,11 @@ export default function OnboardingScreen() {
             {/* Title */}
             <Text style={styles.title} accessibilityRole="header">Set it up in{'\n'}30 seconds</Text>
             <Text style={styles.sub}>Turn on blocking first, then pick what to block. The rest is optional.</Text>
+            {!serviceEnabled && (
+              <Pressable onPress={() => setShowDemo(true)} style={{ alignSelf: 'center' }} accessibilityRole="button">
+                <Text style={[styles.setupSkipText, { color: btn.bg }]}>See what it does first (20 seconds)</Text>
+              </Pressable>
+            )}
 
             {/* Setup card with action rows */}
             <View style={styles.setupCard}>
@@ -495,6 +504,19 @@ export default function OnboardingScreen() {
 
               <View style={styles.setupDivider} />
 
+              {/* Extra layers stay out of the first screen: three permission asks in a row feels like a
+                  gauntlet. They live behind one tap and are also in Me > Protection. */}
+              <Pressable onPress={() => setShowMore((v) => !v)} accessibilityRole="button" accessibilityState={{ expanded: showMore }} style={styles.setupRow}>
+                <View style={styles.setupRowLeft}>
+                  <View style={styles.setupRowIcon}><Feather name={showMore ? 'chevron-up' : 'chevron-down'} size={20} color={c.accentBright} /></View>
+                  <View style={styles.setupRowText}>
+                    <Text style={styles.setupRowTitle}>More protection (optional)</Text>
+                    <Text style={styles.setupRowSub}>Network and notification filters. You can add these any time.</Text>
+                  </View>
+                </View>
+              </Pressable>
+              {showMore && (
+              <>
               {NETWORK_SHIELD_ENABLED && (
               <>
               {/* Row 4 — VPN filter (network-level layer). Optional: full
@@ -541,6 +563,9 @@ export default function OnboardingScreen() {
                     bg={btn.bg} fg={btn.fg} style={styles.setupEnableButton} textStyle={styles.setupEnableButtonText} />
                 )}
               </View>
+
+              </>
+              )}
 
               {/* Row 6 — OEM autostart/battery manager. Only shown on manufacturers
                   known to run a second, separate killer on top of Android's own —
