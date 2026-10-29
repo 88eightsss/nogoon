@@ -24,9 +24,16 @@ updates:
         update-types: ['version-update:semver-major']
     groups:
       minor-and-patch:
+        applies-to: version-updates
         update-types: [minor, patch]
+      security-fixes:
+        applies-to: security-updates
+        patterns: ['*']
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: monthly
     labels: [dependencies]
+    groups:
+      actions:
+        patterns: ['*']
