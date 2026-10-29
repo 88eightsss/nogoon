@@ -1,0 +1,12 @@
+changelog:
+  exclude:
+    labels: [dependencies]
+  categories:
+    - title: New
+      labels: [feature]
+    - title: Fixes
+      labels: [fix]
+    - title: Polish
+      labels: [polish]
+    - title: Other changes
+      labels: ['*']

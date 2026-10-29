@@ -1,0 +1,31 @@
+# Runs on every pull request and every push to master.
+# Blocks merging when TypeScript fails (once the master ruleset requires the "typecheck" check).
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [master]
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - name: Expo health check (warning only)
+        run: npx --yes expo-doctor
+        continue-on-error: true
+      - name: No emojis in app UI
+        run: |
+          HITS=$(grep -rnP '[\x{1F300}-\x{1FAFF}]' app components --include=*.tsx --include=*.ts | grep -v 'components/ui/Glyph.tsx' || true)
+          if [ -n "$HITS" ]; then
+            echo "$HITS" | while IFS= read -r l; do echo "::error::Emoji in UI (use an icon instead): $l"; done
+            exit 1
+          fi

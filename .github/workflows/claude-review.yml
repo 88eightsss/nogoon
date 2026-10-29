@@ -1,0 +1,34 @@
+# Claude reviews every PR against the house rules in CLAUDE.md.
+name: Claude review
+on:
+  pull_request:
+    types: [opened, ready_for_review, synchronize]
+jobs:
+  review:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+    steps:
+      - name: Check token
+        env:
+          T: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: if [ -z "$T" ]; then echo "::warning::CLAUDE_CODE_OAUTH_TOKEN not set; skipping review."; echo "SKIP=1" >> $GITHUB_ENV; fi
+      - uses: actions/checkout@v4
+        if: env.SKIP != '1'
+        with:
+          fetch-depth: 1
+      - uses: anthropics/claude-code-action@v1
+        if: env.SKIP != '1'
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            Review this pull request for NoGoon. Read CLAUDE.md first and check every house rule.
+            Focus on: crashes or permission changes in the Android Accessibility Service or VPN code,
+            user data that is stored only on the phone and lost on reinstall, emojis in UI text,
+            Supabase tables without row-level security, functions deployed with the wrong JWT setting,
+            secrets in code, and anything that would fail Google Play policy.
+            Leave short inline comments on real problems only, then one summary comment. Skip style nitpicks.

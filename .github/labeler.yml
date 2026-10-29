@@ -1,0 +1,6 @@
+native:
+  - changed-files:
+      - any-glob-to-any-file: ['android/**', 'android-src/**', 'plugins/**']
+backend:
+  - changed-files:
+      - any-glob-to-any-file: ['supabase/**']

@@ -1,0 +1,7 @@
+# Changes here always request Jordan's review, even on robot PRs.
+/android/            @88eightsss
+/android-src/        @88eightsss
+/plugins/            @88eightsss
+/supabase/migrations/ @88eightsss
+/app.json            @88eightsss
+/eas.json            @88eightsss

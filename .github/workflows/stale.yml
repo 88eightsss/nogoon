@@ -1,0 +1,19 @@
+name: Close quiet tester reports
+on:
+  schedule:
+    - cron: '0 18 * * 1'   # Mondays 8am HST
+  workflow_dispatch:
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/stale@v9
+        with:
+          only-labels: tester-report
+          days-before-stale: 14
+          days-before-close: 7
+          stale-issue-message: 'No reply in 14 days. This closes in 7 days unless someone adds detail.'
+          days-before-pr-stale: -1
+          days-before-pr-close: -1

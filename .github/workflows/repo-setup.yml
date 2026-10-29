@@ -1,0 +1,26 @@
+# One-time and idempotent: creates the labels the automation uses. Safe to re-run.
+name: Repo setup
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths: ['.github/workflows/repo-setup.yml']
+jobs:
+  labels:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - run: |
+          gh label create claude-ok      --color 0E8A16 --description "Safe for Claude to fix on its own" --force
+          gh label create needs-decision --color D93F0B --description "Waiting on Jordan" --force
+          gh label create feature        --color 1D76DB --force
+          gh label create fix            --color B60205 --force
+          gh label create polish         --color C5DEF5 --force
+          gh label create native         --color 5319E7 --description "Touches Kotlin / Android code" --force
+          gh label create backend        --color FBCA04 --description "Supabase" --force
+          gh label create tester-report  --color F9D0C4 --force
+          gh label create dependencies   --color 0366D6 --force

@@ -1,0 +1,42 @@
+# Push a tag like v1.1.0 -> EAS builds the production .aab.
+# Bump android.versionCode in app.json BEFORE tagging (versions are managed locally).
+# Auto-submit to Play turns on when the repo variable PLAY_AUTO_SUBMIT = true
+# (after the Google Play service account key is uploaded with `eas credentials`).
+name: Release
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Check EXPO_TOKEN
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then echo "::error::Add the EXPO_TOKEN repo secret first."; exit 1; fi
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - run: npm ci
+      - name: Build (and submit when enabled)
+        run: |
+          if [ "${{ vars.PLAY_AUTO_SUBMIT }}" = "true" ]; then
+            eas build -p android --profile production --non-interactive --no-wait --auto-submit
+          else
+            eas build -p android --profile production --non-interactive --no-wait
+          fi
+      - name: GitHub release with notes
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${GITHUB_REF_NAME}" --generate-notes --verify-tag || true
+    permissions:
+      contents: write
