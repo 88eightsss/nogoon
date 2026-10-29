@@ -17,7 +17,7 @@ jobs:
         env:
           T: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         run: if [ -z "$T" ]; then echo "::warning::CLAUDE_CODE_OAUTH_TOKEN not set; skipping review."; echo "SKIP=1" >> $GITHUB_ENV; fi
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: env.SKIP != '1'
         with:
           fetch-depth: 1
