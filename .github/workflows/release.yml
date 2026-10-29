@@ -18,13 +18,13 @@ jobs:
           cache: npm
       - name: Check EXPO_TOKEN
         env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN || secrets.NOGOON_TOKEN }}
         run: |
-          if [ -z "$EXPO_TOKEN" ]; then echo "::error::Add the EXPO_TOKEN repo secret first."; exit 1; fi
+          if [ -z "$EXPO_TOKEN" ]; then echo "::error::Add the EXPO_TOKEN (or NOGOON_TOKEN) repo secret first."; exit 1; fi
       - uses: expo/expo-github-action@v8
         with:
           eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
+          token: ${{ secrets.EXPO_TOKEN || secrets.NOGOON_TOKEN }}
       - run: npm ci
       - name: Build (and submit when enabled)
         run: |
