@@ -1,11 +1,11 @@
 # Claude reviews every PR against the house rules in CLAUDE.md.
 name: Claude review
+# Paused: the GitHub-side Claude run fails before starting (auth). Reviews move to a Claude routine.
+# Run it by hand from the Actions tab if needed.
 on:
-  pull_request:
-    types: [opened, ready_for_review, synchronize]
+  workflow_dispatch:
 jobs:
   review:
-    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     permissions:
       contents: read
