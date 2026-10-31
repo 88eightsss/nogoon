@@ -35,6 +35,29 @@ function syncFocusSessionToNative(endMs: number): void {
 // Wraps all fire-and-forget Supabase writes so failures are logged instead of
 // silently swallowed. Pass a label for clearer console output.
 
+// Merge the local `nogoon_start_date` with the account's cloud copy: the earlier
+// 'YYYY-MM-DD' wins on both sides. With neither set, today becomes the start.
+const START_DATE_KEY = 'nogoon_start_date';
+const DATE_KEY_RE = /^\d{4}-\d{2}-\d{2}$/;
+async function syncStartDate(userId: string, cloudValue: unknown): Promise<void> {
+  try {
+    const cloud = typeof cloudValue === 'string' && DATE_KEY_RE.test(cloudValue.slice(0, 10))
+      ? cloudValue.slice(0, 10)
+      : null;
+    const storedLocal = await AsyncStorage.getItem(START_DATE_KEY);
+    const local = storedLocal && DATE_KEY_RE.test(storedLocal) ? storedLocal : null;
+    const merged = [local, cloud].filter((d): d is string => !!d).sort()[0] ?? getLocalDateKey();
+    if (merged !== local) await AsyncStorage.setItem(START_DATE_KEY, merged);
+    if (merged !== cloud) {
+      await backgroundWrite('start date sync', () =>
+        supabase.from('profiles').update({ start_date: merged }).eq('id', userId)
+      );
+    }
+  } catch (e) {
+    console.warn('[NoGoon] start date sync failed:', e);
+  }
+}
+
 async function backgroundWrite(
   label: string,
   writeFn: () => PromiseLike<{ error: any }>
@@ -1214,6 +1237,13 @@ export const useUserStore = create<UserState>()(
             };
           });
         }
+
+        // ── Start date ("Day N" on the Me tab) ──
+        // Stored per account: sign-out wipes the local key (see wipeLocal), and here
+        // the earlier of this device's date and the cloud's wins, so a new phone or
+        // reinstall keeps counting from the real first day. Best effort only — an
+        // older `profiles` table without start_date just keeps the local date.
+        await syncStartDate(userId, profileResult.data?.start_date);
 
         // ── Blocklist ──
         // First finish any removals that never reached the cloud, and keep those
