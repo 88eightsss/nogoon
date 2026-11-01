@@ -1161,7 +1161,7 @@ export const useUserStore = create<UserState>()(
         // Build the date range for the last 7 days
         const days = getLast7Days(); // ['2025-01-09', ..., '2025-01-15']
 
-        const [profileResult, blocklistResult, sessionsResult] =
+        const [profileResult, blocklistResult, sessionsResult, journalResult] =
           await Promise.all([
             // Fetch the user's main profile stats
             supabase.from('profiles').select('*').eq('id', userId).single(),
@@ -1176,6 +1176,14 @@ export const useUserStore = create<UserState>()(
               .eq('user_id', userId)
               .gte('played_at', days[0])   // Greater than or equal to 6 days ago
               .lte('played_at', days[6]),   // Less than or equal to today
+
+            // Fetch the most recent journal entries so a reinstall gets them back
+            supabase
+              .from('journal_entries')
+              .select('*')
+              .eq('user_id', userId)
+              .order('created_at', { ascending: false })
+              .limit(90),
           ]);
 
         // ── Profile data ──
@@ -1200,6 +1208,12 @@ export const useUserStore = create<UserState>()(
               longestStreak: Math.max(state.longestStreak, p.longest_streak ?? 0),
               gamesPlayed: Math.max(state.gamesPlayed, p.games_played ?? 0),
               walkAwayCount: Math.max(state.walkAwayCount, p.walk_away_count ?? 0),
+              // Freeze tokens are spent as well as earned, so a device that already
+              // tracks its own streak wins (a stale cloud count must not refund a
+              // burned token). A fresh install takes the cloud count.
+              streakFreezeTokens: state.lastStreakDate
+                ? state.streakFreezeTokens
+                : Math.max(state.streakFreezeTokens, p.streak_freeze_tokens ?? 0),
               // Blocked apps: a fresh install/new phone has none locally, so take the
               // cloud list then. Otherwise the device wins (it is uploaded on change),
               // so an app the user removed never comes back.
@@ -1243,6 +1257,38 @@ export const useUserStore = create<UserState>()(
           }));
         }
 
+        // ── Journal entries ──
+        // Merge cloud entries into the local list. Local entries have their own
+        // ids, so a cloud row counts as already present when an entry with the same
+        // text and domain was written within a few minutes of it.
+        if (journalResult.data && journalResult.data.length > 0) {
+          type JournalRow = { id: string | number; text: string | null; domain: string | null; created_at?: string | null };
+          set((state) => {
+            const local = state.journalEntries;
+            const near = (a: number, b: number) => Math.abs(a - b) < 10 * 60_000;
+            const fromCloud = (journalResult.data as JournalRow[])
+              .filter((r) => r.text && r.text.trim())
+              .map((r) => {
+                const ts = r.created_at ? Date.parse(r.created_at) : NaN;
+                return {
+                  id: `cloud-${r.id}`,
+                  text: r.text as string,
+                  domain: r.domain ?? '',
+                  timestamp: Number.isFinite(ts) ? ts : 0,
+                };
+              })
+              .filter((c) => !local.some((e) =>
+                e.id === c.id || (e.text === c.text && e.domain === c.domain && near(e.timestamp, c.timestamp))
+              ));
+            if (fromCloud.length === 0) return {};
+            return {
+              journalEntries: [...local, ...fromCloud]
+                .sort((a, b) => b.timestamp - a.timestamp)
+                .slice(0, 90),
+            };
+          });
+        }
+
         // ── Weekly chart ──
         // Build the 7-element array from the sessions data.
         // Count how many sessions were recorded on each of the last 7 days.
@@ -1268,7 +1314,7 @@ export const useUserStore = create<UserState>()(
     },
 
       syncToSupabase: async (userId, blockedApps) => {
-        const { points, xp, level, streak, longestStreak, gamesPlayed, walkAwayCount } = get();
+        const { points, xp, level, streak, longestStreak, gamesPlayed, walkAwayCount, streakFreezeTokens } = get();
         const apps = blockedApps ?? get().blockedApps;
         const base = {
           id: userId,
@@ -1282,10 +1328,13 @@ export const useUserStore = create<UserState>()(
         // walk_away_count may not exist on older `profiles` tables. If the full
         // upsert is rejected, retry without it so the rest of the progress still
         // reaches the cloud instead of the whole sync silently failing.
-        // The same applies to blocked_apps (see supabase/migrations). Try the full
-        // row first, then without the newest column, then the bare minimum.
+        // The same applies to blocked_apps and streak_freeze_tokens (see
+        // supabase/migrations). Try the full row first, then drop the newest
+        // columns one at a time, then the bare minimum.
         const full = { ...base, walk_away_count: walkAwayCount, blocked_apps: apps };
         try {
+          const { error: e0 } = await supabase.from('profiles').upsert({ ...full, streak_freeze_tokens: streakFreezeTokens });
+          if (!e0) return true;
           const { error } = await supabase.from('profiles').upsert(full);
           if (!error) return true;
           const { error: e2 } = await supabase.from('profiles').upsert({ ...base, walk_away_count: walkAwayCount });
