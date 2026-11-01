@@ -1,6 +1,7 @@
 // ─── useCloudSync ────────────────────────────────────────────────────────────
 //
-// Keeps the cloud profile (points, XP, streak, games played, walk-aways) in
+// Keeps the cloud profile (points, XP, streak, games played, walk-aways,
+// freeze tokens) in
 // step with this device. Mounted once in the root layout.
 //
 // Why it exists: progress is recorded locally, but nothing ever uploaded it,
@@ -22,7 +23,7 @@ const DEBOUNCE_MS = 4000;
 const userApps = () => useModesStore.getState().baseSnapshot?.apps ?? useUserStore.getState().blockedApps;
 
 const pick = (s: ReturnType<typeof useUserStore.getState>) =>
-  [s.points, s.xp, s.streak, s.longestStreak, s.gamesPlayed, s.walkAwayCount, [...userApps()].sort().join(',')].join('|');
+  [s.points, s.xp, s.streak, s.longestStreak, s.gamesPlayed, s.walkAwayCount, s.streakFreezeTokens, [...userApps()].sort().join(',')].join('|');
 
 export function useCloudSync(userId: string | undefined, ready: boolean) {
   useEffect(() => {
