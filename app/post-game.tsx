@@ -257,7 +257,6 @@ export default function PostGameScreen() {
     recordWalkAway,
     setCommitment,
     intentionGoal,
-    logTrigger,
     logReflection,
     addUrgeEntry,
     addJournalEntry,
@@ -323,7 +322,6 @@ export default function PostGameScreen() {
   const [unlockCountdown, setUnlockCountdown] = useState<number | null>(gameName === 'Walk' ? 0 : null);
   const [bonusEarned, setBonusEarned] = useState(false);
   const bonusPoints = 50;
-  const [selectedTrigger, setSelectedTrigger] = useState<string | null>(null);
   const unlockMinutes = 20; // Fixed at 20 min — no shorter options
 
   useEffect(() => {
@@ -345,7 +343,6 @@ export default function PostGameScreen() {
     const newCount = walkAwayCount + 1;
     setCelebrationCount(newCount);
     recordWalkAway();
-    if (selectedTrigger) logTrigger(selectedTrigger);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     // Show commitment step first — ask what they'll do instead
     setShowCommitment(true);
@@ -609,43 +606,6 @@ export default function PostGameScreen() {
           </View>
         ) : null}
 
-
-        {/* ── Trigger tag — "what pulled you in?" ── */}
-        {/* Optional one-tap label; logged only if user walks away */}
-        <View style={styles.triggerRow}>
-          <Text style={[styles.triggerLabel, { color: COLORS.textMuted }]}>What pulled you in?</Text>
-          <View style={styles.triggerPills}>
-            {[
-              { id: 'bored',         emoji: 'cloud', label: 'Bored' },
-              { id: 'stressed',      emoji: 'wind', label: 'Stressed' },
-              { id: 'habit',         emoji: 'smartphone', label: 'Habit' },
-              { id: 'fomo',          emoji: 'eye', label: 'FOMO' },
-            ].map((t) => {
-              const active = selectedTrigger === t.id;
-              return (
-                <Pressable
-                  key={t.id}
-                  style={[
-                    styles.triggerPill,
-                    {
-                      backgroundColor: active ? COLORS.indigoBright + '22' : COLORS.surface,
-                      borderColor: active ? COLORS.indigoBright : COLORS.cardBorder,
-                    },
-                  ]}
-                  onPress={() => {
-                    setSelectedTrigger(active ? null : t.id);
-                    Haptics.selectionAsync();
-                  }}
-                >
-                  <Glyph name={t.emoji} size={14} color={active ? COLORS.indigoBright : COLORS.textSecondary} />
-                  <Text style={[styles.triggerPillText, { color: active ? COLORS.indigoBright : COLORS.textSecondary }]}>
-                    {t.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
 
         {/* ── Decision buttons ── */}
         <View style={styles.decisions}>
@@ -1211,40 +1171,6 @@ const makeStyles = (COLORS: ArcadeColors) => StyleSheet.create({
     fontFamily: FONTS.bodyMedium,
     fontSize: 13,
     color: COLORS.green,
-  },
-
-  // ── Trigger tag row ────────────────────────────────────────────────────────
-  triggerRow: {
-    gap: SPACING.sm,
-    marginBottom: SPACING.sm,
-  },
-  triggerLabel: {
-    fontFamily: FONTS.mono,
-    fontSize: 10,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-    textAlign: 'center',
-  },
-  triggerPills: {
-    flexDirection: 'row',
-    gap: SPACING.xs,
-    justifyContent: 'center',
-  },
-  triggerPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 6,
-    borderRadius: RADIUS.full,
-    borderWidth: 1,
-  },
-  triggerPillEmoji: {
-    fontSize: 14,
-  },
-  triggerPillText: {
-    fontFamily: FONTS.body,
-    fontSize: 12,
   },
 
   // ── Now what? bridge ──────────────────────────────────────────────────────

@@ -4,7 +4,6 @@
 - Accountability partner: code + `notify-partner` function exist, no entry point in the UI.
 - Ad Wall, Paywall screens: no route/entry leads to them.
 - `blockSchedule` (Modes + Curfew already cover schedules), `gameDuration`, `intentionGoal`, `dailyWalkAwayGoal`: state exists, no UI.
-- `triggerCounts` duplicates `reflectionCounts` (already shown in Insights).
 - `checkResetStruggling` never called.
 - "AI suggestions coming soon" teaser.
 

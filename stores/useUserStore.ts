@@ -236,11 +236,6 @@ interface UserState {
   // focusSessionEnd is a Unix ms timestamp; null means no active session.
   focusSessionEnd: number | null;
 
-  // ── Trigger tagging ────────────────────────────────────────────────────────
-  // Quick-tap on post-game to tag what pulled the user in.
-  // Totals accumulate so users can spot their own patterns.
-  triggerCounts: Record<string, number>; // e.g. { bored: 12, stressed: 4 }
-
   // ── Post-walk-away reflection ──────────────────────────────────────────────
   // What the user was feeling when they walked away. One tap after celebration.
   // Used on the Insights screen to show emotional patterns over time.
@@ -393,9 +388,6 @@ interface UserState {
   // Focus session — starts a timed hard lock of given minutes
   startFocusSession: (minutes: number) => void;
   endFocusSession: () => void;
-
-  // Trigger tagging
-  logTrigger: (tag: string) => void;
 
   // Post-walk-away reflection
   logReflection: (tag: string) => void;
@@ -569,7 +561,6 @@ const DEFAULT_STATE = {
   blockScheduleEnd: '08:00',
   blockScheduleDays: [] as number[], // empty = every day
   focusSessionEnd: null as number | null,
-  triggerCounts: {} as Record<string, number>,
   reflectionCounts: {} as Record<string, number>,
   walkAwayActivity: [0, 0, 0, 0, 0, 0, 0] as [number, number, number, number, number, number, number],
   hourlyOpenCounts: Array(24).fill(0) as number[],
@@ -956,15 +947,6 @@ export const useUserStore = create<UserState>()(
         syncFocusSessionToNative(0);
       },
 
-      // ── Trigger tagging ──────────────────────────────────────────────────────
-      logTrigger: (tag) =>
-        set((state) => ({
-          triggerCounts: {
-            ...state.triggerCounts,
-            [tag]: (state.triggerCounts[tag] ?? 0) + 1,
-          },
-        })),
-
       // ── Post-walk-away reflection ────────────────────────────────────────────
       logReflection: (tag) =>
         set((state) => ({
@@ -1330,11 +1312,13 @@ export const useUserStore = create<UserState>()(
       // Bump `version` and add a step below whenever a persisted field is
       // renamed, removed or changes shape, so installs updating from an older
       // build keep their data instead of loading something half-compatible.
-      version: 1,
+      version: 2,
       migrate: (persisted: any, fromVersion: number) => {
         // v0 -> v1: no shape change; this just stamps existing installs.
-        if (fromVersion < 1) {
-          return persisted;
+        // v1 -> v2: triggerCounts removed (reflectionCounts is the single source).
+        if (fromVersion < 2 && persisted && typeof persisted === 'object') {
+          const { triggerCounts: _dropped, ...rest } = persisted;
+          return rest;
         }
         return persisted;
       },
@@ -1394,7 +1378,6 @@ export const useUserStore = create<UserState>()(
         firstActiveDate: state.firstActiveDate,
         totalActiveDays: state.totalActiveDays,
         walkAwayCount: state.walkAwayCount,
-        triggerCounts: state.triggerCounts,
         reflectionCounts: state.reflectionCounts,
         walkAwayActivity: state.walkAwayActivity,
         hourlyOpenCounts: state.hourlyOpenCounts,
