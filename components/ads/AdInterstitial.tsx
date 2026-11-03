@@ -62,38 +62,56 @@ export function useAdInterstitial() {
   useEffect(() => {
     if (isPro || !InterstitialAdSDK || !isAdIdConfigured(INTERSTITIAL_ID)) return;
 
+    let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    // Listener unsubscribers for the ad currently loaded. Replaced on every reload
+    // so each ad's listeners are removed, not just the first one's.
+    let unsubs: Array<() => void> = [];
+
+    const clearListeners = () => {
+      unsubs.forEach((unsub) => unsub());
+      unsubs = [];
+    };
+
     const loadAd = () => {
+      if (cancelled) return;
+      clearListeners();
+
       const ad = InterstitialAdSDK.createForAdRequest(INTERSTITIAL_ID, {
         requestNonPersonalizedAdsOnly: false,
       });
       adRef.current = ad;
       loadedRef.current = false;
 
-      const unsubLoaded = ad.addAdEventListener(AdEventType.LOADED, () => {
-        loadedRef.current = true;
-      });
-      const unsubClosed = ad.addAdEventListener(AdEventType.CLOSED, () => {
-        // Ad was dismissed — preload the next one immediately
-        loadedRef.current = false;
-        loadAd();
-      });
-      const unsubError = ad.addAdEventListener(AdEventType.ERROR, () => {
-        loadedRef.current = false;
-        // Retry after 30s on error
-        setTimeout(loadAd, 30_000);
-      });
+      unsubs = [
+        ad.addAdEventListener(AdEventType.LOADED, () => {
+          loadedRef.current = true;
+        }),
+        ad.addAdEventListener(AdEventType.CLOSED, () => {
+          // Ad was dismissed — preload the next one immediately
+          loadedRef.current = false;
+          loadAd();
+        }),
+        ad.addAdEventListener(AdEventType.ERROR, () => {
+          loadedRef.current = false;
+          // Retry after 30s on error
+          if (retryTimer) clearTimeout(retryTimer);
+          retryTimer = setTimeout(loadAd, 30_000);
+        }),
+      ];
 
       ad.load();
-
-      return () => {
-        unsubLoaded();
-        unsubClosed();
-        unsubError();
-      };
     };
 
-    const cleanup = loadAd();
-    return cleanup;
+    loadAd();
+
+    return () => {
+      cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
+      clearListeners();
+      adRef.current = null;
+      loadedRef.current = false;
+    };
   }, [isPro]);
 
   // Call this after each gate game completes.
