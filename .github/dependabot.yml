@@ -29,6 +29,9 @@ updates:
       security-fixes:
         applies-to: security-updates
         patterns: ['*']
+        # A security group once pulled expo and expo-router to SDK 58 and broke the build.
+        # Those move only with `npx expo install --fix`, never through Dependabot.
+        exclude-patterns: ['expo', 'expo-*', '@expo/*', 'react', 'react-dom', 'react-native', 'react-native-*', 'babel-preset-expo']
   - package-ecosystem: github-actions
     directory: /
     schedule:
