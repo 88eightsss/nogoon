@@ -84,6 +84,9 @@ class NoGoonAccessibilityService : AccessibilityService() {
         // Safety net: look at what is really in front every 1.5s while the screen is on, and act
         // when two looks in a row disagree with what the event stream told us.
         private const val FOREGROUND_POLL_MS     = 1_500L
+        // After sending the phone Home we wait this long before opening the gate, so the gate is
+        // certain to land on top of the home screen and not underneath it.
+        private const val HOME_BOUNCE_DELAY_MS   = 150L
         // Was 3_000L. That window let a user back out of the gate (Recents /
         // task switcher) and reopen the SAME blocked app a moment later while
         // still "on cooldown" — the trigger for that genuine second attempt was
@@ -928,21 +931,10 @@ class NoGoonAccessibilityService : AccessibilityService() {
         if (now2 - lastGateLaunchMs < GATE_LAUNCH_DEBOUNCE_MS) return
         lastGateLaunchMs = now2
         showGrayscaleOverlay()
-        try {
-            val uri = Uri.parse(
-                "nogoon://gate?domain=${Uri.encode(packageName)}&source=curfew&curfew=1"
-            )
-            val intent = Intent(Intent.ACTION_VIEW, uri).apply {
-                addFlags(
-                    Intent.FLAG_ACTIVITY_NEW_TASK  or
-                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                    Intent.FLAG_ACTIVITY_SINGLE_TOP
-                )
-            }
-            applicationContext.startActivity(intent)
-        } catch (e: Exception) {
-            Log.e(TAG, "triggerCurfewIfNotOnCooldown failed for $packageName", e)
-        }
+        // Curfew is a dead end by design, so the app is sent Home first, same as a blocked app.
+        bounceHome()
+        val curfewUri = "nogoon://gate?domain=${Uri.encode(packageName)}&source=curfew&curfew=1"
+        mainHandler.postDelayed({ startGate(curfewUri, "curfew $packageName") }, HOME_BOUNCE_DELAY_MS)
     }
 
     // ── Unlock-time accumulator ────────────────────────────────────────────────
@@ -1125,12 +1117,32 @@ class NoGoonAccessibilityService : AccessibilityService() {
         }
         lastGateLaunchMs = now
         showGrayscaleOverlay()  // dim screen immediately before gate appears
+        val rapidParams = if (rapid) "&rapid=1&rapidCount=$rapidCount" else ""
+        val gateUri = "nogoon://gate?domain=${Uri.encode(target)}&source=$source$rapidParams"
+        if (source == "app") {
+            // A blocked APP is sent Home first so it is never left running underneath the gate:
+            // backing out of the gate, tapping its Recents card or restarting it all land on the
+            // home screen, and the next attempt is gated again. (Sites and the mid-scroll check-in
+            // keep the gate on top of the page, since the person is meant to go back to it.)
+            bounceHome()
+            mainHandler.postDelayed({ startGate(gateUri, "target=$target source=$source") }, HOME_BOUNCE_DELAY_MS)
+        } else {
+            startGate(gateUri, "target=$target source=$source")
+        }
+    }
+
+    // Standard accessibility action: same as pressing the Home button.
+    private fun bounceHome() {
         try {
-            val rapidParams = if (rapid) "&rapid=1&rapidCount=$rapidCount" else ""
-            val uri = Uri.parse(
-                "nogoon://gate?domain=${Uri.encode(target)}&source=$source$rapidParams"
-            )
-            val intent = Intent(Intent.ACTION_VIEW, uri).apply {
+            performGlobalAction(GLOBAL_ACTION_HOME)
+        } catch (e: Exception) {
+            Log.w(TAG, "bounceHome failed", e)
+        }
+    }
+
+    private fun startGate(uriString: String, what: String) {
+        try {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uriString)).apply {
                 addFlags(
                     Intent.FLAG_ACTIVITY_NEW_TASK  or
                     Intent.FLAG_ACTIVITY_CLEAR_TOP or
@@ -1140,7 +1152,7 @@ class NoGoonAccessibilityService : AccessibilityService() {
             applicationContext.startActivity(intent)
         } catch (e: Exception) {
             // Log failures so intent/deep-link misconfigurations are diagnosable in logcat
-            Log.e(TAG, "launchNoGoon failed for target=$target source=$source", e)
+            Log.e(TAG, "launchNoGoon failed for $what", e)
         }
     }
 
