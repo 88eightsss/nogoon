@@ -33,7 +33,6 @@ interface ThemeState {
   setTheme: (id: ThemeId) => void;
   setBorder: (id: BorderId) => void;
   setStruggling: (val: boolean) => void;
-  checkResetStruggling: () => void;  // call on app open
   toggleGateGame: (id: string) => void;
   toggleCalmGateGame: (id: string) => void;
   setThemeBrightness: (val: number) => void;
@@ -56,15 +55,6 @@ export const useThemeStore = create<ThemeState>()(
       setStruggling: (val) => {
         const today = getLocalDateKey();
         set({ strugglingMode: val, strugglingDate: today });
-      },
-
-      checkResetStruggling: () => {
-        const { strugglingMode, strugglingDate } = get();
-        if (!strugglingMode) return;
-        const today = getLocalDateKey();
-        if (strugglingDate !== today) {
-          set({ strugglingMode: false, strugglingDate: '' });
-        }
       },
 
       toggleGateGame: (id) => {
