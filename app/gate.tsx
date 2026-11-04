@@ -67,7 +67,8 @@ import { PACKAGE_TO_NAME } from '@/hooks/useAppBlocker';
 import { grantTemporaryUnlock, launchBlockedApp, DEFAULT_UNLOCK_MINUTES } from '@/utils/tempUnlock';
 import { exitGate } from '@/utils/exitGate';
 import { track } from '@/lib/usage';
-import { useUserStore } from '@/stores/useUserStore';
+import { useUserStore, getMinutesSaved } from '@/stores/useUserStore';
+import { useRecoveryStore, shouldOfferValve, QUICK_UNLOCK_MINUTES } from '@/stores/useRecoveryStore';
 import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { resolveOffers, type OfferDef } from '@/constants/offers';
@@ -172,7 +173,7 @@ function pickCalmGame(): GameId {
 
 // ─── Main component ────────────────────────────────────────────────────────────
 
-type Phase = 'intro' | 'followthrough' | 'rapid' | 'lockout' | 'offer' | 'calm' | 'friction' | 'intent' | 'nogames' | 'context' | 'pick' | 'playing' | 'override' | 'curfew';
+type Phase = 'intro' | 'followthrough' | 'rapid' | 'lockout' | 'offer' | 'calm' | 'friction' | 'intent' | 'nogames' | 'context' | 'pick' | 'playing' | 'override' | 'curfew' | 'need' | 'annoyed';
 
 // The blocker can re-launch this screen for a different app while it's already
 // open (single-top). Keying on the target remounts it so the new app gets a fresh
@@ -361,8 +362,23 @@ function NoGoonScreen() {
     track('gate_open');
     if (deadEnd) return;
     recordDailyGateFire();
+    useRecoveryStore.getState().recordGateHit();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ── Pressure valve ───────────────────────────────────────────────────────
+  // After a pile-up of pauses, offer once (not nagging) to change what is blocked or pause for a while.
+  // Decided once on open, counting this stop as one of the hits.
+  const [showValve, setShowValve] = useState(() => {
+    const r = useRecoveryStore.getState();
+    return shouldOfferValve([...r.gateHits, Date.now()], r.valveOfferedAt);
+  });
+  const [needReason, setNeedReason] = useState('');
+  const myPlans = useRecoveryStore((st) => st.plans);
+  const myPlan = myPlans.length > 0 ? myPlans[Math.floor(Date.now() / 86_400_000) % myPlans.length] : null;
+  useEffect(() => {
+    if (phase === 'offer' && showValve) useRecoveryStore.getState().markValveOffered();
+  }, [phase, showValve]);
 
   // ── Load companion character from AsyncStorage ───────────────────────────
   useEffect(() => {
@@ -1224,6 +1240,109 @@ function NoGoonScreen() {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
+  // RENDER: "I need this for something" — a short, no-judgment unlock.
+  // One line on what it is for, then five minutes. Not offered in Hard Mode, Cold Turkey or walk gates.
+  // ══════════════════════════════════════════════════════════════════════════
+  if (phase === 'need' && !isBricked && !isColdTurkey && !gateWalk) {
+    const ready = needReason.trim().length >= 2;
+    return (
+      <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <ScrollView contentContainerStyle={styles.overrideContainer} keyboardShouldPersistTaps="handled">
+            <Feather name="key" size={44} color={C.textMuted} />
+            <Text style={[styles.checkinTitle, { color: C.textPrimary, textAlign: 'center' }]}>
+              What do you need it for?
+            </Text>
+            <Text style={[styles.contextLine, { color: C.textSecondary, textAlign: 'center' }]}>
+              Some things are real. Say it in a few words and you get {QUICK_UNLOCK_MINUTES} minutes. Then the pause comes back.
+            </Text>
+            <TextInput
+              style={[styles.overrideInput, { backgroundColor: C.surface, borderColor: ready ? C.green : C.cardBorder, color: C.textPrimary }]}
+              value={needReason}
+              onChangeText={setNeedReason}
+              placeholder="Reply to a message, look something up..."
+              placeholderTextColor={C.textMuted}
+              maxLength={60}
+              multiline={false}
+              accessibilityLabel="What do you need it for"
+            />
+            <Pressable
+              style={[styles.overrideUnlockBtn, { backgroundColor: ready ? C.green : C.surface, borderColor: ready ? C.green : C.border, opacity: ready ? 1 : 0.5 }]}
+              disabled={!ready}
+              onPress={async () => {
+                useRecoveryStore.getState().countQuickUnlock();
+                const granted = await grantTemporaryUnlock(domain, QUICK_UNLOCK_MINUTES);
+                exitGate({ keepApp: true });
+                if (granted && isAppBlock) launchBlockedApp(domain);
+              }}
+            >
+              <Feather name="unlock" size={16} color={ready ? onGreen : C.textMuted} />
+              <Text style={[styles.overrideUnlockText, { color: ready ? onGreen : C.textMuted }]}>
+                Open for {QUICK_UNLOCK_MINUTES} minutes
+              </Text>
+            </Pressable>
+            <Pressable onPress={() => setPhase('offer')} style={styles.exitTextRow}>
+              <Text style={[styles.exitText, { color: C.textMuted }]}>Back</Text>
+            </Pressable>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // RENDER: "This is annoying" — take it seriously. The pause should feel like help, not a wall.
+  // ══════════════════════════════════════════════════════════════════════════
+  if (phase === 'annoyed') {
+    const canPause = !isBricked && !isColdTurkey;
+    const change = (path: string) => {
+      exitGate({ keepApp: true });
+      setTimeout(() => router.push(path as any), 80);
+    };
+    return (
+      <SafeAreaView style={[styles.safe, { backgroundColor: C.background }]}>
+        <ScrollView contentContainerStyle={[styles.intentContainer, { flexGrow: 1 }]} showsVerticalScrollIndicator={false}>
+          <Text style={[styles.intentTitle, { color: C.textPrimary }]}>That's fair.</Text>
+          <Text style={[styles.contextLine, { color: C.textSecondary }]}>
+            This is meant to help, not nag. If it is stopping you too often, change what it covers. It is your call.
+          </Text>
+          <View style={styles.intentOptions}>
+            <Pressable
+              style={({ pressed }) => [styles.intentCard, { backgroundColor: pressed ? C.surfaceHigh : C.surface, borderColor: C.cardBorder }]}
+              onPress={() => change('/(tabs)/blocklist')}
+              accessibilityRole="button"
+            >
+              <Feather name="sliders" size={26} color={C.indigoBright} style={{ width: 36, textAlign: 'center' }} />
+              <View style={styles.intentCardText}>
+                <Text style={[styles.intentCardLabel, { color: C.textPrimary }]}>Block fewer things</Text>
+                <Text style={[styles.intentCardSub, { color: C.textSecondary }]}>Pick just the one or two that matter most</Text>
+              </View>
+              <Feather name="chevron-right" size={18} color={C.textMuted} />
+            </Pressable>
+            {canPause && (
+              <Pressable
+                style={({ pressed }) => [styles.intentCard, { backgroundColor: pressed ? C.surfaceHigh : C.surface, borderColor: C.cardBorder }]}
+                onPress={() => change('/pause')}
+                accessibilityRole="button"
+              >
+                <Feather name="pause-circle" size={26} color={C.indigoBright} style={{ width: 36, textAlign: 'center' }} />
+                <View style={styles.intentCardText}>
+                  <Text style={[styles.intentCardLabel, { color: C.textPrimary }]}>Pause for 10 minutes</Text>
+                  <Text style={[styles.intentCardSub, { color: C.textSecondary }]}>Blocking comes back on its own</Text>
+                </View>
+                <Feather name="chevron-right" size={18} color={C.textMuted} />
+              </Pressable>
+            )}
+          </View>
+          <Pressable onPress={() => setPhase('offer')} style={styles.exitTextRow}>
+            <Text style={[styles.exitText, { color: C.textSecondary }]}>Keep it as it is</Text>
+          </Pressable>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
   // RENDER: Offer — the first thing people see. Give them something better to do
   // instead of holding them up. "Keep going" still leads to the old pause, the
   // friction steps, the game and the walk-away choice, so nothing is easier to
@@ -1302,6 +1421,44 @@ function NoGoonScreen() {
             How about this{'\n'}instead?
           </Text>
 
+          {/* Their own words from setup, then the proof they are making progress. Calm, no numbers-as-pressure. */}
+          <Text style={[styles.contextLine, { color: C.textSecondary, textAlign: 'center' }]}>
+            {intentionGoal
+              ? `You paused this so you'd have more time for: ${intentionGoal}`
+              : 'You chose to pause this one. Here are some better options.'}
+          </Text>
+          {walkAwayCount > 0 && (
+            <Text style={[styles.urgePatternText, { color: C.textMuted, textAlign: 'center' }]}>
+              {walkAwayCount} walk-away{walkAwayCount === 1 ? '' : 's'} so far{' \u00b7 '}about {(() => {
+                const m = getMinutesSaved(walkAwayCount);
+                return m >= 60 ? `${Math.round(m / 60)} hr` : `${m} min`;
+              })()} back
+            </Text>
+          )}
+
+          {myPlan && (
+            <Text style={[styles.urgePatternText, { color: C.textSecondary, textAlign: 'center' }]}>
+              Your plan: when {myPlan.when}, you will {myPlan.then}.
+            </Text>
+          )}
+
+          {showValve && (
+            <View style={[styles.urgePatternRow, { backgroundColor: C.indigoBright + '14', borderColor: C.indigoBright + '33', borderWidth: 1, flexDirection: 'column', alignItems: 'stretch', gap: SPACING.sm, padding: SPACING.md }]}>
+              <Text style={[styles.intentCardLabel, { color: C.textPrimary }]}>A lot of pauses lately.</Text>
+              <Text style={[styles.intentCardSub, { color: C.textSecondary }]}>
+                That can be a sign it is blocking too much. Want to change it?
+              </Text>
+              <View style={{ flexDirection: 'row', gap: SPACING.md }}>
+                <Pressable onPress={() => { setShowValve(false); setPhase('annoyed'); }} hitSlop={8}>
+                  <Text style={[styles.exitText, { color: C.indigoBright }]}>Change it</Text>
+                </Pressable>
+                <Pressable onPress={() => setShowValve(false)} hitSlop={8}>
+                  <Text style={[styles.exitText, { color: C.textMuted }]}>I'm fine</Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
+
           {gateCharacter !== null && (
             <View style={styles.gateCompanionRow}>
               <GoonSprite char={gateCharacter} stage={gateStage} size={0.4} />
@@ -1340,6 +1497,17 @@ function NoGoonScreen() {
               <Text style={[styles.exitText, { color: C.textSecondary }]}>Keep going to {displayDomain}</Text>
             </Pressable>
           )}
+          {!isBricked && !isColdTurkey && !gateWalk && (
+            <Pressable onPress={() => setPhase('need')} style={styles.exitTextRow}>
+              <Text style={[styles.exitText, { color: C.textSecondary }]}>I need this for something</Text>
+            </Pressable>
+          )}
+          <Pressable
+            onPress={() => { useRecoveryStore.getState().countAnnoyed(); setPhase('annoyed'); }}
+            style={styles.exitTextRow}
+          >
+            <Text style={[styles.exitText, { color: C.textMuted }]}>This is annoying</Text>
+          </Pressable>
           <Pressable onPress={() => exitGate()} style={styles.exitTextRow}>
             <Text style={[styles.exitText, { color: C.textMuted }]}>Never mind</Text>
           </Pressable>

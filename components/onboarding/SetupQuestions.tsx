@@ -1,6 +1,6 @@
 // ─── "Make it yours" setup questions ──────────────────────────────────────────
 //
-// Four one-tap questions, one per screen, each with a visible Skip:
+// Five one-tap questions, one per screen, each with a visible Skip:
 //   1. What to cut back on (multi)   → starter sites + installed apps added to the blocklist
 //   2. When it's hardest (single)    → Wind-down default, optional Briefing reminder
 //   3. What replaces the scroll      → what Need a minute and Unwind put first
@@ -19,8 +19,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-  CUT_BACK_CHOICES, HARD_TIME_CHOICES, HARD_TIME_DEFAULTS, REPLACE_CHOICES, planSetupDefaults,
-  type CutBackId, type HardTimeId, type SetupAnswers,
+  CUT_BACK_CHOICES, HARD_TIME_CHOICES, HARD_TIME_DEFAULTS, REPLACE_CHOICES, STRICTNESS_CHOICES, MAX_STARTER_APPS, planSetupDefaults,
+  type CutBackId, type HardTimeId, type StrictnessId, type SetupAnswers,
 } from '@/constants/setupQuestions';
 import { useBriefingPrefs } from '@/stores/useBriefingPrefs';
 import { useThemeStore } from '@/stores/useThemeStore';
@@ -32,7 +32,7 @@ import { useOnboardingStyles } from './onboardingStyles';
 import { LookPicker } from './LookPicker';
 import { CompanionPicker, saveCompanion } from './CompanionPicker';
 
-const TOTAL = 4;
+const TOTAL = 5;
 
 function formatTime(hhmm: string): string {
   const [h, m] = hhmm.split(':').map((n) => parseInt(n, 10));
@@ -93,6 +93,7 @@ export function SetupQuestions({ onFinish, onBack, rerun = false }: {
   // True while the box is ticked only because Morning was picked (undone if the pick changes).
   const [autoRemind, setAutoRemind] = useState(false);
   // Q3
+  const [strictness, setStrictness] = useState<StrictnessId | null>(null);
   const [replace, setReplace] = useState<SetupAnswers['replace'] | null>(null);
   // Q4
   const [char, setChar] = useState<CharacterId | null>(() => (rerun ? useMascotStore.getState().active : null));
@@ -108,7 +109,7 @@ export function SetupQuestions({ onFinish, onBack, rerun = false }: {
   }, []);
 
   useEffect(() => {
-    if (step === 3 && !lookAtStart.current) {
+    if (step === 4 && !lookAtStart.current) {
       const t = useThemeStore.getState();
       lookAtStart.current = { themeId: t.themeId, themeBrightness: t.themeBrightness };
     }
@@ -122,7 +123,8 @@ export function SetupQuestions({ onFinish, onBack, rerun = false }: {
       if (hardTime) a.hardTime = hardTime;
       if (remind !== initialRemind) a.briefingReminder = remind;
     }
-    if (upTo >= 2 && replace) a.replace = replace;
+    if (upTo >= 2 && strictness) a.strictness = strictness;
+    if (upTo >= 3 && replace) a.replace = replace;
     return a;
   };
 
@@ -144,14 +146,15 @@ export function SetupQuestions({ onFinish, onBack, rerun = false }: {
   const skip = () => {
     if (step === 0) setCutBack(new Set());
     if (step === 1) { setHardTime(null); setRemind(initialRemind); setAutoRemind(false); }
-    if (step === 2) setReplace(null);
-    if (step === 3) {
+    if (step === 2) setStrictness(null);
+    if (step === 3) setReplace(null);
+    if (step === 4) {
       const t = lookAtStart.current;
       if (t) {
         useThemeStore.getState().setTheme(t.themeId);
         useThemeStore.getState().setThemeBrightness(t.themeBrightness);
       }
-      finish(2, false);
+      finish(3, false);
       return;
     }
     setStep(step + 1);
@@ -209,12 +212,18 @@ export function SetupQuestions({ onFinish, onBack, rerun = false }: {
                   <Choice key={o.id} ui={ui} multi on={cutBack.has(o.id)} icon={o.icon} title={o.label} sub={o.sub} onPress={() => toggleCut(o.id)} />
                 ))}
               </View>
+              <View style={styles.qNote}>
+                <Feather name="info" size={16} color={c.accentBright} style={{ marginTop: 2 }} />
+                <Text style={styles.qNoteText}>
+                  Heads up: the first few days you will see the pause a lot. That is normal. We start with at most {MAX_STARTER_APPS} apps, and you can loosen it any time.
+                </Text>
+              </View>
               {cutBack.size > 0 && (
                 <View style={styles.qNote}>
                   <Feather name="shield" size={16} color={c.accentBright} style={{ marginTop: 2 }} />
                   <Text style={styles.qNoteText}>
                     {sitesN > 0 || appsN > 0
-                      ? `Adds ${sitesN} site${sitesN === 1 ? '' : 's'}${appsN > 0 ? ` and the matching apps you have installed` : ''}. Change the list any time in Me, under Protection.`
+                      ? `Adds ${sitesN} site${sitesN === 1 ? '' : 's'}${appsN > 0 ? ` and up to ${MAX_STARTER_APPS} of the matching apps you have installed` : ''}. Change the list any time in Me, under Protection.`
                       : 'Add your own in Me, under Protection > Apps & sites.'}
                   </Text>
                 </View>
@@ -255,6 +264,18 @@ export function SetupQuestions({ onFinish, onBack, rerun = false }: {
 
           {step === 2 && (
             <>
+              <Text style={styles.qTitle} accessibilityRole="header">How firm should it be?</Text>
+              <Text style={styles.qSub}>You can change this later in Me, under Protection. Most people start gentle.</Text>
+              <View style={styles.qList} accessibilityRole="radiogroup">
+                {STRICTNESS_CHOICES.map((o) => (
+                  <Choice key={o.id} ui={ui} on={strictness === o.id} icon={o.icon} title={o.label} sub={o.sub} onPress={() => setStrictness(o.id)} />
+                ))}
+              </View>
+            </>
+          )}
+
+          {step === 3 && (
+            <>
               <Text style={styles.qTitle} accessibilityRole="header">What should replace the scroll?</Text>
               <Text style={styles.qSub}>We'll offer it first when you tap Need a minute, and put it first in Unwind. Nothing else goes away.</Text>
               <View style={styles.qGrid} accessibilityRole="radiogroup">
@@ -279,7 +300,7 @@ export function SetupQuestions({ onFinish, onBack, rerun = false }: {
             </>
           )}
 
-          {step === 3 && (
+          {step === 4 && (
             <>
               <Text style={styles.qTitle} accessibilityRole="header">Pick a companion and a look</Text>
               <Text style={styles.qSub}>They grow as you walk away. Change either any time in Customize.</Text>

@@ -139,6 +139,7 @@ function Chips<T extends string>({ items, value, onChange, colors }: {
 
 // ── Layout previews: tiny phone sketches so you can see the layout before choosing it ──────────
 const LAYOUT_CHOICES: { id: TodayLayout; title: string; sub: string }[] = [
+  { id: 'planner', title: 'Day plan',     sub: 'Morning, afternoon, evening, a small companion, and Calm' },
   { id: 'roomlast', title: 'Room last',    sub: 'Everything on top, then the room, then Need a minute' },
   { id: 'room',  title: 'Room',           sub: 'Your companion in its room' },
   { id: 'cards', title: 'Room and cards', sub: 'Smaller room, your numbers, good news' },
@@ -159,6 +160,13 @@ function LayoutSketch({ kind, colors }: { kind: TodayLayout; colors: { accent: s
           <View style={card} />
           <View style={card} />
           <View style={{ height: 24, borderRadius: 4, backgroundColor: colors.accentDim }} />
+        </>
+      )}
+      {kind === 'planner' && (
+        <>
+          <View style={card} />
+          <View style={card} />
+          <View style={card} />
         </>
       )}
       {kind === 'room' && <View style={{ height: 36, borderRadius: 4, backgroundColor: colors.accentDim }} />}

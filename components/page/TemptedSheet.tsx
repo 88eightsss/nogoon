@@ -1,4 +1,4 @@
-// ─── "Need a minute" sheet ──────────────────────────────────────────────────────
+// ─── "Calm" sheet (was "Need a minute") ──────────────────────────────────────────────────────
 //
 // The moment the app exists for: someone is about to open a scroll hole. One tap from
 // My Page, four ways out. Every option is an existing screen.
@@ -34,7 +34,7 @@ export function TemptedSheet({ visible, onClose }: { visible: boolean; onClose: 
       <Pressable style={styles.scrim} onPress={onClose} accessibilityLabel="Close" />
       <View style={[styles.sheet, { backgroundColor: colors.background, borderColor: colors.border }]}>
         <View style={[styles.grab, { backgroundColor: colors.border }]} />
-        <Text style={[styles.title, { color: colors.text }]}>Pause. Pick one.</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Calm. Pick one.</Text>
         <Text style={[styles.sub, { color: colors.textSecondary }]}>The urge is loudest for about ten minutes.</Text>
         {options.map((o) => (
           <Pressable

@@ -126,6 +126,20 @@ export const TEMPTED_ORDER: Record<HelpFirst, TemptedOptionId[]> = {
   write:    ['write', 'breathe', 'game', 'calm'],
 };
 
+// ── Q: how firm should it be (single choice) ────────────────────────────────
+// Gentle changes nothing (the short "what do you need it for?" unlock stays). Firm turns on Hard Mode:
+// no unlock button at all, and ending it takes a 24 hour wait. Cold Turkey is not offered here.
+
+export type StrictnessId = 'gentle' | 'firm';
+
+export const STRICTNESS_CHOICES: { id: StrictnessId; label: string; sub: string; icon: FeatherName }[] = [
+  { id: 'gentle', label: 'Gentle', sub: 'A pause every time. If you really need something, say what for and you get 5 minutes.', icon: 'feather' },
+  { id: 'firm',   label: 'Firm',   sub: 'No unlock button at all (Hard Mode). Turning it off later takes a 24 hour wait.',        icon: 'lock' },
+];
+
+/** Cap on starter apps added by the setup questions, so the first week is not a wall of pauses. */
+export const MAX_STARTER_APPS = 2;
+
 // ── Answers and the plan they produce ────────────────────────────────────────
 
 /** Only what the person actually answered. Undefined = skipped. Held in memory only. */
@@ -135,6 +149,7 @@ export interface SetupAnswers {
   /** Set only when the person changed the reminder box on Q2. */
   briefingReminder?: boolean;
   replace?: Exclude<HelpFirst, 'standard'>;
+  strictness?: StrictnessId;
 }
 
 export interface SetupPlan {
@@ -143,6 +158,7 @@ export interface SetupPlan {
   windDownHour: number | null;
   briefingReminder: boolean | null;   // null = leave alone
   helpFirst: HelpFirst | null;        // null = leave alone
+  hardMode: boolean;                  // true = turn Hard Mode on
 }
 
 /** Pure: answers → the changes to make. Skipped answers produce no change. */
@@ -160,5 +176,6 @@ export function planSetupDefaults(a: SetupAnswers): SetupPlan {
     windDownHour: time?.windDownHour ?? null,
     briefingReminder: a.briefingReminder ?? null,
     helpFirst: a.replace ?? null,
+    hardMode: a.strictness === 'firm',
   };
 }

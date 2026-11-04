@@ -15,8 +15,8 @@ import { isHelpFirst, type HelpFirst } from '@/constants/setupQuestions';
 export const ROOM_NAME_MAX = 24;
 
 /** How the Today tab is laid out. */
-export type TodayLayout = 'roomlast' | 'room' | 'cards' | 'plain' | 'focus' | 'pet';
-export const TODAY_LAYOUTS: TodayLayout[] = ['roomlast', 'room', 'cards', 'plain', 'focus', 'pet'];
+export type TodayLayout = 'planner' | 'roomlast' | 'room' | 'cards' | 'plain' | 'focus' | 'pet';
+export const TODAY_LAYOUTS: TodayLayout[] = ['planner', 'roomlast', 'room', 'cards', 'plain', 'focus', 'pet'];
 /** How the bottom tab bar looks. */
 export type TabStyle = 'standard' | 'raised';
 const isLayout = (v: unknown): v is TodayLayout => typeof v === 'string' && (TODAY_LAYOUTS as string[]).includes(v);
@@ -47,13 +47,13 @@ interface RoomState {
 export const useRoomStore = create<RoomState>()(
   persist(
     (set, get) => ({
-      roomView: true,
+      roomView: false,
       setRoomView: (on) => {
         const { todayLayout: cur, roomLayoutPref } = get();
         const todayLayout: TodayLayout = on ? (hasRoom(cur) ? cur : roomLayoutPref) : 'plain';
         set({ roomView: on, todayLayout, ...(hasRoom(cur) ? { roomLayoutPref: cur } : {}) });
       },
-      todayLayout: 'roomlast',
+      todayLayout: 'planner',
       roomLayoutPref: 'roomlast',
       setTodayLayout: (l) => set({ todayLayout: l, roomView: hasRoom(l), ...(hasRoom(l) ? { roomLayoutPref: l } : {}) }),
       tabStyle: 'standard',
@@ -86,7 +86,9 @@ export const useRoomStore = create<RoomState>()(
         for (const k of Object.keys(DEFAULT_DECOR) as DecorKey[]) {
           if (typeof p.decor?.[k] === 'boolean') decor[k] = p.decor[k];
         }
-        const todayLayout: TodayLayout = isLayout(p.todayLayout) ? p.todayLayout : (p.roomView === false ? 'plain' : 'roomlast');
+        // A brand-new install (nothing saved) starts on the day plan; older saves keep what they had.
+        const todayLayout: TodayLayout = isLayout(p.todayLayout) ? p.todayLayout
+          : (p.roomView === undefined ? 'planner' : (p.roomView === false ? 'plain' : 'roomlast'));
         const roomLayoutPref: TodayLayout = hasRoom(todayLayout) ? todayLayout
           : (isLayout(p.roomLayoutPref) && hasRoom(p.roomLayoutPref) ? p.roomLayoutPref : 'roomlast');
         return {

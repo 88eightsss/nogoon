@@ -42,6 +42,7 @@ import { useRoomStore } from '@/stores/useRoomStore';
 import { useOfferStore } from '@/stores/useOfferStore';
 import { useFlowStore } from '@/stores/useFlowStore';
 import { NextStepCard } from '@/components/flow/NextStepCard';
+import { PlannerToday } from './PlannerToday';
 
 type FeatherName = React.ComponentProps<typeof Feather>['name'];
 
@@ -221,10 +222,10 @@ export function MyPage() {
         onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); openTempted(); }}
         style={({ pressed }) => [styles.tempted, { backgroundColor: SUN + '26', borderColor: SUN + '99', opacity: pressed ? 0.7 : 1 }]}
         accessibilityRole="button"
-        accessibilityLabel="Need a minute. Tap here first. We'll get through it."
+        accessibilityLabel="Calm. Tap here first. We'll get through it."
       >
         <Feather name="wind" size={16} color={colors.textSecondary} />
-        <Text style={[styles.temptedText, { color: colors.textSecondary }]}>Need a minute</Text>
+        <Text style={[styles.temptedText, { color: colors.textSecondary }]}>Calm</Text>
       </Pressable>
     </>
   );
@@ -357,6 +358,21 @@ export function MyPage() {
       </Pressable>
     </>
   );
+
+  if (layout === 'planner') {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        <PlannerToday
+          char={char} stage={stage} petName={petName}
+          statusLabel={status.label} statusColor={status.color}
+          protectionOff={blockingStatus === 'off' || blockingStatus === 'stalled'}
+          onProtection={() => (blockingStatus === 'off' || blockingStatus === 'stalled' ? openSettings() : router.push('/(tabs)/blocklist' as any))}
+          onCalm={openTempted}
+        />
+        <TemptedSheet visible={tempted} onClose={() => setTempted(false)} />
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: paperBase }}>
