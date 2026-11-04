@@ -23,6 +23,7 @@ import { TYPE } from '@/constants/Typography';
 import { useTheme } from '@/hooks/useTheme';
 import { readableOn, isLightColor } from '@/utils/colorLuminance';
 import { useUserStore } from '@/stores/useUserStore';
+import { useFlowStore } from '@/stores/useFlowStore';
 import { PageGuide } from '@/components/PageGuide';
 import { useRoomStore } from '@/stores/useRoomStore';
 
@@ -189,6 +190,9 @@ function NightlyCommitmentCard() {
 
 export default function CalmScreen() {
   const { colors } = useTheme();
+  // Simple edition: only Journal in the "get it out" row until the person turns on Show me everything.
+  const showEverything = useFlowStore((s) => s.showEverything);
+  const blueTiles = showEverything ? BLUE_TILES : BLUE_TILES.filter((t) => t.id === 'journal');
   // "What helps first" (setup questions / Customize): Game puts the orange "do something else" tiles first.
   const helpFirst = useRoomStore((s) => s.helpFirst);
   const orangeFirst = helpFirst === 'game';
@@ -199,7 +203,7 @@ export default function CalmScreen() {
   const blueBlock = (
     <View key="blue" style={{ gap: SPACING.sm }}>
       <SectionLabel title="Get it out" />
-      <TileGrid tiles={BLUE_TILES} tint={blue} />
+      <TileGrid tiles={blueTiles} tint={blue} />
     </View>
   );
   const orangeBlock = (

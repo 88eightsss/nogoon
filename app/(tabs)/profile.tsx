@@ -743,7 +743,8 @@ export default function MeScreen() {
             <Feather name="chevron-right" size={16} color={colors.textMuted} />
           </Pressable>
 
-          {/* Modes */}
+          {/* Modes — simple edition: shown under "Show me everything" */}
+          {showEverything && (
           <Pressable
             style={[ctrlStyles.row, { borderBottomColor: colors.border }]}
             onPress={() => {
@@ -760,6 +761,7 @@ export default function MeScreen() {
             </View>
             <Feather name="chevron-right" size={16} color={colors.textMuted} />
           </Pressable>
+          )}
 
           <Text style={[ctrlStyles.groupLabel, { color: colors.textMuted }]}>Blocking strength</Text>
 
@@ -832,7 +834,8 @@ export default function MeScreen() {
             />
           </View>
 
-          {/* Cold Turkey — strictest tier above Hard Mode */}
+          {/* Cold Turkey — strictest tier above Hard Mode. Simple edition: hidden unless "Show me everything" or already on. */}
+          {(showEverything || isColdTurkey) && (
           <View style={[ctrlStyles.row, { borderBottomColor: colors.border }]}>
             <Feather name="slash" size={16} color={isColdTurkey ? colors.danger : colors.accent} />
             <View style={{ flex: 1 }}>
@@ -848,10 +851,12 @@ export default function MeScreen() {
               thumbColor="#fff"
             />
           </View>
+          )}
 
           {/* Focus Session — same story as Curfew: startFocusSession /
               endFocusSession and gate.tsx's whole no-bypass "focus" phase
               already existed; this is the first actual button for it. */}
+          {(showEverything || focusActive) && (
           <View style={[ctrlStyles.row, { borderBottomColor: colors.border, alignItems: 'flex-start' }]}>
             <Feather name="target" size={16} color={focusActive ? colors.danger : colors.accent} style={{ marginTop: 2 }} />
             <View style={{ flex: 1, gap: 6 }}>
@@ -892,6 +897,7 @@ export default function MeScreen() {
               )}
             </View>
           </View>
+          )}
 
           {/* Waiting Room mode */}
           <View style={[ctrlStyles.row, { borderBottomWidth: 0 }]}>

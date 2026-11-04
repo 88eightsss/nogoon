@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
+import { useFlowStore } from '@/stores/useFlowStore';
 import { usePackStore, GATE_NOTE_MAX, DEFAULT_COMPANION_POS, type GateVoice, type FloatMode, type CompanionSize, type PaperChoice, type DayDisplay } from '@/stores/usePackStore';
 import { availablePacks } from '@/constants/packs';
 import { FONTS } from '@/constants/Colors';
@@ -283,7 +284,13 @@ export default function CustomizeScreen() {
   const paperOverride    = usePackStore((s) => s.paperOverride);
   const setPaperOverride = usePackStore((s) => s.setPaperOverride);
 
-  const packs = availablePacks(unlockedIds);
+  // Simple edition: Core and Notebook skins, plus whichever skin is already active. The rest appear
+  // under "Show me everything".
+  const showEverything = useFlowStore((s) => s.showEverything);
+  const allPacks = availablePacks(unlockedIds);
+  const packs = showEverything
+    ? allPacks
+    : allPacks.filter((p) => p.id === 'core' || p.id === 'notebook' || p.id === activePackId);
   // Skins only appear once there is a second one to choose. Codes are for characters, not skins.
   const hub = packs.length > 1 ? HUB : HUB.filter((h) => h.id !== 'skins');
 
