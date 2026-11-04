@@ -187,7 +187,7 @@ export function SetupQuestions({ onFinish, onBack, rerun = false }: {
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView contentContainerStyle={styles.qScreen} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
 
-          {/* Back · n of 4 · Skip */}
+          {/* Back · n of 5 · Skip */}
           <View style={styles.qTop}>
             {step > 0 || onBack ? (
               <Pressable style={styles.qTopBtn} onPress={back} accessibilityRole="button" accessibilityLabel="Back" hitSlop={8}>

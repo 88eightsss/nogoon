@@ -14,6 +14,7 @@
 
 import { NativeModules, Platform } from 'react-native';
 import { useUserStore } from '@/stores/useUserStore';
+import { useRecoveryStore } from '@/stores/useRecoveryStore';
 
 const { AppBlocker } = NativeModules;
 const hasNativeModule = Platform.OS === 'android' && !!AppBlocker;
@@ -42,7 +43,11 @@ export async function grantTemporaryUnlock(
   try {
     await AppBlocker.setTemporaryUnlock(target, expiryMs.toString());
     // Letting the app through counts as giving in for streak purposes.
-    if (countAsGiveIn) useUserStore.getState().recordGiveIn();
+    if (countAsGiveIn) {
+      useUserStore.getState().recordGiveIn();
+      // Lets Today show one calm, shame-free check-in next time (components/page/SlipCard.tsx).
+      useRecoveryStore.getState().markSlip();
+    }
     return true;
   } catch (e) {
     console.warn('setTemporaryUnlock native call failed:', e);

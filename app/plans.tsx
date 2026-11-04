@@ -12,7 +12,7 @@ import { router } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
 import { FONTS } from '@/constants/Colors';
 import { SPACING } from '@/constants/Spacing';
-import { useRecoveryStore } from '@/stores/useRecoveryStore';
+import { useRecoveryStore, TRIGGER_CHOICES } from '@/stores/useRecoveryStore';
 
 const IDEAS = [
   { when: "I'm in bed and reach for my phone", then: 'put it across the room and read two pages' },
@@ -25,6 +25,8 @@ export default function PlansScreen() {
   const plans = useRecoveryStore((s) => s.plans);
   const addPlan = useRecoveryStore((s) => s.addPlan);
   const removePlan = useRecoveryStore((s) => s.removePlan);
+  const triggers = useRecoveryStore((s) => s.triggers);
+  const seen = TRIGGER_CHOICES.filter((t) => (triggers[t.id] ?? 0) > 0).sort((a, b) => (triggers[b.id] ?? 0) - (triggers[a.id] ?? 0));
   const [when, setWhen] = useState('');
   const [then, setThen] = useState('');
   const ready = when.trim().length >= 3 && then.trim().length >= 3 && plans.length < 5;
@@ -83,6 +85,16 @@ export default function PlansScreen() {
             </View>
           ) : (
             <Text style={[styles.sub, { color: colors.textMuted }]}>That's five. Remove one to add another.</Text>
+          )}
+
+          {seen.length > 0 && (
+            <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder, flexDirection: 'column', alignItems: 'stretch' }]}>
+              <Text style={[styles.label, { color: colors.textMuted }]}>WHAT HAS BEEN BEHIND IT</Text>
+              <Text style={[styles.body, { color: colors.text }]}>
+                {seen.slice(0, 3).map((t) => `${t.label} (${triggers[t.id]})`).join(', ')}
+              </Text>
+              <Text style={[styles.sub, { color: colors.textSecondary }]}>A plan for the top one is a good place to start.</Text>
+            </View>
           )}
 
           {plans.length === 0 && (

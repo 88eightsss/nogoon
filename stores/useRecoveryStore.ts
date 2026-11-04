@@ -17,6 +17,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type IfThenPlan = { id: string; when: string; then: string };
 
+/** What was behind a give-in, in the person's own pick. Counts only. */
+export const TRIGGER_CHOICES = [
+  { id: 'bored',   label: 'Bored' },
+  { id: 'tired',   label: 'Tired' },
+  { id: 'stressed', label: 'Stressed' },
+  { id: 'lonely',  label: 'Lonely' },
+  { id: 'late',    label: 'Late at night' },
+  { id: 'habit',   label: 'Just habit' },
+] as const;
+export type TriggerId = typeof TRIGGER_CHOICES[number]['id'];
+
 const HOUR_MS = 60 * 60 * 1000;
 export const VALVE_THRESHOLD = 4;      // gate stops inside VALVE_WINDOW_MS before we offer a way out
 export const VALVE_WINDOW_MS = HOUR_MS;
@@ -29,6 +40,8 @@ interface RecoveryState {
   plans: IfThenPlan[];
   quickUnlocks: number;              // how many times the 5-minute unlock was used (count only)
   annoyedTaps: number;               // how many times "This is annoying" was tapped (count only)
+  slipPending: boolean;              // a give-in happened and the calm check-in has not been shown/answered yet
+  triggers: Record<string, number>;  // trigger id -> count
 
   recordGateHit: () => void;
   markValveOffered: () => void;
@@ -36,6 +49,9 @@ interface RecoveryState {
   removePlan: (id: string) => void;
   countQuickUnlock: () => void;
   countAnnoyed: () => void;
+  markSlip: () => void;
+  clearSlip: () => void;
+  logTrigger: (id: TriggerId) => void;
 }
 
 export const useRecoveryStore = create<RecoveryState>()(
@@ -46,6 +62,8 @@ export const useRecoveryStore = create<RecoveryState>()(
       plans: [],
       quickUnlocks: 0,
       annoyedTaps: 0,
+      slipPending: false,
+      triggers: {},
 
       recordGateHit: () =>
         set((s) => {
@@ -60,6 +78,9 @@ export const useRecoveryStore = create<RecoveryState>()(
       removePlan: (id) => set((s) => ({ plans: s.plans.filter((p) => p.id !== id) })),
       countQuickUnlock: () => set((s) => ({ quickUnlocks: s.quickUnlocks + 1 })),
       countAnnoyed: () => set((s) => ({ annoyedTaps: s.annoyedTaps + 1 })),
+      markSlip: () => set({ slipPending: true }),
+      clearSlip: () => set({ slipPending: false }),
+      logTrigger: (id) => set((s) => ({ triggers: { ...s.triggers, [id]: (s.triggers[id] ?? 0) + 1 } })),
     }),
     { name: 'nogoon-recovery', storage: createJSONStorage(() => AsyncStorage), version: 1 },
   ),

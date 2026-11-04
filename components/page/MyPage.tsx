@@ -43,6 +43,7 @@ import { useOfferStore } from '@/stores/useOfferStore';
 import { useFlowStore } from '@/stores/useFlowStore';
 import { NextStepCard } from '@/components/flow/NextStepCard';
 import { PlannerToday } from './PlannerToday';
+import { SlipCard } from './SlipCard';
 
 type FeatherName = React.ComponentProps<typeof Feather>['name'];
 
@@ -399,6 +400,8 @@ export function MyPage() {
           <Feather name="edit-2" size={16} color={colors.textSecondary} />
         </Pressable>
       </View>
+
+      <SlipCard />
 
       {isPet ? (
         <>

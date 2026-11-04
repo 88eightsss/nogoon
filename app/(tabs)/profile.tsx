@@ -1037,6 +1037,17 @@ export default function MeScreen() {
         <View style={[ctrlStyles.board, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
           <Pressable
             style={[ctrlStyles.row, { borderBottomColor: colors.border }]}
+            onPress={() => router.push('/plans' as any)}
+          >
+            <Feather name="list" size={16} color={colors.accent} />
+            <View style={{ flex: 1 }}>
+              <Text style={[ctrlStyles.label, { color: colors.text }]}>My plans</Text>
+              <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>When it gets hard, I will...</Text>
+            </View>
+            <Feather name="chevron-right" size={16} color={colors.textMuted} />
+          </Pressable>
+          <Pressable
+            style={[ctrlStyles.row, { borderBottomColor: colors.border }]}
             onPress={() => {
               if (!unlocked.has('insights')) {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

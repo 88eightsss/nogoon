@@ -10,7 +10,7 @@
 //        (step-by-step instructions), the battery-optimization exemption, and
 //        two optional rows (VPN filter, notification listener) for the other
 //        two of the "three layers of protection".
-//   7.   "Make it yours": four skippable questions (components/onboarding/
+//   7.   "Make it yours": five skippable questions (components/onboarding/
 //        SetupQuestions.tsx): what to cut back on, hardest time, what replaces
 //        the scroll, companion + look. The companion and palette pickers that
 //        used to be steps of their own live in the last question.

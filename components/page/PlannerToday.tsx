@@ -16,6 +16,7 @@ import { getLocalDateKey } from '@/utils/date';
 import { FONTS } from '@/constants/Colors';
 import { SPACING } from '@/constants/Spacing';
 import { PackSprite } from './PackSprite';
+import { SlipCard } from './SlipCard';
 import type { CharacterId } from '@/stores/usePetStore';
 import type { GoonStage } from '@/constants/sprites';
 
@@ -109,6 +110,8 @@ export function PlannerToday({ char, stage, petName, statusLabel, statusColor, p
         <Text style={[styles.stripText, { color: colors.text }]} numberOfLines={1}>{statusLabel}</Text>
         <Feather name={protectionOff ? 'alert-circle' : 'chevron-right'} size={16} color={protectionOff ? statusColor : colors.textMuted} />
       </Pressable>
+
+      <SlipCard />
 
       {/* The day */}
       {PARTS.map((p) => {
