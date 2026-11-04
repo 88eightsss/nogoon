@@ -43,6 +43,16 @@ function withAppBlockerManifest(config) {
       'android.permission.FOREGROUND_SERVICE_SPECIAL_USE',      // Android 14+ foreground type for the same
       'android.permission.ACTIVITY_RECOGNITION',                // step counter for "Take your pal for a walk"
     ];
+    // Optional "Usage access" backup check (the person turns it on in Settings; nothing is collected).
+    // It is a special-access permission, so lint wants tools:ignore=ProtectedPermissions.
+    manifest.$ = manifest.$ || {};
+    manifest.$['xmlns:tools'] = 'http://schemas.android.com/tools';
+    const usagePerm = 'android.permission.PACKAGE_USAGE_STATS';
+    if (!manifest['uses-permission'].some((p) => p.$?.['android:name'] === usagePerm)) {
+      manifest['uses-permission'].push({
+        $: { 'android:name': usagePerm, 'tools:ignore': 'ProtectedPermissions' },
+      });
+    }
     for (const perm of permsToAdd) {
       const alreadyHas = manifest['uses-permission'].some(
         (p) => p.$?.['android:name'] === perm
@@ -323,13 +333,15 @@ function withAppBlockerFiles(config) {
       // typeWindowStateChanged   — fires when user switches apps (needed for app blocking)
       // typeWindowContentChanged  — fires when any text on screen changes (needed for URL detection)
       // typeViewScrolled          — fires while user scrolls (needed for doom-scroll detection)
+      // typeWindowsChanged + flagRetrieveInteractiveWindows — fires when a window opens, closes or
+      //                             becomes active: Samsung Recents, split-screen and pop-up view
       // canRetrieveWindowContent="true" — allows us to read the browser address bar text
       const xmlContent = `<?xml version="1.0" encoding="utf-8"?>
 <accessibility-service
     xmlns:android="http://schemas.android.com/apk/res/android"
-    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged|typeViewScrolled"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged|typeViewScrolled|typeWindowsChanged"
     android:accessibilityFeedbackType="feedbackGeneric"
-    android:accessibilityFlags="flagDefault"
+    android:accessibilityFlags="flagDefault|flagRetrieveInteractiveWindows"
     android:canRetrieveWindowContent="true"
     android:description="@string/nogoon_a11y_description"
     android:notificationTimeout="100"

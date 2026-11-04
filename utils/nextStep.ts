@@ -35,7 +35,7 @@ export type NextStepInput = {
 };
 
 export function pickNextStep(i: NextStepInput): NextStep | null {
-  if (i.blockingStatus === 'off') {
+  if (i.blockingStatus === 'off' || i.blockingStatus === 'stalled') {
     return {
       id: 'protect_on', icon: 'shield', title: 'Turn on blocking',
       body: 'One Android permission lets NoGoon notice when you open an app you chose to pause. It never reads what is on your screen.',

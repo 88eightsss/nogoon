@@ -29,6 +29,7 @@ import { Pressable, View, Text } from 'react-native';
 import { FloatingCompanion } from '@/components/page/FloatingCompanion';
 import { TabCoach } from '@/components/tour/TabCoach';
 import { FlowTips } from '@/components/flow/FlowTips';
+import { BlockingBanner } from '@/components/flow/BlockingBanner';
 import { PackSprite } from '@/components/page/PackSprite';
 import { useMascot } from '@/components/page/useCharacter';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -235,6 +236,7 @@ export default function TabsLayout() {
     <FloatingCompanion />
     <TabCoach />
     <FlowTips />
+    <BlockingBanner />
     </View>
   );
 }

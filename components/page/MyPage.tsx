@@ -168,7 +168,7 @@ export function MyPage() {
         <RoomScene
           char={char} stage={stage} streak={streak} walkAways={walkAways}
           headline={topGood?.headline ?? null} showSponsors={showSponsors} petName={petName}
-          protectionOff={blockingStatus === 'off' || blockingStatus === 'empty'}
+          protectionOff={blockingStatus === 'off' || blockingStatus === 'stalled' || blockingStatus === 'empty'}
           {...(layout === 'cards' ? { maxWidth: 300, outerPad: 96, showTicker: false } : isPet ? { showTicker: false } : {})}
         />
         {layout === 'cards' && (
@@ -249,7 +249,7 @@ export function MyPage() {
   const partD = (
     <>
       <Pressable
-        onPress={() => (blockingStatus === 'off' ? openSettings() : router.push('/(tabs)/blocklist' as any))}
+        onPress={() => (blockingStatus === 'off' || blockingStatus === 'stalled' ? openSettings() : router.push('/(tabs)/blocklist' as any))}
         style={[styles.card, cardStyle, styles.row, { backgroundColor: colors.surface, borderColor: colors.cardBorder, alignItems: 'center' }]}
         accessibilityRole="button"
       >

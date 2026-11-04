@@ -303,7 +303,7 @@ export default function RootLayout() {
       // reset-password finishes its own password update before moving on.
       if (top !== 'onboarding' && top !== 'reset-password') router.replace('/onboarding');
     } else {
-      const inFlow = top === 'gate' || top === 'waiting-room' || top === 'post-game';
+      const inFlow = top === 'gate' || top === 'waiting-room' || top === 'post-game' || top === 'pause';
       const inApp = top === '(tabs)' || inFlow;
       const onEntryScreen = top === undefined || top === 'auth' || top === 'onboarding' || top === 'index';
       if (!inApp && onEntryScreen) router.replace('/(tabs)');
@@ -407,6 +407,16 @@ export default function RootLayout() {
             options={{
               presentation: 'fullScreenModal',
               animation: 'slide_from_bottom',
+            }}
+          />
+
+          {/* Pause blocking — opened from the Quick Settings tile */}
+          <Stack.Screen
+            name="pause"
+            options={{
+              presentation: 'fullScreenModal',
+              animation: 'fade',
+              gestureEnabled: false,
             }}
           />
 

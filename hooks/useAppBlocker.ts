@@ -17,7 +17,7 @@
 // USAGE:
 //   const { serviceEnabled, blockedApps, toggleApp, openSettings } = useAppBlocker()
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Platform, NativeModules, AppState } from 'react-native';
 import * as IntentLauncher from 'expo-intent-launcher';
 import { useUserStore } from '@/stores/useUserStore';
@@ -108,6 +108,9 @@ export function useAppBlocker() {
   const websiteBlocklist = useUserStore((s) => s.blocklist);
   const [serviceEnabled, setServiceEnabled] = useState(false);
   const [checking, setChecking]             = useState(true);
+  // Listed as on in Settings, but Android is not really running the service (see AppBlockerModule.isServiceRunning).
+  const [serviceStalled, setServiceStalled] = useState(false);
+  const stallTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [grayscaleEnabled, setGrayscaleEnabledState] = useState(false);
   // Raw expiry timestamp from native (ms). 0 = not paused. > Date.now() = paused.
   const [blockingPausedUntil, setBlockingPausedUntil] = useState<number>(0);
@@ -171,6 +174,23 @@ export function useAppBlocker() {
     try {
       const enabled: boolean = await AppBlocker.isServiceEnabled();
       setServiceEnabled(enabled);
+      // "On" in Settings is not proof it is running: a battery manager or a swipe from Recents can
+      // kill it and leave the Settings switch on. Look twice, 4s apart, so the moment right after
+      // the app starts (before Android rebinds the service) never shows a false alarm.
+      if (enabled && typeof AppBlocker.isServiceRunning === 'function') {
+        const running: boolean = await AppBlocker.isServiceRunning();
+        if (running) {
+          if (stallTimer.current) { clearTimeout(stallTimer.current); stallTimer.current = null; }
+          setServiceStalled(false);
+        } else if (!stallTimer.current) {
+          stallTimer.current = setTimeout(async () => {
+            stallTimer.current = null;
+            try { setServiceStalled(!(await AppBlocker.isServiceRunning())); } catch { /* keep the last answer */ }
+          }, 4000);
+        }
+      } else {
+        setServiceStalled(false);
+      }
     } catch {
       setServiceEnabled(false);
     } finally {
@@ -195,7 +215,11 @@ export function useAppBlocker() {
     });
     // Re-check every 30 s — Android can kill the service between AppState changes
     const pollInterval = setInterval(checkServiceStatus, 30_000);
-    return () => { sub.remove(); clearInterval(pollInterval); };
+    return () => {
+      sub.remove();
+      clearInterval(pollInterval);
+      if (stallTimer.current) { clearTimeout(stallTimer.current); stallTimer.current = null; }
+    };
   }, [checkServiceStatus]);
 
   // (Blocked apps/sites, Modes, curfew and widget stats are pushed to the native
@@ -403,7 +427,9 @@ export function useAppBlocker() {
       ? 'checking'   // first check hasn't returned yet — don't flash "off"
       : !serviceEnabled
         ? 'off'
-        : hasAnyBlocks
+        : serviceStalled
+          ? 'stalled'
+          : hasAnyBlocks
           ? 'active'
           : 'empty';
 
@@ -423,7 +449,7 @@ export function useAppBlocker() {
     setGrayscaleEnabled,   // (enabled: boolean) => Promise<void>
     checkServiceStatus,
     hasNativeModule,       // boolean — false in Expo Go, true in built app
-    blockingStatus,        // 'paused' | 'active' | 'empty' | 'off' — for ShieldStatus component
+    blockingStatus,        // 'paused' | 'active' | 'empty' | 'off' | 'stalled' — for ShieldStatus component
     isBlockingPaused,           // boolean — true when QS tile has paused blocking
     blockingPausedMinutesLeft,  // number — minutes remaining in the pause window
     resumeBlocking,             // () => Promise<void> — clears the paused flag

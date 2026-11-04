@@ -39,8 +39,11 @@ class ProtectionWatchdogWorker(
 ) : Worker(context, params) {
 
     companion object {
-        private const val WORK_NAME               = "nogoon_protection_watchdog"
-        private const val CHECK_INTERVAL_HOURS     = 6L
+        // v2: the old job ran every 6 hours. A killed service is worth catching within minutes, so the
+        // check now runs every 15 minutes (the shortest WorkManager allows). The old job is cancelled.
+        private const val WORK_NAME               = "nogoon_protection_watchdog_v2"
+        private const val OLD_WORK_NAME           = "nogoon_protection_watchdog"
+        private const val CHECK_INTERVAL_MINUTES   = 15L
         private const val WATCHDOG_CHANNEL         = "nogoon_watchdog_alerts"
         private const val WATCHDOG_NOTIFICATION_ID = 4243
 
@@ -49,9 +52,10 @@ class ProtectionWatchdogWorker(
         // just "make sure the watchdog is running," not "restart the timer."
         fun schedule(context: Context) {
             val request = PeriodicWorkRequestBuilder<ProtectionWatchdogWorker>(
-                CHECK_INTERVAL_HOURS, TimeUnit.HOURS
+                CHECK_INTERVAL_MINUTES, TimeUnit.MINUTES
             ).build()
 
+            WorkManager.getInstance(context).cancelUniqueWork(OLD_WORK_NAME)
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 WORK_NAME,
                 ExistingPeriodicWorkPolicy.KEEP,
@@ -79,11 +83,22 @@ class ProtectionWatchdogWorker(
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
             ?: return Result.success()
 
-        if (isAccessibilityServiceEnabled(context)) {
+        val statePrefs = context.getSharedPreferences("NoGoonBlocker", 0)
+        val listed = isAccessibilityServiceEnabled(context)
+        if (listed && NoGoonAccessibilityService.isConnected) {
             // Healthy — clear any stale "protection is off" alert from a
             // previous check so it doesn't linger after the user fixes it.
+            statePrefs.edit().putInt("watchdog_stall_count", 0).apply()
             nm.cancel(WATCHDOG_NOTIFICATION_ID)
             return Result.success()
+        }
+        if (listed) {
+            // Switched on in Settings but not running: a battery manager or a swipe from Recents killed
+            // it and Android has not rebound it yet. Give it one more check (15 min) before alarming,
+            // since this worker can start in a fresh process before the service reconnects.
+            val strikes = statePrefs.getInt("watchdog_stall_count", 0) + 1
+            statePrefs.edit().putInt("watchdog_stall_count", strikes).apply()
+            if (strikes < 2) return Result.success()
         }
 
         // Nothing to protect yet (e.g. still in onboarding, before any app/site is picked):
@@ -120,7 +135,7 @@ class ProtectionWatchdogWorker(
                 .setContentText("Blocking stopped running in the background. Tap to turn it back on.")
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setAutoCancel(true)
-                .setOnlyAlertOnce(true) // don't re-buzz on every 6h re-check while still unfixed
+                .setOnlyAlertOnce(true) // don't re-buzz on every re-check while still unfixed
                 .setContentIntent(pending)
                 .build()
 

@@ -42,7 +42,10 @@ import android.accessibilityservice.AccessibilityService
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.app.AppOpsManager
 import android.app.Service
+import android.app.usage.UsageEvents
+import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
@@ -52,6 +55,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.util.Log
 import android.view.View
 import android.view.WindowManager
@@ -67,6 +71,19 @@ class NoGoonAccessibilityService : AccessibilityService() {
         const val KEY_BLOCKLIST        = "blockedPackages"   // app package names
         const val KEY_DOMAIN_BLOCKLIST = "blockedDomains"   // website domains
         const val KEY_ENABLED          = "serviceActive"
+
+        // True only while Android has this service bound and running. The Settings list says the
+        // service is "on" even when a Samsung battery manager or a swipe from Recents has killed the
+        // process and Android has not rebound it yet; this flag is the truth. Same process as the
+        // app, so AppBlockerModule (and the watchdog) can read it directly.
+        @Volatile
+        @JvmStatic
+        var isConnected: Boolean = false
+
+        private const val OWN_PACKAGE            = "com.nogoon.app"
+        // Safety net: look at what is really in front every 1.5s while the screen is on, and act
+        // when two looks in a row disagree with what the event stream told us.
+        private const val FOREGROUND_POLL_MS     = 1_500L
         // Was 3_000L. That window let a user back out of the gate (Recents /
         // task switcher) and reopen the SAME blocked app a moment later while
         // still "on cooldown" — the trigger for that genuine second attempt was
@@ -254,9 +271,13 @@ class NoGoonAccessibilityService : AccessibilityService() {
         // Show the persistent "protection active" notification and mark this
         // service as a foreground service (see PROTECTION_NOTIFICATION_ID above).
         startProtectionForeground()
+        isConnected = true
+        startForegroundPoll()
     }
 
     override fun onUnbind(intent: Intent?): Boolean {
+        isConnected = false
+        stopForegroundPoll()
         // The system unbinds an accessibility service when the user disables it
         // in Settings (or a crash tears the connection down). Either way, drop
         // the foreground state and clear the notification along with it.
@@ -346,6 +367,7 @@ class NoGoonAccessibilityService : AccessibilityService() {
 
         when (event.eventType) {
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED   -> handleAppSwitch(event, curfewActive)
+            AccessibilityEvent.TYPE_WINDOWS_CHANGED        -> handleWindowsChanged(curfewActive)
             AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> {
                 syncForegroundFromContentEvent(event, curfewActive)
                 if (hasBlockedDomains) handleBrowserUrl(event)
@@ -384,6 +406,120 @@ class NoGoonAccessibilityService : AccessibilityService() {
         if (activePkg != pkg) return
 
         handleAppSwitch(event, curfewActive)
+    }
+
+    // ── Window changes (Recents, split-screen, pop-up view, edge panels) ───────
+    // TYPE_WINDOWS_CHANGED fires when a window is added, removed or becomes the active one, which
+    // is exactly what happens when a card is tapped in Samsung's Recents screen. Unlike
+    // TYPE_WINDOW_STATE_CHANGED it does not depend on the app drawing something new, so an idle or
+    // paused blocked app still gets caught. Needs flagRetrieveInteractiveWindows in the service config.
+    private var lastWindowsCheckMs = 0L
+
+    private fun handleWindowsChanged(curfewActive: Boolean) {
+        val now = System.currentTimeMillis()
+        if (now - lastWindowsCheckMs < 150L) return
+        lastWindowsCheckMs = now
+        val root = rootInActiveWindow ?: return
+        val activePkg = root.packageName?.toString()
+        root.recycle()
+        if (activePkg.isNullOrBlank() || activePkg == currentForegroundPackage) return
+        handleAppSwitch(activePkg, curfewActive)
+    }
+
+    // ── Foreground safety net ─────────────────────────────────────────────────
+    // Two independent looks at "what is really in front", run every 1.5s while the screen is on and
+    // something is being blocked:
+    //   1. the active window's package, read straight from the accessibility service;
+    //   2. Android's usage events, only when the person turned on Usage access (optional).
+    // A mismatch with the tracker must show up on two looks in a row before we act, so a shade
+    // pulled down for a moment or a keyboard animation never causes a gate. When it does hold, we
+    // treat it as the app switch we missed.
+    private var pollSeenPkg: String? = null
+
+    private val foregroundPollRunnable = object : Runnable {
+        override fun run() {
+            try { pollForeground() } catch (e: Exception) { Log.w(TAG, "foreground poll failed", e) }
+            mainHandler.postDelayed(this, FOREGROUND_POLL_MS)
+        }
+    }
+
+    private fun startForegroundPoll() {
+        mainHandler.removeCallbacks(foregroundPollRunnable)
+        mainHandler.postDelayed(foregroundPollRunnable, FOREGROUND_POLL_MS)
+    }
+
+    private fun stopForegroundPoll() {
+        mainHandler.removeCallbacks(foregroundPollRunnable)
+        pollSeenPkg = null
+    }
+
+    private fun pollForeground() {
+        if (!::prefs.isInitialized) return
+        val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+        if (!pm.isInteractive) { pollSeenPkg = null; return }
+
+        val now = System.currentTimeMillis()
+        val isFocusSession = prefs.getLong(KEY_FOCUS_SESSION_END, 0L) > now
+        val curfewActive = isWithinCurfew()
+        if (!isFocusSession && !curfewActive && prefs.getLong(KEY_PAUSED_UNTIL, 0L) > now) { pollSeenPkg = null; return }
+        val blocked = activeBlockedApps()
+        if (blocked.isEmpty() && !curfewActive) { pollSeenPkg = null; return }
+
+        val root = rootInActiveWindow
+        val activePkg = root?.packageName?.toString()
+        root?.recycle()
+
+        var candidate: String? = null
+        if (!activePkg.isNullOrBlank() && activePkg != currentForegroundPackage) {
+            candidate = activePkg
+        } else if (candidate == null && usageAccessGranted()) {
+            // The usage log sometimes knows about a switch the window events never reported.
+            // Only believe it when the active window agrees.
+            val fromUsage = lastForegroundFromUsage(now)
+            if (fromUsage != null && fromUsage != currentForegroundPackage && fromUsage == activePkg) {
+                candidate = fromUsage
+            }
+        }
+
+        if (candidate == null) { pollSeenPkg = null; return }
+        if (pollSeenPkg != candidate) { pollSeenPkg = candidate; return }   // first look: wait for a second
+        pollSeenPkg = null
+        handleAppSwitch(candidate, curfewActive)
+    }
+
+    private var usageAccessCheckedMs = 0L
+    private var usageAccessCached = false
+
+    private fun usageAccessGranted(): Boolean {
+        val now = System.currentTimeMillis()
+        if (now - usageAccessCheckedMs < 30_000L) return usageAccessCached
+        usageAccessCheckedMs = now
+        usageAccessCached = try {
+            val appOps = getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
+            @Suppress("DEPRECATION")
+            val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+                appOps.unsafeCheckOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, android.os.Process.myUid(), OWN_PACKAGE)
+            else
+                appOps.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, android.os.Process.myUid(), OWN_PACKAGE)
+            mode == AppOpsManager.MODE_ALLOWED
+        } catch (e: Exception) { false }
+        return usageAccessCached
+    }
+
+    @Suppress("DEPRECATION")
+    private fun lastForegroundFromUsage(now: Long): String? {
+        val usm = getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager ?: return null
+        val events = usm.queryEvents(now - 10_000L, now) ?: return null
+        val ev = UsageEvents.Event()
+        var current: String? = null
+        while (events.hasNextEvent()) {
+            events.getNextEvent(ev)
+            when (ev.eventType) {
+                UsageEvents.Event.MOVE_TO_FOREGROUND -> current = ev.packageName
+                UsageEvents.Event.MOVE_TO_BACKGROUND -> if (ev.packageName == current) current = null
+            }
+        }
+        return current
     }
 
     // ── Curfew check ──────────────────────────────────────────────────────────
@@ -539,7 +675,11 @@ class NoGoonAccessibilityService : AccessibilityService() {
     // the page content isn't changing, so the normal URL debounce path misses them.
 
     private fun handleAppSwitch(event: AccessibilityEvent, curfewActive: Boolean = false) {
-        val packageName = event.packageName?.toString() ?: return
+        val pkg = event.packageName?.toString() ?: return
+        handleAppSwitch(pkg, curfewActive)
+    }
+
+    private fun handleAppSwitch(packageName: String, curfewActive: Boolean = false) {
         if (packageName.isBlank()) return
 
         // Always update the foreground tracker — including for launchers/system apps.
@@ -560,6 +700,11 @@ class NoGoonAccessibilityService : AccessibilityService() {
         }
 
         currentForegroundPackage = packageName
+
+        // The gate (NoGoon) is now in front: the solid shield has done its job.
+        if (packageName == OWN_PACKAGE && shieldIsSolid) {
+            mainHandler.post { removeGrayscaleOverlayLocked() }
+        }
 
         // ── Curfew enforcement ────────────────────────────────────────────────
         // MUST run before the browser early-return and neverBlock check:
@@ -923,8 +1068,15 @@ class NoGoonAccessibilityService : AccessibilityService() {
     // TYPE_ACCESSIBILITY_OVERLAY sits above all app windows; no SYSTEM_ALERT_WINDOW
     // permission needed — the accessibility service grant covers it.
 
+    // Whether the shield now on screen is the solid one (removed as soon as the gate shows).
+    @Volatile private var shieldIsSolid = false
+
     private fun showGrayscaleOverlay() {
-        if (!prefs.getBoolean(KEY_GRAYSCALE_ENABLED, false)) return
+        // With the "dim" option on we keep the old translucent tint. Otherwise a solid dark shield
+        // hides the blocked app in the second between the switch and the gate drawing, so there is
+        // nothing to scroll or tap. It is removed the moment the gate is in front, and never takes
+        // touches, so it cannot trap anyone.
+        val solid = !prefs.getBoolean(KEY_GRAYSCALE_ENABLED, false)
         mainHandler.post {
             removeGrayscaleOverlayLocked()
             try {
@@ -941,7 +1093,8 @@ class NoGoonAccessibilityService : AccessibilityService() {
                 val view = View(this)
                 // Dark desaturating tint — creates immediate visual friction over
                 // the blocked content and signals that NoGoon is stepping in.
-                view.setBackgroundColor(Color.argb(210, 8, 8, 12))
+                view.setBackgroundColor(if (solid) Color.rgb(8, 8, 12) else Color.argb(210, 8, 8, 12))
+                shieldIsSolid = solid
                 wm.addView(view, params)
                 grayscaleOverlay = view
                 // Auto-dismiss after gate has had time to appear
@@ -961,6 +1114,7 @@ class NoGoonAccessibilityService : AccessibilityService() {
             }
             grayscaleOverlay = null
         }
+        shieldIsSolid = false
     }
 
     private fun launchNoGoon(target: String, source: String, rapid: Boolean = false, rapidCount: Int = 0) {
@@ -1107,6 +1261,12 @@ class NoGoonAccessibilityService : AccessibilityService() {
             .split("#")[0]
             .trim()
             .lowercase()
+    }
+
+    override fun onDestroy() {
+        isConnected = false
+        stopForegroundPoll()
+        super.onDestroy()
     }
 
     override fun onInterrupt() {

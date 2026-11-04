@@ -11,7 +11,9 @@
 
 import type { ThemePalette } from '@/constants/Themes';
 
-export type BlockingStatus = 'checking' | 'paused' | 'active' | 'empty' | 'off';
+// 'stalled' = switched on in Settings but Android is not actually running the service (a battery
+// manager or a swipe from Recents killed it). Same alarm as 'off'; the fix is to toggle it off and on.
+export type BlockingStatus = 'checking' | 'paused' | 'active' | 'empty' | 'off' | 'stalled';
 
 export type BlockingStatusView = {
   visible: boolean;                 // false → render nothing yet
@@ -30,6 +32,9 @@ export function describeBlockingStatus(status: BlockingStatus, colors: ThemePale
                color: colors.success, dim: colors.successDim, alarm: false };
     case 'off':
       return { visible: true, icon: 'alert-circle', label: 'Blocking off — tap to fix', short: 'Off — tap to fix',
+               color: colors.danger, dim: colors.dangerDim, alarm: true };
+    case 'stalled':
+      return { visible: true, icon: 'alert-circle', label: 'Blocking stalled — tap to fix', short: 'Stalled — tap to fix',
                color: colors.danger, dim: colors.dangerDim, alarm: true };
     case 'paused':
       return { visible: true, icon: 'pause-circle', label: 'Blocking paused', short: 'Paused',

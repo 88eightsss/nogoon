@@ -38,6 +38,7 @@ const FIXES: [string, string][] = [
   ['Blocking stopped after a phone update or restart', 'Android sometimes switches accessibility services off. Turn NoGoon back on with the button at the top of this screen.'],
   ['It works for a while, then quits', 'Your phone\'s battery manager is closing NoGoon. Use "Keep NoGoon always on" below, and on Samsung also remove NoGoon from Settings > Battery > Background usage limits > Sleeping apps.'],
   ['The switch is greyed out in Settings', 'Android blocks it while the app was installed from a file. Open the app\'s info, tap the three dots, then "Allow restricted settings", and try again.'],
+  ['Blocking is on in Settings but the red banner says stalled', 'Android stopped NoGoon in the background. Switch NoGoon off and back on in Accessibility, then on Samsung add it to Settings > Battery > Background usage limits > Never sleeping apps. Swiping NoGoon away from the recent apps screen can also stop it, so try not to.'],
   ['Still nothing', 'Open Last crash report, tap Share, and send it over. It has the error and your phone model, nothing personal.'],
 ];
 

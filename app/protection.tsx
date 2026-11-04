@@ -179,6 +179,19 @@ export default function ProtectionScreen() {
   const [batteryExempt, setBatteryExempt] = useState(false);
   const [batteryChecking, setBatteryChecking] = useState(true);
 
+  // Optional backup check (Android's Usage access). Off by default; the person turns it on in Settings.
+  const [usageAccess, setUsageAccess] = useState(false);
+  const fetchUsageAccess = useCallback(async () => {
+    if (!hasNative || typeof AppBlocker.hasUsageAccess !== 'function') return;
+    try { setUsageAccess(!!(await AppBlocker.hasUsageAccess())); } catch { /* keep last answer */ }
+  }, []);
+  const openUsageAccess = useCallback(() => {
+    if (hasNative && typeof AppBlocker.openUsageAccessSettings === 'function') {
+      AppBlocker.openUsageAccessSettings().catch(() => {});
+    }
+  }, []);
+  const isSamsung = Platform.OS === 'android' && String((Platform.constants as any)?.Manufacturer ?? '').toLowerCase() === 'samsung';
+
   const fetchBatteryStatus = useCallback(async () => {
     const stillOptimized = await checkBatteryOptimized();
     setBatteryExempt(!stillOptimized);
@@ -204,16 +217,18 @@ export default function ProtectionScreen() {
         checkServiceStatus();
         fetchDomainLog();
         fetchBatteryStatus();
+        fetchUsageAccess();
       }
     });
     return () => sub.remove();
-  }, [checkServiceStatus, fetchDomainLog, fetchBatteryStatus]);
+  }, [checkServiceStatus, fetchDomainLog, fetchBatteryStatus, fetchUsageAccess]);
 
   // Fetch domain log + battery status whenever screen comes into focus
   useFocusEffect(useCallback(() => {
     fetchDomainLog();
     fetchBatteryStatus();
-  }, [fetchDomainLog, fetchBatteryStatus]));
+    fetchUsageAccess();
+  }, [fetchDomainLog, fetchBatteryStatus, fetchUsageAccess]));
 
   // Once the Accessibility Service is on, it starts a persistent "protection
   // active" foreground notification — ask for POST_NOTIFICATIONS (Android 13+)
@@ -358,6 +373,24 @@ export default function ProtectionScreen() {
           }
         />
 
+        {/* Backup check — optional. A second, independent look at which app is in front, for
+            phones (mostly Samsung) where the main blocker sometimes misses a switch. */}
+        <LayerCard
+          number={NETWORK_SHIELD_ENABLED ? 5 : 4}
+          icon="eye"
+          title="Backup check"
+          subtitle="Optional, catches missed app switches"
+          description="Android's Usage access lets NoGoon double-check which app is in front when the main blocker misses a switch, for example from the recent apps screen. It only ever sees which app is open, never what is in it, and nothing leaves your phone."
+          statusLabel={usageAccess ? 'On' : 'Off'}
+          isActive={usageAccess}
+          isLoading={false}
+          actionLabel={usageAccess ? 'Manage in Settings' : 'Turn on'}
+          onAction={openUsageAccess}
+          locked={false}
+          cautionLabel={usageAccess ? undefined : 'Optional'}
+          cautionDetail={usageAccess ? undefined : 'Tap above, choose NoGoon, then switch "Allow usage access" on.'}
+        />
+
         {/* OEM autostart / battery manager — shown only for manufacturers known to
             run their own killer on top of stock Android. Status is intentionally
             NOT shown as a checkmark: there's no API to verify this setting, so
@@ -382,6 +415,13 @@ export default function ProtectionScreen() {
               usually a long-press on the card. That alone stops a lot of these
               manufacturers from killing it, even before you touch the setting above.
             </Text>
+            {isSamsung && (
+              <Text style={styles.oemBody}>
+                On Samsung: open Settings, then Battery, then Background usage limits.
+                Switch off "Put unused apps to sleep", and add NoGoon to "Never sleeping
+                apps". Menu names vary a little between One UI versions.
+              </Text>
+            )}
             <Pressable style={styles.oemButton} onPress={openOemAutostartSettings}>
               <Text style={styles.oemButtonText}>Open Autostart Settings</Text>
               <Feather name="external-link" size={14} color={COLORS.background} />

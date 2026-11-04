@@ -12,7 +12,10 @@
 //   setTemporaryUnlock(domain, expiry)        — unlocks a domain until the given timestamp
 //   clearTemporaryUnlock(domain)              — removes a temporary unlock
 //   isBlockingPaused()                        — returns QS-tile pausedUntil timestamp (0 = not paused)
-//   setBlockingPaused(paused)                 — set/clear a 30-min pause from JS
+//   setBlockingPaused(paused)                 — set/clear a 10-min pause from JS
+//   isServiceRunning()                        — true only while Android really has the service running
+//   hasUsageAccess()                          — whether the optional Usage access backup check is on
+//   openUsageAccessSettings()                 — opens Android's Usage access screen
 //   setFocusSessionEnd(endMs)                 — writes focus session expiry so Kotlin can enforce it
 //   setGrayscaleEnabled(enabled)              — saves the dim-overlay preference
 //   isGrayscaleEnabled()                      — reads the dim-overlay preference
@@ -382,6 +385,45 @@ class AppBlockerModule(reactContext: ReactApplicationContext) :
         }
     }
 
+    // True only while Android actually has the accessibility service bound and running. The
+    // Settings list (isServiceEnabled) keeps saying "on" after a battery manager or a swipe from
+    // Recents kills the process and before Android rebinds the service.
+    @ReactMethod
+    fun isServiceRunning(promise: Promise) {
+        promise.resolve(NoGoonAccessibilityService.isConnected)
+    }
+
+    // Optional backup check: has the person turned on Usage access for NoGoon?
+    @ReactMethod
+    fun hasUsageAccess(promise: Promise) {
+        try {
+            val appOps = reactApplicationContext.getSystemService(Context.APP_OPS_SERVICE) as android.app.AppOpsManager
+            val uid = android.os.Process.myUid()
+            val pkg = reactApplicationContext.packageName
+            @Suppress("DEPRECATION")
+            val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+                appOps.unsafeCheckOpNoThrow(android.app.AppOpsManager.OPSTR_GET_USAGE_STATS, uid, pkg)
+            else
+                appOps.checkOpNoThrow(android.app.AppOpsManager.OPSTR_GET_USAGE_STATS, uid, pkg)
+            promise.resolve(mode == android.app.AppOpsManager.MODE_ALLOWED)
+        } catch (e: Exception) {
+            promise.resolve(false)
+        }
+    }
+
+    @ReactMethod
+    fun openUsageAccessSettings(promise: Promise) {
+        try {
+            val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            reactApplicationContext.startActivity(intent)
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("OPEN_USAGE_ACCESS_ERROR", e.message ?: "Unknown error", e)
+        }
+    }
+
     @ReactMethod
     fun openAccessibilitySettings(promise: Promise) {
         try {
@@ -538,7 +580,7 @@ class AppBlockerModule(reactContext: ReactApplicationContext) :
     // can compute both whether blocking is paused AND how many minutes remain.
     // Returns 0.0 when not paused.
     //
-    // setBlockingPaused(true)  → writes now + 30 min
+    // setBlockingPaused(true)  → writes now + 10 min
     // setBlockingPaused(false) → writes 0 (clears the pause)
 
     // ── focusSessionEnd (focus session hard-lock) ─────────────────────────────
@@ -572,7 +614,7 @@ class AppBlockerModule(reactContext: ReactApplicationContext) :
     fun setBlockingPaused(paused: Boolean, promise: Promise) {
         try {
             val prefs = reactApplicationContext.getSharedPreferences(PREFS_NAME, 0)
-            val until = if (paused) System.currentTimeMillis() + 30 * 60 * 1000L else 0L
+            val until = if (paused) System.currentTimeMillis() + 10 * 60 * 1000L else 0L
             prefs.edit().putLong("blockingPausedUntil", until).apply()
             promise.resolve(true)
         } catch (e: Exception) {
