@@ -37,6 +37,7 @@ import { type CharacterId } from '@/stores/usePetStore';
 import { CHARACTER_NAMES, ALL_CHARACTER_IDS } from '@/constants/sprites';
 import { useUnlockedFeatures, lockHint, useProgressStore, PROGRESSIVE_UNLOCKS } from '@/stores/useProgressStore';
 import { PageGuide } from '@/components/PageGuide';
+import { useFlowStore } from '@/stores/useFlowStore';
 import Constants from 'expo-constants';
 import { TimeField } from '@/components/TimeField';
 
@@ -406,6 +407,8 @@ export default function MeScreen() {
   const blockingView = describeBlockingStatus(blockingStatus, colors);
   const { unlocked } = useUnlockedFeatures();
   const { forceUnlockAll, setForceUnlockAll } = useProgressStore();
+  const showEverything = useFlowStore((s) => s.showEverything);
+  const setShowEverything = useFlowStore((s) => s.setShowEverything);
 
   const [editingName, setEditingName]   = useState(false);
   const [nameDraft,   setNameDraft]     = useState(name);
@@ -1146,6 +1149,22 @@ export default function MeScreen() {
             <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>
               {`${Constants.expoConfig?.version ?? '1.0.0'} (build ${Constants.expoConfig?.android?.versionCode ?? '?'})`}
             </Text>
+          </View>
+          <View style={[ctrlStyles.row, { borderBottomColor: colors.border }]}>
+            <Feather name="layout" size={16} color={colors.accent} />
+            <View style={{ flex: 1 }}>
+              <Text style={[ctrlStyles.label, { color: colors.text }]}>Show me everything</Text>
+              <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>Skip the guided start: no next-step card or tips</Text>
+            </View>
+            <Switch
+              value={showEverything}
+              onValueChange={(val) => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setShowEverything(val);
+              }}
+              trackColor={{ false: colors.border, true: colors.accent }}
+              thumbColor="#fff"
+            />
           </View>
           {PROGRESSIVE_UNLOCKS && (
           <View style={[ctrlStyles.row, { borderBottomColor: colors.border }]}>

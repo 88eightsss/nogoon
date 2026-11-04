@@ -40,6 +40,8 @@ import { RoomScene, RoomTitle } from './RoomScene';
 import { PackSprite } from './PackSprite';
 import { useRoomStore } from '@/stores/useRoomStore';
 import { useOfferStore } from '@/stores/useOfferStore';
+import { useFlowStore } from '@/stores/useFlowStore';
+import { NextStepCard } from '@/components/flow/NextStepCard';
 
 type FeatherName = React.ComponentProps<typeof Feather>['name'];
 
@@ -95,6 +97,12 @@ export function MyPage() {
   const { blockingStatus, openSettings } = useAppBlocker();
   const status = describeBlockingStatus(blockingStatus, colors);
   const [tempted, setTempted] = useState(false);
+  // Guided start: until someone has walked away twice (or chose "Show me everything") Today stays calm:
+  // the Step Out teaser waits, and the next-step card says what to do next. See components/flow.
+  const showEverything = useFlowStore((s) => s.showEverything);
+  const markPauseSeen = useFlowStore((s) => s.markPauseSeen);
+  const calm = !showEverything && walkAways < 2;
+  const openTempted = () => { markPauseSeen(); setTempted(true); };
   // Today is quiet by default: the tempted button, protection and the companion. The rest
   // folds away behind "More for today", and the choice is remembered.
   const [showMore, setShowMore] = useState(false);
@@ -139,6 +147,10 @@ export function MyPage() {
 
   const paper = paperOverride !== 'auto' ? paperOverride : (pack.parts.page.paper ?? 'none');
   const paperBase = paper !== 'none' && pack.parts.page.look.paper ? pack.parts.page.look.paper : colors.background;
+
+  const nextStep = (
+    <NextStepCard blockingStatus={blockingStatus} onOpenSettings={openSettings} onPause={openTempted} />
+  );
 
   const partA = (
     <>
@@ -206,7 +218,7 @@ export function MyPage() {
   const partB = (
     <>
       <Pressable
-        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setTempted(true); }}
+        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); openTempted(); }}
         style={({ pressed }) => [styles.tempted, { backgroundColor: SUN + '26', borderColor: SUN + '99', opacity: pressed ? 0.7 : 1 }]}
         accessibilityRole="button"
         accessibilityLabel="Need a minute. Tap here first. We'll get through it."
@@ -353,10 +365,12 @@ export function MyPage() {
       <View style={styles.headRow}>
         <Pressable onPress={onGreeting} style={{ flex: 1 }}>
           <Text style={[styles.hello, { color: colors.text }]}>
-            {name ? `Welcome back, ${name}` : 'Welcome back'}
+            {walkAways === 0
+              ? (name ? `Hi, ${name}` : 'Welcome')
+              : (name ? `Welcome back, ${name}` : 'Welcome back')}
           </Text>
           <Text style={[styles.sub, { color: colors.textSecondary }]}>
-            {savedLabel} reclaimed so far.
+            {walkAways === 0 ? 'Your first walk-away starts the count.' : `${savedLabel} reclaimed so far.`}
           </Text>
         </Pressable>
         <Pressable
@@ -378,20 +392,22 @@ export function MyPage() {
         </>
       ) : layout === 'roomlast' ? (
         <>
+          {nextStep}
           {partC}
           {partD}
           {partA}
           <FeedPal petName={petName} />
-          <NextOuting />
+          {calm ? null : <NextOuting />}
           {partF}
           {partB}
           {partG}
         </>
       ) : (
         <>
+          {nextStep}
           {partA}
           <FeedPal petName={petName} />
-          <NextOuting />
+          {calm ? null : <NextOuting />}
           {partB}
           {partC}
           {partD}

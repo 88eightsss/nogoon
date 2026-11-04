@@ -44,10 +44,12 @@ export function TabCoach() {
   const [ready, setReady] = useState(false);
   const pulse = useRef(new Animated.Value(0)).current;
 
-  // Right after setup the tour's topic list opens once, so people choose where to start (or play it all).
-  // (This spotlight below never starts by itself; it runs when someone asks for it in the tour.)
-  // Waits for the saved tour state to load (otherwise someone who already saw it could be shown it
-  // again) and for the tabs to actually be the screen on top (not the gate or another page).
+  // The tour's topic list used to open by itself right after setup. That was a second wall of text on
+  // top of setup, so it no longer does: Today's next-step card and the one-time tips (components/flow)
+  // teach as the app is used, and the tour stays one tap away (Me > Account & help > Interactive tour,
+  // or the ? on any tab). We still record it as offered so nothing else treats it as pending.
+  // (The spotlight below never starts by itself; it runs when someone asks for it in the tour.)
+  // Waits for the saved tour state to load and for the tabs to be the screen on top.
   const segments = useSegments();
   const onTabs = segments[0] === '(tabs)';
   const [tourLoaded, setTourLoaded] = useState(() => useTourStore.persist.hasHydrated());
@@ -57,11 +59,7 @@ export function TabCoach() {
   }, [tourLoaded]);
   useEffect(() => {
     if (!tourLoaded || !hasOnboarded || offered || !onTabs) return;
-    const t = setTimeout(() => {
-      markOffered();
-      router.push('/tutorial' as Href);
-    }, 1200);
-    return () => clearTimeout(t);
+    markOffered();
   }, [tourLoaded, hasOnboarded, offered, onTabs, markOffered]);
 
   useEffect(() => {

@@ -28,6 +28,7 @@ import { Feather } from '@expo/vector-icons';
 import { Pressable, View, Text } from 'react-native';
 import { FloatingCompanion } from '@/components/page/FloatingCompanion';
 import { TabCoach } from '@/components/tour/TabCoach';
+import { FlowTips } from '@/components/flow/FlowTips';
 import { PackSprite } from '@/components/page/PackSprite';
 import { useMascot } from '@/components/page/useCharacter';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -233,6 +234,7 @@ export default function TabsLayout() {
     </Tabs>
     <FloatingCompanion />
     <TabCoach />
+    <FlowTips />
     </View>
   );
 }
