@@ -33,8 +33,6 @@ import { useUserStore } from '@/stores/useUserStore';
 import { PositiveNewsCard } from '@/components/PositiveNewsCard';
 import { grantTemporaryUnlock, launchBlockedApp } from '@/utils/tempUnlock';
 import { exitGate } from '@/utils/exitGate';
-import { AdBanner } from '@/components/ads/AdBanner';
-import { AdRewarded } from '@/components/ads/AdRewarded';
 import { FONTS } from '@/constants/Colors';
 import { useThemedColors, type ArcadeColors } from '@/hooks/useThemedColors';
 import { MOOD_TAGS } from '@/constants/moods';
@@ -321,8 +319,6 @@ export default function PostGameScreen() {
   // Free users must wait 10s before the unlock button becomes active.
   // null = not started, N = counting down, 0 = ready to confirm.
   const [unlockCountdown, setUnlockCountdown] = useState<number | null>(gameName === 'Walk' ? 0 : null);
-  const [bonusEarned, setBonusEarned] = useState(false);
-  const bonusPoints = 50;
   const [selectedTrigger, setSelectedTrigger] = useState<string | null>(null);
   const unlockMinutes = 20; // Fixed at 20 min — no shorter options
 
@@ -733,23 +729,6 @@ export default function PostGameScreen() {
           )}
         </View>
 
-        {/* ── Rewarded ad — optional bonus points for watching a 30s ad ── */}
-        {/* Only shown to free users who haven't already claimed the bonus this session */}
-        {!bonusEarned && (
-          <AdRewarded
-            bonusPoints={bonusPoints}
-            onRewarded={() => {
-              addPoints(bonusPoints);
-              setBonusEarned(true);
-            }}
-          />
-        )}
-        {bonusEarned && (
-          <View style={styles.bonusConfirm}>
-            <Feather name="check-circle" size={14} color={COLORS.green} />
-            <Text style={styles.bonusConfirmText}>+{bonusPoints} bonus points earned</Text>
-          </View>
-        )}
 
         {/* ── Micro-learning card ── */}
         <View style={[styles.microCard, { borderLeftColor: COLORS[card.accent] }]}>
@@ -763,8 +742,6 @@ export default function PostGameScreen() {
           <Text style={styles.microSource}>— {card.source}</Text>
         </View>
 
-        {/* ── Ad banner ── */}
-        <AdBanner size="largeBanner" />
 
         {/* ── Personal proof — real data, not a fake aggregate ── */}
         {walkAwayCount > 0 && (

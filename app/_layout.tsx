@@ -44,7 +44,6 @@ import { initMascots } from '@/services/mascotInit';
 import { useThemeStore } from '@/stores/useThemeStore';
 import { useSubscriptionStore } from '@/stores/useSubscriptionStore';
 import { requestNotificationPermission, scheduleWeeklyRecap, walkAwaysThisWeek, cancelComebackReminder } from '@/utils/notifications';
-import { useAdAppOpen } from '@/components/ads/AdAppOpen';
 import { useCloudSync } from '@/hooks/useCloudSync';
 
 // Without a handler Android drops notifications that arrive while the app is open,
@@ -192,9 +191,6 @@ export default function RootLayout() {
   const { session, loading, initialize } = useAuthStore();
   const { hasOnboarded, loadFromSupabase, refreshStreakRestores, checkStreakContinuity } = useUserStore();
   const { initialize: initSubscription } = useSubscriptionStore();
-
-  // Full-screen ad on every app foreground (= every NoGoon intercept)
-  useAdAppOpen();
 
   // On every app open: the comeback reminder is no longer needed.
   useEffect(() => {
@@ -424,15 +420,6 @@ export default function RootLayout() {
             }}
           />
 
-          {/* Paywall — slides up when the user taps upgrade */}
-          <Stack.Screen
-            name="paywall"
-            options={{
-              presentation: 'modal',
-              animation: 'slide_from_bottom',
-            }}
-          />
-
           {/* Impulse journal history */}
           <Stack.Screen
             name="customize"
@@ -475,16 +462,6 @@ export default function RootLayout() {
           {/* Personal milestones / achievement badges */}
           <Stack.Screen
             name="milestones"
-            options={{
-              presentation: 'modal',
-              animation: 'slide_from_bottom',
-            }}
-          />
-
-          {/* Ad Wall — "what the internet looks like without NoGoon" — kept
-              dormant for when the paywall comes back; not currently linked */}
-          <Stack.Screen
-            name="ad-wall"
             options={{
               presentation: 'modal',
               animation: 'slide_from_bottom',

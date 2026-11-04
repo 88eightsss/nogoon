@@ -75,7 +75,6 @@ import { useOfferStore } from '@/stores/useOfferStore';
 import { useWalkStore } from '@/stores/useWalkStore';
 import { GATE_GAMES, CALM_GAMES as CALM_CATEGORY_GAMES, pickRandomGame, getGameById, type GameId } from '@/constants/games';
 import { useThemeStore } from '@/stores/useThemeStore';
-import { useAdInterstitial } from '@/components/ads/AdInterstitial';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GoonSprite } from '@/components/home/GoonMascot';
 import { useMascotStore, stageOf } from '@/stores/useMascotStore';
@@ -221,7 +220,6 @@ function NoGoonScreen() {
     logFollowThrough,
     recordWalkAway,
   } = useUserStore();
-  const { maybeShowInterstitial } = useAdInterstitial();
   const { disabledGateGames, enabledCalmGateGames } = useThemeStore();
   const bundleIds = useOfferStore((st) => st.bundleIds);
   const customOffersList = useOfferStore((st) => st.custom);
@@ -543,11 +541,7 @@ function NoGoonScreen() {
       // second ad and a second navigation.
       if (gameCompletedRef.current) return;
       gameCompletedRef.current = true;
-      // Show a full-screen interstitial ad every 3rd gate completion (free users only).
-      // The ad resolves before navigating so the post-game screen appears cleanly after.
-      await maybeShowInterstitial();
-      // Guard: component may have unmounted while the ad was showing (rapid back-press,
-      // or another gate triggered during the interstitial).
+      // Guard: the component may have unmounted (rapid back-press, or another gate triggered).
       if (!isMountedRef.current) return;
       // Route through The Waiting Room — a 5-second psychological pause before
       // the unlock decision. The waiting room forwards to /post-game after the countdown.
@@ -564,7 +558,7 @@ function NoGoonScreen() {
         },
       });
     },
-    [selectedGame, isBricked, isColdTurkey, gateWalk, displayDomain, maybeShowInterstitial]
+    [selectedGame, isBricked, isColdTurkey, gateWalk, displayDomain]
   );
 
   // ── Context line shown on calm screen ────────────────────────────────────

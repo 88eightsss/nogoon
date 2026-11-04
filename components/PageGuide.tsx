@@ -103,7 +103,10 @@ export function PageGuide({ page, icon, accent, title, subtitle, points, hint, s
 
   // Stays mounted through the fly-away animation even though marking the page
   // seen (which happens at the start of it) would otherwise unmount it at once.
-  const showBubble = !bubbleGone && (!seen || leaving);
+  // Retired: the "New here?" bubble used to appear on every tab's first visit. The guided start
+  // (components/flow: the next-step card and one-time tips) now does that job, and showing both
+  // meant two prompts at once. The "?" button in each tab header still opens this guide any time.
+  const showBubble = false;
 
   // Opening the guide from the header "?" before touching the bubble counts as
   // having found help — retire the bubble so it doesn't linger behind the card.

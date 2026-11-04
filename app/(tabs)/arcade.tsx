@@ -54,7 +54,6 @@ import { useTheme } from '@/hooks/useTheme';
 import { PageGuide } from '@/components/PageGuide';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { ALL_GAMES, GATE_GAMES, CALM_GAMES, getGamesByCategory, isFeatured, FEATURED_GAME_IDS, type GameCategory, type GameMeta, type GameId } from '@/constants/games';
-import { AdBanner } from '@/components/ads/AdBanner';
 import { useThemeStore } from '@/stores/useThemeStore';
 import { useUnlockedFeatures, lockHint } from '@/stores/useProgressStore';
 import { Glyph } from '@/components/ui/Glyph';
@@ -685,9 +684,6 @@ export default function ArcadeScreen() {
             </Pressable>
           </View>
         )}
-
-        {/* Only on taller screens, so the boards keep their room */}
-        {winH >= 760 && <AdBanner size="banner" style={{ marginTop: SPACING.xs }} />}
       </View>
     </SafeAreaView>
 
