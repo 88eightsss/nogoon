@@ -17,6 +17,8 @@ import { FONTS } from '@/constants/Colors';
 import { SPACING } from '@/constants/Spacing';
 import { PackSprite } from './PackSprite';
 import { SlipCard } from './SlipCard';
+import { BoardCards } from './BoardCards';
+import { usePlannerStore } from '@/stores/usePlannerStore';
 import type { CharacterId } from '@/stores/usePetStore';
 import type { GoonStage } from '@/constants/sprites';
 
@@ -36,6 +38,7 @@ const ITEMS: Record<Part, Item[]> = {
     { icon: 'file-text', label: "Read today's briefing", sub: 'A short read with an end',          path: '/(tabs)/feed' },
   ],
   afternoon: [
+    { icon: 'edit-3',   label: 'Make something small', sub: 'Draw or write for two minutes',      path: '/make' },
     { icon: 'zap',      label: 'Take a short break',  sub: 'A quick game for your hands',        path: '/(tabs)/arcade' },
     { icon: 'map-pin',  label: 'Step out',            sub: 'One thing to do nearby',             path: '/(tabs)/local' },
     { icon: 'activity', label: 'Walk together',       sub: 'Count steps with your companion',    path: '/walk' },
@@ -73,6 +76,17 @@ export function PlannerToday({ char, stage, petName, statusLabel, statusColor, p
   const now = currentPart();
   const [open, setOpen] = useState<Part | null>(now);
   const [draft, setDraft] = useState<string | null>(null);
+  const cards = usePlannerStore((s) => s.cards);
+  const [pickedId, setPickedId] = useState<string | null>(null);
+  // "Just pick one for me": a gentle nudge toward one open Do card. Not random rewards, just fewer choices.
+  const openDo = cards.filter((c) => c.kind === 'do' && !c.doneOn);
+  const pickOne = () => {
+    if (openDo.length === 0) return;
+    const next = openDo[Math.floor(Math.random() * openDo.length)];
+    setPickedId(next.id);
+    const part = next.part;
+    setOpen(part);
+  };
   const intention = intentionDate === getLocalDateKey() ? storeIntention : '';
 
   const hour = new Date().getHours();
@@ -164,11 +178,19 @@ export function PlannerToday({ char, stage, petName, statusLabel, statusColor, p
                     <Feather name="chevron-right" size={16} color={colors.textMuted} />
                   </Pressable>
                 ))}
+                <BoardCards part={p.id} pickedId={pickedId} />
               </View>
             )}
           </View>
         );
       })}
+
+      {openDo.length > 1 && (
+        <Pressable onPress={pickOne} style={styles.pickRow} accessibilityRole="button">
+          <Feather name="shuffle" size={16} color={colors.accent} />
+          <Text style={[styles.pickText, { color: colors.accent }]}>Just pick one for me</Text>
+        </Pressable>
+      )}
 
       {/* Calm: the one button for the moment the urge shows up */}
       <Pressable
@@ -212,6 +234,8 @@ const styles = StyleSheet.create({
   calm: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, borderRadius: 16, paddingVertical: 16, paddingHorizontal: SPACING.lg, minHeight: 64 },
   calmTitle: { fontFamily: FONTS.display, fontSize: 22 },
   calmSub: { fontFamily: FONTS.body, fontSize: 13, opacity: 0.9 },
+  pickRow: { flexDirection: 'row', alignSelf: 'center', alignItems: 'center', gap: 8, minHeight: 44 },
+  pickText: { fontFamily: FONTS.bodyBold, fontSize: 14 },
   layoutLink: { alignSelf: 'center', paddingVertical: 6 },
   layoutText: { fontFamily: FONTS.body, fontSize: 12, textDecorationLine: 'underline' },
 });
