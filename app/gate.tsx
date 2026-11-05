@@ -78,7 +78,6 @@ import { useWalkStore } from '@/stores/useWalkStore';
 import { GATE_GAMES, CALM_GAMES as CALM_CATEGORY_GAMES, pickRandomGame, getGameById, type GameId } from '@/constants/games';
 import { useThemeStore } from '@/stores/useThemeStore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { GoonSprite } from '@/components/home/GoonMascot';
 import { useMascotStore, stageOf } from '@/stores/useMascotStore';
 import { PackGateCard } from '@/components/page/PackGateCard';
 import { getTodaysBriefing } from '@/lib/dailyGood';
@@ -844,14 +843,6 @@ function NoGoonScreen() {
           </Text>
 
           {/* Companion — concerned look when user returns quickly */}
-          {gateCharacter !== null && (
-            <View style={styles.gateCompanionRow}>
-              <GoonSprite char={gateCharacter} stage={gateStage} size={0.35} />
-              <Text style={[styles.gateCompanionText, { color: C.textMuted, flex: 1 }]}>
-                {gatePetName} noticed you're back...
-              </Text>
-            </View>
-          )}
 
           <View style={styles.rapidOptions}>
             {RAPID_OPTIONS.map((opt) => (
@@ -1492,14 +1483,6 @@ function NoGoonScreen() {
             </View>
           )}
 
-          {gateCharacter !== null && (
-            <View style={styles.gateCompanionRow}>
-              <GoonSprite char={gateCharacter} stage={gateStage} size={0.4} />
-              <View style={[styles.gateCompanionBubble, { borderColor: gateAccent + '55' }]}>
-                <Text style={[styles.gateCompanionText, { color: C.textSecondary }]}>{gateSpeech}</Text>
-              </View>
-            </View>
-          )}
 
           <PackGateCard />
 
@@ -1605,16 +1588,6 @@ function NoGoonScreen() {
         </View>
 
         {/* Companion — encouraging presence during breathing pause */}
-        {gateCharacter !== null && (
-          <View style={styles.gateCompanionRow}>
-            <GoonSprite char={gateCharacter} stage={gateStage} size={0.4} />
-            <View style={[styles.gateCompanionBubble, { borderColor: gateAccent + '55' }]}>
-              <Text style={[styles.gateCompanionText, { color: C.textSecondary }]}>
-                {gateSpeech}
-              </Text>
-            </View>
-          </View>
-        )}
 
         {/* Pulsing circle + breath anchor */}
         <View style={styles.circleSection}>

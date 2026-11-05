@@ -1,7 +1,7 @@
-// ─── "Calm" sheet (was "Need a minute") ──────────────────────────────────────────────────────
+// ─── "Need a minute" sheet ──────────────────────────────────────────────────────
 //
 // The moment the app exists for: someone is about to open a scroll hole. One tap from
-// My Page, four ways out. Every option is an existing screen.
+// Home, five ways out: breathe, ground, make something small, a quick game, my plan.
 
 import { Modal, View, Text, Pressable, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
@@ -9,34 +9,28 @@ import { router } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
 import { FONTS } from '@/constants/Colors';
 import { SPACING } from '@/constants/Spacing';
-import { useRoomStore } from '@/stores/useRoomStore';
-import { TEMPTED_ORDER, type TemptedOptionId } from '@/constants/setupQuestions';
 
 type FeatherName = React.ComponentProps<typeof Feather>['name'];
 
-const OPTIONS: Record<TemptedOptionId, { icon: FeatherName; label: string; body: string; path: string }> = {
-  briefing: { icon: 'file-text', label: "Read today's briefing", body: 'A short read with an end.',      path: '/(tabs)/feed' },
-  breathe:  { icon: 'wind',      label: 'Breathe for a minute', body: 'Let the urge pass.',           path: '/breathe' },
-  game:     { icon: 'zap',       label: 'Play a quick game',    body: 'Give your hands something to do.', path: '/(tabs)/arcade' },
-  calm:     { icon: 'moon',      label: 'Calm down',            body: 'Slow the whole thing down.',   path: '/(tabs)/calm' },
-  write:    { icon: 'book-open', label: 'Write it out',         body: 'Say what you are really after.', path: '/journal' },
-  make:     { icon: 'edit-3',    label: 'Make something',       body: 'Draw or write for two minutes.', path: '/make' },
-};
+const OPTIONS: { icon: FeatherName; label: string; body: string; path: string }[] = [
+  { icon: 'wind',      label: 'Breathe for a minute', body: 'Let the urge pass.',               path: '/breathe?mode=breathing' },
+  { icon: 'anchor',    label: 'Ground yourself',      body: 'Five things you can see.',         path: '/breathe?mode=grounding' },
+  { icon: 'edit-3',    label: 'Make something small', body: 'Draw or write for two minutes.',   path: '/make' },
+  { icon: 'zap',       label: 'Play a quick game',    body: 'Give your hands something to do.', path: '/(tabs)/arcade' },
+  { icon: 'list',      label: 'Open my plan',         body: 'What you decided to do instead.',  path: '/plans' },
+];
 
 export function TemptedSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const { colors, cardStyle } = useTheme();
   const go = (path: string) => { onClose(); router.push(path as any); };
-  // "What helps first" (setup questions / Customize) picks the first option; nothing is hidden.
-  const helpFirst = useRoomStore((s) => s.helpFirst);
-  // Make is always last: whatever was chosen in setup stays first.
-  const options = [...TEMPTED_ORDER[helpFirst], 'make' as const].map((id) => OPTIONS[id]);
+  const options = OPTIONS;
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.scrim} onPress={onClose} accessibilityLabel="Close" />
       <View style={[styles.sheet, { backgroundColor: colors.background, borderColor: colors.border }]}>
         <View style={[styles.grab, { backgroundColor: colors.border }]} />
-        <Text style={[styles.title, { color: colors.text }]}>Calm. Pick one.</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Need a minute. Pick one.</Text>
         <Text style={[styles.sub, { color: colors.textSecondary }]}>The urge is loudest for about ten minutes.</Text>
         {options.map((o) => (
           <Pressable
