@@ -1,7 +1,7 @@
 // ─── Companion art renderer ───────────────────────────────────────────────────────────────────────────
 //
 // Draws a companion from constants/companionArt.ts (32 by 32 shaded sprites, generated from the design
-// sprite engine). One <Path> per colour keeps it light. Stages: 0 Dormant egg, 1 Awakening, 2 Standing,
+// sprite engine). One <Path> per colour keeps it light. Stages: 0 Dormant (no egg: the small form, drawn smaller and dimmer), 1 Awakening, 2 Standing,
 // 3 Powered, 4 Legendary. `size` matches the old 10x12 sprite scale (size 1 = 80 wide, 96 tall box).
 
 import { View } from 'react-native';
@@ -45,11 +45,12 @@ function layersFor(char: number, stage: number, look: Look): Layer[] {
 export function CompanionArt({
   char, stage, look = 'simple', size = 1,
 }: { char: number; stage: number; look?: Look; size?: number }) {
-  const side = 96 * size;
+  const dormant = stage === 0;
+  const side = 96 * size * (dormant ? 0.82 : 1);
   const layers = layersFor(char, stage, look);
   return (
     <View style={{ width: 80 * size, height: 96 * size, alignItems: 'center', justifyContent: 'flex-end', overflow: 'visible' }}>
-      <Svg width={side} height={side} viewBox="0 0 32 32" style={{ marginBottom: -3 * size }}>
+      <Svg width={side} height={side} viewBox="0 0 32 32" style={{ marginBottom: -3 * size, opacity: dormant ? 0.7 : 1 }}>
         {layers.map((l, i) => (
           <Path key={i} d={l.d} fill={l.fill} fillOpacity={l.opacity} />
         ))}

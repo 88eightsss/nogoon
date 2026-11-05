@@ -12,7 +12,6 @@ import { useTheme } from '@/hooks/useTheme';
 import { PageGuide, type PageGuideStat } from '@/components/PageGuide';
 import { useUserStore, getMinutesSaved } from '@/stores/useUserStore';
 import { getLocalDateKey } from '@/utils/date';
-import { HatchHost } from '@/components/page/HatchHost';
 import { HomeSimple } from '@/components/home/HomeSimple';
 
 export default function HomeScreen() {
@@ -51,7 +50,6 @@ export default function HomeScreen() {
 
   return (
     <>
-      <HatchHost />
       <HomeSimple />
       <PageGuide
         page="home"
