@@ -75,6 +75,19 @@ export default function StepOutFeed() {
         </View>
         <Feather name="chevron-right" size={18} color={colors.textMuted} />
       </Pressable>
+
+      <Pressable
+        onPress={() => router.push('/post-once' as any)}
+        accessibilityRole="button"
+        style={[styles.link, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
+      >
+        <Feather name="edit-3" size={20} color={colors.accent} />
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.linkTitle, { color: colors.text }]}>Hosting something?</Text>
+          <Text style={[styles.note, { color: colors.textSecondary }]}>Post once: the words for every place, and a QR flyer.</Text>
+        </View>
+        <Feather name="chevron-right" size={18} color={colors.textMuted} />
+      </Pressable>
     </Shell>
   );
 }

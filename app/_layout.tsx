@@ -467,6 +467,8 @@ export default function RootLayout() {
           <Stack.Screen name="stepout-event" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="door" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="crew" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="post-once" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="post-once-kit" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="place" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
           <Stack.Screen name="supporter" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="crash-report" options={{ animation: 'slide_from_right' }} />
