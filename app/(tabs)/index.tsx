@@ -14,9 +14,12 @@ import { useUserStore, getMinutesSaved } from '@/stores/useUserStore';
 import { getLocalDateKey } from '@/utils/date';
 import { MyPage } from '@/components/page/MyPage';
 import { HatchHost } from '@/components/page/HatchHost';
+import { HomeSimple } from '@/components/home/HomeSimple';
+import { useLabStore } from '@/stores/useLabStore';
 
 export default function HomeScreen() {
   const { colors } = useTheme();
+  const homeV3 = useLabStore((s) => s.homeV3);
 
   // Live numbers for the first-visit "Your daily snapshot" bubble.
   const streak         = useUserStore((s) => s.streak);
@@ -52,7 +55,7 @@ export default function HomeScreen() {
   return (
     <>
       <HatchHost />
-      <MyPage />
+      {homeV3 ? <HomeSimple /> : <MyPage />}
       <PageGuide
         page="home"
         icon="home"

@@ -38,6 +38,7 @@ import { CHARACTER_NAMES, ALL_CHARACTER_IDS } from '@/constants/sprites';
 import { useUnlockedFeatures, lockHint, useProgressStore, PROGRESSIVE_UNLOCKS } from '@/stores/useProgressStore';
 import { PageGuide } from '@/components/PageGuide';
 import { useFlowStore } from '@/stores/useFlowStore';
+import { useLabStore } from '@/stores/useLabStore';
 import Constants from 'expo-constants';
 import { TimeField } from '@/components/TimeField';
 
@@ -409,6 +410,8 @@ export default function MeScreen() {
   const { forceUnlockAll, setForceUnlockAll } = useProgressStore();
   const showEverything = useFlowStore((s) => s.showEverything);
   const setShowEverything = useFlowStore((s) => s.setShowEverything);
+  const homeV3 = useLabStore((s) => s.homeV3);
+  const setHomeV3 = useLabStore((s) => s.setHomeV3);
 
   const [editingName, setEditingName]   = useState(false);
   const [nameDraft,   setNameDraft]     = useState(name);
@@ -1178,6 +1181,22 @@ export default function MeScreen() {
               onValueChange={(val) => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 setShowEverything(val);
+              }}
+              trackColor={{ false: colors.border, true: colors.accent }}
+              thumbColor="#fff"
+            />
+          </View>
+          <View style={[ctrlStyles.row, { borderBottomColor: colors.border }]}>
+            <Feather name="compass" size={16} color={colors.accent} />
+            <View style={{ flex: 1 }}>
+              <Text style={[ctrlStyles.label, { color: colors.text }]}>Try the new Home (beta)</Text>
+              <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>Three tabs, Me in the corner, Need a minute. Close and reopen the app after switching.</Text>
+            </View>
+            <Switch
+              value={homeV3}
+              onValueChange={(val) => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setHomeV3(val);
               }}
               trackColor={{ false: colors.border, true: colors.accent }}
               thumbColor="#fff"

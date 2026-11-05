@@ -39,6 +39,8 @@ import { resolveSkinPalette } from '@/constants/packs/resolve';
 import { useActivePack } from '@/hooks/usePack';
 import { usePackStore } from '@/stores/usePackStore';
 import { FONTS } from '@/constants/Colors';
+import { useLabStore } from '@/stores/useLabStore';
+import { MeCorner } from '@/components/home/MeCorner';
 
 type FeatherName = React.ComponentProps<typeof Feather>['name'];
 
@@ -67,6 +69,9 @@ export default function TabsLayout() {
   const requestGuideReopen = useUserStore((s) => s.requestGuideReopen);
   // The raised centre button option was retired in the reorganization; Today is the centre tab.
   const raised = false;
+  // New navigation (Lab switch): Home, Briefing, Step Out in the bar; Me is a corner on every tab; Unwind is the
+  // "Need a minute" sheet. Calm and Me stay routes, just not in the bar.
+  const homeV3 = useLabStore((s) => s.homeV3);
 
   // Tab definitions use live theme colors — updates whenever theme changes.
   // guidePage must match the `page` prop each tab's own <PageGuide/> uses.
@@ -129,9 +134,9 @@ export default function TabsLayout() {
     color: colors.protect, pillBg: colors.protect + '22', guidePage: 'local',
   };
   const byName = (n: string) => [...TABS, FEED_TAB, LOCAL_TAB].find((x) => x.name === n)!;
-  const visible = ['feed', 'local', 'index', 'calm', 'profile'].map(byName).map((x) =>
-    x.name === 'calm' ? { ...x, title: 'Unwind' } : x);
-  const hiddenTabs = ['arcade', 'blocklist'];
+  const visible = (homeV3 ? ['index', 'feed', 'local'] : ['feed', 'local', 'index', 'calm', 'profile']).map(byName).map((x) =>
+    x.name === 'calm' ? { ...x, title: 'Unwind' } : x.name === 'index' && homeV3 ? { ...x, title: 'Home' } : x);
+  const hiddenTabs = homeV3 ? ['arcade', 'blocklist', 'calm', 'profile'] : ['arcade', 'blocklist'];
 
   return (
     <View style={{ flex: 1 }}>
@@ -160,13 +165,16 @@ export default function TabsLayout() {
             title: tab.title,
             headerTintColor: tab.color,     // Page header accent matches tab color
             headerRight: () => (
-              <Pressable
-                onPress={() => requestGuideReopen(tab.guidePage)}
-                style={{ paddingHorizontal: 16, paddingVertical: 8 }}
-                hitSlop={8}
-              >
-                <Feather name="help-circle" size={22} color={colors.textMuted} />
-              </Pressable>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                {homeV3 && <MeCorner />}
+                <Pressable
+                  onPress={() => requestGuideReopen(tab.guidePage)}
+                  style={{ paddingHorizontal: homeV3 ? 8 : 16, paddingVertical: 8 }}
+                  hitSlop={8}
+                >
+                  <Feather name="help-circle" size={22} color={colors.textMuted} />
+                </Pressable>
+              </View>
             ),
             tabBarIcon: ({ focused, size }) => (raised && tab.name === 'index') ? (
               <RaisedToday focused={focused} color={tab.color} ring={colors.background} />

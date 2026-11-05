@@ -5,7 +5,7 @@
 // and one full-width "Calm" button. Every row opens a screen that already exists.
 // Numbers only go up: "days gained" counts days with a walk-away and never resets (no punishing streaks).
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ScrollView, View, Text, TextInput, Pressable, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -52,7 +52,7 @@ function currentPart(): Part {
   return h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
 }
 
-export function PlannerToday({ char, stage, petName, statusLabel, statusColor, protectionOff, onProtection, onCalm }: {
+export function PlannerToday({ char, stage, petName, statusLabel, statusColor, protectionOff, onProtection, onCalm, onBadge, headerExtra, simple }: {
   char: CharacterId;
   stage: GoonStage;
   petName: string;
@@ -61,6 +61,12 @@ export function PlannerToday({ char, stage, petName, statusLabel, statusColor, p
   protectionOff: boolean;
   onProtection: () => void;
   onCalm: () => void;
+  /** Where the corner badge goes. Default: Customize (old Home). New Home sends it to Me. */
+  onBadge?: () => void;
+  /** Extra content under the greeting (week strip, urge line). */
+  headerExtra?: ReactNode;
+  /** New Simple Home: "Need a minute" wording, no "Change how Today looks" link. */
+  simple?: boolean;
 }) {
   const { colors, cardStyle } = useTheme();
   const name = useUserStore((s) => s.name);
@@ -90,14 +96,16 @@ export function PlannerToday({ char, stage, petName, statusLabel, statusColor, p
           <Text style={[styles.sub, { color: colors.textSecondary }]}>{progress}</Text>
         </View>
         <Pressable
-          onPress={() => router.push('/customize' as any)}
+          onPress={onBadge ?? (() => router.push('/customize' as any))}
           style={[styles.badge, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
           accessibilityRole="button"
-          accessibilityLabel={`${petName || 'Your companion'}. Open Customize.`}
+          accessibilityLabel={simple ? `${petName || 'Your companion'}. Open Me.` : `${petName || 'Your companion'}. Open Customize.`}
         >
           <PackSprite char={char} stage={stage} cell={3} />
         </Pressable>
       </View>
+
+      {headerExtra}
 
       {/* Protection strip */}
       <Pressable
@@ -175,18 +183,20 @@ export function PlannerToday({ char, stage, petName, statusLabel, statusColor, p
         onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onCalm(); }}
         style={({ pressed }) => [styles.calm, { backgroundColor: colors.accent, opacity: pressed ? 0.85 : 1 }]}
         accessibilityRole="button"
-        accessibilityLabel="Calm. Breathe, play, or write a line."
+        accessibilityLabel={simple ? 'Need a minute. Breathe, play, or write a line.' : 'Calm. Breathe, play, or write a line.'}
       >
         <Feather name="wind" size={20} color={colors.background} />
         <View style={{ flex: 1 }}>
-          <Text style={[styles.calmTitle, { color: colors.background }]}>Calm</Text>
+          <Text style={[styles.calmTitle, { color: colors.background }]}>{simple ? 'Need a minute' : 'Calm'}</Text>
           <Text style={[styles.calmSub, { color: colors.background }]}>Breathe, play, or write a line</Text>
         </View>
       </Pressable>
 
-      <Pressable onPress={() => router.push('/customize' as any)} hitSlop={8} style={styles.layoutLink} accessibilityRole="button">
-        <Text style={[styles.layoutText, { color: colors.textMuted }]}>Change how Today looks</Text>
-      </Pressable>
+      {!simple && (
+        <Pressable onPress={() => router.push('/customize' as any)} hitSlop={8} style={styles.layoutLink} accessibilityRole="button">
+          <Text style={[styles.layoutText, { color: colors.textMuted }]}>Change how Today looks</Text>
+        </Pressable>
+      )}
     </ScrollView>
   );
 }
