@@ -241,7 +241,7 @@ export default function FeedScreen() {
       {!loading && showWorldNews && <Section kind="world" title="Major news" hint="Calm and factual. A few items, then it ends." items={world} />}
       {!loading && !showWorldNews && (
         <Pressable onPress={() => router.push('/customize' as any)} accessibilityRole="button">
-          <Text style={[styles.sub, { color: colors.textMuted }]}>Major news is off. You can add a short, calm summary in Customize.</Text>
+          <Text style={[styles.sub, { color: colors.textMuted }]}>Major news is off. You can add a short, calm summary in Me.</Text>
         </Pressable>
       )}
 

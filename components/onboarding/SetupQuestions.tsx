@@ -23,8 +23,7 @@ import {
   type CutBackId, type HardTimeId, type StrictnessId, type SetupAnswers,
 } from '@/constants/setupQuestions';
 import { useBriefingPrefs } from '@/stores/useBriefingPrefs';
-import { useThemeStore } from '@/stores/useThemeStore';
-import type { ThemeId } from '@/constants/Themes';
+import { useThemeStore, type Appearance } from '@/stores/useThemeStore';
 import { useMascotStore } from '@/stores/useMascotStore';
 import type { CharacterId } from '@/stores/usePetStore';
 import { applySetupAnswers } from '@/utils/setupDefaults';
@@ -100,7 +99,7 @@ export function SetupQuestions({ onFinish, onBack, rerun = false }: {
   const [nickname, setNickname] = useState('');
   const [charTouched, setCharTouched] = useState(false);
   // Look changes apply live; Skip on Q4 puts the look back the way it was.
-  const lookAtStart = useRef<{ themeId: ThemeId; themeBrightness: number } | null>(null);
+  const lookAtStart = useRef<{ appearance: Appearance } | null>(null);
 
   useEffect(() => {
     if (!rerun || char === null) return;
@@ -111,7 +110,7 @@ export function SetupQuestions({ onFinish, onBack, rerun = false }: {
   useEffect(() => {
     if (step === 4 && !lookAtStart.current) {
       const t = useThemeStore.getState();
-      lookAtStart.current = { themeId: t.themeId, themeBrightness: t.themeBrightness };
+      lookAtStart.current = { appearance: t.appearance };
     }
   }, [step]);
 
@@ -151,8 +150,7 @@ export function SetupQuestions({ onFinish, onBack, rerun = false }: {
     if (step === 4) {
       const t = lookAtStart.current;
       if (t) {
-        useThemeStore.getState().setTheme(t.themeId);
-        useThemeStore.getState().setThemeBrightness(t.themeBrightness);
+        useThemeStore.getState().setAppearance(t.appearance);
       }
       finish(3, false);
       return;
@@ -256,7 +254,7 @@ export function SetupQuestions({ onFinish, onBack, rerun = false }: {
                 <Feather name={remind ? 'check-square' : 'square'} size={22} color={remind ? btn.bg : c.textMuted} />
                 <View style={styles.qChoiceText}>
                   <Text style={styles.qChoiceTitle}>Remind me when the Briefing is ready</Text>
-                  <Text style={styles.qChoiceSub}>Once a day at {formatTime(remindAt)}. Change it in Customize.</Text>
+                  <Text style={styles.qChoiceSub}>Once a day at {formatTime(remindAt)}. Change it later in Me.</Text>
                 </View>
               </Pressable>
             </>
@@ -303,7 +301,7 @@ export function SetupQuestions({ onFinish, onBack, rerun = false }: {
           {step === 4 && (
             <>
               <Text style={styles.qTitle} accessibilityRole="header">Pick a companion and a look</Text>
-              <Text style={styles.qSub}>They grow as you walk away. Change either any time in Customize.</Text>
+              <Text style={styles.qSub}>They grow as you walk away. Change either any time in Me.</Text>
               <Text style={styles.qGroupLabel}>Companion</Text>
               <CompanionPicker
                 selected={char}

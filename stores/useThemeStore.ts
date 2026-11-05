@@ -11,7 +11,15 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getLocalDateKey } from '@/utils/date';
 import { ThemeId, BorderId, DEFAULT_THEME, DEFAULT_BORDER } from '@/constants/Themes';
+export type Appearance = 'system' | 'light' | 'dark';
+
 interface ThemeState {
+  /** The one colour choice: follow the phone, or always light, or always dark. */
+  appearance: Appearance;
+  /** Switch to the dark look between 9 pm and 6 am. */
+  dimAtNight: boolean;
+  setAppearance: (a: Appearance) => void;
+  setDimAtNight: (v: boolean) => void;
   themeId: ThemeId;
   borderId: BorderId;
   // Struggling mode — soft flag, resets on new day
@@ -42,6 +50,10 @@ interface ThemeState {
 export const useThemeStore = create<ThemeState>()(
   persist(
     (set, get) => ({
+      appearance:        'system' as Appearance,
+      dimAtNight:        false,
+      setAppearance: (a) => set({ appearance: a }),
+      setDimAtNight: (v) => set({ dimAtNight: v }),
       themeId:           DEFAULT_THEME,
       borderId:          DEFAULT_BORDER,
       strugglingMode:    false,
@@ -94,14 +106,22 @@ export const useThemeStore = create<ThemeState>()(
       // before this change picked it as a no-op, not as "Grey" — remap it to
       // the new no-op default (0) once so existing installs don't wake up
       // with every theme stuck on Grey.
-      version: 1,
+      version: 2,
       migrate: (persisted: any, version: number) => {
-        if (version < 1 && persisted?.themeBrightness === 50) {
-          return { ...persisted, themeBrightness: 0 };
+        let p = persisted;
+        if (version < 1 && p?.themeBrightness === 50) {
+          p = { ...p, themeBrightness: 0 };
         }
-        return persisted;
+        // v2: Light/Dark/Match phone replaces the six themes and the brightness dial.
+        // Keep whichever side of the dial the person was on.
+        if (version < 2 && typeof p?.themeBrightness === 'number') {
+          p = { ...p, appearance: p.themeBrightness >= 50 ? 'light' : 'dark', dimAtNight: false };
+        }
+        return p;
       },
       partialize: (state) => ({
+        appearance:         state.appearance,
+        dimAtNight:         state.dimAtNight,
         themeId:            state.themeId,
         borderId:           state.borderId,
         strugglingMode:     state.strugglingMode,

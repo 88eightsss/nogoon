@@ -38,7 +38,6 @@ import { CHARACTER_NAMES, ALL_CHARACTER_IDS } from '@/constants/sprites';
 import { useUnlockedFeatures, lockHint, useProgressStore, PROGRESSIVE_UNLOCKS } from '@/stores/useProgressStore';
 import { PageGuide } from '@/components/PageGuide';
 import { useFlowStore } from '@/stores/useFlowStore';
-import { useLabStore } from '@/stores/useLabStore';
 import Constants from 'expo-constants';
 import { TimeField } from '@/components/TimeField';
 
@@ -49,7 +48,7 @@ const DEFAULT_COMPANION_NAMES: Record<CharacterId, string> = CHARACTER_NAMES;
 type MeSection = 'controls' | 'look' | 'progress' | 'account';
 const HUB: { id: MeSection; icon: ComponentProps<typeof Feather>['name']; title: string; sub: string }[] = [
   { id: 'controls', icon: 'shield',      title: 'Protection',         sub: 'Apps & sites, schedules, Hard Mode, focus' },
-  { id: 'look',     icon: 'sliders',     title: 'Customize my page',  sub: 'Companions, theme, skins, colour, paper' },
+  { id: 'look',     icon: 'sliders',     title: 'Look and companion',  sub: 'Light or dark, your companion, gate note' },
   { id: 'progress', icon: 'trending-up', title: 'Progress',           sub: 'Insights, weekly recap, journal' },
   { id: 'account',  icon: 'user',        title: 'Account & help',     sub: 'Fixes, guide, privacy, sign out' },
 ];
@@ -375,10 +374,7 @@ const wdStyles = StyleSheet.create({
 
 export default function MeScreen() {
   const { colors, cardStyle } = useTheme();
-  const {
-    themeId, borderId, setTheme, setBorder,
-    themeBrightness, setThemeBrightness,
-  } = useThemeStore();
+  const { appearance, setAppearance, dimAtNight, setDimAtNight } = useThemeStore();
 
   const {
     name, setName, walkAwayCount,
@@ -410,8 +406,6 @@ export default function MeScreen() {
   const { forceUnlockAll, setForceUnlockAll } = useProgressStore();
   const showEverything = useFlowStore((s) => s.showEverything);
   const setShowEverything = useFlowStore((s) => s.setShowEverything);
-  const homeV3 = useLabStore((s) => s.homeV3);
-  const setHomeV3 = useLabStore((s) => s.setHomeV3);
 
   const [editingName, setEditingName]   = useState(false);
   const [nameDraft,   setNameDraft]     = useState(name);
@@ -983,49 +977,53 @@ export default function MeScreen() {
         <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Appearance</Text>
 
         <View style={[ctrlStyles.board, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
-          <View style={[ctrlStyles.row, { borderBottomColor: colors.border }]}>
-            <Feather name="droplet" size={16} color={colors.accent} />
-            <Text style={[ctrlStyles.label, { color: colors.text, flex: 1 }]}>Theme</Text>
-            <View style={appearStyles.dots}>
-              {THEME_ORDER.map((id) => (
-                <ThemeDot key={id} themeId={id} selected={id === themeId} onSelect={() => setTheme(id)} />
-              ))}
+          <View style={[ctrlStyles.row, { borderBottomColor: colors.border, flexDirection: 'column', alignItems: 'stretch', gap: SPACING.sm }]}>
+            <Text style={[ctrlStyles.label, { color: colors.text }]}>Appearance</Text>
+            <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
+              {([['system', 'Match phone', 'smartphone'], ['light', 'Light', 'sun'], ['dark', 'Dark', 'moon']] as const).map(([id, label, icon]) => {
+                const on = appearance === id;
+                return (
+                  <Pressable
+                    key={id}
+                    onPress={() => { Haptics.selectionAsync().catch(() => {}); setAppearance(id); }}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: on }}
+                    accessibilityLabel={label}
+                    style={{
+                      flex: 1, minHeight: 44, borderRadius: 12, borderWidth: 1.5,
+                      borderColor: on ? colors.accent : colors.border,
+                      backgroundColor: on ? colors.accentDim : 'transparent',
+                      alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6,
+                    }}
+                  >
+                    <Feather name={icon} size={15} color={on ? colors.accent : colors.textMuted} />
+                    <Text style={[ctrlStyles.label, { color: on ? colors.text : colors.textMuted, fontSize: 13.5 }]}>{label}</Text>
+                  </Pressable>
+                );
+              })}
             </View>
           </View>
           <View style={[ctrlStyles.row, { borderBottomColor: colors.border }]}>
-            <Feather name="square" size={16} color={colors.accent} />
-            <Text style={[ctrlStyles.label, { color: colors.text, flex: 1 }]}>Borders</Text>
-            <View style={appearStyles.dots}>
-              {BORDER_ORDER.map((id) => (
-                <BorderDot key={id} borderId={id} selected={id === borderId} onSelect={() => setBorder(id)} />
-              ))}
+            <Feather name="moon" size={16} color={colors.accent} />
+            <View style={{ flex: 1 }}>
+              <Text style={[ctrlStyles.label, { color: colors.text }]}>Dim at night</Text>
+              <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>Switch to the dark look from 9 pm to 6 am</Text>
             </View>
+            <Switch
+              value={dimAtNight}
+              onValueChange={(val) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setDimAtNight(val); }}
+              trackColor={{ false: colors.border, true: colors.accent }}
+              thumbColor="#fff"
+            />
           </View>
           <Pressable
-            style={[ctrlStyles.row, { borderBottomColor: colors.border }]}
+            style={[ctrlStyles.row, { borderBottomWidth: 0 }]}
             onPress={() => router.push('/customize' as any)}
           >
             <Feather name="star" size={16} color={colors.accent} />
-            <Text style={[ctrlStyles.label, { color: colors.text, flex: 1 }]}>Customize (skins, My Page, gate note)</Text>
+            <Text style={[ctrlStyles.label, { color: colors.text, flex: 1 }]}>Companion and gate note</Text>
             <Feather name="chevron-right" size={16} color={colors.textMuted} />
           </Pressable>
-          {/* Brightness slider — no ctrlStyles.row, custom layout */}
-          <View style={{ borderTopWidth: 0 }}>
-            <View style={{
-              flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-              paddingHorizontal: SPACING.lg, paddingTop: SPACING.md,
-            }}>
-              <Text style={[ctrlStyles.label, { color: colors.text }]}>Brightness</Text>
-              <Text style={[ctrlStyles.label, { color: colors.textMuted, fontSize: 12.5 }]}>
-                {brightnessLabel(themeBrightness)}
-              </Text>
-            </View>
-            <BrightnessSlider
-              value={themeBrightness}
-              onChange={setThemeBrightness}
-              colors={colors}
-            />
-          </View>
         </View>
 
         </>
@@ -1234,22 +1232,6 @@ export default function MeScreen() {
               thumbColor="#fff"
             />
           </View>
-          <View style={[ctrlStyles.row, { borderBottomColor: colors.border }]}>
-            <Feather name="compass" size={16} color={colors.accent} />
-            <View style={{ flex: 1 }}>
-              <Text style={[ctrlStyles.label, { color: colors.text }]}>Try the new Home (beta)</Text>
-              <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>Three tabs, Me in the corner, Need a minute. Close and reopen the app after switching.</Text>
-            </View>
-            <Switch
-              value={homeV3}
-              onValueChange={(val) => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setHomeV3(val);
-              }}
-              trackColor={{ false: colors.border, true: colors.accent }}
-              thumbColor="#fff"
-            />
-          </View>
           {PROGRESSIVE_UNLOCKS && (
           <View style={[ctrlStyles.row, { borderBottomColor: colors.border }]}>
             <Feather name="unlock" size={16} color={colors.accent} />
@@ -1410,7 +1392,7 @@ export default function MeScreen() {
       subtitle="Four sections. Tap a title to open or close it."
       points={[
         { icon: 'shield',      title: 'Protection',        body: 'Pick the apps and sites to block, set schedules, Hard Mode and focus sessions.' },
-        { icon: 'sliders',     title: 'Customize my page', body: 'Companions, theme, skins, colour and paper.' },
+        { icon: 'sliders',     title: 'Look and companion', body: 'Light or dark, your companion and your gate note.' },
         { icon: 'trending-up', title: 'Progress',          body: 'Walk-aways, time saved, your weekly recap and journal.' },
       ]}
     />

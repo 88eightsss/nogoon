@@ -12,26 +12,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/useTheme';
 import { useTourStore } from '@/stores/useTourStore';
 import { useUserStore } from '@/stores/useUserStore';
-import { useLabStore } from '@/stores/useLabStore';
 import { UNDER_CONSTRUCTION } from '@/constants/construction';
 import { FONTS } from '@/constants/Colors';
 
 const SEEN_KEY = 'tabs';
-const CLASSIC_TAB_COUNT = 5;
 const DIM = 'rgba(0,0,0,0.72)';
 
 type Stop = { slot: number | 'help'; title: string; body: string; route?: string };
+// Three tabs: Home, Briefing, Step Out. Me is the corner button, not a tab.
 const STOPS: Stop[] = [
-  { slot: 0, title: 'Briefing', body: 'A daily dose of good news and curiosity that actually ends.', route: '/(tabs)/feed' },
-  { slot: 1, title: 'Step Out', body: 'Pick your place, see what is on near you, and tap "I went" after you go: your pal gets a treat. Five local headlines, the Journal and The Wall live here too.', route: '/(tabs)/local' },
-  { slot: 2, title: 'Today', body: 'Home. Your companion lives here, and the big yellow button is for when a craving hits.', route: '/(tabs)' },
-  { slot: 3, title: 'Unwind', body: 'One big button for when you need a minute, plus games, a walk, the Journal and more.', route: '/(tabs)/calm' },
-  { slot: 4, title: 'Me', body: 'Protection lives here: pick the apps and sites to block, set Modes and schedules, and turn on Hard Mode. Your progress, customizing and settings are here too.', route: '/(tabs)/profile' },
-  { slot: 'help', title: 'Stuck? Tap the ?', body: 'Every tab has a question mark up here that explains that screen in a few lines.' },
-];
-
-// The new Home (Lab switch) has three tabs: Home, Briefing, Step Out. Me is the corner button, not a tab.
-const V3_STOPS: Stop[] = [
   { slot: 0, title: 'Home', body: 'Your next step lives here. When an urge hits, start from the gate and tap Ride it out.', route: '/(tabs)' },
   { slot: 1, title: 'Briefing', body: 'A short read, then you are done. Nothing to scroll.', route: '/(tabs)/feed' },
   {
@@ -53,9 +42,8 @@ export function TabCoach() {
   const offered = useTourStore((s) => s.offered);
   const markOffered = useTourStore((s) => s.markOffered);
   const hasOnboarded = useUserStore((s) => s.hasOnboarded);
-  const homeV3 = useLabStore((s) => s.homeV3);
-  const stops = homeV3 ? V3_STOPS : STOPS;
-  const tabCount = homeV3 ? 3 : CLASSIC_TAB_COUNT;
+  const stops = STOPS;
+  const tabCount = 3;
   const raised = false; // the raised centre button was retired
 
   const [size, setSize] = useState({ w: 0, h: 0 });

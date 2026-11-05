@@ -196,10 +196,10 @@ export default function OnboardingScreen() {
   }, [serviceEnabled, requestNotificationPermission]);
 
   const [step, setStep]                   = useState(0);
-  const setThemeBrightness = useThemeStore((s) => s.setThemeBrightness);
-  // The welcome slides open in the light version; the Dark/Light switch in the last setup
+  const setAppearance = useThemeStore((s) => s.setAppearance);
+  // The welcome slides open in the light version; the Match phone / Light / Dark switch in the last setup
   // question still lets people change it. Runs once, on arrival, for a fresh sign-up.
-  useEffect(() => { setThemeBrightness(100); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setAppearance('light'); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   // The sign-up form already asked for a name — reuse it instead of asking again.
   const knownName = (useUserStore.getState().name || (user?.user_metadata?.name as string | undefined) || '').trim();
   const [name, setNameLocal]              = useState(knownName);

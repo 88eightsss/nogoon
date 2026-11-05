@@ -1,6 +1,6 @@
 // ─── Home Screen — mode router ───────────────────────────────────────────────
 //
-// Today is MyPage: the room (default) or the plain page. See components/page/.
+// Home is the Simple home (components/home/HomeSimple.tsx). The old MyPage (room / widget page) is no longer shown.
 //
 // First-time users are NOT dropped into the full interactive tutorial
 // (app/tutorial.tsx) any more. Right after onboarding that was a second wall
@@ -12,14 +12,11 @@ import { useTheme } from '@/hooks/useTheme';
 import { PageGuide, type PageGuideStat } from '@/components/PageGuide';
 import { useUserStore, getMinutesSaved } from '@/stores/useUserStore';
 import { getLocalDateKey } from '@/utils/date';
-import { MyPage } from '@/components/page/MyPage';
 import { HatchHost } from '@/components/page/HatchHost';
 import { HomeSimple } from '@/components/home/HomeSimple';
-import { useLabStore } from '@/stores/useLabStore';
 
 export default function HomeScreen() {
   const { colors } = useTheme();
-  const homeV3 = useLabStore((s) => s.homeV3);
 
   // Live numbers for the first-visit "Your daily snapshot" bubble.
   const streak         = useUserStore((s) => s.streak);
@@ -55,15 +52,15 @@ export default function HomeScreen() {
   return (
     <>
       <HatchHost />
-      {homeV3 ? <HomeSimple /> : <MyPage />}
+      <HomeSimple />
       <PageGuide
         page="home"
         icon="home"
         accent={colors.accent}
-        title="Today"
+        title="Home"
         hint="Your daily snapshot"
         subtitle="Your companion, protection status and streak."
-        snapshot={{ title: 'Today', subtitle: 'Where you stand right now.', stats }}
+        snapshot={{ title: 'Home', subtitle: 'Where you stand right now.', stats }}
         points={[
           { icon: 'heart',        title: 'Your companion',     body: 'Grows each time you walk away.' },
           { icon: 'shield',       title: 'Protection status',  body: 'Shows if blocking is on — tap to fix it.' },

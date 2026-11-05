@@ -9,7 +9,7 @@ import { ALL_CHARACTER_IDS, CHARACTER_NAMES, CHAR_COLORS } from '@/constants/spr
 import { View, Text, TextInput, Pressable, ScrollView, Switch, StyleSheet, BackHandler } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
-import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
 import { useFlowStore } from '@/stores/useFlowStore';
 import { usePackStore, GATE_NOTE_MAX, DEFAULT_COMPANION_POS, type GateVoice, type FloatMode, type CompanionSize, type PaperChoice, type DayDisplay } from '@/stores/usePackStore';
@@ -247,8 +247,7 @@ export default function CustomizeScreen() {
   const addMine        = useOfferStore((s) => s.addCustom);
   const removeMine     = useOfferStore((s) => s.removeCustom);
   const [mineDraft, setMineDraft] = useState('');
-  const params = useLocalSearchParams<{ section?: string }>();
-  const [section, setSection] = useState<CustSection | null>(params.section === 'room' ? 'room' : null);
+  const [section, setSection] = useState<CustSection | null>(null);
   const roomName      = useRoomStore((s) => s.roomName);
   const setRoomName   = useRoomStore((s) => s.setRoomName);
   const look          = useRoomStore((s) => s.look);
@@ -300,12 +299,15 @@ export default function CustomizeScreen() {
     ? allPacks
     : allPacks.filter((p) => p.id === 'core' || p.id === 'notebook' || p.id === activePackId);
   // Skins only appear once there is a second one to choose. Codes are for characters, not skins.
-  const hub = packs.length > 1 ? HUB : HUB.filter((h) => h.id !== 'skins');
+  // v3 keeps only the companion and the gate here. Room, skins, colour and layout are retired:
+  // the app has one look (Light or Dark, set in Me > Look) and one Home. Their code stays below
+  // until the phone test is done, then it gets deleted.
+  const hub = HUB.filter((h) => h.id === 'companion' || h.id === 'gate');
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>Customize</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Companion and gate</Text>
         <Pressable onPress={() => router.back()} hitSlop={10} accessibilityLabel="Close">
           <Feather name="x" size={24} color={colors.textMuted} />
         </Pressable>
@@ -337,9 +339,9 @@ export default function CustomizeScreen() {
         )}
 
         {!!section && (
-          <Pressable onPress={() => setSection(null)} hitSlop={10} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }} accessibilityRole="button" accessibilityLabel="Back to Customize">
+          <Pressable onPress={() => setSection(null)} hitSlop={10} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }} accessibilityRole="button" accessibilityLabel="Back">
             <Feather name="chevron-left" size={20} color={colors.accent} />
-            <Text style={[styles.btnText, { color: colors.accent }]}>Customize</Text>
+            <Text style={[styles.btnText, { color: colors.accent }]}>Back</Text>
             <Text style={[styles.cardTitle, { color: colors.text, marginLeft: SPACING.sm }]}>{HUB.find((h) => h.id === section)?.title}</Text>
           </Pressable>
         )}

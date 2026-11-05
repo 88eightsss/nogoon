@@ -64,7 +64,7 @@ const ALL_CHAPTERS: Chapter[] = [
     steps: [
       { title: 'Your companion', body: '', why: 'Something small to look after makes walking away feel like a win, not a loss.', best: 'It grows when you walk away, and a slip never undoes that.' },
       { title: 'Choose who to feed', body: 'You can switch companion whenever you like, but only the one you feed evolves. Each keeps its own progress.', demo: 'picker' },
-      { title: 'Five stages each', body: 'Treats feed your active companion from Home. New forms arrive at 5, 15, 30 and 60 feedings, and stay a surprise until you reach them. Customize shows how far along each one is.', demo: 'feed' },
+      { title: 'Five stages each', body: 'Treats feed your active companion from Home. New forms arrive at 5, 15, 30 and 60 feedings, and stay a surprise until you reach them. Me shows how far along each one is.', demo: 'feed' },
       { title: 'Take your pal for a walk', body: '"Take your pal for a walk" counts your steps with the phone\'s sensors while your companion trots along. Walk 500 steps or more and they get fed. No location needed.' },
       { title: 'A nudge to reach out', body: 'After a long scroll your companion may leave a card on Home with a ready-made hello. It is never a notification, and nothing is sent unless you send it.', demo: 'reach' },
     ],

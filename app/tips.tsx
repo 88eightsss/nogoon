@@ -79,9 +79,9 @@ const TIPS: readonly Tip[] = [
     body: "Turning Hard lock off takes a full day once it's on, by design — so the decision gets made in a calm moment, not a craving.",
   },
   {
-    icon: 'home',
-    title: 'Your room or a plain page',
-    body: 'Today is a small room you can name and decorate. Prefer it plain? Switch at the bottom of Today or in Customize.',
+    icon: 'moon',
+    title: 'Light, dark, or match your phone',
+    body: 'Pick one in Me, under Look. Turn on Dim at night and it goes dark from 9 pm to 6 am on its own.',
   },
   {
     icon: 'zap',

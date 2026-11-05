@@ -19,10 +19,10 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useMemo } from 'react';
-import { BORDERS, ThemePalette, BorderConfig } from '@/constants/Themes';
+import { BORDERS, DEFAULT_THEME, DEFAULT_BORDER, ThemePalette, BorderConfig } from '@/constants/Themes';
 import { resolveSkinPalette } from '@/constants/packs/resolve';
-import { usePackStore } from '@/stores/usePackStore';
-import { useActivePack } from '@/hooks/usePack';
+import { CORE_PACK } from '@/constants/packs';
+import { useBrightness } from '@/hooks/useAppearance';
 import { useThemeStore } from '@/stores/useThemeStore';
 
 export type ThemeHook = {
@@ -43,14 +43,13 @@ export type ThemeHook = {
 };
 
 export function useTheme(): ThemeHook {
-  const { themeId, borderId, strugglingMode, setStruggling, themeBrightness } = useThemeStore();
-  // An active pack with a theme part overrides the user's own theme/border; Core has none.
-  const pack = useActivePack();
-  const accentOverride = usePackStore((s) => s.accentOverride);
+  const { strugglingMode, setStruggling } = useThemeStore();
+  // One palette, one border. The only colour choice is Match phone / Light / Dark (hooks/useAppearance.ts).
+  const brightness = useBrightness();
 
   return useMemo(() => {
-    const colors = resolveSkinPalette(themeId, themeBrightness, pack, accentOverride);
-    const border = BORDERS[pack.parts.shape?.borderId ?? borderId];
+    const colors = resolveSkinPalette(DEFAULT_THEME, brightness, CORE_PACK);
+    const border = BORDERS[DEFAULT_BORDER];
 
     const radius = border.radius; // each style now owns a real radius value directly
 
@@ -73,5 +72,5 @@ export function useTheme(): ThemeHook {
       setStruggling,
       cardStyle,
     };
-  }, [themeId, borderId, strugglingMode, setStruggling, themeBrightness, pack, accentOverride]);
+  }, [strugglingMode, setStruggling, brightness]);
 }
