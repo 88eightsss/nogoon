@@ -4,13 +4,14 @@
 // Saved on this phone only. The AI "write the words" step comes after this one and may never change a fact.
 
 import { useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, Switch } from 'react-native';
+import { View, Text, TextInput, Pressable, StyleSheet, Switch, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
 import { usePostOnceStore } from '@/stores/usePostOnceStore';
 import { blankEvent, problems, whenText, DAYS, type PostOnceEvent } from '@/lib/postOnce';
+import { readFlyer, pickFlyerPhoto } from '@/lib/postOnceAI';
 import { Shell } from '@/components/stepout/Shell';
 import { ConstructionSign } from '@/components/ui/Construction';
 import { UNDER_CONSTRUCTION } from '@/constants/construction';
@@ -24,6 +25,9 @@ export default function PostOnce() {
   const remove = usePostOnceStore((s) => s.remove);
   const [draft, setDraft] = useState<PostOnceEvent | null>(events.length === 0 ? blankEvent() : null);
   const [errors, setErrors] = useState<string[]>([]);
+  const [reading, setReading] = useState(false);
+  const [readNote, setReadNote] = useState('');
+  const [check, setCheck] = useState<string[]>([]);   // fields the AI was unsure about: shown amber until edited
 
   const banner = UNDER_CONSTRUCTION.postOnce ? (
     <ConstructionSign note="A trial of the host tool. It makes the words and a flyer for you to share yourself. It does not post for anyone or send anything." />
@@ -62,11 +66,13 @@ export default function PostOnce() {
   const set = <K extends keyof PostOnceEvent>(k: K, v: PostOnceEvent[K]) => setDraft((d) => (d ? { ...d, [k]: v } : d));
   const input = (label: string, key: keyof PostOnceEvent, opts?: { placeholder?: string; multiline?: boolean; max?: number; keyboard?: 'default' | 'url' }) => (
     <View style={{ gap: 4 }}>
-      <Text style={[styles.label, { color: colors.textMuted }]}>{label}</Text>
+      <Text style={[styles.label, { color: check.includes(key as string) ? '#D68910' : colors.textMuted }]}>
+        {label}{check.includes(key as string) ? '  (check this one)' : ''}
+      </Text>
       <TextInput
-        style={[styles.input, opts?.multiline && { minHeight: 84, textAlignVertical: 'top' }, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface }]}
+        style={[styles.input, opts?.multiline && { minHeight: 84, textAlignVertical: 'top' }, { color: colors.text, borderColor: check.includes(key as string) ? '#D68910' : colors.border, backgroundColor: colors.surface }]}
         value={String(draft[key] ?? '')}
-        onChangeText={(t) => set(key, t as never)}
+        onChangeText={(t) => { set(key, t as never); if (check.includes(key as string)) setCheck((c) => c.filter((x) => x !== key)); }}
         placeholder={opts?.placeholder}
         placeholderTextColor={colors.textMuted}
         multiline={opts?.multiline}
@@ -87,9 +93,52 @@ export default function PostOnce() {
     </Pressable>
   );
 
+  const fromPhoto = async () => {
+    if (reading) return;
+    setReading(true); setReadNote(''); setCheck([]);
+    try {
+      const photo = await pickFlyerPhoto();
+      if (!photo) { setReading(false); return; }
+      const r = await readFlyer(photo);
+      if (!r.ok) { setReadNote(r.message); setReading(false); return; }
+      const f = r.fields;
+      const filled: string[] = [];
+      setDraft((d) => {
+        if (!d) return d;
+        const next = { ...d };
+        // Fill only what is still empty: what the host already typed is never overwritten.
+        (['title', 'host', 'when', 'area', 'ask', 'smallest', 'details', 'link'] as const).forEach((k) => {
+          if (!String(next[k] ?? '').trim() && f[k]) { next[k] = f[k]; filled.push(k); }
+        });
+        if (next.cost.trim() === 'Free' && f.cost && f.cost !== 'Free') { next.cost = f.cost; filled.push('cost'); }
+        if (!d.title.trim()) next.kind = f.kind;
+        return next;
+      });
+      // Everything read from a photo is unconfirmed until the host looks at it; the ones the AI was unsure of are marked.
+      setCheck(f.guessed);
+      setReadNote(filled.length === 0
+        ? 'Nothing new was found on that photo.'
+        : 'Filled in what the flyer shows. Read every line. Anything marked "check this one" was hard to read.');
+    } catch (err) {
+      setReadNote(err instanceof Error ? err.message : 'Could not use that photo.');
+    }
+    setReading(false);
+  };
+
   return (
     <Shell title={events.some((x) => x.id === draft.id) ? 'Edit post' : 'New post'}>
       {banner}
+      <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+        <Text style={[styles.cardTitle, { color: colors.text }]}>Already have a flyer?</Text>
+        <Text style={[styles.small, { color: colors.textMuted, textAlign: 'left' }]}>
+          For checked hosts. Pick a photo of it from your library and we fill the form from what it shows. The photo is read once and not kept. You check every line.
+        </Text>
+        <Pressable onPress={fromPhoto} disabled={reading} accessibilityRole="button" accessibilityLabel="Fill the form from a flyer photo" style={[styles.btn, { backgroundColor: colors.accent, opacity: reading ? 0.6 : 1, paddingVertical: SPACING.md }]}>
+          {reading ? <ActivityIndicator color={colors.background} /> : <Feather name="image" size={16} color={colors.background} />}
+          <Text style={[styles.btnText, { color: colors.background }]}>{reading ? 'Reading...' : 'Fill from a flyer photo'}</Text>
+        </Pressable>
+        {readNote ? <Text style={[styles.small, { color: colors.textSecondary, textAlign: 'left' }]} accessibilityLiveRegion="polite">{readNote}</Text> : null}
+      </View>
       <View style={styles.chips}>
         {chip('Asking for help', draft.kind === 'hand', () => set('kind', 'hand'))}
         {chip('An event', draft.kind === 'happening', () => set('kind', 'happening'))}
