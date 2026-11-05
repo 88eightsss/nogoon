@@ -11,13 +11,17 @@
 -- even if a client is wrong (crew size, expiry, one reply per person) is enforced in the database.
 -- The app today still runs on sample data (constants/stepOutSample.ts) and does not call any of this yet.
 
+-- Supabase grants new functions to anon by default, so each one below is revoked from anon as well as from public.
+
 -- ─── helpers ──────────────────────────────────────────────────────────────────────────────────
 
+-- plpgsql, not sql: a sql function is checked when it is created, and crew_members does not exist yet.
 create or replace function public.is_crew_member(p_crew uuid) returns boolean
-language sql stable security definer set search_path = public as $$
-  select exists (select 1 from public.crew_members m where m.crew_id = p_crew and m.user_id = auth.uid())
-$$;
-revoke all on function public.is_crew_member(uuid) from public;
+language plpgsql stable security definer set search_path = public as $$
+begin
+  return exists (select 1 from public.crew_members m where m.crew_id = p_crew and m.user_id = auth.uid());
+end $$;
+revoke all on function public.is_crew_member(uuid) from public, anon;
 grant execute on function public.is_crew_member(uuid) to authenticated;
 
 -- ─── doors ────────────────────────────────────────────────────────────────────────────────────
@@ -56,7 +60,7 @@ returns table (title text, host text, when_text text, area text)
 language sql stable security definer set search_path = public as $$
   select d.title, d.host, d.when_text, d.area from public.doors d where d.id = p_door and d.expires_at > now()
 $$;
-revoke all on function public.door_by_id(uuid) from public;
+revoke all on function public.door_by_id(uuid) from public, anon;
 grant execute on function public.door_by_id(uuid) to authenticated;
 
 -- ─── door replies: only "coming" exists ──────────────────────────────────────────────────────
@@ -84,7 +88,7 @@ begin
   select d.id, auth.uid() from public.doors d where d.id = p_door and d.expires_at > now()
   on conflict do nothing;
 end $$;
-revoke all on function public.coming_to_door(uuid) from public;
+revoke all on function public.coming_to_door(uuid) from public, anon;
 grant execute on function public.coming_to_door(uuid) to authenticated;
 
 -- ─── crews: up to eight people who go together ───────────────────────────────────────────────
@@ -130,12 +134,16 @@ drop trigger if exists crew_add_owner_trg on public.crews;
 create trigger crew_add_owner_trg after insert on public.crews for each row execute function public.crew_add_owner();
 
 drop policy if exists crews_member_read on public.crews;
-create policy crews_member_read on public.crews for select to authenticated using (public.is_crew_member(id));
+-- The owner clause lets INSERT ... RETURNING work: the member row is added by an AFTER trigger, which has not run yet
+-- when the returned row is checked against this policy.
+create policy crews_member_read on public.crews for select to authenticated using (owner = auth.uid() or public.is_crew_member(id));
 drop policy if exists crews_owner_insert on public.crews;
 create policy crews_owner_insert on public.crews for insert to authenticated with check (owner = auth.uid());
 drop policy if exists crews_member_update on public.crews;
 create policy crews_member_update on public.crews for update to authenticated
   using (public.is_crew_member(id)) with check (public.is_crew_member(id));
+revoke update on public.crews from anon, authenticated;
+grant update (name, next_ref) on public.crews to authenticated;   -- not owner
 drop policy if exists crews_owner_delete on public.crews;
 create policy crews_owner_delete on public.crews for delete to authenticated using (owner = auth.uid());
 
@@ -147,6 +155,10 @@ drop policy if exists crew_members_rename on public.crew_members;
 create policy crew_members_rename on public.crew_members for update to authenticated
   using (user_id = auth.uid()) with check (user_id = auth.uid());
 revoke insert on public.crew_members from anon, authenticated;   -- joining goes through join_crew()
+-- A member may change only their own display name. Without this, an UPDATE could move their row into another crew
+-- (skipping the invite and the size cap) or hand them ownership of a crew.
+revoke update on public.crew_members from anon, authenticated;
+grant update (display_name) on public.crew_members to authenticated;
 
 -- Invites are private codes, good for three days.
 create table if not exists public.crew_invites (
@@ -171,7 +183,7 @@ begin
   values (v_crew, auth.uid(), left(coalesce(p_name, ''), 24)) on conflict do nothing;
   return v_crew;
 end $$;
-revoke all on function public.join_crew(text, text) from public;
+revoke all on function public.join_crew(text, text) from public, anon;
 grant execute on function public.join_crew(text, text) to authenticated;
 
 -- ─── postcards: one line, crew only, gone after seven days ───────────────────────────────────

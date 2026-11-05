@@ -50,6 +50,8 @@ export function formatClock(total: number): string {
 export function RideItOut({ C, onGreen, onCredit, onDone, onGoIn, onOther, canGoIn = true }: Props) {
   const startedAt = useRef(Date.now());
   const startedCounted = useRef(false);
+  const credited = useRef(false);   // a fast double tap on "It passed" must count once
+
   const [secs, setSecs] = useState(0);
   const [stillStrong, setStillStrong] = useState(false);
   const [promptIdx, setPromptIdx] = useState(-1);          // index into PROMPT_AT currently asked, -1 none
@@ -100,6 +102,8 @@ export function RideItOut({ C, onGreen, onCredit, onDone, onGoIn, onOther, canGo
   const passed = useCallback(() => {
     const seconds = Math.floor((Date.now() - startedAt.current) / 1000);
     if (seconds >= URGE_MIN_SECONDS) {
+      if (credited.current) return;
+      credited.current = true;
       useRecoveryStore.getState().recordUrgePassed(seconds);
       onCredit();
       setResult({ credited: true, seconds });

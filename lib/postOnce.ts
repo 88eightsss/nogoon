@@ -108,7 +108,9 @@ export function xLength(text: string): number {
 }
 export function captionX(e: PostOnceEvent): string {
   const base = [clean(e.title), factsLine(e)];
-  const tail = [e.link.trim(), `Hosted by ${clean(e.host)}.`].filter(Boolean);
+  // The locked facts always stay. If they are so long that even they do not fit, the "Hosted by" line goes first.
+  let tail = [e.link.trim(), `Hosted by ${clean(e.host)}.`].filter(Boolean);
+  if (xLength([...base, ...tail].join('\n')) > X_LIMIT) tail = [e.link.trim()].filter(Boolean);
   // Add the optional lines one at a time and keep only what fits.
   let text = [...base, ...tail].join('\n');
   for (const extra of [e.ask.trim() ? `${clean(e.ask)}.` : '', e.smallest.trim() ? `Smallest way in: ${clean(e.smallest)}.` : '']) {

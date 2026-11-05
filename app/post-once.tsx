@@ -3,7 +3,7 @@
 // group, a bulletin) plus a QR flyer. Under construction: nothing is posted for anyone and nothing is sent.
 // Saved on this phone only. The AI "write the words" step comes after this one and may never change a fact.
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, Switch, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -25,6 +25,8 @@ export default function PostOnce() {
   const remove = usePostOnceStore((s) => s.remove);
   const [draft, setDraft] = useState<PostOnceEvent | null>(events.length === 0 ? blankEvent() : null);
   const [errors, setErrors] = useState<string[]>([]);
+  const draftRef = useRef(draft);
+  draftRef.current = draft;   // the newest form, read after a slow photo request returns
   const [reading, setReading] = useState(false);
   const [readNote, setReadNote] = useState('');
   const [check, setCheck] = useState<string[]>([]);   // fields the AI was unsure about: shown amber until edited
@@ -102,20 +104,19 @@ export default function PostOnce() {
       const r = await readFlyer(photo);
       if (!r.ok) { setReadNote(r.message); setReading(false); return; }
       const f = r.fields;
+      const d = draftRef.current;
+      if (!d) { setReading(false); return; }
+      const next = { ...d };
       const filled: string[] = [];
-      setDraft((d) => {
-        if (!d) return d;
-        const next = { ...d };
-        // Fill only what is still empty: what the host already typed is never overwritten.
-        (['title', 'host', 'when', 'area', 'ask', 'smallest', 'details', 'link'] as const).forEach((k) => {
-          if (!String(next[k] ?? '').trim() && f[k]) { next[k] = f[k]; filled.push(k); }
-        });
-        if (next.cost.trim() === 'Free' && f.cost && f.cost !== 'Free') { next.cost = f.cost; filled.push('cost'); }
-        if (!d.title.trim()) next.kind = f.kind;
-        return next;
+      // Fill only what is still empty: what the host already typed is never overwritten.
+      (['title', 'host', 'when', 'area', 'ask', 'smallest', 'details', 'link'] as const).forEach((k) => {
+        if (!String(next[k] ?? '').trim() && f[k]) { next[k] = f[k]; filled.push(k); }
       });
+      if (next.cost.trim() === 'Free' && f.cost && f.cost !== 'Free') { next.cost = f.cost; filled.push('cost'); }
+      if (!d.title.trim()) next.kind = f.kind;
+      setDraft(next);
       // Everything read from a photo is unconfirmed until the host looks at it; the ones the AI was unsure of are marked.
-      setCheck(f.guessed);
+      setCheck(f.guessed.filter((k) => filled.includes(k)));   // only fields that were actually filled in
       setReadNote(filled.length === 0
         ? 'Nothing new was found on that photo.'
         : 'Filled in what the flyer shows. Read every line. Anything marked "check this one" was hard to read.');
