@@ -117,7 +117,7 @@ export const UNWIND_GROUP_ORDER: Record<HelpFirst, UnwindGroupId[]> = {
 
 /** Options in Today's "Need a minute" sheet (components/page/TemptedSheet.tsx).
  *  'briefing' is only listed when it was chosen, as the first option. */
-export type TemptedOptionId = 'briefing' | 'breathe' | 'game' | 'calm' | 'write';
+export type TemptedOptionId = 'briefing' | 'breathe' | 'game' | 'calm' | 'write' | 'make';
 export const TEMPTED_ORDER: Record<HelpFirst, TemptedOptionId[]> = {
   standard: ['breathe', 'game', 'calm', 'write'],
   briefing: ['briefing', 'breathe', 'game', 'calm', 'write'],

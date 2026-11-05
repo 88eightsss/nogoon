@@ -20,6 +20,7 @@ const OPTIONS: Record<TemptedOptionId, { icon: FeatherName; label: string; body:
   game:     { icon: 'zap',       label: 'Play a quick game',    body: 'Give your hands something to do.', path: '/(tabs)/arcade' },
   calm:     { icon: 'moon',      label: 'Calm down',            body: 'Slow the whole thing down.',   path: '/(tabs)/calm' },
   write:    { icon: 'book-open', label: 'Write it out',         body: 'Say what you are really after.', path: '/journal' },
+  make:     { icon: 'edit-3',    label: 'Make something',       body: 'Draw or write for two minutes.', path: '/make' },
 };
 
 export function TemptedSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
@@ -27,7 +28,8 @@ export function TemptedSheet({ visible, onClose }: { visible: boolean; onClose: 
   const go = (path: string) => { onClose(); router.push(path as any); };
   // "What helps first" (setup questions / Customize) picks the first option; nothing is hidden.
   const helpFirst = useRoomStore((s) => s.helpFirst);
-  const options = TEMPTED_ORDER[helpFirst].map((id) => OPTIONS[id]);
+  // Make is always last: whatever was chosen in setup stays first.
+  const options = [...TEMPTED_ORDER[helpFirst], 'make' as const].map((id) => OPTIONS[id]);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>

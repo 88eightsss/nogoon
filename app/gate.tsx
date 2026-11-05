@@ -1340,6 +1340,18 @@ function NoGoonScreen() {
               </View>
               <Feather name="chevron-right" size={18} color={C.textMuted} />
             </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.intentCard, { backgroundColor: pressed ? C.surfaceHigh : C.surface, borderColor: C.cardBorder }]}
+              onPress={() => change('/make')}
+              accessibilityRole="button"
+            >
+              <Feather name="edit-3" size={26} color={C.indigoBright} style={{ width: 36, textAlign: 'center' }} />
+              <View style={styles.intentCardText}>
+                <Text style={[styles.intentCardLabel, { color: C.textPrimary }]}>Make something small</Text>
+                <Text style={[styles.intentCardSub, { color: C.textSecondary }]}>Draw or write for two minutes</Text>
+              </View>
+              <Feather name="chevron-right" size={18} color={C.textMuted} />
+            </Pressable>
             {canPause && (
               <Pressable
                 style={({ pressed }) => [styles.intentCard, { backgroundColor: pressed ? C.surfaceHigh : C.surface, borderColor: C.cardBorder }]}
