@@ -1,6 +1,6 @@
 // ─── Setup questions, again ───────────────────────────────────────────────────
 // The onboarding "Make it yours" questions, opened from Me > Account & help >
-// Setup & fixes. Only answered questions change anything, and nothing is removed
+// Answer the setup questions again. Only answered questions change anything, and nothing is removed
 // or switched off, so existing settings are kept.
 
 import { router } from 'expo-router';

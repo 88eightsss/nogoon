@@ -1,4 +1,4 @@
-// ─── Setup & fixes ────────────────────────────────────────────────────────────
+// ─── Fix blocking (setup-help) ────────────────────────────────────────────────────────────
 // The same switches the first-run setup walks through, available any time from Me > Account & help.
 // If blocking stops working (Android turned the service off, a phone update, a battery manager),
 // everything needed to put it back is on this one screen, with the reasons for each.
@@ -102,7 +102,7 @@ export default function SetupHelpScreen() {
         <Pressable onPress={() => router.back()} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back">
           <Feather name="arrow-left" size={22} color={colors.text} />
         </Pressable>
-        <Text style={[s.title, { color: colors.text }]}>Setup & fixes</Text>
+        <Text style={[s.title, { color: colors.text }]}>Fix blocking</Text>
         <View style={{ width: 22 }} />
       </View>
 

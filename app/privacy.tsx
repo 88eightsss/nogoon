@@ -119,7 +119,7 @@ export default function PrivacyScreen() {
             'If the app crashes it can send the error, the app version and your phone model. It also sends plain totals ' +
             '(how many times the pause screen opened, walk-aways, outings) with a random code that changes every day, so ' +
             'one day cannot be linked to the next. No account, name, email, location or anything you typed. ' +
-            'Turn both off in Profile > Setup & fixes.'
+            'Turn both off in Me, under Account and help, then Blocking is not working.'
           }
         />
         <Section

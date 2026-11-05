@@ -116,7 +116,7 @@ class ErrorBoundary extends React.Component<
           <Text style={[errorStyles.emoji, { fontFamily: undefined }]}>!</Text>
           <Text style={errorStyles.title}>Something went wrong</Text>
           <Text style={errorStyles.message}>
-            The app hit an unexpected error. Tap Try Again. If it keeps happening, open Profile, then Setup & fixes.
+            The app hit an unexpected error. Tap Try Again. If it keeps happening, open Me, then Account and help.
           </Text>
           {__DEV__ && this.state.error && (
             <Text style={errorStyles.detail}>

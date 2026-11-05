@@ -6,7 +6,7 @@
 //   3. What replaces the scroll      → what Need a minute and Unwind put first
 //   4. Companion and look            → the same pickers the old onboarding steps used
 // Shown after the Accessibility step in onboarding, and again from
-// Me > Account & help > Setup & fixes (app/setup-questions.tsx).
+// Me > Account & help > Answer the setup questions again (app/setup-questions.tsx).
 //
 // Answers live in this component's state only. On finish they are turned into
 // changes in the existing stores (utils/setupDefaults.ts), then dropped. A skipped
@@ -74,7 +74,7 @@ export function SetupQuestions({ onFinish, onBack, rerun = false }: {
   onFinish: () => void;
   /** Back from the first question (onboarding: back to the Accessibility step). */
   onBack?: () => void;
-  /** Opened again from Setup & fixes: start from the current companion. */
+  /** Opened again from Me: start from the current companion. */
   rerun?: boolean;
 }) {
   const ui = useOnboardingStyles();
