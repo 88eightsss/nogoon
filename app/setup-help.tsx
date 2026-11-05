@@ -22,7 +22,7 @@ const WHY: [FeatherName, string][] = [
   ['eye', 'To notice the moment you open a blocked app or site, so the pause shows up before it loads.'],
   ['list', 'It only sees which app is in front and the address bar of your browser, to match the list you choose.'],
   ['layers', 'To show the gate on top of that app: a breath, a quick game, or a walk with your pal.'],
-  ['lock', 'It never reads what you type, your passwords or messages, and nothing leaves your phone.'],
+  ['lock', 'It never reads what you type, your passwords or messages.'],
   ['toggle-right', 'Android makes you switch it on yourself, and you can switch it off any time in Settings.'],
 ];
 
@@ -39,7 +39,7 @@ const FIXES: [string, string][] = [
   ['It works for a while, then quits', 'Your phone\'s battery manager is closing NoGoon. Use "Keep NoGoon always on" below, and on Samsung also remove NoGoon from Settings > Battery > Background usage limits > Sleeping apps.'],
   ['The switch is greyed out in Settings', 'Android blocks it while the app was installed from a file. Open the app\'s info, tap the three dots, then "Allow restricted settings", and try again.'],
   ['Blocking is on in Settings but the red banner says stalled', 'Android stopped NoGoon in the background. Switch NoGoon off and back on in Accessibility, then on Samsung add it to Settings > Battery > Background usage limits > Never sleeping apps. Swiping NoGoon away from the recent apps screen can also stop it, so try not to.'],
-  ['Still nothing', 'Open Last crash report, tap Share, and send it over. It has the error and your phone model, nothing personal.'],
+  ['Still nothing', 'Open Send a crash report, tap Share, and send it over. It has the error and your phone model, nothing personal.'],
 ];
 
 type Colors = ReturnType<typeof useTheme>['colors'];
@@ -232,7 +232,7 @@ export default function SetupHelpScreen() {
               <Divider c={colors} />
               <Pressable onPress={() => router.push('/crash-report' as any)} accessibilityRole="button" style={s.linkRow}>
                 <Feather name="alert-triangle" size={18} color={colors.textMuted} />
-                <Text style={[s.rowTitle, { color: colors.text, flex: 1 }]}>Last crash report</Text>
+                <Text style={[s.rowTitle, { color: colors.text, flex: 1 }]}>Send a crash report</Text>
                 <Feather name="chevron-right" size={18} color={colors.textMuted} />
               </Pressable>
               <Divider c={colors} />

@@ -13,6 +13,8 @@ interface FlowState {
   tipsSeen: Record<string, true>;
   briefingOpened: boolean;
   localVisited: boolean;
+  /** Opened "This week near you" at least once (the Home card stops after that). */
+  stepOutSeen: boolean;
   pauseSeen: boolean;
   /** Local date (YYYY-MM-DD) the next-step card was set aside with "Not now". */
   cardHiddenOn: string;
@@ -21,6 +23,7 @@ interface FlowState {
   markTipSeen: (id: string) => void;
   markBriefingOpened: () => void;
   markLocalVisited: () => void;
+  markStepOutSeen: () => void;
   markPauseSeen: () => void;
   hideCardFor: (day: string) => void;
   setShowEverything: (v: boolean) => void;
@@ -31,6 +34,7 @@ const FRESH = {
   tipsSeen: {} as Record<string, true>,
   briefingOpened: false,
   localVisited: false,
+  stepOutSeen: false,
   pauseSeen: false,
   cardHiddenOn: '',
   showEverything: false,
@@ -43,6 +47,7 @@ export const useFlowStore = create<FlowState>()(
       markTipSeen: (id) => set((s) => (s.tipsSeen[id] ? s : { tipsSeen: { ...s.tipsSeen, [id]: true } })),
       markBriefingOpened: () => set((s) => (s.briefingOpened ? s : { briefingOpened: true })),
       markLocalVisited: () => set((s) => (s.localVisited ? s : { localVisited: true })),
+      markStepOutSeen: () => set((s) => (s.stepOutSeen ? s : { stepOutSeen: true })),
       markPauseSeen: () => set((s) => (s.pauseSeen ? s : { pauseSeen: true })),
       hideCardFor: (day) => set({ cardHiddenOn: day }),
       setShowEverything: (v) => set({ showEverything: v }),

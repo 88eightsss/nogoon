@@ -20,8 +20,8 @@ type Tip = { id: string; title: string; body: string };
 const TIPS: Record<string, Tip> = {
   first_walkaway: {
     id: 'first_walkaway',
-    title: 'That pause is the whole app',
-    body: 'Each time you stop and walk away, your pal grows. A slip does not undo that. Just keep coming back.',
+    title: 'Watch it pass',
+    body: 'Urges rise, peak and fade, usually in minutes. At the gate, tap Ride it out and watch this one go.',
   },
   first_feed: {
     id: 'first_feed',
@@ -87,7 +87,7 @@ export function FlowTips() {
         <Text style={[s.title, { color: colors.text }]}>{active.title}</Text>
         <Text style={[s.body, { color: colors.textSecondary }]}>{active.body}</Text>
         <Pressable onPress={dismiss} hitSlop={8} style={s.btn} accessibilityRole="button" accessibilityLabel="Got it, close this tip">
-          <Text style={[s.btnText, { color: colors.accent }]}>Got it</Text>
+          <Text style={[s.btnText, { color: colors.accent }]}>Got it, close this tip</Text>
         </Pressable>
       </View>
     </View>

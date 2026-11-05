@@ -13,6 +13,7 @@ import { useFlowStore } from '@/stores/useFlowStore';
 import { pickNextStep, type NextStep } from '@/utils/nextStep';
 import type { BlockingStatus } from '@/utils/blockingStatus';
 import { getLocalDateKey } from '@/utils/date';
+import { UNDER_CONSTRUCTION } from '@/constants/construction';
 import { FONTS } from '@/constants/Colors';
 
 export function NextStepCard({ blockingStatus, onOpenSettings, onPause }: {
@@ -25,7 +26,7 @@ export function NextStepCard({ blockingStatus, onOpenSettings, onPause }: {
   const blocklist = useUserStore((s) => s.blocklist);
   const blockedApps = useUserStore((s) => s.blockedApps);
   const gateNote = usePackStore((s) => s.gateNote);
-  const { pauseSeen, briefingOpened, localVisited, cardHiddenOn, showEverything, hideCardFor } = useFlowStore();
+  const { pauseSeen, briefingOpened, localVisited, stepOutSeen, cardHiddenOn, showEverything, hideCardFor } = useFlowStore();
 
   if (showEverything || cardHiddenOn === getLocalDateKey()) return null;
 
@@ -37,6 +38,8 @@ export function NextStepCard({ blockingStatus, onOpenSettings, onPause }: {
     briefingOpened,
     localVisited,
     hasGateNote: gateNote.trim().length > 0,
+    stepOutLive: !UNDER_CONSTRUCTION.stepOutFeed,
+    stepOutSeen,
   });
   if (!step) return null;
 
@@ -56,13 +59,13 @@ export function NextStepCard({ blockingStatus, onOpenSettings, onPause }: {
         <View style={[s.iconWrap, { backgroundColor: colors.accentDim }]}>
           <Feather name={step.icon} size={18} color={colors.accent} />
         </View>
-        <Text style={[s.kicker, { color: colors.accent }]}>Your next step</Text>
+        <Text style={[s.kicker, { color: colors.accent }]}>Next step</Text>
       </View>
       <Text style={[s.title, { color: colors.text }]}>{step.title}</Text>
       <Text style={[s.body, { color: colors.textSecondary }]}>{step.body}</Text>
       <View style={s.row}>
         <Pressable onPress={() => hideCardFor(getLocalDateKey())} hitSlop={8} accessibilityRole="button" accessibilityLabel="Not now, show this tomorrow">
-          <Text style={[s.later, { color: colors.textMuted }]}>Not now</Text>
+          <Text style={[s.later, { color: colors.textMuted }]}>Not now, show this tomorrow</Text>
         </Pressable>
         <View style={{ flex: 1 }} />
         <Pressable onPress={go} style={[s.cta, { backgroundColor: colors.accent }]} accessibilityRole="button" accessibilityLabel={step.cta}>

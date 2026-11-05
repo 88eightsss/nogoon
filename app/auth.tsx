@@ -43,9 +43,9 @@ const PRIVACY_URL = 'https://88eightsss.github.io/nogoon-legal/privacy-policy.ht
 const GREETERS: CharacterId[] = [0, 1, 2];
 
 const PROMISES: { icon: FeatherName; text: string }[] = [
-  { icon: 'pause-circle', text: 'Pause before the scroll starts' },
-  { icon: 'sun',          text: 'Swap it for something better' },
-  { icon: 'heart',        text: 'Grow a companion as you go' },
+  { icon: 'activity', text: 'Watch an urge pass instead of following it' },
+  { icon: 'compass',  text: 'Step out: real things to do near you' },
+  { icon: 'heart',    text: 'Grow a companion as you go' },
 ];
 
 const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
@@ -150,7 +150,7 @@ export default function AuthScreen() {
             </Animated.View>
             <Text style={styles.wordmark} accessibilityRole="header">NoGoon</Text>
             <Text style={styles.tagline}>
-              {mode === 'signin' ? 'Welcome back. Your companion kept your spot.' : 'A gateway to better habits.'}
+              {mode === 'signin' ? 'Welcome back. Your companion kept your spot.' : 'Calm, private, and free for everyone.'}
             </Text>
           </View>
 
@@ -299,6 +299,8 @@ export default function AuthScreen() {
               : 'New here? Tap Create account above.'}
           </Text>
 
+          {mode === 'signup' && <Text style={styles.freeLine}>Free. No subscription. No ad networks.</Text>}
+
           {/* ── Fine print ── */}
           <Text style={styles.finePrint}>
             By continuing you agree to our{' '}
@@ -361,6 +363,7 @@ const makeStyles = (c: ThemePalette) => {
   submitButtonLoading: { opacity: 0.7 },
   submitButtonText: { fontFamily: FONTS.bodyBold, fontSize: 16, color: btnFg },
 
+  freeLine: { fontFamily: FONTS.bodyMedium, fontSize: 14, color: c.accent, textAlign: 'center', marginTop: SPACING.sm },
   why: { fontFamily: FONTS.body, fontSize: 13, color: c.textMuted, textAlign: 'center', marginTop: SPACING.md, paddingHorizontal: SPACING.md },
   finePrint: { fontFamily: FONTS.body, fontSize: 11.5, color: c.textMuted, textAlign: 'center', marginTop: SPACING.lg, lineHeight: 18 },
   finePrintLink: { color: c.accentBright, textDecorationLine: 'underline' },

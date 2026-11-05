@@ -51,7 +51,7 @@ const HUB: { id: MeSection; icon: ComponentProps<typeof Feather>['name']; title:
   { id: 'controls', icon: 'shield',      title: 'Protection',         sub: 'Apps & sites, schedules, Hard Mode, focus' },
   { id: 'look',     icon: 'sliders',     title: 'Customize my page',  sub: 'Companions, theme, skins, colour, paper' },
   { id: 'progress', icon: 'trending-up', title: 'Progress',           sub: 'Insights, weekly recap, journal' },
-  { id: 'account',  icon: 'user',        title: 'Account & help',     sub: 'Setup & fixes, tour, tips, sign out' },
+  { id: 'account',  icon: 'user',        title: 'Account & help',     sub: 'Fixes, guide, privacy, sign out' },
 ];
 const meStyles = StyleSheet.create({
   head:      { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, paddingVertical: 14, paddingHorizontal: SPACING.lg, minHeight: 64 },
@@ -1112,56 +1112,103 @@ export default function MeScreen() {
         <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Account</Text>
 
         <View style={[ctrlStyles.board, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+          <Text style={[ctrlStyles.groupLabel, { color: colors.textMuted }]}>Fix something</Text>
           <Pressable
             style={[ctrlStyles.row, { borderBottomColor: colors.border }]}
             onPress={() => router.push('/setup-help' as any)}
+            accessibilityRole="button"
           >
             <Feather name="tool" size={16} color={colors.accent} />
             <View style={{ flex: 1 }}>
-              <Text style={[ctrlStyles.label, { color: colors.text }]}>Setup & fixes</Text>
-              <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>Turn blocking back on if it stops</Text>
+              <Text style={[ctrlStyles.label, { color: colors.text }]}>Blocking is not working</Text>
+              <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>Setup steps and fixes for Android</Text>
             </View>
             <Feather name="chevron-right" size={16} color={colors.textMuted} />
           </Pressable>
           <Pressable
             style={[ctrlStyles.row, { borderBottomColor: colors.border }]}
-            onPress={() => router.push('/tutorial')}
+            onPress={() => router.push('/crash-report' as any)}
+            accessibilityRole="button"
+          >
+            <Feather name="alert-triangle" size={16} color={colors.textMuted} />
+            <View style={{ flex: 1 }}>
+              <Text style={[ctrlStyles.label, { color: colors.text }]}>Send a crash report</Text>
+              <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>Shares the error and your phone model, nothing personal</Text>
+            </View>
+            <Feather name="chevron-right" size={16} color={colors.textMuted} />
+          </Pressable>
+          <Text style={[ctrlStyles.groupLabel, { color: colors.textMuted }]}>Learn</Text>
+          <Pressable
+            style={[ctrlStyles.row, { borderBottomColor: colors.border }]}
+            onPress={() => router.push('/tutorial' as any)}
+            accessibilityRole="button"
           >
             <Feather name="map" size={16} color={colors.textMuted} />
-            <Text style={[ctrlStyles.label, { color: colors.text, flex: 1 }]}>Interactive tour</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[ctrlStyles.label, { color: colors.text }]}>How NoGoon works</Text>
+              <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>Nine short topics. Try each one as you go</Text>
+            </View>
             <Feather name="chevron-right" size={16} color={colors.textMuted} />
           </Pressable>
           <Pressable
             style={[ctrlStyles.row, { borderBottomColor: colors.border }]}
-            onPress={() => router.push('/tips')}
+            onPress={() => router.push('/tips' as any)}
+            accessibilityRole="button"
           >
             <Feather name="help-circle" size={16} color={colors.textMuted} />
-            <Text style={[ctrlStyles.label, { color: colors.text, flex: 1 }]}>Tips & feature guide</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[ctrlStyles.label, { color: colors.text }]}>Tips and tricks</Text>
+              <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>Small things worth knowing</Text>
+            </View>
             <Feather name="chevron-right" size={16} color={colors.textMuted} />
           </Pressable>
           <Pressable
             style={[ctrlStyles.row, { borderBottomColor: colors.border }]}
-            onPress={() => router.push('/privacy')}
+            onPress={() => router.push('/setup-questions' as any)}
+            accessibilityRole="button"
           >
-            <Feather name="file-text" size={16} color={colors.textMuted} />
-            <Text style={[ctrlStyles.label, { color: colors.text, flex: 1 }]}>Privacy policy</Text>
+            <Feather name="rotate-ccw" size={16} color={colors.textMuted} />
+            <View style={{ flex: 1 }}>
+              <Text style={[ctrlStyles.label, { color: colors.text }]}>Answer the setup questions again</Text>
+              <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>Adds to your settings. Nothing is removed</Text>
+            </View>
+            <Feather name="chevron-right" size={16} color={colors.textMuted} />
+          </Pressable>
+          <Text style={[ctrlStyles.groupLabel, { color: colors.textMuted }]}>About</Text>
+          <Pressable
+            style={[ctrlStyles.row, { borderBottomColor: colors.border }]}
+            onPress={() => router.push('/free' as any)}
+            accessibilityRole="button"
+          >
+            <Feather name="heart" size={16} color={colors.accent} />
+            <View style={{ flex: 1 }}>
+              <Text style={[ctrlStyles.label, { color: colors.text }]}>Free for everyone</Text>
+              <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>No subscription, no ad networks. How it is funded</Text>
+            </View>
+            <Feather name="chevron-right" size={16} color={colors.textMuted} />
+          </Pressable>
+          <Pressable
+            style={[ctrlStyles.row, { borderBottomColor: colors.border }]}
+            onPress={() => router.push('/privacy' as any)}
+            accessibilityRole="button"
+          >
+            <Feather name="lock" size={16} color={colors.textMuted} />
+            <View style={{ flex: 1 }}>
+              <Text style={[ctrlStyles.label, { color: colors.text }]}>What we collect</Text>
+              <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>Privacy policy, in plain words</Text>
+            </View>
             <Feather name="chevron-right" size={16} color={colors.textMuted} />
           </Pressable>
           <Pressable
             style={[ctrlStyles.row, { borderBottomColor: colors.border }]}
             onPress={() => Linking.openURL('https://88eightsss.github.io/nogoon-legal/terms-of-service.html').catch(() => {})}
+            accessibilityRole="button"
           >
             <Feather name="file-text" size={16} color={colors.textMuted} />
-            <Text style={[ctrlStyles.label, { color: colors.text, flex: 1 }]}>Terms of service</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[ctrlStyles.label, { color: colors.text }]}>Terms of service</Text>
+            </View>
             <Feather name="external-link" size={16} color={colors.textMuted} />
-          </Pressable>
-          <Pressable
-            style={[ctrlStyles.row, { borderBottomColor: colors.border }]}
-            onPress={() => router.push('/crash-report' as any)}
-          >
-            <Feather name="alert-triangle" size={16} color={colors.textMuted} />
-            <Text style={[ctrlStyles.label, { color: colors.text, flex: 1 }]}>Last crash report</Text>
-            <Feather name="chevron-right" size={16} color={colors.textMuted} />
           </Pressable>
           <View style={[ctrlStyles.row, { borderBottomColor: colors.border }]}>
             <Feather name="info" size={16} color={colors.textMuted} />
@@ -1170,6 +1217,7 @@ export default function MeScreen() {
               {`${Constants.expoConfig?.version ?? '1.0.0'} (build ${Constants.expoConfig?.android?.versionCode ?? '?'})`}
             </Text>
           </View>
+          <Text style={[ctrlStyles.groupLabel, { color: colors.textMuted }]}>For testing</Text>
           <View style={[ctrlStyles.row, { borderBottomColor: colors.border }]}>
             <Feather name="layout" size={16} color={colors.accent} />
             <View style={{ flex: 1 }}>

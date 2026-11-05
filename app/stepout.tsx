@@ -4,12 +4,14 @@
 // no refresh. Declining is invisible. Sample items for now (constants/stepOutSample.ts); under construction.
 
 import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { useEffect } from 'react';
 import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '@/hooks/useTheme';
 import { usePlaceStore } from '@/stores/usePlaceStore';
 import { placeLabel } from '@/constants/places';
 import { useStepOutStore } from '@/stores/useStepOutStore';
+import { useFlowStore } from '@/stores/useFlowStore';
 import { STEP_SAMPLE, SECTION_TITLE, SECTION_NOTE, type StepSection } from '@/constants/stepOutSample';
 import { ConstructionSign } from '@/components/ui/Construction';
 import { UNDER_CONSTRUCTION } from '@/constants/construction';
@@ -25,6 +27,8 @@ export default function StepOutFeed() {
   const place = usePlaceStore((s) => s.place);
   const replies = useStepOutStore((s) => s.replies);
   const crew = useStepOutStore((s) => s.crew);
+  const markStepOutSeen = useFlowStore((s) => s.markStepOutSeen);
+  useEffect(() => { markStepOutSeen(); }, [markStepOutSeen]);
 
   const open = (id: string) => router.push({ pathname: '/stepout-event', params: { id } } as any);
   const later = STEP_SAMPLE.filter((i) => replies[i.id] === 'later');

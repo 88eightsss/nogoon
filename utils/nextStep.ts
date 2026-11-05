@@ -16,8 +16,8 @@ export type NextStepAction =
   | { kind: 'pause' };                   // open the "Need a minute" sheet
 
 export type NextStep = {
-  id: 'protect_on' | 'pick_apps' | 'meet_pause' | 'briefing' | 'own_line' | 'step_out';
-  icon: 'shield' | 'plus-circle' | 'wind' | 'sunrise' | 'edit-3' | 'map-pin';
+  id: 'protect_on' | 'pick_apps' | 'meet_pause' | 'briefing' | 'own_line' | 'step_out' | 'this_week';
+  icon: 'shield' | 'plus-circle' | 'wind' | 'sunrise' | 'edit-3' | 'map-pin' | 'compass';
   title: string;
   body: string;
   cta: string;
@@ -32,6 +32,9 @@ export type NextStepInput = {
   briefingOpened: boolean;
   localVisited: boolean;
   hasGateNote: boolean;
+  /** "This week near you" is really live (not under construction). */
+  stepOutLive: boolean;
+  stepOutSeen: boolean;
 };
 
 export function pickNextStep(i: NextStepInput): NextStep | null {
@@ -45,8 +48,8 @@ export function pickNextStep(i: NextStepInput): NextStep | null {
   if (i.blockedCount === 0) {
     return {
       id: 'pick_apps', icon: 'plus-circle', title: 'Choose what to pause',
-      body: 'Pick the apps or sites you open without thinking. You can change this any time.',
-      cta: 'Choose', action: { kind: 'route', to: '/(tabs)/blocklist' },
+      body: 'Pick the apps and sites that pull you in. You can change this any time.',
+      cta: 'Choose apps', action: { kind: 'route', to: '/(tabs)/blocklist' },
     };
   }
   if (i.walkAways === 0 && !i.pauseSeen) {
@@ -75,6 +78,13 @@ export function pickNextStep(i: NextStepInput): NextStep | null {
       id: 'step_out', icon: 'map-pin', title: 'See what is near you',
       body: 'Pick a place, go do something real, and tap "I went". Your pal gets a treat.',
       cta: 'Look around', action: { kind: 'route', to: '/(tabs)/local' },
+    };
+  }
+  if (i.stepOutLive && i.walkAways >= 2 && !i.stepOutSeen) {
+    return {
+      id: 'this_week', icon: 'compass', title: 'This week near you',
+      body: 'A few real things to do, from places that are checked. It ends on Monday.',
+      cta: 'See this week', action: { kind: 'route', to: '/stepout' },
     };
   }
   return null;

@@ -12,10 +12,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/useTheme';
 import { useTourStore } from '@/stores/useTourStore';
 import { useUserStore } from '@/stores/useUserStore';
+import { useLabStore } from '@/stores/useLabStore';
+import { UNDER_CONSTRUCTION } from '@/constants/construction';
 import { FONTS } from '@/constants/Colors';
 
 const SEEN_KEY = 'tabs';
-const TAB_COUNT = 5;
+const CLASSIC_TAB_COUNT = 5;
 const DIM = 'rgba(0,0,0,0.72)';
 
 type Stop = { slot: number | 'help'; title: string; body: string; route?: string };
@@ -28,6 +30,20 @@ const STOPS: Stop[] = [
   { slot: 'help', title: 'Stuck? Tap the ?', body: 'Every tab has a question mark up here that explains that screen in a few lines.' },
 ];
 
+// The new Home (Lab switch) has three tabs: Home, Briefing, Step Out. Me is the corner button, not a tab.
+const V3_STOPS: Stop[] = [
+  { slot: 0, title: 'Home', body: 'Your next step lives here. When an urge hits, start from the gate and tap Ride it out.', route: '/(tabs)' },
+  { slot: 1, title: 'Briefing', body: 'A short read, then you are done. Nothing to scroll.', route: '/(tabs)/feed' },
+  {
+    slot: 2, title: 'Step Out', route: '/(tabs)/local',
+    // The weekly list is still sample data (constants/construction.ts), so do not describe it as live yet.
+    body: UNDER_CONSTRUCTION.stepOutFeed
+      ? 'Pick your place and see real things to do near you. Tap "I went" after you go and your pal gets a treat.'
+      : 'A few real things to do near you, from places that are checked. The list ends on Monday.',
+  },
+  { slot: 'help', title: 'Stuck? Tap the ?', body: 'Every tab has a question mark up here that explains that screen in a few lines.' },
+];
+
 export function TabCoach() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -37,6 +53,9 @@ export function TabCoach() {
   const offered = useTourStore((s) => s.offered);
   const markOffered = useTourStore((s) => s.markOffered);
   const hasOnboarded = useUserStore((s) => s.hasOnboarded);
+  const homeV3 = useLabStore((s) => s.homeV3);
+  const stops = homeV3 ? V3_STOPS : STOPS;
+  const tabCount = homeV3 ? 3 : CLASSIC_TAB_COUNT;
   const raised = false; // the raised centre button was retired
 
   const [size, setSize] = useState({ w: 0, h: 0 });
@@ -79,14 +98,14 @@ export function TabCoach() {
 
   if (seen || !requested || !ready || !hasOnboarded) return null;
 
-  const stop = STOPS[step];
-  const last = step === STOPS.length - 1;
+  const stop = stops[Math.min(step, stops.length - 1)];
+  const last = step >= stops.length - 1;
   const barH = (raised ? 76 : 60) + insets.bottom;
 
   // The hole around the lit element, in this overlay's own coordinates.
   const hole = stop.slot === 'help'
     ? { x: size.w - 64, y: insets.top + 2, w: 58, h: 52 }
-    : { x: (size.w / TAB_COUNT) * stop.slot + 4, y: size.h - barH + 2, w: size.w / TAB_COUNT - 8, h: barH - insets.bottom - 2 };
+    : { x: (size.w / tabCount) * (stop.slot as number) + 4, y: size.h - barH + 2, w: size.w / tabCount - 8, h: barH - insets.bottom - 2 };
   const tipAbove = stop.slot !== 'help';
 
   const finish = () => {
@@ -96,7 +115,7 @@ export function TabCoach() {
   const go = (to: number) => {
     Haptics.selectionAsync().catch(() => {});
     setStep(to);
-    const r = STOPS[to].route;
+    const r = stops[to].route;
     if (r) router.navigate(r as Href);
   };
 
@@ -122,7 +141,7 @@ export function TabCoach() {
               tipAbove ? { bottom: barH + 14 } : { top: insets.top + 64 }]}
             accessibilityViewIsModal
           >
-            <Text style={[s.kicker, { color: colors.accent }]}>{step + 1} of {STOPS.length}</Text>
+            <Text style={[s.kicker, { color: colors.accent }]}>{step + 1} of {stops.length}</Text>
             <Text style={[s.title, { color: colors.text }]}>{stop.title}</Text>
             <Text style={[s.body, { color: colors.textSecondary }]}>{stop.body}</Text>
             <View style={s.row}>

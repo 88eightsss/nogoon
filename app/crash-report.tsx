@@ -34,7 +34,7 @@ export default function CrashReportScreen() {
         <Pressable onPress={() => router.back()} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back">
           <Feather name="arrow-left" size={22} color={colors.text} />
         </Pressable>
-        <Text style={[s.title, { color: colors.text }]}>Last crash report</Text>
+        <Text style={[s.title, { color: colors.text }]}>Send a crash report</Text>
         <View style={{ width: 22 }} />
       </View>
       <ScrollView contentContainerStyle={s.content}>
