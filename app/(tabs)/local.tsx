@@ -21,6 +21,7 @@ import { ConstructionBadge } from '@/components/ui/Construction';
 import { UNDER_CONSTRUCTION } from '@/constants/construction';
 import { PageGuide } from '@/components/PageGuide';
 import { useFlowStore } from '@/stores/useFlowStore';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { FONTS } from '@/constants/Colors';
 import { SPACING } from '@/constants/Spacing';
 
@@ -243,6 +244,24 @@ export default function StepOutScreen() {
               <Text style={[styles.rowTitle, { color: colors.text }]}>This week near you</Text>
               <Text style={[styles.rowBody, { color: colors.textSecondary }]}>A short list that ends. Give a hand, go to something, open the door for a friend.</Text>
               {UNDER_CONSTRUCTION.stepOutFeed ? <View style={{ marginTop: 6 }}><ConstructionBadge /></View> : null}
+            </View>
+            <Feather name="chevron-right" size={18} color={colors.textMuted} />
+          </Pressable>
+        ) : null}
+
+        {/* Places near you. Under construction (constants/construction.ts): only shown with Show me everything until it is live. */}
+        {!UNDER_CONSTRUCTION.places || showEverything ? (
+          <Pressable
+            onPress={() => router.push('/spots' as any)}
+            accessibilityRole="button"
+            accessibilityLabel="Places near you: parks, beaches, trails, museums, zoos, aquariums and gardens"
+            style={[styles.row, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
+          >
+            <MaterialCommunityIcons name="map-marker-radius" size={22} color={accent} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.rowTitle, { color: colors.text }]}>Places near you</Text>
+              <Text style={[styles.rowBody, { color: colors.textSecondary }]}>Parks, beaches, trails, museums, zoos, aquariums and gardens.</Text>
+              {UNDER_CONSTRUCTION.places ? <View style={{ marginTop: 6 }}><ConstructionBadge /></View> : null}
             </View>
             <Feather name="chevron-right" size={18} color={colors.textMuted} />
           </Pressable>
