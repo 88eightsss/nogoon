@@ -4,8 +4,8 @@
 //   0 (0–4) Dormant · 1 (5–14) Awakening · 2 (15–29) Standing · 3 (30–59) Powered · 4 (60+) Legendary
 // Sprite data lives in constants/sprites.ts (shared with the pack system).
 
-import Svg, { Rect } from 'react-native-svg';
-import { CHAR_COLORS, GRIDS } from '@/constants/sprites';
+import { CHAR_COLORS } from '@/constants/sprites';
+import { CompanionArt } from '@/components/home/CompanionArt';
 import type { CharacterId } from '@/stores/usePetStore';
 
 
@@ -21,36 +21,14 @@ export function getGoonStage(walkAwayCount: number): GoonStage {
   return 0;
 }
 
-const CELL = 8;
-
 export { CHAR_COLORS };
 
 // ─── Sprite renderer ──────────────────────────────────────────────────────────
+// Uses the shaded 32x32 companion art (constants/companionArt.ts). The old 10x12 grids in constants/sprites.ts
+// are still used by the pack system's single-ink LCD mode.
 
 export function GoonSprite({
   char, stage, size = 1,
 }: { char: CharacterId; stage: GoonStage; size?: number }) {
-  const grid   = GRIDS[char][stage];
-  const px     = CELL * size;
-  const colors = CHAR_COLORS[char][stage];
-  return (
-    <Svg width={10 * px} height={12 * px}>
-      {grid.map((row, r) =>
-        row.map((val, c) => {
-          if (val === 0) return null;
-          return (
-            <Rect
-              key={`${r}-${c}`}
-              x={c * px}
-              y={r * px}
-              width={px - 1}
-              height={px - 1}
-              fill={colors[val]}
-              rx={val === 4 ? 0 : 1}
-            />
-          );
-        })
-      )}
-    </Svg>
-  );
+  return <CompanionArt char={char} stage={stage} size={size} />;
 }

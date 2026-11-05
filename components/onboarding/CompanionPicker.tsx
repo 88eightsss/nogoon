@@ -48,7 +48,7 @@ export function CompanionPicker({ selected, onSelect, nickname, onNickname }: {
               accessibilityState={{ selected: active }}
               accessibilityLabel={`${CHARACTER_NAMES[id]}, ${CHARACTER_TAGS[id]}`}
             >
-              <GoonSprite char={id} stage={0} size={1.1} />
+              <GoonSprite char={id} stage={2} size={1.1} />
               <Text style={[styles.starterName, active && { color: accent }]}>{CHARACTER_NAMES[id]}</Text>
               <Text style={styles.starterTag}>{CHARACTER_TAGS[id]}</Text>
             </Pressable>
@@ -70,7 +70,7 @@ export function CompanionPicker({ selected, onSelect, nickname, onNickname }: {
               accessibilityState={{ selected: active }}
               accessibilityLabel={`${CHARACTER_NAMES[id]}, ${CHARACTER_TAGS[id]}`}
             >
-              <GoonSprite char={id} stage={0} size={0.9} />
+              <GoonSprite char={id} stage={2} size={0.9} />
               <Text style={[styles.companionCardName, active && { color: accent }]}>{CHARACTER_NAMES[id]}</Text>
               <Text style={styles.companionCardTag}>{CHARACTER_TAGS[id]}</Text>
             </Pressable>

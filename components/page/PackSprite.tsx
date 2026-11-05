@@ -3,6 +3,7 @@
 
 import Svg, { Rect } from 'react-native-svg';
 import { GRIDS, CHAR_COLORS, type GoonStage } from '@/constants/sprites';
+import { CompanionArt } from '@/components/home/CompanionArt';
 import type { CharacterId } from '@/stores/usePetStore';
 
 const MONO_OPACITY: Record<number, number> = { 1: 0.72, 2: 1, 3: 0.35 };
@@ -10,6 +11,7 @@ const MONO_OPACITY: Record<number, number> = { 1: 0.72, 2: 1, 3: 0.35 };
 export function PackSprite({
   char, stage, cell = 8, mono = false, ink = '#222222',
 }: { char: CharacterId; stage: GoonStage; cell?: number; mono?: boolean; ink?: string }) {
+  if (!mono) return <CompanionArt char={char} stage={stage} size={cell / 8} />;
   const grid = GRIDS[char][stage];
   const pal = CHAR_COLORS[char][stage];
   return (
