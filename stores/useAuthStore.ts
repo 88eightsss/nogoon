@@ -20,6 +20,7 @@ import { useProgressStore } from '@/stores/useProgressStore';
 import { usePackStore } from '@/stores/usePackStore';
 import { useOfferStore } from '@/stores/useOfferStore';
 import { useRoomStore } from '@/stores/useRoomStore';
+import { useRecoveryStore } from './useRecoveryStore';
 import { useMascotStore } from '@/stores/useMascotStore';
 import { useWalkStore } from '@/stores/useWalkStore';
 import { useTourStore } from '@/stores/useTourStore';
@@ -93,6 +94,8 @@ async function wipeLocal() {
     // Their own "instead I will…" list is personal too.
     useOfferStore.setState(useOfferStore.getInitialState(), true);
     useRoomStore.setState(useRoomStore.getInitialState(), true);
+    // Their if-then plans, triggers and urge timings are personal to the account too.
+    useRecoveryStore.setState(useRecoveryStore.getInitialState(), true);
     useMascotStore.setState(useMascotStore.getInitialState(), true);
     useWalkStore.setState(useWalkStore.getInitialState(), true);
     useTourStore.getState().resetTour();

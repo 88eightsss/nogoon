@@ -68,7 +68,8 @@ import { grantTemporaryUnlock, launchBlockedApp, DEFAULT_UNLOCK_MINUTES } from '
 import { exitGate } from '@/utils/exitGate';
 import { track } from '@/lib/usage';
 import { useUserStore, getMinutesSaved } from '@/stores/useUserStore';
-import { useRecoveryStore, shouldOfferValve, QUICK_UNLOCK_MINUTES } from '@/stores/useRecoveryStore';
+import { useRecoveryStore, shouldOfferValve, QUICK_UNLOCK_MINUTES, medianUrgeMinutes } from '@/stores/useRecoveryStore';
+import { RideItOut } from '@/components/gate/RideItOut';
 import { COLORS, FONTS } from '@/constants/Colors';
 import { SPACING, RADIUS } from '@/constants/Spacing';
 import { resolveOffers, type OfferDef } from '@/constants/offers';
@@ -173,7 +174,7 @@ function pickCalmGame(): GameId {
 
 // ─── Main component ────────────────────────────────────────────────────────────
 
-type Phase = 'intro' | 'followthrough' | 'rapid' | 'lockout' | 'offer' | 'calm' | 'friction' | 'intent' | 'nogames' | 'context' | 'pick' | 'playing' | 'override' | 'curfew' | 'need' | 'annoyed';
+type Phase = 'intro' | 'followthrough' | 'rapid' | 'lockout' | 'offer' | 'calm' | 'friction' | 'intent' | 'nogames' | 'context' | 'pick' | 'playing' | 'override' | 'curfew' | 'need' | 'annoyed' | 'ride';
 
 // The blocker can re-launch this screen for a different app while it's already
 // open (single-top). Keying on the target remounts it so the new app gets a fresh
@@ -375,6 +376,7 @@ function NoGoonScreen() {
   });
   const [needReason, setNeedReason] = useState('');
   const myPlans = useRecoveryStore((st) => st.plans);
+  const rideTypical = medianUrgeMinutes(useRecoveryStore((st) => st.urgeSeconds));
   const myPlan = myPlans.length > 0 ? myPlans[Math.floor(Date.now() / 86_400_000) % myPlans.length] : null;
   useEffect(() => {
     if (phase === 'offer' && showValve) useRecoveryStore.getState().markValveOffered();
@@ -1240,6 +1242,25 @@ function NoGoonScreen() {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
+  // RENDER: "Ride it out" — watch the urge instead of following it. Never unlocks anything, so it is
+  // offered in every mode (Hard Mode, Cold Turkey and walk gates included). "It passed" after 90 seconds
+  // counts as a walk-away; "I'm going in" continues into the normal unlock flow, nothing easier than before.
+  // ══════════════════════════════════════════════════════════════════════════
+  if (phase === 'ride') {
+    return (
+      <RideItOut
+        C={C}
+        onGreen={onGreen}
+        onCredit={() => recordWalkAway()}
+        onDone={() => exitGate()}
+        onGoIn={() => setPhase('calm')}
+        canGoIn={!isBricked && !isColdTurkey && !gateWalk}
+        onOther={() => setPhase('offer')}
+      />
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
   // RENDER: "I need this for something" — a short, no-judgment unlock.
   // One line on what it is for, then five minutes. Not offered in Hard Mode, Cold Turkey or walk gates.
   // ══════════════════════════════════════════════════════════════════════════
@@ -1497,6 +1518,23 @@ function NoGoonScreen() {
               <Text style={[styles.exitText, { color: C.textSecondary }]}>Keep going to {displayDomain}</Text>
             </Pressable>
           )}
+          <Pressable
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setPhase('ride'); }}
+            style={[styles.rideBtn, { backgroundColor: C.surface, borderColor: C.cardBorder }]}
+            accessibilityRole="button"
+            accessibilityLabel="Ride it out"
+          >
+            <Feather name="activity" size={18} color={C.indigoBright} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.rideBtnLabel, { color: C.textPrimary }]}>Ride it out</Text>
+              {rideTypical != null && (
+                <Text style={[styles.rideBtnSub, { color: C.textSecondary }]}>
+                  Usually passes in about {rideTypical} minute{rideTypical === 1 ? '' : 's'}
+                </Text>
+              )}
+            </View>
+            <Feather name="chevron-right" size={18} color={C.textMuted} />
+          </Pressable>
           {!isBricked && !isColdTurkey && !gateWalk && (
             <Pressable onPress={() => setPhase('need')} style={styles.exitTextRow}>
               <Text style={[styles.exitText, { color: C.textSecondary }]}>I need this for something</Text>
@@ -2022,6 +2060,17 @@ const styles = StyleSheet.create({
   },
 
   // ── Exit rows ────────────────────────────────────────────────────────────────────────
+  rideBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+  },
+  rideBtnLabel: { fontFamily: FONTS.bodyBold, fontSize: 16 },
+  rideBtnSub: { fontFamily: FONTS.body, fontSize: 13, marginTop: 2 },
   exitTextRow: {
     paddingVertical: SPACING.sm,
     alignItems: 'center',
