@@ -4,6 +4,8 @@
 export const UNDER_CONSTRUCTION = {
   /** The Wall (sponsor board): the backend is not deployed and there are no sold tiles yet. */
   wall: true,
+  /** Step Out feed, doors, crews and postcards: sample items and local-only replies. No hosts, no backend yet. Hidden from the Step Out tab until Show me everything is on. */
+  stepOutFeed: true,
   /** Happening near you: live. A weekly feed (events-draft) reads local news and organiser pages. */
   events: false,
   /** Good news in the Briefing: the daily feed backend is live (feed-daily returned stored 10, wiki 6 on 2026-10-21). */

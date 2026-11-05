@@ -463,6 +463,10 @@ export default function RootLayout() {
           <Stack.Screen name="offer-timer" options={{ animation: 'fade' }} />
           <Stack.Screen name="elsewhere" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="events" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="stepout" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="stepout-event" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="door" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="crew" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="place" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
           <Stack.Screen name="supporter" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="crash-report" options={{ animation: 'slide_from_right' }} />
