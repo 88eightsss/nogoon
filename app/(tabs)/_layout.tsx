@@ -131,7 +131,10 @@ export default function TabsLayout() {
     color: colors.protect, pillBg: colors.protect + '22', guidePage: 'local',
   };
   const byName = (n: string) => [...TABS, FEED_TAB, LOCAL_TAB].find((x) => x.name === n)!;
-  const visible = ['index', 'feed', 'local'].map(byName).map((x) => (x.name === 'index' ? { ...x, title: 'Home' } : x));
+  // Simple look: every tab is ink when focused with one amber bar above it; no coloured pills.
+  const visible = ['index', 'feed', 'local'].map(byName)
+    .map((x) => (x.name === 'index' ? { ...x, title: 'Home' } : x))
+    .map((x) => ({ ...x, color: colors.text, pillBg: 'transparent' }));
   const hiddenTabs = ['arcade', 'blocklist', 'calm', 'profile'];
 
   return (
@@ -141,9 +144,10 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: true,
         headerStyle: { backgroundColor: colors.background },
+        headerTitleStyle: { fontFamily: FONTS.display, fontSize: 22, color: colors.text },
         headerShadowVisible: false,
         tabBarStyle: {
-          backgroundColor: colors.background,
+          backgroundColor: colors.surface,
           borderTopColor: colors.border,
           borderTopWidth: 1,
           height: (raised ? 76 : 60) + insets.bottom,
@@ -182,7 +186,7 @@ export default function TabsLayout() {
                     height: 3,
                     borderRadius: 2,
                     marginBottom: 4,
-                    backgroundColor: tab.color,
+                    backgroundColor: colors.accent,
                     opacity: focused ? 1 : 0,
                   }}
                 />

@@ -15,7 +15,7 @@ import { useFlowStore } from '@/stores/useFlowStore';
 import { PlannerToday } from '@/components/page/PlannerToday';
 import { TemptedSheet } from '@/components/page/TemptedSheet';
 import { useMascot, CHARACTER_LABELS } from '@/components/page/useCharacter';
-import { WeekStrip } from './WeekStrip';
+import { DaysCard } from './DaysCard';
 import { UrgeLine } from './UrgeLine';
 
 export function HomeSimple() {
@@ -40,7 +40,7 @@ export function HomeSimple() {
         onBadge={() => router.push('/(tabs)/profile' as any)}
         headerExtra={
           <View style={{ gap: 12 }}>
-            <WeekStrip />
+            <DaysCard />
             <UrgeLine />
           </View>
         }

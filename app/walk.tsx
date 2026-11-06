@@ -321,8 +321,8 @@ export default function WalkScreen() {
               })}
             </View>}
             <Pressable onPress={start} style={[s.btn, { backgroundColor: colors.accent }]} accessibilityRole="button" accessibilityLabel="Start walking">
-              <Feather name="play" size={18} color={colors.background} />
-              <Text style={[s.btnText, { color: colors.background }]}>Start walking</Text>
+              <Feather name="play" size={18} color={colors.onAccent} />
+              <Text style={[s.btnText, { color: colors.onAccent }]}>Start walking</Text>
             </Pressable>
             <Text style={[s.fine, { color: colors.textMuted }]}>
               Counts steps with your phone's motion sensors. No location is used and nothing leaves your phone. Keep this screen open while you walk.
@@ -412,8 +412,8 @@ export default function WalkScreen() {
               <Text style={[s.btnText, { color: colors.text }]}>Write about it</Text>
             </Pressable>
             <Pressable onPress={() => setPhase('ready')} style={[s.btn, { backgroundColor: colors.accent }]} accessibilityRole="button" accessibilityLabel="Walk again">
-              <Feather name="rotate-cw" size={18} color={colors.background} />
-              <Text style={[s.btnText, { color: colors.background }]}>Walk again</Text>
+              <Feather name="rotate-cw" size={18} color={colors.onAccent} />
+              <Text style={[s.btnText, { color: colors.onAccent }]}>Walk again</Text>
             </Pressable>
             <Pressable onPress={leave} hitSlop={8} accessibilityRole="button"><Text style={[s.link, { color: colors.textMuted }]}>Done</Text></Pressable>
           </>

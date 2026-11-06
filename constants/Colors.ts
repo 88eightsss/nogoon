@@ -62,11 +62,12 @@ export const COLORS = {
 // These names must exactly match what's registered in useFonts() in app/_layout.tsx.
 
 export const FONTS = {
-  display:       'BricolageGrotesque_700Bold',
-  displayRegular:'BricolageGrotesque_600SemiBold',
-  body:          'DMSans_400Regular',
-  bodyMedium:    'DMSans_500Medium',
-  bodyBold:      'DMSans_700Bold',
-  mono:          'JetBrainsMono_400Regular',
-  monoBold:      'JetBrainsMono_700Bold',
+  // Simple look: Instrument Sans for everything you read, DM Mono for numbers.
+  display:       'InstrumentSans_600SemiBold',
+  displayRegular:'InstrumentSans_500Medium',
+  body:          'InstrumentSans_400Regular',
+  bodyMedium:    'InstrumentSans_500Medium',
+  bodyBold:      'InstrumentSans_600SemiBold',
+  mono:          'DMMono_400Regular',
+  monoBold:      'DMMono_500Medium',
 } as const;

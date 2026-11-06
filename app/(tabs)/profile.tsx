@@ -1212,7 +1212,7 @@ export default function MeScreen() {
             <Feather name="info" size={16} color={colors.textMuted} />
             <Text style={[ctrlStyles.label, { color: colors.text, flex: 1 }]}>Version</Text>
             <Text style={[ctrlStyles.sub, { color: colors.textMuted }]}>
-              {`${Constants.expoConfig?.version ?? '1.0.0'} (build ${Constants.expoConfig?.android?.versionCode ?? '?'}) copy-refresh`}
+              {`${Constants.expoConfig?.version ?? '1.0.0'} (build ${Constants.expoConfig?.android?.versionCode ?? '?'}) simple-look`}
             </Text>
           </View>
           <Text style={[ctrlStyles.groupLabel, { color: colors.textMuted }]}>For testing</Text>

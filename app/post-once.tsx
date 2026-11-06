@@ -44,8 +44,8 @@ export default function PostOnce() {
           Fill in your event one time. Get the words for each place you share it, and a flyer with a QR code.
         </Text>
         <Pressable onPress={() => { setErrors([]); setDraft(blankEvent()); }} accessibilityRole="button" style={[styles.btn, { backgroundColor: colors.accent }]}>
-          <Feather name="plus" size={18} color={colors.background} />
-          <Text style={[styles.btnText, { color: colors.background }]}>New post</Text>
+          <Feather name="plus" size={18} color={colors.onAccent} />
+          <Text style={[styles.btnText, { color: colors.onAccent }]}>New post</Text>
         </Pressable>
         {events.map((e) => (
           <View key={e.id} style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
@@ -135,8 +135,8 @@ export default function PostOnce() {
           For checked hosts. Pick a photo of it from your library and we fill the form from what it shows. The photo is read once and not kept. You check every line.
         </Text>
         <Pressable onPress={fromPhoto} disabled={reading} accessibilityRole="button" accessibilityLabel="Fill the form from a flyer photo" style={[styles.btn, { backgroundColor: colors.accent, opacity: reading ? 0.6 : 1, paddingVertical: SPACING.md }]}>
-          {reading ? <ActivityIndicator color={colors.background} /> : <Feather name="image" size={16} color={colors.background} />}
-          <Text style={[styles.btnText, { color: colors.background }]}>{reading ? 'Reading...' : 'Fill from a flyer photo'}</Text>
+          {reading ? <ActivityIndicator color={colors.onAccent} /> : <Feather name="image" size={16} color={colors.onAccent} />}
+          <Text style={[styles.btnText, { color: colors.onAccent }]}>{reading ? 'Reading...' : 'Fill from a flyer photo'}</Text>
         </Pressable>
         {readNote ? <Text style={[styles.small, { color: colors.textSecondary, textAlign: 'left' }]} accessibilityLiveRegion="polite">{readNote}</Text> : null}
       </View>
@@ -188,7 +188,7 @@ export default function PostOnce() {
         accessibilityRole="button"
         style={[styles.btn, { backgroundColor: colors.accent }]}
       >
-        <Text style={[styles.btnText, { color: colors.background }]}>Make my kit</Text>
+        <Text style={[styles.btnText, { color: colors.onAccent }]}>Make my kit</Text>
       </Pressable>
       {events.length > 0 ? (
         <Pressable onPress={() => setDraft(null)} hitSlop={8} accessibilityRole="button" style={{ paddingVertical: SPACING.sm }}>

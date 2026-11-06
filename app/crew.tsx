@@ -51,7 +51,7 @@ export default function CrewScreen() {
           accessibilityRole="button"
           style={[styles.btn, { backgroundColor: colors.accent }]}
         >
-          <Text style={[styles.btnText, { color: colors.background }]}>Start a crew</Text>
+          <Text style={[styles.btnText, { color: colors.onAccent }]}>Start a crew</Text>
         </Pressable>
       </Shell>
     );
@@ -85,7 +85,7 @@ export default function CrewScreen() {
               accessibilityRole="button" accessibilityLabel="Add"
               style={[styles.addBtn, { backgroundColor: colors.accent }]}
             >
-              <Feather name="plus" size={20} color={colors.background} />
+              <Feather name="plus" size={20} color={colors.onAccent} />
             </Pressable>
           </View>
         ) : (
@@ -128,7 +128,7 @@ export default function CrewScreen() {
             accessibilityRole="button" accessibilityLabel="Send postcard"
             style={[styles.addBtn, { backgroundColor: colors.accent }]}
           >
-            <Feather name="send" size={18} color={colors.background} />
+            <Feather name="send" size={18} color={colors.onAccent} />
           </Pressable>
         </View>
         {cards.map((c) => (

@@ -75,8 +75,8 @@ export default function PostOnceKit() {
           onPress={writeAI} disabled={busy} accessibilityRole="button" accessibilityLabel="Write the words with AI"
           style={[styles.shareBtn, { backgroundColor: colors.accent, opacity: busy ? 0.6 : 1 }]}
         >
-          {busy ? <ActivityIndicator color={colors.background} /> : <Feather name="edit-3" size={16} color={colors.background} />}
-          <Text style={[styles.shareText, { color: colors.background }]}>{busy ? 'Writing...' : hasAI ? 'Write again' : 'Write with AI'}</Text>
+          {busy ? <ActivityIndicator color={colors.onAccent} /> : <Feather name="edit-3" size={16} color={colors.onAccent} />}
+          <Text style={[styles.shareText, { color: colors.onAccent }]}>{busy ? 'Writing...' : hasAI ? 'Write again' : 'Write with AI'}</Text>
         </Pressable>
         {hasAI ? (
           <Pressable onPress={() => { setDrafts({}); setAiNote(''); }} hitSlop={8} accessibilityRole="button" style={{ alignItems: 'center' }}>
@@ -105,8 +105,8 @@ export default function PostOnceKit() {
               accessibilityRole="button" accessibilityLabel={`Share the ${o.label} words`}
               style={[styles.shareBtn, { backgroundColor: colors.accent }]}
             >
-              <Feather name="share" size={16} color={colors.background} />
-              <Text style={[styles.shareText, { color: colors.background }]}>Share</Text>
+              <Feather name="share" size={16} color={colors.onAccent} />
+              <Text style={[styles.shareText, { color: colors.onAccent }]}>Share</Text>
             </Pressable>
           </View>
         );

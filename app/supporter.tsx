@@ -78,7 +78,7 @@ export default function SupporterScreen() {
         <View style={{ padding: SPACING.lg, gap: SPACING.md }}>
           <Text style={[styles.body, { color: colors.textSecondary }]}>Sign in first, so your tile is tied to your account and you can get it back on a new phone.</Text>
           <Pressable onPress={() => router.push('/auth' as any)} style={[styles.primary, { backgroundColor: colors.accent }]} accessibilityRole="button">
-            <Text style={[styles.primaryText, { color: colors.background }]}>Sign in</Text>
+            <Text style={[styles.primaryText, { color: colors.onAccent }]}>Sign in</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -165,7 +165,7 @@ export default function SupporterScreen() {
               {sel ? `Row ${sel.y + 1}, column ${sel.x + 1}` : 'No tile chosen yet'}
             </Text>
             <Pressable onPress={confirmTile} disabled={!sel || busy} accessibilityRole="button" style={[styles.primary, { backgroundColor: colors.accent, opacity: !sel || busy ? 0.4 : 1 }]}>
-              {busy ? <ActivityIndicator color={colors.background} /> : <Text style={[styles.primaryText, { color: colors.background }]}>Choose this tile</Text>}
+              {busy ? <ActivityIndicator color={colors.onAccent} /> : <Text style={[styles.primaryText, { color: colors.onAccent }]}>Choose this tile</Text>}
             </Pressable>
           </View>
         </>
@@ -190,7 +190,7 @@ export default function SupporterScreen() {
           </Text>
           {msg ? <Text style={[styles.note, { color: colors.danger }]}>{msg}</Text> : null}
           <Pressable onPress={check} disabled={!img || step === 'checking'} accessibilityRole="button" style={[styles.primary, { backgroundColor: colors.accent, opacity: !img || step === 'checking' ? 0.4 : 1 }]}>
-            {step === 'checking' ? <ActivityIndicator color={colors.background} /> : <Text style={[styles.primaryText, { color: colors.background }]}>Check my picture</Text>}
+            {step === 'checking' ? <ActivityIndicator color={colors.onAccent} /> : <Text style={[styles.primaryText, { color: colors.onAccent }]}>Check my picture</Text>}
           </Pressable>
         </ScrollView>
       )}
@@ -206,7 +206,7 @@ export default function SupporterScreen() {
           {msg ? <Text style={[styles.note, { color: colors.danger }]}>{msg}</Text> : null}
           {!isPurchasesAvailable ? <Text style={[styles.note, { color: colors.danger }]}>Payments are not available in this build.</Text> : null}
           <Pressable onPress={pay} disabled={step === 'paying' || !isPurchasesAvailable} accessibilityRole="button" style={[styles.primary, { backgroundColor: colors.accent, opacity: step === 'paying' || !isPurchasesAvailable ? 0.4 : 1 }]}>
-            {step === 'paying' ? <ActivityIndicator color={colors.background} /> : <Text style={[styles.primaryText, { color: colors.background }]}>Pay {price} with Google Play</Text>}
+            {step === 'paying' ? <ActivityIndicator color={colors.onAccent} /> : <Text style={[styles.primaryText, { color: colors.onAccent }]}>Pay {price} with Google Play</Text>}
           </Pressable>
           <Pressable onPress={() => { if (tileId) cancelTile(tileId); idRef.current = null; setStep('pick'); setSel(null); setImg(null); setTileId(null); load(); }} hitSlop={8} style={{ alignSelf: 'center' }}>
             <Text style={[styles.note, { color: colors.textMuted, textDecorationLine: 'underline' }]}>Not now</Text>
@@ -222,7 +222,7 @@ export default function SupporterScreen() {
             Your tile is with us. We look at every picture before it goes up, usually within a day. If we cannot approve it, Google Play refunds you.
           </Text>
           <Pressable onPress={() => router.back()} style={[styles.primary, { backgroundColor: colors.accent }]} accessibilityRole="button">
-            <Text style={[styles.primaryText, { color: colors.background }]}>Back to the Wall</Text>
+            <Text style={[styles.primaryText, { color: colors.onAccent }]}>Back to the Wall</Text>
           </Pressable>
         </View>
       )}

@@ -32,20 +32,29 @@ export function TemptedSheet({ visible, onClose }: { visible: boolean; onClose: 
         <View style={[styles.grab, { backgroundColor: colors.border }]} />
         <Text style={[styles.title, { color: colors.text }]}>Need a minute. Pick one.</Text>
         <Text style={[styles.sub, { color: colors.textSecondary }]}>The urge is loudest for about ten minutes.</Text>
-        {options.map((o) => (
-          <Pressable
-            key={o.label}
-            onPress={() => go(o.path)}
-            style={({ pressed }) => [styles.row, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder, opacity: pressed ? 0.75 : 1 }]}
-          >
-            <Feather name={o.icon} size={20} color={colors.accent} />
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.label, { color: colors.text }]}>{o.label}</Text>
-              <Text style={[styles.body, { color: colors.textSecondary }]}>{o.body}</Text>
-            </View>
-            <Feather name="chevron-right" size={18} color={colors.textMuted} />
-          </Pressable>
-        ))}
+        <View style={[styles.list, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+          {options.map((o, i) => (
+            <Pressable
+              key={o.label}
+              onPress={() => go(o.path)}
+              accessibilityRole="button"
+              accessibilityLabel={`${o.label}. ${o.body}`}
+              style={({ pressed }) => [
+                styles.row,
+                i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+                i === 0 && { backgroundColor: colors.accentDim },
+                { opacity: pressed ? 0.75 : 1 },
+              ]}
+            >
+              <Feather name={o.icon} size={22} color={i === 0 ? colors.accentBright : colors.text} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.label, { color: colors.text }]}>{o.label}</Text>
+                <Text style={[styles.body, { color: colors.textSecondary }]}>{o.body}</Text>
+              </View>
+              <Feather name="chevron-right" size={16} color={colors.textMuted} />
+            </Pressable>
+          ))}
+        </View>
         <Pressable onPress={onClose} style={styles.cancel} hitSlop={8}>
           <Text style={[styles.body, { color: colors.textMuted }]}>I'm okay, close this</Text>
         </Pressable>
@@ -58,9 +67,10 @@ const styles = StyleSheet.create({
   scrim: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' },
   sheet: { padding: SPACING.lg, paddingBottom: SPACING.xl, gap: SPACING.sm, borderTopLeftRadius: 22, borderTopRightRadius: 22, borderTopWidth: 1 },
   grab:  { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, marginBottom: SPACING.sm },
-  title: { fontFamily: FONTS.display, fontSize: 24 },
+  title: { fontFamily: FONTS.display, fontSize: 24, letterSpacing: -0.3 },
   sub:   { fontFamily: FONTS.body, fontSize: 13, marginBottom: SPACING.xs },
-  row:   { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, padding: SPACING.md },
+  list:  { overflow: 'hidden' },
+  row:   { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 8, paddingHorizontal: SPACING.lg, minHeight: 60 },
   label: { fontFamily: FONTS.bodyBold, fontSize: 15 },
   body:  { fontFamily: FONTS.body, fontSize: 12.5 },
   cancel:{ alignSelf: 'center', paddingVertical: SPACING.sm },

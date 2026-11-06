@@ -111,7 +111,7 @@ function EvolutionPanel({ char, fed, isActive, onChoose, colors }: {
           accessibilityRole="button"
           style={{ alignSelf: 'flex-start', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12, backgroundColor: colors.accent }}
         >
-          <Text style={{ fontFamily: FONTS.body, fontSize: 14, color: colors.background }}>Feed {name} from now on</Text>
+          <Text style={{ fontFamily: FONTS.body, fontSize: 14, color: '#161B18' }}>Feed {name} from now on</Text>
         </Pressable>
       )}
     </View>

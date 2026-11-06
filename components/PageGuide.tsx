@@ -182,11 +182,11 @@ export function PageGuide({ page, icon, accent, title, subtitle, points, hint, s
             onPress={() => flyAway(() => { setShowSnapshot(!!snapshot); setOpen(true); })}
             hitSlop={6}
           >
-            <Feather name={icon} size={14} color={colors.background} />
-            <Text style={[styles.bubbleText, { color: colors.background }]}>{hint ?? 'New here? Quick look'}</Text>
+            <Feather name={icon} size={14} color={colors.onAccent} />
+            <Text style={[styles.bubbleText, { color: colors.onAccent }]}>{hint ?? 'New here? Quick look'}</Text>
           </Pressable>
           <Pressable style={styles.bubbleClose} onPress={() => flyAway()} hitSlop={8}>
-            <Feather name="x" size={14} color={colors.background} />
+            <Feather name="x" size={14} color={colors.onAccent} />
           </Pressable>
         </View>
       </Animated.View>
@@ -224,7 +224,7 @@ export function PageGuide({ page, icon, accent, title, subtitle, points, hint, s
           </View>
 
           <Pressable style={[styles.button, { backgroundColor: accent }]} onPress={dismiss}>
-            <Text style={[styles.buttonText, { color: colors.background }]}>Got it</Text>
+            <Text style={[styles.buttonText, { color: colors.onAccent }]}>Got it</Text>
           </Pressable>
 
           <Pressable

@@ -2,7 +2,7 @@
 //
 // Wraps every screen in the app. Does three things:
 //
-//   1. Loads custom fonts (Anybody, DM Sans, JetBrains Mono)
+//   1. Loads custom fonts (Instrument Sans, DM Mono, Anybody)
 //   2. Initializes Supabase auth and watches for session changes
 //   3. Routes the user to the right screen based on their state:
 //        No session       → /auth       (sign in / sign up)
@@ -24,18 +24,14 @@ import {
   Anybody_700Bold,
 } from '@expo-google-fonts/anybody';
 import {
-  BricolageGrotesque_600SemiBold,
-  BricolageGrotesque_700Bold,
-} from '@expo-google-fonts/bricolage-grotesque';
+  InstrumentSans_400Regular,
+  InstrumentSans_500Medium,
+  InstrumentSans_600SemiBold,
+} from '@expo-google-fonts/instrument-sans';
 import {
-  DMSans_400Regular,
-  DMSans_500Medium,
-  DMSans_700Bold,
-} from '@expo-google-fonts/dm-sans';
-import {
-  JetBrainsMono_400Regular,
-  JetBrainsMono_700Bold,
-} from '@expo-google-fonts/jetbrains-mono';
+  DMMono_400Regular,
+  DMMono_500Medium,
+} from '@expo-google-fonts/dm-mono';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useTourStore } from '@/stores/useTourStore';
 import { useUserStore } from '@/stores/useUserStore';
@@ -165,7 +161,7 @@ const errorStyles = StyleSheet.create({
   detail: {
     color: '#C62828',
     fontSize: 12,
-    fontFamily: 'JetBrainsMono_400Regular',
+    fontFamily: 'DMMono_400Regular',
     textAlign: 'center',
     marginBottom: 16,
     paddingHorizontal: 16,
@@ -201,13 +197,11 @@ export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     Anybody_400Regular,
     Anybody_700Bold,
-    BricolageGrotesque_600SemiBold,
-    BricolageGrotesque_700Bold,
-    DMSans_400Regular,
-    DMSans_500Medium,
-    DMSans_700Bold,
-    JetBrainsMono_400Regular,
-    JetBrainsMono_700Bold,
+    InstrumentSans_400Regular,
+    InstrumentSans_500Medium,
+    InstrumentSans_600SemiBold,
+    DMMono_400Regular,
+    DMMono_500Medium,
   });
 
   // On app startup: check if a saved session exists

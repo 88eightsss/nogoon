@@ -209,7 +209,7 @@ export default function WallScreen() {
                     <Text style={[styles.sheetTitle, { color: colors.text }]}>{open.company}</Text>
                     {open.headline ? <Text style={[styles.sub, { color: colors.textSecondary }]}>{open.headline}</Text> : null}
                     <Pressable onPress={() => visit(open)} style={[styles.visit, { backgroundColor: colors.accent }]} accessibilityRole="link">
-                      <Text style={[styles.visitText, { color: colors.background }]}>Visit site</Text>
+                      <Text style={[styles.visitText, { color: colors.onAccent }]}>Visit site</Text>
                     </Pressable>
                     <Text style={[styles.meta, { color: colors.textMuted }]}>Opens in your browser. NoGoon has no say in what is on the other side.</Text>
                   </>

@@ -185,8 +185,8 @@ export default function EventsScreen() {
                 {safeLink(e.signup_url) ? (
                   <View style={[styles.signup, { borderColor: colors.cardBorder, backgroundColor: colors.surfaceHigh }]}>
                     <Pressable onPress={() => openSignup(e)} hitSlop={6} accessibilityRole="link" accessibilityLabel={`Sign up page for ${e.title}, on ${linkHost(e.signup_url)}`} style={[styles.signupBtn, { backgroundColor: colors.accent }]}>
-                      <Feather name="external-link" size={14} color={colors.background} />
-                      <Text style={[styles.signupText, { color: colors.background }]}>Sign up on {linkHost(e.signup_url)}</Text>
+                      <Feather name="external-link" size={14} color={colors.onAccent} />
+                      <Text style={[styles.signupText, { color: colors.onAccent }]}>Sign up on {linkHost(e.signup_url)}</Text>
                     </Pressable>
                     <Text style={[styles.meta, { color: colors.textSecondary }]}>
                       {SIGNUP_NOTICE}

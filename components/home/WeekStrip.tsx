@@ -29,9 +29,9 @@ export function WeekStrip() {
               style={[
                 styles.dot,
                 {
-                  backgroundColor: on ? colors.success : 'transparent',
-                  borderColor: on ? colors.success : colors.border,
-                  borderWidth: d.today && !on ? 2 : 1,
+                  backgroundColor: on ? colors.text : d.today ? 'transparent' : colors.border,
+                  borderColor: on || d.today ? colors.text : colors.border,
+                  borderWidth: d.today && !on ? 2 : 0,
                 },
               ]}
             />
@@ -46,6 +46,6 @@ export function WeekStrip() {
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: SPACING.xs },
   cell: { alignItems: 'center', gap: 4, flex: 1 },
-  dot: { width: 18, height: 18, borderRadius: 9 },
-  letter: { fontFamily: FONTS.body, fontSize: 11 },
+  dot: { width: 12, height: 12, borderRadius: 6, borderStyle: 'solid' },
+  letter: { fontFamily: FONTS.mono, fontSize: 11 },
 });

@@ -68,8 +68,8 @@ export default function StepOutEvent() {
             accessibilityRole="button"
             style={[styles.btn, { backgroundColor: colors.accent }]}
           >
-            <Feather name="unlock" size={18} color={colors.background} />
-            <Text style={[styles.btnText, { color: colors.background }]}>Open the door for a friend</Text>
+            <Feather name="unlock" size={18} color={colors.onAccent} />
+            <Text style={[styles.btnText, { color: colors.onAccent }]}>Open the door for a friend</Text>
           </Pressable>
           {crew ? (
             <Pressable
@@ -88,7 +88,7 @@ export default function StepOutEvent() {
       ) : (
         <View style={{ gap: SPACING.sm }}>
           <Pressable onPress={() => pick('coming')} accessibilityRole="button" style={[styles.btn, { backgroundColor: colors.accent }]}>
-            <Text style={[styles.btnText, { color: colors.background }]}>I'll come along</Text>
+            <Text style={[styles.btnText, { color: colors.onAccent }]}>I'll come along</Text>
           </Pressable>
           <Pressable onPress={() => pick('later')} accessibilityRole="button" style={[styles.btn2, { borderColor: colors.cardBorder, backgroundColor: colors.surface }]}>
             <Text style={[styles.btn2Text, { color: colors.text }]}>Look at it later</Text>

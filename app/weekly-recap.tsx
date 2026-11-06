@@ -269,8 +269,8 @@ export default function WeeklyRecapScreen() {
 
         {/* Share CTA */}
         <Pressable style={[styles.shareBlock, { backgroundColor: colors.accent }]} onPress={handleShare}>
-          <Feather name="share-2" size={18} color={colors.background} />
-          <Text style={[styles.shareBlockText, { color: colors.background }]}>Share Your Week</Text>
+          <Feather name="share-2" size={18} color={colors.onAccent} />
+          <Text style={[styles.shareBlockText, { color: colors.onAccent }]}>Share Your Week</Text>
         </Pressable>
 
         <View style={{ height: SPACING.xl }} />

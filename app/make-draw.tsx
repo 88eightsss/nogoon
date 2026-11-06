@@ -49,7 +49,7 @@ export default function MakeDrawScreen() {
         <Text style={[styles.title, { color: colors.text, textAlign: 'center' }]}>That's yours.</Text>
         <Text style={[styles.sub, { color: colors.textSecondary, textAlign: 'center' }]}>Saved to Things I made. Only you can see it.</Text>
         <Pressable onPress={() => router.replace('/make' as any)} style={[styles.btn, { backgroundColor: colors.accent }]} accessibilityRole="button">
-          <Text style={[styles.btnText, { color: colors.background }]}>See my things</Text>
+          <Text style={[styles.btnText, { color: colors.onAccent }]}>See my things</Text>
         </Pressable>
         <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))} style={styles.link} accessibilityRole="button">
           <Text style={[styles.sub, { color: colors.textMuted }]}>Done for now</Text>

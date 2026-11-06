@@ -64,6 +64,9 @@ export type ThemePalette = {
   warningDim:   string;
   success:      string;
   successDim:   string;
+
+  // Text on an accent-coloured fill (set by legible(), not by the theme definitions)
+  onAccent?:    string;
 };
 
 // A theme is three hand-designed anchor palettes plus its identity/label —
@@ -87,28 +90,28 @@ export const THEMES: Record<ThemeId, ThemeTriad> = {
     name:       'Forest',
     nativeMode: 'light',
     dark: {
-      background:   '#0F1D0F',
-      surface:      '#19291A',
-      surfaceHigh:  '#233624',
-      accent:       '#7CCA80',
-      accentBright: '#A3D7A5',
-      accentDim:    'rgba(124,202,128,0.15)',
-      protect:      '#34F7E0',
-      calm:         '#F99F6E',
-      arcade:       '#B18FE7',
-      me:           '#5BBCF6',
-      text:         '#E7EEE7',
-      textSecondary:'#A3C2A5',
-      textMuted:    '#649067',
-      border:       'rgba(124,202,128,0.32)',
-      cardBorder:   'rgba(124,202,128,0.55)',
-      overlay:      'rgba(0,4,10,0.88)',
+      background:   '#111513',   // Simple look: quiet grey-green ground
+      surface:      '#1A1F1C',
+      surfaceHigh:  '#232A26',
+      accent:       '#E8AE45',   // amber, the one accent
+      accentBright: '#F0C066',
+      accentDim:    'rgba(232,174,69,0.16)',
+      protect:      '#6FBF8C',   // guarding = calm green
+      calm:         '#E8AE45',
+      arcade:       '#E8ECE7',
+      me:           '#E8ECE7',
+      text:         '#E8ECE7',
+      textSecondary:'#B4BEB6',
+      textMuted:    '#9AA59D',
+      border:       '#2A312D',
+      cardBorder:   '#2A312D',
+      overlay:      'rgba(0,0,0,0.62)',
       danger:       '#E28989',
       dangerDim:    'rgba(226,137,137,0.15)',
-      warning:      '#F99F6E',
-      warningDim:   'rgba(249,159,110,0.15)',
-      success:      '#7CCA80',
-      successDim:   'rgba(124,202,128,0.15)',
+      warning:      '#E8AE45',
+      warningDim:   'rgba(232,174,69,0.15)',
+      success:      '#6FBF8C',
+      successDim:   'rgba(111,191,140,0.15)',
     },
     grey: {
       background:   '#3A3E45',
@@ -135,28 +138,28 @@ export const THEMES: Record<ThemeId, ThemeTriad> = {
       successDim:   'rgba(152,205,155,0.15)',
     },
     light: {
-      background:   '#EAF5FF',   // Sky mist
+      background:   '#F2F3EF',   // Simple look: quiet grey-green ground (time of day tints it, see useTheme)
       surface:      '#FFFFFF',
-      surfaceHigh:  '#D6E8FF',   // Cloud blue
-      accent:       '#0B7A44',   // Meadow
-      accentBright: '#096338',
-      accentDim:    'rgba(11,122,68,0.1)',
-      protect:      '#0B7A44',
-      calm:         '#C2410C',
-      arcade:       '#6D28D9',
-      me:           '#1B62C2',   // Sky blue
-      text:         '#12233D',   // Midnight ink
-      textSecondary:'#24385A',
-      textMuted:    '#566F8D',
-      border:       'rgba(27,98,194,0.18)',
-      cardBorder:   '#C7DFF2',
-      overlay:      'rgba(18,35,61,0.45)',
-      danger:       '#C62828',
-      dangerDim:    'rgba(198,40,40,0.1)',
-      warning:      '#C2410C',
-      warningDim:   'rgba(194,65,12,0.1)',
-      success:      '#0B7A44',
-      successDim:   'rgba(11,122,68,0.1)',
+      surfaceHigh:  '#E7E9E3',
+      accent:       '#C98A14',   // amber
+      accentBright: '#8A5A00',   // dark amber for text
+      accentDim:    'rgba(201,138,20,0.14)',
+      protect:      '#3F7A55',
+      calm:         '#8A5A00',
+      arcade:       '#1D2420',
+      me:           '#1D2420',
+      text:         '#1D2420',
+      textSecondary:'#3E4943',
+      textMuted:    '#5B655E',
+      border:       '#DCDFD8',
+      cardBorder:   '#DCDFD8',
+      overlay:      'rgba(20,24,22,0.55)',
+      danger:       '#B42318',
+      dangerDim:    'rgba(180,35,24,0.1)',
+      warning:      '#8A5A00',
+      warningDim:   'rgba(138,90,0,0.12)',
+      success:      '#3F7A55',
+      successDim:   'rgba(63,122,85,0.12)',
     },
   },
 
@@ -630,7 +633,7 @@ function lerpColorStr(c1: string, c2: string, t: number): string {
 function lerpPalette(a: ThemePalette, b: ThemePalette, t: number): ThemePalette {
   const out = {} as ThemePalette;
   (Object.keys(a) as (keyof ThemePalette)[]).forEach((key) => {
-    out[key] = lerpColorStr(a[key], b[key], t);
+    out[key] = lerpColorStr(a[key] as string, b[key] as string, t);
   });
   return out;
 }
@@ -736,6 +739,10 @@ function legible(p: ThemePalette): ThemePalette {
   // Identity / semantic colors double as text and icon tints
   (['accent', 'accentBright', 'protect', 'calm', 'arcade', 'me', 'danger', 'warning', 'success'] as const)
     .forEach((k) => { out[k] = ensureText(p[k], bgs, 3); });
+  // Ink or white, whichever reads better on the accent fill (amber takes dark ink).
+  const acc = parseColor(out.accent);
+  const INK = parseColor('#161B18');
+  out.onAccent = ratio(INK, acc) >= ratio(WHITE, acc) ? '#161B18' : '#FFFFFF';
   out.border     = ensureBorder(p.border,     bgs.slice(0, 2), 1.5);
   out.cardBorder = ensureBorder(p.cardBorder, bgs.slice(0, 2), 1.8);
   return out;

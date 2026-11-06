@@ -99,7 +99,9 @@ export function PlannerToday({ char, stage, petName, statusLabel, statusColor, p
   const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   const progress = walkAways === 0
     ? 'Your first walk-away starts the count.'
-    : `${daysGained} day${daysGained === 1 ? '' : 's'} gained · ${walkAways} walk-away${walkAways === 1 ? '' : 's'}`;
+    : simple
+      ? `${walkAways} walk-away${walkAways === 1 ? '' : 's'} so far`
+      : `${daysGained} day${daysGained === 1 ? '' : 's'} gained · ${walkAways} walk-away${walkAways === 1 ? '' : 's'}`;
 
   return (
     <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
@@ -131,6 +133,20 @@ export function PlannerToday({ char, stage, petName, statusLabel, statusColor, p
         <View style={[styles.dot, { backgroundColor: statusColor }]} />
         <Text style={[styles.stripText, { color: colors.text }]} numberOfLines={1}>{statusLabel}</Text>
         <Feather name={protectionOff ? 'alert-circle' : 'chevron-right'} size={16} color={protectionOff ? statusColor : colors.textMuted} />
+      </Pressable>
+
+      {/* Calm: the one button for the moment the urge shows up */}
+      <Pressable
+        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onCalm(); }}
+        style={({ pressed }) => [styles.calm, { backgroundColor: colors.accent, opacity: pressed ? 0.85 : 1 }]}
+        accessibilityRole="button"
+        accessibilityLabel={simple ? 'Need a minute. Breathe, play, or write a line.' : 'Calm. Breathe, play, or write a line.'}
+      >
+        <Feather name="wind" size={20} color={colors.onAccent} />
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.calmTitle, { color: colors.onAccent }]}>{simple ? 'Need a minute' : 'Calm'}</Text>
+          <Text style={[styles.calmSub, { color: colors.onAccent }]}>{simple ? 'Breathe, ground yourself, make something' : 'Breathe, play, or write a line'}</Text>
+        </View>
       </Pressable>
 
       <SlipCard />
@@ -200,19 +216,6 @@ export function PlannerToday({ char, stage, petName, statusLabel, statusColor, p
         </Pressable>
       )}
 
-      {/* Calm: the one button for the moment the urge shows up */}
-      <Pressable
-        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onCalm(); }}
-        style={({ pressed }) => [styles.calm, { backgroundColor: colors.accent, opacity: pressed ? 0.85 : 1 }]}
-        accessibilityRole="button"
-        accessibilityLabel={simple ? 'Need a minute. Breathe, play, or write a line.' : 'Calm. Breathe, play, or write a line.'}
-      >
-        <Feather name="wind" size={20} color={colors.background} />
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.calmTitle, { color: colors.background }]}>{simple ? 'Need a minute' : 'Calm'}</Text>
-          <Text style={[styles.calmSub, { color: colors.background }]}>Breathe, play, or write a line</Text>
-        </View>
-      </Pressable>
 
       {!simple && (
         <Pressable onPress={() => router.push('/customize' as any)} hitSlop={8} style={styles.layoutLink} accessibilityRole="button">
@@ -228,7 +231,7 @@ const styles = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.md },
   hello: { fontFamily: FONTS.display, fontSize: 26 },
   sub: { fontFamily: FONTS.body, fontSize: 13, marginTop: 2 },
-  badge: { width: 52, height: 60, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  badge: { width: 56, height: 56, borderRadius: 28, borderWidth: 1, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   strip: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, paddingVertical: 12, paddingHorizontal: SPACING.md, minHeight: 44 },
   dot: { width: 9, height: 9, borderRadius: 5 },
   stripText: { flex: 1, fontFamily: FONTS.bodyMedium, fontSize: 14 },
@@ -241,8 +244,8 @@ const styles = StyleSheet.create({
   rowLabel: { fontFamily: FONTS.bodyMedium, fontSize: 15 },
   rowSub: { fontFamily: FONTS.body, fontSize: 12.5 },
   input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontFamily: FONTS.body, fontSize: 14 },
-  calm: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, borderRadius: 16, paddingVertical: 16, paddingHorizontal: SPACING.lg, minHeight: 64 },
-  calmTitle: { fontFamily: FONTS.display, fontSize: 22 },
+  calm: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 18, minHeight: 60 },
+  calmTitle: { fontFamily: FONTS.display, fontSize: 17 },
   calmSub: { fontFamily: FONTS.body, fontSize: 13, opacity: 0.9 },
   pickRow: { flexDirection: 'row', alignSelf: 'center', alignItems: 'center', gap: 8, minHeight: 44 },
   pickText: { fontFamily: FONTS.bodyBold, fontSize: 14 },

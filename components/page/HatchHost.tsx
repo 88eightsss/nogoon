@@ -148,7 +148,7 @@ function Ceremony({ packId }: { packId: string }) {
             <Text style={styles.tag}>{pack.tagline}</Text>
             <View style={styles.row}>
               <Pressable onPress={() => finish(true)} style={[styles.btn, { backgroundColor: colors.accent }]}>
-                <Text style={[styles.btnText, { color: colors.background }]}>Try it now</Text>
+                <Text style={[styles.btnText, { color: colors.onAccent }]}>Try it now</Text>
               </Pressable>
               <Pressable onPress={() => finish(false)} style={[styles.btn, styles.btnGhost]}>
                 <Text style={[styles.btnText, { color: '#fff' }]}>Later</Text>

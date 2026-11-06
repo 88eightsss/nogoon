@@ -48,8 +48,8 @@ export default function DoorScreen() {
           <Text style={[styles.msg, { color: colors.text }]}>{message.split('\n')[0]}</Text>
         </View>
         <Pressable onPress={send} accessibilityRole="button" style={[styles.btn, { backgroundColor: colors.accent }]}>
-          <Feather name="send" size={18} color={colors.background} />
-          <Text style={[styles.btnText, { color: colors.background }]}>Choose who to send it to</Text>
+          <Feather name="send" size={18} color={colors.onAccent} />
+          <Text style={[styles.btnText, { color: colors.onAccent }]}>Choose who to send it to</Text>
         </Pressable>
         <Text style={[styles.small, { color: colors.textMuted }]}>
           It opens your phone's share sheet. Pick one to a few people. Sample: the link only opens in this app, on a phone that has it.
@@ -81,7 +81,7 @@ export default function DoorScreen() {
         ) : (
           <View style={{ gap: SPACING.sm }}>
             <Pressable onPress={() => choose('coming')} accessibilityRole="button" style={[styles.btn, { backgroundColor: colors.accent }]}>
-              <Text style={[styles.btnText, { color: colors.background }]}>I'll come along</Text>
+              <Text style={[styles.btnText, { color: colors.onAccent }]}>I'll come along</Text>
             </Pressable>
             <Pressable onPress={() => choose('later')} accessibilityRole="button" style={[styles.btn2, { borderColor: colors.cardBorder, backgroundColor: colors.surface }]}>
               <Text style={[styles.btn2Text, { color: colors.text }]}>Look at it later</Text>
