@@ -48,7 +48,12 @@ export function useTheme(): ThemeHook {
   const brightness = useBrightness();
 
   return useMemo(() => {
-    const colors = resolveSkinPalette(DEFAULT_THEME, brightness, CORE_PACK);
+    const base = resolveSkinPalette(DEFAULT_THEME, brightness, CORE_PACK);
+    // Light follows the time of day: a warmer ground in the morning, a cooler one in the evening.
+    // (Dark has one palette.) Re-read whenever the screen re-renders, no timer.
+    const h = new Date().getHours();
+    const ground = brightness >= 100 ? (h >= 5 && h < 11 ? '#F5F2EA' : h >= 17 && h < 21 ? '#EDEFF2' : null) : null;
+    const colors = ground ? { ...base, background: ground } : base;
     const border = BORDERS[DEFAULT_BORDER];
 
     const radius = border.radius; // each style now owns a real radius value directly
