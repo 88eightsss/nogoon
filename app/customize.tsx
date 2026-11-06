@@ -11,9 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
-import { useFlowStore } from '@/stores/useFlowStore';
-import { usePackStore, GATE_NOTE_MAX, DEFAULT_COMPANION_POS, type GateVoice, type FloatMode, type CompanionSize, type PaperChoice, type DayDisplay } from '@/stores/usePackStore';
-import { availablePacks } from '@/constants/packs';
+import { usePackStore, GATE_NOTE_MAX, DEFAULT_COMPANION_POS, type GateVoice, type FloatMode, type CompanionSize, type DayDisplay } from '@/stores/usePackStore';
 import { FONTS } from '@/constants/Colors';
 import type { CharacterId } from '@/stores/usePetStore';
 import type { GoonStage } from '@/constants/sprites';
@@ -23,13 +21,8 @@ import { useBriefingPrefs } from '@/stores/useBriefingPrefs';
 import { setBriefingReminder } from '@/utils/notifications';
 import { TimeField } from '@/components/TimeField';
 import { useWalkStore, GATE_GOALS } from '@/stores/useWalkStore';
-import { useRoomStore, ROOM_NAME_MAX, type TodayLayout, type TabStyle } from '@/stores/useRoomStore';
-import { RoomScene } from '@/components/page/RoomScene';
-import { LOOK_PARTS, ROOM_SWATCHES, DECOR_UNLOCK, type DecorKey } from '@/constants/room';
-import { useUserStore } from '@/stores/useUserStore';
 import { useMascotStore, stageOf, nextStageAt, STAGE_AT } from '@/stores/useMascotStore';
 import { SPACING } from '@/constants/Spacing';
-import { HELP_FIRST_CHOICES } from '@/constants/setupQuestions';
 
 const VOICES: { id: GateVoice; label: string }[] = [
   { id: 'gentle', label: 'Gentle' }, { id: 'hype', label: 'Hype' }, { id: 'dry', label: 'Dry' },
@@ -43,20 +36,12 @@ const SIZES: { id: CompanionSize; label: string }[] = [
 const DAY_DISPLAYS: { id: DayDisplay; label: string }[] = [
   { id: 'number', label: 'Big number' }, { id: 'mascot', label: 'On the mascot' }, { id: 'hidden', label: 'Hidden' },
 ];
-const PAPERS: { id: PaperChoice; label: string }[] = [
-  { id: 'auto', label: 'Skin default' }, { id: 'ruled', label: 'Ruled' }, { id: 'grid', label: 'Grid' },
-  { id: 'dots', label: 'Dots' }, { id: 'none', label: 'Plain' },
-];
-const ACCENTS = ['#1B62C2', '#0B7A44', '#FF6F61', '#7A3FD1', '#12A37F', '#DB2777', '#C2410C', '#CA8A04'];
 
-type CustSection = 'room' | 'layout' | 'skins' | 'companion' | 'gate' | 'colour';
+type CustSection = 'companion' | 'gate' | 'briefing';
 const HUB: { id: CustSection; icon: ComponentProps<typeof Feather>['name']; title: string; sub: string }[] = [
-  { id: 'room',      icon: 'home',       title: 'Your room',            sub: 'Name, colours, decor' },
-  { id: 'skins',     icon: 'package',    title: 'Skins',                sub: 'Change how the whole app looks' },
   { id: 'companion', icon: 'smile',      title: 'Your companion',       sub: 'Which one, how it floats, how big' },
-  { id: 'colour',    icon: 'droplet',    title: 'Colour & paper',       sub: 'Accent colour and page background' },
   { id: 'gate',      icon: 'shield',     title: 'At the gate',          sub: 'Instead bundles, your own list, your note' },
-  { id: 'layout',    icon: 'layout',     title: 'Layout & news',        sub: 'Today page, what helps first, news' },
+  { id: 'briefing',  icon: 'sunrise',    title: 'Briefing and sponsors', sub: 'News, daily reminder, sponsor links' },
 ];
 
 const STAGE_LABELS = ['Dormant', 'Awakening', 'Standing', 'Powered', 'Legendary'];
@@ -137,80 +122,8 @@ function Chips<T extends string>({ items, value, onChange, colors }: {
   );
 }
 
-// ── Layout previews: tiny phone sketches so you can see the layout before choosing it ──────────
-const LAYOUT_CHOICES: { id: TodayLayout; title: string; sub: string }[] = [
-  { id: 'planner', title: 'Day plan',     sub: 'Morning, afternoon, evening, a small companion, and Calm' },
-  { id: 'roomlast', title: 'Room last',    sub: 'Everything on top, then the room, then Need a minute' },
-  { id: 'room',  title: 'Room',           sub: 'Your companion in its room' },
-  { id: 'cards', title: 'Room and cards', sub: 'Smaller room, your numbers, good news' },
-  { id: 'plain', title: 'Plain page',     sub: 'Paper, companion and stamps' },
-  { id: 'focus', title: 'Just the button', sub: 'Streak, button, nothing else' },
-  { id: 'pet',   title: 'Just my pet',     sub: 'Your room and companion, nothing else' },
-];
 
-function LayoutSketch({ kind, colors }: { kind: TodayLayout; colors: { accent: string; accentDim: string; border: string; surfaceHigh: string; textMuted: string } }) {
-  const line = { height: 4, borderRadius: 2, backgroundColor: colors.border };
-  const yellow = { height: 12, borderRadius: 5, backgroundColor: '#FFC21A' };
-  const card = { height: 9, borderRadius: 3, backgroundColor: colors.surfaceHigh, borderWidth: 1, borderColor: colors.border };
-  return (
-    <View style={{ width: 62, height: 96, borderRadius: 9, borderWidth: 1.5, borderColor: colors.border, padding: 5, gap: 4, backgroundColor: colors.surfaceHigh + '88' }}>
-      <View style={[line, { width: '55%' }]} />
-      {kind === 'roomlast' && (
-        <>
-          <View style={card} />
-          <View style={card} />
-          <View style={{ height: 24, borderRadius: 4, backgroundColor: colors.accentDim }} />
-        </>
-      )}
-      {kind === 'planner' && (
-        <>
-          <View style={card} />
-          <View style={card} />
-          <View style={card} />
-        </>
-      )}
-      {kind === 'room' && <View style={{ height: 36, borderRadius: 4, backgroundColor: colors.accentDim }} />}
-      {kind === 'cards' && (
-        <>
-          <View style={{ height: 22, width: '72%', alignSelf: 'center', borderRadius: 4, backgroundColor: colors.accentDim }} />
-          <View style={{ flexDirection: 'row', gap: 2 }}>
-            {[0, 1, 2].map((i) => <View key={i} style={[card, { flex: 1, height: 10 }]} />)}
-          </View>
-          <View style={card} />
-        </>
-      )}
-      {kind === 'plain' && (
-        <>
-          <View style={[line, { width: '40%', height: 8, backgroundColor: colors.textMuted }]} />
-          <View style={[line, { width: '85%' }]} />
-          <View style={[line, { width: '70%' }]} />
-        </>
-      )}
-      {kind === 'focus' && (
-        <>
-          <View style={{ width: 16, height: 16, borderRadius: 8, alignSelf: 'center', backgroundColor: colors.accentDim }} />
-          <View style={[line, { width: 20, height: 10, alignSelf: 'center', backgroundColor: colors.textMuted }]} />
-        </>
-      )}
-      {kind === 'pet' && <View style={{ height: 52, borderRadius: 4, backgroundColor: colors.accentDim }} />}
-      {kind !== 'pet' && <View style={yellow} />}
-      {kind !== 'focus' && kind !== 'roomlast' && kind !== 'pet' && <View style={card} />}
-      {kind === 'plain' && <View style={card} />}
-    </View>
-  );
-}
 
-function TabSketch({ kind, colors }: { kind: TabStyle; colors: { accent: string; border: string; textMuted: string; surfaceHigh: string } }) {
-  return (
-    <View style={{ width: 118, height: 40, borderRadius: 8, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.surfaceHigh + '88', flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-around', paddingBottom: 6, paddingHorizontal: 4 }}>
-      {[0, 1, 2, 3, 4].map((i) =>
-        i === 2 && kind === 'raised'
-          ? <View key={i} style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: colors.accent, marginBottom: 5, borderWidth: 2, borderColor: colors.surfaceHigh }} />
-          : <View key={i} style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: i === 2 ? colors.accent : colors.textMuted }} />
-      )}
-    </View>
-  );
-}
 
 export default function CustomizeScreen() {
   const { colors, cardStyle } = useTheme();
@@ -225,9 +138,6 @@ export default function CustomizeScreen() {
   };
   const changeRemindAt = (v: string) => { setRemindAt(v); if (remind) setBriefingReminder(true, v); };
   const setShowWorldNews = usePackStore((s) => s.setShowWorldNews);
-  const activePackId  = usePackStore((s) => s.activePackId);
-  const unlockedIds   = usePackStore((s) => s.unlockedIds);
-  const setActivePack = usePackStore((s) => s.setActivePack);
   const gateNote      = usePackStore((s) => s.gateNote);
   const bundleIds     = useOfferStore((s) => s.bundleIds);
   const gateWalk      = useWalkStore((s) => s.gateWalk);
@@ -236,28 +146,12 @@ export default function CustomizeScreen() {
   const setGateGoal   = useWalkStore((s) => s.setGateGoal);
   const myList        = useOfferStore((s) => s.custom);
   const toggleBundle  = useOfferStore((s) => s.toggleBundle);
-  const todayLayout   = useRoomStore((s) => s.todayLayout);
-  const setTodayLayout = useRoomStore((s) => s.setTodayLayout);
-  const helpFirst     = useRoomStore((s) => s.helpFirst);
-  const setHelpFirst  = useRoomStore((s) => s.setHelpFirst);
-  const tabStyle       = useRoomStore((s) => s.tabStyle);
-  const setTabStyle    = useRoomStore((s) => s.setTabStyle);
   const showSponsors  = useOfferStore((s) => s.showSponsors);
   const setShowSponsors = useOfferStore((s) => s.setShowSponsors);
   const addMine        = useOfferStore((s) => s.addCustom);
   const removeMine     = useOfferStore((s) => s.removeCustom);
   const [mineDraft, setMineDraft] = useState('');
   const [section, setSection] = useState<CustSection | null>(null);
-  const roomName      = useRoomStore((s) => s.roomName);
-  const setRoomName   = useRoomStore((s) => s.setRoomName);
-  const look          = useRoomStore((s) => s.look);
-  const setLook       = useRoomStore((s) => s.setLook);
-  const decor         = useRoomStore((s) => s.decor);
-  const setDecor      = useRoomStore((s) => s.setDecor);
-  const resetRoom     = useRoomStore((s) => s.resetRoom);
-  const walkAways     = useUserStore((s) => s.walkAwayCount);
-  const streakNow     = useUserStore((s) => s.streak);
-  const [previewNight, setPreviewNight] = useState(false);
   // Only while this screen is on top, so Back still works on screens opened from here.
   useFocusEffect(useCallback(() => {
     const sub = section
@@ -286,28 +180,13 @@ export default function CustomizeScreen() {
   const companionSnap    = usePackStore((s) => s.companionSnap);
   const setCompanionSnap = usePackStore((s) => s.setCompanionSnap);
   const setCompanionPos  = usePackStore((s) => s.setCompanionPos);
-  const accentOverride   = usePackStore((s) => s.accentOverride);
-  const setAccentOverride = usePackStore((s) => s.setAccentOverride);
-  const paperOverride    = usePackStore((s) => s.paperOverride);
-  const setPaperOverride = usePackStore((s) => s.setPaperOverride);
 
-  // Simple edition: Core and Notebook skins, plus whichever skin is already active. The rest appear
-  // under "Show me everything".
-  const showEverything = useFlowStore((s) => s.showEverything);
-  const allPacks = availablePacks(unlockedIds);
-  const packs = showEverything
-    ? allPacks
-    : allPacks.filter((p) => p.id === 'core' || p.id === 'notebook' || p.id === activePackId);
-  // Skins only appear once there is a second one to choose. Codes are for characters, not skins.
-  // v3 keeps only the companion and the gate here. Room, skins, colour and layout are retired:
-  // the app has one look (Light or Dark, set in Me > Look) and one Home. Their code stays below
-  // until the phone test is done, then it gets deleted.
-  const hub = HUB.filter((h) => h.id === 'companion' || h.id === 'gate');
+  const hub = HUB.filter((h) => h.id === 'companion' || h.id === 'gate' || h.id === 'briefing');
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>Companion and gate</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Companion, gate, briefing</Text>
         <Pressable onPress={() => router.back()} hitSlop={10} accessibilityLabel="Close">
           <Feather name="x" size={24} color={colors.textMuted} />
         </Pressable>
@@ -317,7 +196,7 @@ export default function CustomizeScreen() {
         {!section && (
           <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder, padding: 0 }]}>
             {hub.map((h, i) => {
-              const sub = h.id === 'skins' && packs.length > 1 ? `Now: ${packs.find((p) => p.id === activePackId)?.name ?? 'Core'}` : h.sub;
+              const sub = h.sub;
               return (
                 <Pressable
                   key={h.id}
@@ -346,132 +225,11 @@ export default function CustomizeScreen() {
           </Pressable>
         )}
 
-        {section === 'room' && (
+
+
+
+        {section === 'briefing' && (
         <>
-        <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder, alignItems: 'center' }]}>
-          <RoomScene
-            char={activeChar} stage={stageOf(activeFed)} streak={streakNow} walkAways={walkAways}
-            headline={null} showSponsors={false} petName="" interactive={false} showTicker={false}
-            forceNight={previewNight} outerPad={96}
-          />
-          <Chips
-            items={[{ id: 'day', label: 'Day' }, { id: 'night', label: 'Night' }]}
-            value={previewNight ? 'night' : 'day'}
-            onChange={(v) => setPreviewNight(v === 'night')}
-            colors={colors}
-          />
-        </View>
-
-        <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
-          <Text style={[styles.cardTitle, { color: colors.text }]}>Name</Text>
-          <TextInput
-            value={roomName}
-            onChangeText={setRoomName}
-            maxLength={ROOM_NAME_MAX}
-            placeholder="Your room"
-            placeholderTextColor={colors.textMuted}
-            autoCorrect={false}
-            returnKeyType="done"
-            style={[styles.input, { color: colors.text, borderColor: colors.border }]}
-          />
-        </View>
-
-        <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
-          <Text style={[styles.cardTitle, { color: colors.text }]}>Colours</Text>
-          {LOOK_PARTS.map(({ part, label }) => (
-            <View key={part} style={{ gap: 6 }}>
-              <Text style={[styles.hint, { color: colors.textSecondary }]}>{label}</Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-                {ROOM_SWATCHES[part].map((sw) => {
-                  const on = look[part] === sw.key;
-                  return (
-                    <Pressable
-                      key={sw.key}
-                      onPress={() => setLook(part, sw.key)}
-                      accessibilityRole="button"
-                      accessibilityLabel={`${label}: ${sw.name}`}
-                      accessibilityState={{ selected: on }}
-                      hitSlop={4}
-                      style={{
-                        width: 34, height: 34, borderRadius: 17, backgroundColor: sw.a,
-                        borderWidth: on ? 3 : 1, borderColor: on ? colors.accent : colors.border,
-                      }}
-                    />
-                  );
-                })}
-              </View>
-            </View>
-          ))}
-        </View>
-
-        <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
-          <Text style={[styles.cardTitle, { color: colors.text }]}>Decor</Text>
-          <Text style={[styles.hint, { color: colors.textSecondary }]}>
-            Pieces appear as you walk away. Once earned they stay, and you choose whether to show them.
-          </Text>
-          {(Object.keys(DECOR_UNLOCK) as DecorKey[]).map((k) => {
-            const u = DECOR_UNLOCK[k];
-            const locked = walkAways < u.at;
-            return (
-              <View key={k} style={styles.rowBetween}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.body, { color: locked ? colors.textMuted : colors.text }]}>{u.label}</Text>
-                  {locked && <Text style={[styles.hint, { color: colors.textMuted }]}>Unlocks at {u.at} walk-aways ({Math.max(0, u.at - walkAways)} to go)</Text>}
-                </View>
-                <Switch
-                  value={decor[k]}
-                  disabled={locked}
-                  onValueChange={(v) => setDecor(k, v)}
-                  trackColor={{ false: colors.border, true: colors.accent }}
-                  thumbColor="#fff"
-                />
-              </View>
-            );
-          })}
-        </View>
-
-        <Pressable
-          onPress={resetRoom}
-          accessibilityRole="button"
-          style={[styles.btn, { borderColor: colors.border, borderWidth: 1, backgroundColor: 'transparent' }]}
-        >
-          <Text style={[styles.btnText, { color: colors.textSecondary }]}>Reset colours and decor</Text>
-        </Pressable>
-        </>
-        )}
-
-        {section === 'layout' && (
-        <>
-        <Text style={[styles.section, { color: colors.textMuted }]}>Today page</Text>
-        <View style={styles.tileGrid}>
-          {LAYOUT_CHOICES.map((l) => {
-            const on = todayLayout === l.id;
-            return (
-              <Pressable
-                key={l.id}
-                onPress={() => setTodayLayout(l.id)}
-                accessibilityRole="button"
-                accessibilityState={{ selected: on }}
-                accessibilityLabel={`${l.title}. ${l.sub}`}
-                style={[styles.tile, cardStyle, { backgroundColor: on ? colors.accentDim : colors.surface, borderColor: on ? colors.accent : colors.cardBorder }]}
-              >
-                <LayoutSketch kind={l.id} colors={colors} />
-                <Text style={[styles.cardTitle, { color: colors.text, textAlign: 'center' }]}>{l.title}</Text>
-                <Text style={[styles.hint, { color: colors.textSecondary, textAlign: 'center' }]}>{l.sub}</Text>
-                {on && <Feather name="check-circle" size={16} color={colors.accent} />}
-              </Pressable>
-            );
-          })}
-        </View>
-
-        <Text style={[styles.section, { color: colors.textMuted }]}>What helps first</Text>
-        <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
-          <Text style={[styles.body, { color: colors.textSecondary }]}>
-            Shown first in Need a minute on Today, and puts its group first in Unwind. Nothing is hidden.
-          </Text>
-          <Chips items={HELP_FIRST_CHOICES} value={helpFirst} onChange={setHelpFirst} colors={colors} />
-        </View>
-
         <Text style={[styles.section, { color: colors.textMuted }]}>Briefing and sponsors</Text>
         <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
           <View style={styles.rowBetween}>
@@ -524,31 +282,6 @@ export default function CustomizeScreen() {
             />
           </View>
         </View>
-        </>
-        )}
-
-        {section === 'skins' && (
-        <>
-        {packs.length > 1 && <Text style={[styles.section, { color: colors.textMuted }]}>Skins</Text>}
-        {packs.length > 1 && packs.map((p) => {
-          const active = p.id === activePackId || (p.id === 'core' && !packs.some((x) => x.id === activePackId));
-          const swatch = p.parts.theme ? p.parts.theme[p.parts.theme.nativeMode].accent : colors.accent;
-          return (
-            <Pressable
-              key={p.id}
-              onPress={() => setActivePack(p.id)}
-              style={[styles.pack, cardStyle, { backgroundColor: colors.surface, borderColor: active ? colors.accent : colors.cardBorder }]}
-            >
-              <View style={[styles.swatch, { backgroundColor: swatch }]} />
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.cardTitle, { color: colors.text }]}>{p.name}</Text>
-                <Text style={[styles.body, { color: colors.textSecondary }]}>{p.tagline}</Text>
-              </View>
-              {active && <Feather name="check-circle" size={20} color={colors.accent} />}
-            </Pressable>
-          );
-        })}
-
         </>
         )}
 
@@ -720,34 +453,6 @@ export default function CustomizeScreen() {
         </>
         )}
 
-        {section === 'colour' && (
-        <>
-        <Text style={[styles.section, { color: colors.textMuted }]}>Colour & paper</Text>
-        <View style={[styles.card, cardStyle, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
-          <Text style={[styles.body, { color: colors.textSecondary }]}>Accent colour</Text>
-          <View style={styles.voices}>
-            <Pressable
-              onPress={() => setAccentOverride('')}
-              style={[styles.voice, { borderColor: accentOverride === '' ? colors.accent : colors.border }]}
-              accessibilityLabel="Use the skin's own accent"
-            >
-              <Text style={[styles.btnText, { color: accentOverride === '' ? colors.accent : colors.textSecondary }]}>Skin</Text>
-            </Pressable>
-            {ACCENTS.map((c) => (
-              <Pressable
-                key={c}
-                onPress={() => setAccentOverride(c)}
-                accessibilityLabel={`Accent ${c}`}
-                style={[styles.dot, { backgroundColor: c, borderColor: accentOverride === c ? colors.text : 'transparent' }]}
-              />
-            ))}
-          </View>
-          <Text style={[styles.body, { color: colors.textSecondary }]}>Page paper</Text>
-          <Chips items={PAPERS} value={paperOverride} onChange={setPaperOverride} colors={colors} />
-        </View>
-
-        </>
-        )}
 
         {section === 'gate' && (
         <>
